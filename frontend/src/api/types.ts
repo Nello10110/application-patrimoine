@@ -19,6 +19,9 @@ export interface Holding {
   compte: string | null
   devise: string | null
   type_actif: string | null
+  // "manuel" (saisie à la main ou relevé importé) | "reconstruit" (grand livre de
+  // transactions) — cf. LOT 3.4, `models.ORIGINE_MANUEL`/`ORIGINE_RECONSTRUIT`.
+  origine: string
   created_at: string
   updated_at: string
   market_data: MarketData | null
@@ -136,6 +139,7 @@ export interface TransactionImportResult {
   mouvements_hors_bourse_exclus: number
   positions_recalculees: number
   anomalies_detectees: number
+  lignes_manuelles_remplacees: number
 }
 
 export interface PerformanceSummary {

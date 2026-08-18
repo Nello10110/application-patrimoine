@@ -15,8 +15,29 @@ Les titres cotés hors zone euro (JPY, USD, GBp/pence...) sont systématiquement
 convertis en EUR via les paires de change Yahoo (`XXXEUR=X`) avant stockage :
 `prix_actuel` est donc toujours en EUR, quelle que soit la devise de cotation
 d'origine (conservée à titre indicatif dans `devise`).
+
+Yahoo Finance n'offrant aucun SLA et limitant les appels côté serveur (LOT 7.5),
+deux garde-fous limitent la fréquence des sollicitations :
+- `DELAI_ENTRE_APPELS_SECONDES` : temporisation entre deux identifiants traités au
+  sein d'un même rafraîchissement (`refresh_tickers`), pour lisser les appels dans
+  le temps plutôt que de tous les envoyer d'un coup ;
+- `DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES` : délai minimal entre deux
+  rafraîchissements déclenchés manuellement (`verifier_et_enregistrer_rafraichissement_manuel`,
+  appelée par `routers/market_data.refresh`) — le rafraîchissement planifié n'est
+  pas concerné, il a déjà son propre intervalle réglable depuis les Réglages.
+
+`DELAI_ENTRE_APPELS_SECONDES` est neutralisé (mis à 0) sous test : la variable
+d'environnement `OUTIL_BOURSE_TESTING`, posée par `backend/conftest.py` avant tout
+import de l'application, est lue une seule fois ici à l'import du module. C'est la
+solution la plus simple qui n'exige aucune modification des fichiers de test
+existants (contrairement à un monkeypatch qu'il aurait fallu répéter partout où
+`refresh_tickers` est exercé indirectement, y compris via les routes HTTP) ; aucun
+test de cette suite n'a besoin d'observer un vrai délai, puisque `yf.Ticker`/
+`yf.Search` sont eux-mêmes neutralisés (`no_network_yfinance`, `tests/conftest.py`).
 """
 
+import os
+import time
 from datetime import datetime, timezone
 
 import yfinance as yf
@@ -31,6 +52,40 @@ QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
     "CRYPTO": {"CRYPTOCURRENCY"},
     "BOND": {"EQUITY", "ETF"},
 }
+
+DELAI_ENTRE_APPELS_SECONDES = 0.0 if os.environ.get("OUTIL_BOURSE_TESTING") else 0.25
+DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES = 60
+
+# Horodatage du dernier rafraîchissement manuel accepté (état mémoire du process,
+# suffisant pour une appli locale mono-utilisateur sans persistance nécessaire d'un
+# redémarrage à l'autre).
+_dernier_rafraichissement_manuel: datetime | None = None
+
+
+class RafraichissementTropFrequentError(Exception):
+    """Levée par `verifier_et_enregistrer_rafraichissement_manuel` quand un
+    rafraîchissement manuel est demandé avant l'écoulement du délai minimal."""
+
+    def __init__(self, secondes_restantes: float):
+        self.secondes_restantes = secondes_restantes
+        super().__init__(
+            f"Merci de patienter encore {secondes_restantes:.0f} seconde(s) avant un nouveau rafraîchissement manuel."
+        )
+
+
+def verifier_et_enregistrer_rafraichissement_manuel() -> None:
+    """À appeler en tête de la route de rafraîchissement manuel (LOT 7.5). Lève
+    `RafraichissementTropFrequentError` si le délai minimal n'est pas écoulé depuis
+    le précédent rafraîchissement manuel accepté ; sinon enregistre celui-ci comme
+    référence pour le prochain appel."""
+    global _dernier_rafraichissement_manuel
+    maintenant = datetime.now(timezone.utc)
+    if _dernier_rafraichissement_manuel is not None:
+        ecoule = (maintenant - _dernier_rafraichissement_manuel).total_seconds()
+        if ecoule < DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES:
+            raise RafraichissementTropFrequentError(DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES - ecoule)
+    _dernier_rafraichissement_manuel = maintenant
+
 
 # yf.Search(isin) échoue parfois à retrouver un titre pourtant coté (ADR sous un
 # ticker différent de l'ISIN émetteur, plusieurs cotations du même fonds sur des
@@ -263,6 +318,10 @@ def refresh_tickers(db: Session, items: list[tuple[str, str | None]]) -> list[di
         identifiant = (identifiant_brut or "").strip().upper()
         if not identifiant or identifiant in seen:
             continue
+        # Temporisation entre deux identifiants effectivement traités (LOT 7.5) : pas
+        # avant le tout premier, seulement entre deux appels Yahoo Finance successifs.
+        if seen and DELAI_ENTRE_APPELS_SECONDES:
+            time.sleep(DELAI_ENTRE_APPELS_SECONDES)
         seen.add(identifiant)
 
         ticker_resolu = resolve_ticker(db, identifiant, asset_class)

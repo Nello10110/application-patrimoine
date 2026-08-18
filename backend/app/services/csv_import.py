@@ -9,11 +9,16 @@ avant l'import définitif en base.
 import io
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
-_PENDING_IMPORTS: dict[str, pd.DataFrame] = {}
+# Chaque entrée porte l'horodatage de son dépôt, pour purger celles qui traînent
+# (LOT 3.5) : `_MAX_PENDING` bornait déjà le nombre d'entrées mais pas leur durée de
+# vie — un fichier oublié restait potentiellement en mémoire indéfiniment.
+_PENDING_IMPORTS: dict[str, tuple[pd.DataFrame, datetime]] = {}
 _MAX_PENDING = 20
+DUREE_EXPIRATION_PENDING = timedelta(minutes=30)
 
 
 @dataclass
@@ -24,7 +29,23 @@ class ParsedFile:
     total_rows: int = 0
 
 
+def _purger_imports_expires() -> None:
+    """Retire du dictionnaire toute entrée déposée depuis plus de
+    `DUREE_EXPIRATION_PENDING`. Appelée à chaque nouvel upload et à chaque lecture,
+    pour que l'expiration soit effective sans tâche de fond dédiée."""
+    maintenant = datetime.now(timezone.utc)
+    expires = [
+        token
+        for token, (_, depose_le) in _PENDING_IMPORTS.items()
+        if maintenant - depose_le > DUREE_EXPIRATION_PENDING
+    ]
+    for token in expires:
+        _PENDING_IMPORTS.pop(token, None)
+
+
 def parse_upload(filename: str, content: bytes) -> ParsedFile:
+    _purger_imports_expires()
+
     lower = filename.lower()
     if lower.endswith(".csv"):
         df = _read_csv(content)
@@ -39,7 +60,7 @@ def parse_upload(filename: str, content: bytes) -> ParsedFile:
     token = uuid.uuid4().hex
     if len(_PENDING_IMPORTS) >= _MAX_PENDING:
         _PENDING_IMPORTS.pop(next(iter(_PENDING_IMPORTS)))
-    _PENDING_IMPORTS[token] = df
+    _PENDING_IMPORTS[token] = (df, datetime.now(timezone.utc))
 
     preview = df.head(10).fillna("").astype(str).to_dict(orient="records")
     return ParsedFile(token=token, columns=list(df.columns), preview_rows=preview, total_rows=len(df))
@@ -55,10 +76,11 @@ def _read_csv(content: bytes) -> pd.DataFrame:
 
 
 def get_pending(token: str) -> pd.DataFrame:
-    df = _PENDING_IMPORTS.get(token)
-    if df is None:
+    _purger_imports_expires()
+    entree = _PENDING_IMPORTS.get(token)
+    if entree is None:
         raise KeyError("Fichier introuvable ou expiré, merci de ré-uploader")
-    return df
+    return entree[0]
 
 
 def clear_pending(token: str) -> None:

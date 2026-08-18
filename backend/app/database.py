@@ -58,7 +58,16 @@ def run_startup_migrations() -> None:
                 if colonne.name in colonnes_existantes:
                     continue
                 type_sql = colonne.type.compile(dialect=engine.dialect)
-                conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{colonne.name}" {type_sql}'))
+                # Si le modèle déclare un `server_default` (ex. `Holding.origine`), on
+                # l'inclut dans le ADD COLUMN : SQLite rétro-remplit alors les lignes déjà
+                # présentes avec cette valeur au lieu de les laisser NULL, cf. docstring
+                # de `Holding.origine`. Seules les valeurs texte simples sont supportées
+                # (seul cas rencontré à ce jour) ; échapper les apostrophes suffit donc.
+                clause_defaut = ""
+                if colonne.server_default is not None and isinstance(colonne.server_default.arg, str):
+                    valeur_echappee = colonne.server_default.arg.replace("'", "''")
+                    clause_defaut = f" DEFAULT '{valeur_echappee}'"
+                conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{colonne.name}" {type_sql}{clause_defaut}'))
                 logger.info("migration: colonne %s.%s ajoutée", table.name, colonne.name)
 
             index_uniques_existants = {

@@ -33,7 +33,17 @@ def _run_market_data_refresh() -> None:
     except Exception as exc:
         db.rollback()
         logger.exception("échec du rafraîchissement planifié")
-        _record_result(db, MARKET_DATA_REFRESH, "erreur", str(exc))
+        # Session neuve et indépendante (LOT 3.8) : si l'exception venait de `db`
+        # elle-même (connexion en mauvais état, transaction déjà invalidée...), un
+        # `_record_result(db, ...)` sur cette même session échouerait à son tour et
+        # le statut d'échec ne serait jamais persisté — l'utilisateur ne verrait
+        # jamais l'échec dans les Réglages. Une session fraîche isole complètement
+        # l'écriture du statut de la cause de l'échec.
+        db_statut = SessionLocal()
+        try:
+            _record_result(db_statut, MARKET_DATA_REFRESH, "erreur", str(exc))
+        finally:
+            db_statut.close()
     finally:
         db.close()
 

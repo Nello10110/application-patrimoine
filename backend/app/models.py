@@ -25,6 +25,19 @@ def utcnow() -> datetime:
 SOURCE_COMPOSITION = "composition"  # lignes réelles du fonds (Yahoo top_holdings / sector_weightings)
 SOURCE_INDICE = "indice"  # déduite du nom du fonds via reference_indices.repartition_geo_depuis_le_nom
 
+# Qualification de `Holding.origine` (cf. LOT 3.4) : arbitre le conflit entre saisie
+# manuelle et reconstruction automatique depuis le grand livre de transactions. Une
+# ligne "manuel" (créée à la main ou importée depuis un relevé de positions) survit
+# à un `rebuild_holdings` ; une ligne "reconstruit" en est le résultat et peut donc
+# en être librement supprimée/recréée. Valeur par défaut : ORIGINE_RECONSTRUIT, posée
+# aussi bien côté Python (nouvelles lignes créées par le code) que côté base
+# (`server_default`, cf. `database.run_startup_migrations`) — les lignes d'une base
+# existante, créées avant l'ajout de cette colonne, sont donc traitées comme
+# reconstruites : c'est la réalité de l'immense majorité des utilisateurs, dont le
+# portefeuille est entièrement issu d'un import de transactions.
+ORIGINE_MANUEL = "manuel"
+ORIGINE_RECONSTRUIT = "reconstruit"
+
 
 class Holding(Base):
     __tablename__ = "holdings"
@@ -37,6 +50,7 @@ class Holding(Base):
     compte: Mapped[str | None] = mapped_column(String, nullable=True)
     devise: Mapped[str | None] = mapped_column(String, nullable=True)
     type_actif: Mapped[str | None] = mapped_column(String, nullable=True)  # STOCK | FUND | CRYPTO | BOND | PRIVATE_FUND
+    origine: Mapped[str] = mapped_column(String, default=ORIGINE_RECONSTRUIT, server_default=ORIGINE_RECONSTRUIT)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

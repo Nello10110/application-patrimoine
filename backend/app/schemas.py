@@ -1,10 +1,28 @@
 """Schémas Pydantic (requêtes/réponses de l'API). Organisés dans l'ordre d'apparition
 des routeurs qui les utilisent : portefeuille, marché, objectifs, analyse, transactions,
-rentabilité, historique, fiche détaillée."""
+rentabilité, historique, fiche détaillée.
+
+Les contraintes de saisie (LOT 3.2) sont posées ici, sur les schémas, plutôt que par
+des `if` dispersés dans les routeurs : c'est le seul endroit que FastAPI consulte
+avant même d'atteindre le code métier, et les messages d'erreur (levés via
+`ValueError` dans les validateurs) sont rendus au client en français par le
+gestionnaire d'erreurs global de `main.py`, qui les fait remonter en `400` plutôt
+que le `422` par défaut de FastAPI."""
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+MESSAGE_TICKER_VIDE = "Le ticker ne peut pas être vide"
+MESSAGE_QUANTITE_POSITIVE = "La quantité doit être strictement positive (les positions vendues à découvert ne sont pas gérées)"
+MESSAGE_PRIX_NON_NEGATIF = "Le prix de revient moyen ne peut pas être négatif"
+
+
+def _normaliser_ticker(valeur: str) -> str:
+    """Nettoyage centralisé d'un ticker saisi : espaces superflus retirés, majuscules
+    imposées (un ticker/ISIN n'est jamais sensible à la casse dans cette appli).
+    Remplace les deux `.strip().upper()` auparavant dupliqués dans `routers/portfolio.py`."""
+    return valeur.strip().upper()
 
 
 class HoldingBase(BaseModel):
@@ -15,6 +33,28 @@ class HoldingBase(BaseModel):
     compte: str | None = None
     devise: str | None = None
     type_actif: str | None = None
+
+    @field_validator("ticker")
+    @classmethod
+    def _valider_ticker(cls, v: str) -> str:
+        v = _normaliser_ticker(v)
+        if not v:
+            raise ValueError(MESSAGE_TICKER_VIDE)
+        return v
+
+    @field_validator("quantite")
+    @classmethod
+    def _valider_quantite(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError(MESSAGE_QUANTITE_POSITIVE)
+        return v
+
+    @field_validator("prix_revient_moyen")
+    @classmethod
+    def _valider_prix_revient(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_PRIX_NON_NEGATIF)
+        return v
 
 
 class HoldingCreate(HoldingBase):
@@ -29,6 +69,30 @@ class HoldingUpdate(BaseModel):
     compte: str | None = None
     devise: str | None = None
     type_actif: str | None = None
+
+    @field_validator("ticker")
+    @classmethod
+    def _valider_ticker(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = _normaliser_ticker(v)
+        if not v:
+            raise ValueError(MESSAGE_TICKER_VIDE)
+        return v
+
+    @field_validator("quantite")
+    @classmethod
+    def _valider_quantite(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError(MESSAGE_QUANTITE_POSITIVE)
+        return v
+
+    @field_validator("prix_revient_moyen")
+    @classmethod
+    def _valider_prix_revient(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_PRIX_NON_NEGATIF)
+        return v
 
 
 class MarketDataOut(BaseModel):
@@ -49,6 +113,7 @@ class HoldingOut(HoldingBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    origine: str  # "manuel" | "reconstruit", cf. `models.ORIGINE_MANUEL`/`ORIGINE_RECONSTRUIT`
     created_at: datetime
     updated_at: datetime
     market_data: MarketDataOut | None = None
@@ -73,6 +138,13 @@ class ColumnMapping(BaseModel):
     devise_col: str | None = None
     replace_existing: bool = False
 
+    @field_validator("ticker_col", "quantite_col")
+    @classmethod
+    def _valider_colonne_obligatoire(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("La colonne est obligatoire")
+        return v
+
 
 class ImportResult(BaseModel):
     imported: int
@@ -84,11 +156,43 @@ class AllocationTargetItem(BaseModel):
     categorie: str
     pourcentage_cible: float
 
+    @field_validator("categorie")
+    @classmethod
+    def _valider_categorie(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("La catégorie ne peut pas être vide")
+        return v
+
+    @field_validator("pourcentage_cible")
+    @classmethod
+    def _valider_pourcentage(cls, v: float) -> float:
+        if not (0 <= v <= 100):
+            raise ValueError("Le pourcentage cible doit être compris entre 0 et 100")
+        return v
+
 
 class AllocationTargetsSet(BaseModel):
     annee: int
     geo: list[AllocationTargetItem]
     sector: list[AllocationTargetItem]
+
+    @model_validator(mode="after")
+    def _valider_categories_uniques(self) -> "AllocationTargetsSet":
+        """Détecte un doublon de catégorie *avant* l'écriture en base (LOT 3.1) :
+        sans ce contrôle, `routers/targets.set_targets` laisse SQLAlchemy lever une
+        `IntegrityError` sur la contrainte `uq_target_annee_type_categorie`, renvoyée
+        telle quelle en 500 par FastAPI."""
+        for groupe, items in (("geo", self.geo), ("sector", self.sector)):
+            vues: set[str] = set()
+            for item in items:
+                if item.categorie in vues:
+                    raise ValueError(
+                        f"Catégorie '{item.categorie}' en double dans la répartition '{groupe}' : "
+                        "chaque catégorie ne peut apparaître qu'une seule fois par année"
+                    )
+                vues.add(item.categorie)
+        return self
 
 
 class AllocationTargetOut(BaseModel):
@@ -162,6 +266,10 @@ class TransactionImportResult(BaseModel):
     mouvements_hors_bourse_exclus: int
     positions_recalculees: int
     anomalies_detectees: int = 0
+    # Nombre de lignes saisies manuellement supprimées car le grand livre reconstruit
+    # un ticker identique (LOT 3.4) : le grand livre fait foi, la ligne manuelle
+    # ferait doublon dans tous les calculs.
+    lignes_manuelles_remplacees: int = 0
 
 
 class PerformanceSummary(BaseModel):
@@ -265,3 +373,10 @@ class ScheduledJobOut(BaseModel):
 class ScheduledJobUpdate(BaseModel):
     enabled: bool
     intervalle_heures: float
+
+    @field_validator("intervalle_heures")
+    @classmethod
+    def _valider_intervalle(cls, v: float) -> float:
+        if not (0.25 <= v <= 168):
+            raise ValueError("L'intervalle doit être compris entre 0,25 heure (15 minutes) et 168 heures (une semaine)")
+        return v

@@ -231,7 +231,17 @@ export default function PortefeuillePage() {
                         onClick={() => setSelectedTicker(h.ticker)}
                         className="cursor-pointer hover:bg-slate-50"
                       >
-                        <td className="py-2 pr-4 font-medium text-slate-900">{h.ticker}</td>
+                        <td className="py-2 pr-4 font-medium text-slate-900">
+                          {h.ticker}
+                          {h.origine === 'manuel' && (
+                            <span
+                              title="Ligne saisie manuellement : non recalculée par un import de transactions"
+                              className="ml-2 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-slate-500"
+                            >
+                              saisie manuelle
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2 pr-4 text-slate-600">{md?.nom ?? h.nom ?? '—'}</td>
                         <td className="py-2 pr-4">{h.quantite}</td>
                         <td className="py-2 pr-4">{formatEuro(md?.prix_actuel ?? null)}</td>

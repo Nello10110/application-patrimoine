@@ -8,6 +8,10 @@
 - `no_network_yfinance` (autouse) : neutralise `yf.Ticker` et `yf.Search`, les
   deux seuls points d'entrée yfinance utilisés par le projet, pour qu'aucun test
   ne dépende du réseau ni de la disponibilité de Yahoo Finance.
+- `reinitialiser_limite_rafraichissement_manuel` (autouse) : remet à zéro l'état
+  mémoire du délai minimal entre rafraîchissements manuels (LOT 7.5) entre chaque
+  test, pour qu'un test n'hérite pas d'un rafraîchissement déclenché par un test
+  précédent dans le même process.
 """
 
 import itertools
@@ -24,6 +28,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.main import app
 from app.models import Holding, Transaction
+from app.services import market_data_service
 
 _compteur_transaction_id = itertools.count(1)
 
@@ -78,6 +83,11 @@ class FauxSearch:
 def no_network_yfinance(monkeypatch):
     monkeypatch.setattr(yf, "Ticker", FauxTicker)
     monkeypatch.setattr(yf, "Search", FauxSearch)
+
+
+@pytest.fixture(autouse=True)
+def reinitialiser_limite_rafraichissement_manuel(monkeypatch):
+    monkeypatch.setattr(market_data_service, "_dernier_rafraichissement_manuel", None)
 
 
 def make_transaction(db, **overrides) -> Transaction:

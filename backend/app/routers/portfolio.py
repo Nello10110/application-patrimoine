@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Holding
+from ..models import ORIGINE_MANUEL, Holding
 from ..schemas import (
     ColumnMapping,
     HoldingCreate,
@@ -16,7 +16,7 @@ from ..schemas import (
     ImportPreviewResponse,
     ImportResult,
 )
-from ..services import csv_import, historical_performance_service, holding_detail_service, performance_service
+from ..services import csv_import, historical_performance_service, holding_detail_service, performance_service, upload_limits
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -24,6 +24,10 @@ router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 @router.post("/import/preview", response_model=ImportPreviewResponse)
 async def import_preview(file: UploadFile):
     content = await file.read()
+    try:
+        upload_limits.verifier_taille_fichier(content)
+    except upload_limits.FichierTropVolumineuxError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     try:
         parsed = csv_import.parse_upload(file.filename or "upload", content)
     except ValueError as exc:
@@ -45,6 +49,22 @@ def _cellule_texte(row, colonne: str | None) -> str | None:
     return texte if texte and texte.lower() != "nan" else None
 
 
+def _colonnes_mappees_absentes(mapping: ColumnMapping, colonnes_fichier: list[str]) -> list[str]:
+    """Colonnes du mapping (obligatoires et optionnelles) qui n'existent pas dans le
+    fichier réellement uploadé (LOT 7.4) : sans ce contrôle, une erreur de mapping se
+    traduit par un import silencieusement vide (`row.get(...)` renvoie toujours `None`)
+    plutôt que par un message clair."""
+    candidates = {
+        "ticker": mapping.ticker_col,
+        "quantité": mapping.quantite_col,
+        "prix de revient": mapping.prix_revient_col,
+        "nom": mapping.nom_col,
+        "compte": mapping.compte_col,
+        "devise": mapping.devise_col,
+    }
+    return [f"{libelle} ('{colonne}')" for libelle, colonne in candidates.items() if colonne and colonne not in colonnes_fichier]
+
+
 @router.post("/import/confirm", response_model=ImportResult)
 def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db)):
     try:
@@ -52,35 +72,61 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db)):
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    if mapping.replace_existing:
-        db.query(Holding).delete()
+    colonnes_absentes = _colonnes_mappees_absentes(mapping, list(df.columns))
+    if colonnes_absentes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Colonne(s) introuvable(s) dans le fichier : {', '.join(colonnes_absentes)}",
+        )
 
     imported = 0
     skipped = 0
     errors: list[str] = []
 
-    for idx, row in df.iterrows():
-        ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
-        qty_val = csv_import.to_float(row.get(mapping.quantite_col))
+    # Tout ou rien (LOT 3.3) : un import (potentiellement précédé d'un vidage du
+    # portefeuille via `replace_existing`) est une seule transaction. Une erreur en
+    # cours de boucle (donnée inattendue, bug) déclenche un rollback explicite plutôt
+    # que de laisser le portefeuille dans un état partiel — au pire déjà vidé, jamais
+    # réécrit.
+    try:
+        if mapping.replace_existing:
+            # Ne vide que les lignes que l'utilisateur gère lui-même (saisie ou relevé
+            # importé). Les lignes issues du grand livre de transactions appartiennent
+            # au grand livre : les supprimer ici créerait un état incohérent que le
+            # prochain import de transactions rétablirait tout seul, sans que
+            # l'utilisateur comprenne pourquoi (cf. `models.Holding.origine`).
+            db.query(Holding).filter(Holding.origine == ORIGINE_MANUEL).delete()
 
-        if not ticker or qty_val is None:
-            skipped += 1
-            errors.append(f"Ligne {idx + 2}: ticker ou quantité invalide")
-            continue
+        for idx, row in df.iterrows():
+            ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
+            qty_val = csv_import.to_float(row.get(mapping.quantite_col))
 
-        db.add(
-            Holding(
-                ticker=ticker,
-                nom=_cellule_texte(row, mapping.nom_col),
-                quantite=qty_val,
-                prix_revient_moyen=csv_import.to_float(row.get(mapping.prix_revient_col)) if mapping.prix_revient_col else None,
-                compte=_cellule_texte(row, mapping.compte_col),
-                devise=_cellule_texte(row, mapping.devise_col),
+            if not ticker or qty_val is None:
+                skipped += 1
+                errors.append(f"Ligne {idx + 2}: ticker ou quantité invalide")
+                continue
+
+            db.add(
+                Holding(
+                    ticker=ticker,
+                    nom=_cellule_texte(row, mapping.nom_col),
+                    quantite=qty_val,
+                    prix_revient_moyen=csv_import.to_float(row.get(mapping.prix_revient_col)) if mapping.prix_revient_col else None,
+                    compte=_cellule_texte(row, mapping.compte_col),
+                    devise=_cellule_texte(row, mapping.devise_col),
+                    origine=ORIGINE_MANUEL,
+                )
             )
-        )
-        imported += 1
+            imported += 1
 
-    db.commit()
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Échec de l'import, le portefeuille n'a pas été modifié : {exc}",
+        ) from exc
+
     csv_import.clear_pending(mapping.file_token)
 
     return ImportResult(imported=imported, skipped=skipped, errors=errors)
@@ -116,8 +162,9 @@ def get_holding_price_history(ticker: str, db: Session = Depends(get_db)):
 
 @router.post("/holdings", response_model=HoldingOut)
 def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)):
-    holding = Holding(**payload.model_dump())
-    holding.ticker = holding.ticker.strip().upper()
+    # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
+    # (cf. schemas.py) : plus besoin de le refaire ici.
+    holding = Holding(**payload.model_dump(), origine=ORIGINE_MANUEL)
     db.add(holding)
     db.commit()
     db.refresh(holding)
@@ -130,8 +177,6 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     updates = payload.model_dump(exclude_unset=True)
-    if "ticker" in updates and updates["ticker"]:
-        updates["ticker"] = updates["ticker"].strip().upper()
     for key, value in updates.items():
         setattr(holding, key, value)
     db.commit()

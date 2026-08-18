@@ -1,15 +1,17 @@
 """Verrouille les migrations au démarrage (`app.database`) sur une base préexistante :
 ajout de colonne générique (`run_startup_migrations`, déjà en place avant ce lot,
-appliqué ici à la nouvelle colonne `FundComposition.source`) et renommage de contenu
-"Autres" -> "Autres zones"/"Autres secteurs" (`migrate_rename_categorie_autres`,
-introduit par le LOT 2.2). Chaque test pointe `app.database.engine` vers une base
-SQLite jetable dédiée, jamais la vraie `portfolio.db` ni celle des autres tests."""
+appliqué ici à la nouvelle colonne `FundComposition.source` et, pour le LOT 3.4, à
+`Holding.origine`) et renommage de contenu "Autres" -> "Autres zones"/"Autres
+secteurs" (`migrate_rename_categorie_autres`, introduit par le LOT 2.2). Chaque
+test pointe `app.database.engine` vers une base SQLite jetable dédiée, jamais la
+vraie `portfolio.db` ni celle des autres tests."""
 
 import sqlite3
 
 from sqlalchemy import create_engine, inspect, text
 
 import app.database as database_module
+from app.models import ORIGINE_RECONSTRUIT
 
 
 def test_ajout_colonne_source_sur_base_preexistante(tmp_path, monkeypatch):
@@ -157,5 +159,69 @@ def test_renommage_autres_ne_ecrase_pas_une_ligne_deja_migree(tmp_path, monkeypa
 
     assert ("Autres", 16.65) in lignes
     assert ("Autres zones", 10.0) in lignes
+
+    test_engine.dispose()
+
+
+def test_ajout_colonne_origine_sur_base_preexistante_retro_remplit_reconstruit(tmp_path, monkeypatch):
+    """`holdings` créée avant l'ajout de la colonne `origine` (LOT 3.4) : la
+    migration l'ajoute avec la valeur `ORIGINE_RECONSTRUIT` pour les lignes déjà
+    présentes (`server_default`, cf. docstring de `models.Holding.origine`) —
+    contrairement à `FundComposition.source` qui, elle, reste NULL rétroactivement
+    (colonne sans `server_default`)."""
+    chemin = tmp_path / "ancienne_base_holdings.db"
+    conn = sqlite3.connect(chemin)
+    conn.execute(
+        """
+        CREATE TABLE holdings (
+            id INTEGER PRIMARY KEY,
+            ticker VARCHAR,
+            nom VARCHAR,
+            quantite FLOAT,
+            prix_revient_moyen FLOAT,
+            compte VARCHAR,
+            devise VARCHAR,
+            type_actif VARCHAR,
+            created_at DATETIME,
+            updated_at DATETIME
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO holdings (ticker, quantite, created_at, updated_at) "
+        "VALUES ('AAPL', 10.0, '2024-01-01 00:00:00', '2024-01-01 00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.run_startup_migrations()
+
+    inspector = inspect(test_engine)
+    colonnes = {c["name"] for c in inspector.get_columns("holdings")}
+    assert "origine" in colonnes
+
+    with test_engine.connect() as conn2:
+        lignes = conn2.execute(text("SELECT ticker, origine FROM holdings")).fetchall()
+
+    assert lignes == [("AAPL", ORIGINE_RECONSTRUIT)]
+
+    test_engine.dispose()
+
+
+def test_ajout_colonne_origine_idempotent(tmp_path, monkeypatch):
+    chemin = tmp_path / "base_holdings.db"
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    database_module.Base.metadata.create_all(bind=test_engine)
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.run_startup_migrations()
+    database_module.run_startup_migrations()  # ne doit pas lever d'exception
+
+    inspector = inspect(test_engine)
+    colonnes = {c["name"] for c in inspector.get_columns("holdings")}
+    assert "origine" in colonnes
 
     test_engine.dispose()

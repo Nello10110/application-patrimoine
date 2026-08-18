@@ -6,10 +6,10 @@ from datetime import datetime
 
 import pytest
 
-from app.models import Holding
+from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding
 from app.services.portfolio_reconstruction import EPSILON, compute_positions, rebuild_holdings
 
-from .conftest import make_transaction
+from .conftest import make_holding, make_transaction
 
 
 def test_achat_simple_quantite_et_cout_de_revient_avec_frais(db):
@@ -256,16 +256,71 @@ def test_rebuild_holdings_remonte_le_nombre_d_anomalies(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    positions_recalculees, anomalies_detectees = rebuild_holdings(db)
+    resultat = rebuild_holdings(db)
 
-    assert positions_recalculees == 0  # la position JJJ retombe à 0 -> disparaît du portefeuille
-    assert anomalies_detectees == 1
+    assert resultat.positions_recalculees == 0  # la position JJJ retombe à 0 -> disparaît du portefeuille
+    assert resultat.anomalies_detectees == 1
 
 
 def test_rebuild_holdings_zero_anomalie_cas_nominal(db):
     make_transaction(db, symbol="KKK", shares=10.0, amount=-1000.0)
 
-    positions_recalculees, anomalies_detectees = rebuild_holdings(db)
+    resultat = rebuild_holdings(db)
 
-    assert positions_recalculees == 1
-    assert anomalies_detectees == 0
+    assert resultat.positions_recalculees == 1
+    assert resultat.anomalies_detectees == 0
+
+
+# ---------------------------------------------------------------------------
+# LOT 3.4 — arbitrage saisie manuelle / reconstruction automatique
+# ---------------------------------------------------------------------------
+
+
+def test_rebuild_holdings_preserve_une_ligne_manuelle_sans_ticker_correspondant(db):
+    """Une ligne saisie à la main sur un ticker absent du grand livre survit à la
+    reconstruction : seules les lignes `origine=ORIGINE_RECONSTRUIT` sont vidées."""
+    make_holding(db, ticker="MANUEL_SEUL", quantite=3.0, origine=ORIGINE_MANUEL)
+    make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
+
+    resultat = rebuild_holdings(db)
+
+    assert resultat.positions_recalculees == 1
+    assert resultat.lignes_manuelles_remplacees == 0
+
+    tickers = {h.ticker: h.origine for h in db.query(Holding).all()}
+    assert tickers == {"MANUEL_SEUL": ORIGINE_MANUEL, "AAA": ORIGINE_RECONSTRUIT}
+
+
+def test_rebuild_holdings_remplace_une_ligne_manuelle_avec_ticker_identique(db, caplog):
+    """Si le grand livre reconstruit un ticker déjà présent en ligne manuelle, le
+    grand livre fait foi : la ligne manuelle est supprimée (elle ferait doublon
+    dans tous les calculs), l'événement journalisé en warning et compté."""
+    make_holding(db, ticker="AAA", quantite=999.0, origine=ORIGINE_MANUEL)
+    make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
+
+    with caplog.at_level(logging.WARNING):
+        resultat = rebuild_holdings(db)
+
+    assert resultat.positions_recalculees == 1
+    assert resultat.lignes_manuelles_remplacees == 1
+    assert any("AAA" in r.message for r in caplog.records if r.levelname == "WARNING")
+
+    lignes = db.query(Holding).filter(Holding.ticker == "AAA").all()
+    assert len(lignes) == 1
+    assert lignes[0].origine == ORIGINE_RECONSTRUIT
+    assert lignes[0].quantite == 10.0  # la valeur reconstruite, pas la valeur manuelle (999.0)
+
+
+def test_rebuild_holdings_ne_touche_pas_aux_autres_lignes_manuelles(db):
+    """Deux lignes manuelles, une seule en conflit avec le grand livre : l'autre
+    doit rester intouchée."""
+    make_holding(db, ticker="AAA", quantite=999.0, origine=ORIGINE_MANUEL)
+    make_holding(db, ticker="ZZZ", quantite=5.0, origine=ORIGINE_MANUEL)
+    make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
+
+    resultat = rebuild_holdings(db)
+
+    assert resultat.lignes_manuelles_remplacees == 1
+    ligne_zzz = db.query(Holding).filter(Holding.ticker == "ZZZ").one()
+    assert ligne_zzz.origine == ORIGINE_MANUEL
+    assert ligne_zzz.quantite == 5.0

@@ -52,6 +52,12 @@ function TransactionImportSection() {
               position(s) bornée(s) à 0, voir les journaux serveur.
             </p>
           )}
+          {result.lignes_manuelles_remplacees > 0 && (
+            <p className="mt-1 text-amber-700">
+              {result.lignes_manuelles_remplacees} ligne(s) saisie(s) manuellement remplacée(s) par la position
+              recalculée depuis le grand livre (même ticker) — le grand livre fait foi.
+            </p>
+          )}
           <button onClick={() => navigate('/')} className="mt-2 font-medium underline">
             Voir le tableau de bord →
           </button>
@@ -274,7 +280,7 @@ export default function ImportPage() {
 
           <label className="mt-4 flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} />
-            Remplacer le portefeuille existant (au lieu d'ajouter à la suite)
+            Remplacer les lignes déjà saisies ou importées manuellement (les positions issues du grand livre de transactions ne sont pas touchées)
           </label>
 
           <button

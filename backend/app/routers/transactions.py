@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Transaction
 from ..schemas import TransactionImportResult
-from ..services import portfolio_reconstruction, transaction_import
+from ..services import portfolio_reconstruction, transaction_import, upload_limits
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -15,6 +15,10 @@ router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 @router.post("/import", response_model=TransactionImportResult)
 async def import_transactions(file: UploadFile, db: Session = Depends(get_db)):
     content = await file.read()
+    try:
+        upload_limits.verifier_taille_fichier(content)
+    except upload_limits.FichierTropVolumineuxError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     try:
         parsed = transaction_import.parse_transactions_file(content)
     except ValueError as exc:
@@ -34,22 +38,27 @@ async def import_transactions(file: UploadFile, db: Session = Depends(get_db)):
 
     db.commit()
 
-    positions_recalculees, anomalies_detectees = portfolio_reconstruction.rebuild_holdings(db)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db)
 
     return TransactionImportResult(
         lignes_lues=parsed.lignes_lues,
         importees=importees,
         doublons_ignores=doublons,
         mouvements_hors_bourse_exclus=parsed.mouvements_hors_bourse_exclus,
-        positions_recalculees=positions_recalculees,
-        anomalies_detectees=anomalies_detectees,
+        positions_recalculees=resultat_reconstruction.positions_recalculees,
+        anomalies_detectees=resultat_reconstruction.anomalies_detectees,
+        lignes_manuelles_remplacees=resultat_reconstruction.lignes_manuelles_remplacees,
     )
 
 
 @router.post("/reconstruct")
 def reconstruct(db: Session = Depends(get_db)):
-    positions_recalculees, anomalies_detectees = portfolio_reconstruction.rebuild_holdings(db)
-    return {"positions_recalculees": positions_recalculees, "anomalies_detectees": anomalies_detectees}
+    resultat = portfolio_reconstruction.rebuild_holdings(db)
+    return {
+        "positions_recalculees": resultat.positions_recalculees,
+        "anomalies_detectees": resultat.anomalies_detectees,
+        "lignes_manuelles_remplacees": resultat.lignes_manuelles_remplacees,
+    }
 
 
 @router.get("/count")

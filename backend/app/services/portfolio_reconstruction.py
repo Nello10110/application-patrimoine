@@ -25,7 +25,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from ..models import Holding, Transaction
+from ..models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding, Transaction
 
 EPSILON = 1e-6
 
@@ -164,22 +164,51 @@ def _controler_coherence(state: PositionState) -> None:
         )
 
 
-def rebuild_holdings(db: Session) -> tuple[int, int]:
+@dataclass
+class ReconstructionResult:
+    """Résultat de `rebuild_holdings` (LOT 3.4) : nombre de lignes de portefeuille
+    recréées, d'anomalies détectées (cf. `_controler_coherence`), et de lignes
+    saisies manuellement supprimées car le grand livre reconstruit un ticker
+    identique (le grand livre fait foi — cf. docstring de `models.Holding.origine`)."""
+
+    positions_recalculees: int
+    anomalies_detectees: int
+    lignes_manuelles_remplacees: int
+
+
+def rebuild_holdings(db: Session) -> ReconstructionResult:
     """Reconstruit les lignes du portefeuille depuis le grand livre.
 
-    Renvoie `(positions_recalculees, anomalies_detectees)` : le nombre de lignes
-    de portefeuille recréées, et le nombre total d'anomalies détectées (1.4) toutes
-    positions confondues (ex. ventes supérieures à la quantité détenue).
+    Arbitrage saisie manuelle / reconstruction (LOT 3.4) : seules les lignes
+    `origine=ORIGINE_RECONSTRUIT` sont supprimées puis recréées — une ligne saisie
+    à la main (`ORIGINE_MANUEL`) survit à cet appel, sauf si le grand livre
+    reconstruit justement une position sur le même ticker, auquel cas le grand
+    livre fait foi : la ligne manuelle est supprimée (elle ferait doublon dans tous
+    les calculs) et l'événement est journalisé en warning et compté.
     """
     positions = compute_positions(db)
 
-    db.query(Holding).delete()
+    lignes_manuelles_existantes = {h.ticker: h for h in db.query(Holding).filter(Holding.origine == ORIGINE_MANUEL).all()}
+
+    db.query(Holding).filter(Holding.origine == ORIGINE_RECONSTRUIT).delete()
 
     count = 0
+    lignes_manuelles_remplacees = 0
     anomalies_detectees = sum(len(state.anomalies) for state in positions.values())
     for state in positions.values():
         if state.shares <= EPSILON:
             continue
+
+        ligne_manuelle = lignes_manuelles_existantes.get(state.symbol)
+        if ligne_manuelle is not None:
+            logger.warning(
+                "Ligne saisie manuellement pour %s remplacée par la reconstruction depuis le grand "
+                "livre (même ticker) : le grand livre fait foi.",
+                state.symbol,
+            )
+            db.delete(ligne_manuelle)
+            lignes_manuelles_remplacees += 1
+
         prix_revient = state.cost_basis / state.shares
         db.add(
             Holding(
@@ -188,9 +217,14 @@ def rebuild_holdings(db: Session) -> tuple[int, int]:
                 quantite=state.shares,
                 prix_revient_moyen=prix_revient,
                 type_actif=state.asset_class,
+                origine=ORIGINE_RECONSTRUIT,
             )
         )
         count += 1
 
     db.commit()
-    return count, anomalies_detectees
+    return ReconstructionResult(
+        positions_recalculees=count,
+        anomalies_detectees=anomalies_detectees,
+        lignes_manuelles_remplacees=lignes_manuelles_remplacees,
+    )

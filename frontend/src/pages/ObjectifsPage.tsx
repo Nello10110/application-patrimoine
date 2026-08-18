@@ -15,6 +15,7 @@ function AllocationEditor({
   onChange: (items: AllocationTargetInput[]) => void
 }) {
   const [newCategorie, setNewCategorie] = useState('')
+  const [erreurAjout, setErreurAjout] = useState<string | null>(null)
   const total = items.reduce((sum, i) => sum + (i.pourcentage_cible || 0), 0)
 
   function updatePct(categorie: string, value: number) {
@@ -27,7 +28,15 @@ function AllocationEditor({
 
   function add() {
     const name = newCategorie.trim()
-    if (!name || items.some((i) => i.categorie === name)) return
+    if (!name) {
+      setErreurAjout('Le nom de la catégorie ne peut pas être vide.')
+      return
+    }
+    if (items.some((i) => i.categorie === name)) {
+      setErreurAjout(`La catégorie "${name}" existe déjà.`)
+      return
+    }
+    setErreurAjout(null)
     onChange([...items, { categorie: name, pourcentage_cible: 0 }])
     setNewCategorie('')
   }
@@ -56,7 +65,10 @@ function AllocationEditor({
       <div className="mt-3 flex items-center gap-2">
         <input
           value={newCategorie}
-          onChange={(e) => setNewCategorie(e.target.value)}
+          onChange={(e) => {
+            setNewCategorie(e.target.value)
+            if (erreurAjout) setErreurAjout(null)
+          }}
           placeholder="Nouvelle catégorie"
           className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm"
         />
@@ -64,6 +76,7 @@ function AllocationEditor({
           Ajouter
         </button>
       </div>
+      {erreurAjout && <p className="mt-1 text-xs text-red-600">{erreurAjout}</p>}
 
       <p className={`mt-3 text-sm font-medium ${Math.abs(total - 100) < 0.5 ? 'text-emerald-600' : 'text-amber-600'}`}>
         Total : {total.toFixed(1)}% {Math.abs(total - 100) < 0.5 ? '✓' : '(doit sommer à 100%)'}
