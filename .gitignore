@@ -1,0 +1,25 @@
+# Python / backend
+backend/venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Base de données locale (données financières personnelles — ne jamais versionner)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Frontend
+node_modules/
+dist/
+*.local
+
+# Éditeurs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
