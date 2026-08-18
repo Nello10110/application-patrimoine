@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 import pytest
 
 from app.models import Holding, MarketDataCache
-from app.services import performance_service
-from app.services.performance_service import compute_holding_returns, compute_performance, xirr
+from app.services import performance_service, portfolio_reconstruction
+from app.services.performance_service import compute_holding_return, compute_holding_returns, compute_performance, xirr
 from app.services.portfolio_reconstruction import rebuild_holdings
 
 from .conftest import make_transaction
@@ -277,3 +277,95 @@ def test_xirr_doublement_en_deux_ans_environ_41_4_pourcent():
     flux = [(datetime(2022, 1, 1), -1000.0), (datetime(2024, 1, 1), 2000.0)]
     resultat = xirr(flux)
     assert resultat == pytest.approx(41.42, abs=0.5)
+
+
+# --- 4.2 : compute_holding_return (ciblé sur une seule ligne) --------------------
+
+
+def test_compute_holding_return_identique_a_compute_holding_returns_sur_plusieurs_lignes(db):
+    """Verrou de non-régression du LOT 4.2 : la variante ciblée sur un seul ticker doit
+    renvoyer exactement les mêmes valeurs que la variante « tout le portefeuille »,
+    sur un portefeuille à plusieurs lignes mêlant les cas (avec/sans cotation,
+    avec/sans vente partielle)."""
+    # AAA : achat + vente partielle + cotation actuelle -> rendement_depuis_achat et annualise.
+    make_transaction(db, transaction_id="aaa-1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2023, 1, 1))
+    make_transaction(
+        db, transaction_id="aaa-2", symbol="AAA", type="SELL", shares=-4.0, amount=600.0, datetime_utc=datetime(2023, 6, 1)
+    )
+    # BBB : achat seul, avec cotation -> rendement_depuis_achat et annualise.
+    make_transaction(db, transaction_id="bbb-1", symbol="BBB", shares=5.0, amount=-500.0, datetime_utc=datetime(2023, 2, 1))
+    # CCC : achat, sans cotation en cache -> ni depuis_achat ni annualise (valorisé au coût).
+    make_transaction(db, transaction_id="ccc-1", symbol="CCC", shares=2.0, amount=-200.0, datetime_utc=datetime(2023, 3, 1))
+
+    rebuild_holdings(db)
+    db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
+    db.add(MarketDataCache(ticker="BBB", prix_actuel=90.0, derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+
+    ensemble = compute_holding_returns(db)
+    assert set(ensemble) == {"AAA", "BBB", "CCC"}
+
+    for ticker in ensemble:
+        assert compute_holding_return(db, ticker) == ensemble[ticker], f"divergence pour {ticker}"
+
+    # Un ticker absent du portefeuille renvoie des valeurs nulles — même comportement
+    # que `.get(ticker, {})` sur le résultat de `compute_holding_returns`, tel qu'utilisé
+    # par les appelants (routeur/`holding_detail_service`).
+    assert compute_holding_return(db, "INEXISTANT") == {
+        "rendement_depuis_achat_pct": None,
+        "rendement_annualise_pct": None,
+    }
+
+
+def test_compute_holding_return_ne_relit_pas_tout_le_grand_livre(db, monkeypatch):
+    """`compute_holding_return` doit rester ciblé sur le ticker demandé (cf. LOT 4.2) :
+    il ne doit jamais passer par `compute_positions`, qui rejoue tout le grand livre —
+    c'était précisément le coût que ce lot élimine pour l'affichage d'une seule fiche."""
+    make_transaction(db, transaction_id="t1", symbol="AAA", shares=1.0, amount=-100.0)
+    make_transaction(db, transaction_id="t2", symbol="BBB", shares=1.0, amount=-100.0)
+    rebuild_holdings(db)
+
+    def _echoue(*args, **kwargs):
+        raise AssertionError("compute_holding_return ne doit pas appeler compute_positions (tout le grand livre)")
+
+    monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _echoue)
+
+    resultat = compute_holding_return(db, "AAA")
+    assert resultat["rendement_depuis_achat_pct"] is None  # pas de cotation, mais pas d'exception non plus
+
+
+# --- 4.3 : mémoïsation à portée de requête (paramètre explicite `positions`) -----
+
+
+def test_positions_partagees_evite_un_recalcul_quand_plusieurs_fonctions_sont_enchainees(db, monkeypatch):
+    """Démontre le mécanisme retenu pour le LOT 4.3 : un appelant qui a déjà calculé
+    `positions` (typiquement via `compute_positions(db)`) peut le transmettre
+    explicitement à `compute_performance` et `compute_holding_returns` plutôt que de
+    laisser chacune le recalculer pour son propre compte — une seule reconstruction du
+    grand livre au lieu d'une par fonction enchaînée, sans changer aucun résultat."""
+    make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0)
+    rebuild_holdings(db)
+    db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+
+    compteur = {"n": 0}
+    original = portfolio_reconstruction.compute_positions
+
+    def _compte_et_calcule(db_):
+        compteur["n"] += 1
+        return original(db_)
+
+    monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _compte_et_calcule)
+
+    positions = portfolio_reconstruction.compute_positions(db)  # calculé une fois par l'appelant
+    resultat_perf = compute_performance(db, positions=positions)
+    resultat_holdings = compute_holding_returns(db, positions=positions)
+
+    assert compteur["n"] == 1  # les deux fonctions enchaînées ont réutilisé le même résultat
+
+    # Sans le paramètre explicite, chaque fonction recalcule pour son propre compte —
+    # et les résultats restent rigoureusement identiques (aucun changement de calcul).
+    compteur["n"] = 0
+    assert compute_performance(db) == resultat_perf
+    assert compute_holding_returns(db) == resultat_holdings
+    assert compteur["n"] == 2

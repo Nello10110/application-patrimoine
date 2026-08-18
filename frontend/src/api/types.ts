@@ -10,6 +10,20 @@ export interface MarketData {
   derniere_maj: string
 }
 
+// État du rafraîchissement des cours en tâche de fond (LOT 4B), renvoyé par
+// `POST /market-data/refresh` (202, état de démarrage) et sondé via
+// `GET /market-data/refresh/status` — également utilisé par "Lancer maintenant"
+// depuis la page Réglages, qui déclenche le même exécuteur partagé.
+export interface EtatRafraichissement {
+  en_cours: boolean
+  positions_traitees: number
+  positions_total: number
+  demarre_le: string | null
+  termine_le: string | null
+  statut: 'ok' | 'erreur' | null
+  message: string | null
+}
+
 export interface Holding {
   id: number
   ticker: string

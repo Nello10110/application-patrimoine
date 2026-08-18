@@ -12,7 +12,7 @@ from app.models import SOURCE_COMPOSITION, SOURCE_INDICE
 from app.services import market_data_service
 from app.services.market_data_service import fetch_fund_composition
 
-from .conftest import make_holding
+from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
 
 
 class FauxFundsData:
@@ -174,7 +174,8 @@ def test_refresh_manuel_second_appel_immediat_refuse_en_429(client, db):
     make_holding(db, ticker="AAA", quantite=1.0)
 
     premier = client.post("/api/market-data/refresh")
-    assert premier.status_code == 200
+    assert premier.status_code == 202
+    attendre_fin_rafraichissement_arriere_plan()
 
     second = client.post("/api/market-data/refresh")
     assert second.status_code == 429
@@ -185,7 +186,13 @@ def test_refresh_manuel_appel_unique_accepte(client, db):
     make_holding(db, ticker="AAA", quantite=1.0)
 
     reponse = client.post("/api/market-data/refresh")
-    assert reponse.status_code == 200
+    assert reponse.status_code == 202
+    # 4B — la réponse est désormais l'état de démarrage du rafraîchissement en
+    # tâche de fond, plus la liste complète du cache (le frontend rappelle de toute
+    # façon `listHoldings()` juste après).
+    corps = reponse.json()
+    assert corps["en_cours"] is True
+    assert corps["positions_total"] == 1
 
 
 def test_refresh_manuel_delai_ecoule_de_nouveau_accepte(client, db, monkeypatch):
@@ -196,7 +203,11 @@ def test_refresh_manuel_delai_ecoule_de_nouveau_accepte(client, db, monkeypatch)
     make_holding(db, ticker="AAA", quantite=1.0)
 
     premier = client.post("/api/market-data/refresh")
-    assert premier.status_code == 200
+    assert premier.status_code == 202
+    # Attend la fin effective du premier rafraîchissement avant d'en déclencher un
+    # second : sans ça, le second pourrait essuyer un 409 (déjà en cours) au lieu du
+    # 202 attendu ici, selon que le fil de fond a eu le temps de se terminer.
+    attendre_fin_rafraichissement_arriere_plan()
 
     # Fait "avancer le temps" en reculant artificiellement la référence enregistrée,
     # plutôt que d'attendre réellement `DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES`.
@@ -208,4 +219,4 @@ def test_refresh_manuel_delai_ecoule_de_nouveau_accepte(client, db, monkeypatch)
     )
 
     second = client.post("/api/market-data/refresh")
-    assert second.status_code == 200
+    assert second.status_code == 202

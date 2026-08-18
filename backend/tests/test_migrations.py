@@ -11,6 +11,7 @@ import sqlite3
 from sqlalchemy import create_engine, inspect, text
 
 import app.database as database_module
+from app.database import Base
 from app.models import ORIGINE_RECONSTRUIT
 
 
@@ -225,3 +226,71 @@ def test_ajout_colonne_origine_idempotent(tmp_path, monkeypatch):
     assert "origine" in colonnes
 
     test_engine.dispose()
+
+
+def test_renommage_autres_couvre_aussi_le_look_through_deja_calcule(tmp_path, monkeypatch):
+    """Les lignes de `fund_composition` produites avant le renommage portent encore
+    l'ancien libellé « Autres » : sans migration symétrique, le graphique de
+    répartition afficherait une catégorie fantôme à côté d'« Autres zones » jusqu'au
+    prochain rafraîchissement des cours."""
+    chemin = tmp_path / "look_through.db"
+    engine_test = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine_test)
+    with engine_test.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO fund_composition (ticker, type, categorie, poids, derniere_maj) VALUES "
+                "('FONDS-A', 'geo', 'Autres', 0.3, '2026-01-01 00:00:00'), "
+                "('FONDS-A', 'geo', 'Europe', 0.7, '2026-01-01 00:00:00'), "
+                "('FONDS-B', 'sector', 'Autres', 1.0, '2026-01-01 00:00:00')"
+            )
+        )
+
+    monkeypatch.setattr(database_module, "engine", engine_test)
+    database_module.migrate_rename_categorie_autres()
+    database_module.migrate_rename_categorie_autres()  # idempotence
+
+    with engine_test.begin() as conn:
+        lignes = sorted(conn.execute(text("SELECT ticker, type, categorie FROM fund_composition")).fetchall())
+
+    assert lignes == [
+        ("FONDS-A", "geo", "Autres zones"),
+        ("FONDS-A", "geo", "Europe"),
+        ("FONDS-B", "sector", "Autres secteurs"),
+    ]
+    engine_test.dispose()
+
+
+def test_recalcul_des_zones_en_cache_distingue_zone_residuelle_et_donnee_manquante(tmp_path, monkeypatch):
+    """La zone est figée en base au rafraîchissement des cours : les entrées écrites
+    avant le LOT 2.2 portent l'ancienne catégorie "Autres", qui confondait « pays connu
+    hors de nos zones » et « aucun pays connu ». Un renommage aveugle serait faux — la
+    zone est donc reconstruite à partir du pays déjà stocké."""
+    chemin = tmp_path / "regions.db"
+    engine_test = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine_test)
+    with engine_test.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO market_data_cache (ticker, pays, region, derniere_maj) VALUES "
+                "('CRYPTO', NULL, 'Autres', '2026-01-01 00:00:00'), "        # aucun pays -> donnée manquante
+                "('BERMUDES', 'Bermuda', 'Autres', '2026-01-01 00:00:00'), "  # pays connu hors zones -> zone résiduelle
+                "('US', 'United States', 'Autres', '2026-01-01 00:00:00'), " # zone erronée à corriger
+                "('FR', 'France', 'Europe', '2026-01-01 00:00:00')"          # déjà juste, ne doit pas bouger
+            )
+        )
+
+    monkeypatch.setattr(database_module, "engine", engine_test)
+    database_module.migrate_recalculer_regions_en_cache()
+    database_module.migrate_recalculer_regions_en_cache()  # idempotence
+
+    with engine_test.begin() as conn:
+        zones = dict(conn.execute(text("SELECT ticker, region FROM market_data_cache")).fetchall())
+
+    assert zones == {
+        "CRYPTO": "Non catégorisé",
+        "BERMUDES": "Autres zones",
+        "US": "Amérique du Nord",
+        "FR": "Europe",
+    }
+    engine_test.dispose()

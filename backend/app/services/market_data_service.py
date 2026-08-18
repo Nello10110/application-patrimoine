@@ -36,15 +36,23 @@ test de cette suite n'a besoin d'observer un vrai délai, puisque `yf.Ticker`/
 `yf.Search` sont eux-mêmes neutralisés (`no_network_yfinance`, `tests/conftest.py`).
 """
 
+import logging
 import os
+import threading
 import time
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from typing import Callable
 
 import yfinance as yf
 from sqlalchemy.orm import Session
 
+from ..database import SessionLocal
 from ..models import SOURCE_COMPOSITION, SOURCE_INDICE, FundComposition, FundTopHolding, MarketDataCache, TickerResolution
+from .historique_cache import cle_historique_portefeuille, invalider
 from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
+
+logger = logging.getLogger("outil_bourse.market_data")
 
 QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
     "STOCK": {"EQUITY"},
@@ -306,17 +314,31 @@ def fetch_fund_composition(
     return geo_rows, sector_rows, top_holdings_detail
 
 
-def refresh_tickers(db: Session, items: list[tuple[str, str | None]]) -> list[dict]:
-    """items: liste de (identifiant, asset_class) — asset_class peut être None (saisie manuelle)."""
+def refresh_tickers(
+    db: Session,
+    items: list[tuple[str, str | None]],
+    on_progression: Callable[[int, int], None] | None = None,
+) -> list[dict]:
+    """items: liste de (identifiant, asset_class) — asset_class peut être None (saisie manuelle).
+
+    `on_progression`, optionnel (LOT 4B), est appelé après le traitement de chaque
+    position — `(positions_traitees, positions_total)`, `positions_total` valant
+    `len(items)` — pour permettre à l'appelant (`demarrer_rafraichissement`) de
+    publier une progression consultable pendant qu'un rafraîchissement complet
+    (potentiellement plusieurs dizaines de secondes voire plus d'une minute) tourne
+    en tâche de fond."""
     results = []
     now = datetime.now(timezone.utc)
     seen: set[str] = set()
     fx_cache: dict[str, float | None] = {}
     stock_info_cache: dict[str, dict] = {}
+    total = len(items)
 
-    for identifiant_brut, asset_class in items:
+    for index, (identifiant_brut, asset_class) in enumerate(items, start=1):
         identifiant = (identifiant_brut or "").strip().upper()
         if not identifiant or identifiant in seen:
+            if on_progression:
+                on_progression(index, total)
             continue
         # Temporisation entre deux identifiants effectivement traités (LOT 7.5) : pas
         # avant le tout premier, seulement entre deux appels Yahoo Finance successifs.
@@ -372,5 +394,153 @@ def refresh_tickers(db: Session, items: list[tuple[str, str | None]]) -> list[di
                     )
                 )
 
+        if on_progression:
+            on_progression(index, total)
+
     db.commit()
     return results
+
+
+# ---------------------------------------------------------------------------
+# LOT 4B — rafraîchissement en tâche de fond, avec statut consultable
+# ---------------------------------------------------------------------------
+#
+# `POST /api/market-data/refresh` et `POST /api/settings/jobs/{job_key}/run-now`
+# exécutaient jusqu'ici `refresh_tickers` de façon synchrone : sur le portefeuille
+# réel de l'utilisateur (plusieurs dizaines de positions, plusieurs appels Yahoo
+# Finance chacune, temporisées de `DELAI_ENTRE_APPELS_SECONDES` entre elles), la
+# requête HTTP dépasse largement la minute — le worker FastAPI reste bloqué tout ce
+# temps et le navigateur peut abandonner la requête avant la réponse.
+#
+# Un simple `threading.Thread` suffit à en faire une tâche de fond : cette
+# application est locale, mono-utilisateur, sans plusieurs rafraîchissements
+# concurrents à orchestrer ni de worker séparé du process API — une file de tâches
+# externe (Celery, RQ, arq...) serait une infrastructure disproportionnée pour un
+# unique job occasionnel. Un verrou (`_verrou_etat`) protège le petit état partagé
+# (`_etat`) entre le fil de fond et les fils de requête HTTP qui le consultent.
+
+
+class RafraichissementDejaEnCoursError(Exception):
+    """Levée par `demarrer_rafraichissement` quand un rafraîchissement est déjà en
+    cours d'exécution (déclenché depuis un autre écran ou un appel précédent)."""
+
+    def __init__(self):
+        super().__init__("Un rafraîchissement des cours est déjà en cours.")
+
+
+@dataclass
+class EtatRafraichissement:
+    """État courant du rafraîchissement en tâche de fond, tel que consultable via
+    `etat_rafraichissement()`/`GET /api/market-data/refresh/status`.
+
+    `statut` vaut `None` tant qu'aucun rafraîchissement n'a jamais abouti ou échoué
+    (y compris pendant qu'un premier rafraîchissement est en cours), puis `"ok"` ou
+    `"erreur"` selon l'issue du dernier rafraîchissement terminé."""
+
+    en_cours: bool = False
+    positions_traitees: int = 0
+    positions_total: int = 0
+    demarre_le: datetime | None = None
+    termine_le: datetime | None = None
+    statut: str | None = None  # "ok" | "erreur" | None
+    message: str | None = None
+
+
+_verrou_etat = threading.Lock()
+_etat = EtatRafraichissement()
+
+# Référence vers le fil en cours (ou le dernier lancé), exposée pour permettre aux
+# tests de l'attendre explicitement (`_thread_courant.join(timeout=...)`) plutôt que
+# de sonder l'API à intervalles réels — cf. `tests/test_market_data_background.py`.
+_thread_courant: threading.Thread | None = None
+
+
+def etat_rafraichissement() -> EtatRafraichissement:
+    """Copie de l'état courant, sûre à lire depuis un autre fil que celui qui
+    l'écrit (le fil de fond du rafraîchissement)."""
+    with _verrou_etat:
+        return replace(_etat)
+
+
+def _executer_rafraichissement(
+    items: list[tuple[str, str | None]],
+    on_termine: Callable[[EtatRafraichissement], None] | None,
+) -> None:
+    """Corps du fil de fond. Ouvre sa propre session SQLAlchemy : celle de la
+    requête HTTP qui a déclenché ce rafraîchissement est refermée dès la réponse
+    `202` renvoyée, bien avant que ce travail ne soit terminé. Toute exception est
+    capturée et journalisée ici — elle ne doit jamais remonter et faire mourir le
+    fil silencieusement sans que l'état ne le reflète."""
+    db = SessionLocal()
+    total = len(items)
+    try:
+        def _sur_progression(traitees: int, total_: int) -> None:
+            with _verrou_etat:
+                _etat.positions_traitees = traitees
+                _etat.positions_total = total_
+
+        refresh_tickers(db, items, on_progression=_sur_progression)
+
+        # Le cache d'historique du portefeuille (LOT 4.5) est valable 24h : sans
+        # cette invalidation, le graphique d'évolution du tableau de bord resterait
+        # figé jusqu'à 24h après une mise à jour des cours, en contradiction avec la
+        # valeur (calculée à partir des cours frais) affichée juste à côté.
+        invalider(db, cle_historique_portefeuille())
+
+        with _verrou_etat:
+            _etat.statut = "ok"
+            _etat.message = f"{total} position(s) rafraîchie(s)"
+    except Exception as exc:  # jamais laisser une exception tuer le fil en silence
+        logger.exception("échec du rafraîchissement des cours en tâche de fond")
+        with _verrou_etat:
+            _etat.statut = "erreur"
+            _etat.message = str(exc)
+    finally:
+        db.close()
+        with _verrou_etat:
+            _etat.en_cours = False
+            _etat.termine_le = datetime.now(timezone.utc)
+            etat_final = replace(_etat)
+
+    if on_termine is not None:
+        try:
+            on_termine(etat_final)
+        except Exception:
+            logger.exception("échec du callback de fin de rafraîchissement")
+
+
+def demarrer_rafraichissement(
+    items: list[tuple[str, str | None]],
+    on_termine: Callable[[EtatRafraichissement], None] | None = None,
+) -> EtatRafraichissement:
+    """Lance `refresh_tickers(items)` dans un fil dédié et rend la main
+    immédiatement — voir la section ci-dessus pour le pourquoi.
+
+    Lève `RafraichissementDejaEnCoursError` si un rafraîchissement est déjà en
+    cours ; sinon renvoie l'état de démarrage (pratique pour l'afficher tout de
+    suite côté frontend sans attendre le premier sondage de
+    `GET /api/market-data/refresh/status`).
+
+    `on_termine`, optionnel, est appelé (dans le fil de fond, une fois l'état
+    final déterminé) avec une copie de cet état final. Utilisé par
+    `scheduler_service.run_job_now` (LOT 4B) pour répercuter le résultat dans
+    `ScheduledJobConfig`, consulté par la page Réglages."""
+    global _thread_courant
+    with _verrou_etat:
+        if _etat.en_cours:
+            raise RafraichissementDejaEnCoursError()
+        _etat.en_cours = True
+        _etat.positions_traitees = 0
+        _etat.positions_total = len(items)
+        _etat.demarre_le = datetime.now(timezone.utc)
+        _etat.termine_le = None
+        _etat.statut = None
+        _etat.message = None
+        etat_depart = replace(_etat)
+
+    thread = threading.Thread(
+        target=_executer_rafraichissement, args=(items, on_termine), daemon=True, name="rafraichissement-cours"
+    )
+    _thread_courant = thread
+    thread.start()
+    return etat_depart

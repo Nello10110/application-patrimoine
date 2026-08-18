@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { ScheduledJob } from '../api/types'
 import Card from '../components/Card'
+import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 
 const JOB_LABELS: Record<string, string> = {
   market_data_refresh: 'Rafraîchissement des données de marché',
@@ -21,8 +22,27 @@ function formatDateHeure(iso: string | null): string {
 
 function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: ScheduledJob) => void }) {
   const [saving, setSaving] = useState(false)
-  const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // "Lancer maintenant" déclenche le même exécuteur en tâche de fond que le bouton
+  // "Rafraîchir les cours" du Portefeuille (LOT 4B, cf. `scheduler_service.run_job_now`)
+  // — même hook de sondage. `run-now` renvoie la config *avant* exécution puisqu'il
+  // ne bloque plus la requête : une fois le rafraîchissement terminé, on recharge
+  // la liste des jobs pour obtenir "Dernière exécution"/le statut à jour.
+  const {
+    etat: etatRafraichissement,
+    enCours: running,
+    erreur: erreurRafraichissement,
+    declencher,
+  } = useRafraichissementCours(async () => {
+    try {
+      const jobs = await api.listJobs()
+      const miseAJour = jobs.find((j) => j.job_key === job.job_key)
+      if (miseAJour) onChange(miseAJour)
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  })
 
   async function handleToggle(enabled: boolean) {
     setSaving(true)
@@ -48,17 +68,15 @@ function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: Schedul
     }
   }
 
-  async function handleRunNow() {
-    setRunning(true)
+  function handleRunNow() {
     setError(null)
-    try {
-      onChange(await api.runJobNow(job.job_key))
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setRunning(false)
-    }
+    declencher(() => api.runJobNow(job.job_key))
   }
+
+  const libelleRunNow =
+    etatRafraichissement?.en_cours && etatRafraichissement.positions_total > 0
+      ? `Exécution... (${etatRafraichissement.positions_traitees} / ${etatRafraichissement.positions_total} positions)`
+      : 'Exécution...'
 
   return (
     <Card title={JOB_LABELS[job.job_key] ?? job.job_key}>
@@ -91,7 +109,7 @@ function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: Schedul
           disabled={running}
           className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
         >
-          {running ? 'Exécution...' : 'Lancer maintenant'}
+          {running ? libelleRunNow : 'Lancer maintenant'}
         </button>
       </div>
 
@@ -105,6 +123,7 @@ function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: Schedul
       </div>
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {erreurRafraichissement && <p className="mt-2 text-sm text-red-600">{erreurRafraichissement}</p>}
     </Card>
   )
 }

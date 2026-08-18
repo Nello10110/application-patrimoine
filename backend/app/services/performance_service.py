@@ -11,6 +11,17 @@ dans le cas (réel, observé) d'un remboursement (ex. une ligne TAX_OPTIMIZATION
 avec `tax = +0.02`). Tous les flux de trésorerie nets se calculent donc par une
 simple somme `amount + fee + tax`, jamais par un `abs()` qui transformerait un
 remboursement en charge.
+
+Mémoïsation à portée de requête (LOT 4.3) : `portfolio_reconstruction.compute_positions`
+rejoue tout le grand livre et coûte cher sur un historique fourni ; `compute_performance`
+et `compute_holding_returns` acceptent donc un paramètre optionnel `positions` — s'il est
+fourni (par un appelant qui l'a déjà calculé), il est réutilisé tel quel plutôt que
+recalculé. Volontairement explicite plutôt qu'un cache implicite (mémoïsation par requête
+FastAPI, variable de module...) : un cache de process deviendrait faux dès qu'un import
+ajoute des transactions en cours de vie de l'app, et un mécanisme implicite masquerait,
+à la lecture d'une fonction, qu'elle consomme un résultat déjà calculé ailleurs.
+`compute_positions` reste la seule source de vérité — ce paramètre ne fait que
+transporter son résultat, jamais le dupliquer.
 """
 
 from datetime import datetime, timezone
@@ -19,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Holding, Transaction
 from . import analysis_service, portfolio_reconstruction
+from .portfolio_reconstruction import PositionState
 
 EPSILON = 1e-6
 
@@ -117,7 +129,10 @@ def xirr(cash_flows: list[tuple[datetime, float]]) -> float | None:
     return resultat_pct
 
 
-def compute_performance(db: Session) -> dict:
+def compute_performance(db: Session, positions: dict[str, PositionState] | None = None) -> dict:
+    """`positions` : résultat déjà calculé de `portfolio_reconstruction.compute_positions(db)`,
+    à fournir par un appelant qui l'a déjà en main pour éviter de rejouer le grand livre une
+    deuxième fois (cf. LOT 4.3) ; recalculé si omis, comportement inchangé."""
     transactions = db.query(Transaction).order_by(Transaction.datetime_utc.asc()).all()
 
     # Flux de revenus NETS (frais/taxes déjà intégrés, convention algébrique) : jamais
@@ -153,7 +168,8 @@ def compute_performance(db: Session) -> dict:
     valued = analysis_service.value_holdings(holdings)
     valeur_positions = sum(v.valeur for v in valued)
 
-    positions = portfolio_reconstruction.compute_positions(db)
+    if positions is None:
+        positions = portfolio_reconstruction.compute_positions(db)
     gains_realises = sum(state.realized_gain for state in positions.values())
     cout_base_ouvert = sum(state.cost_basis for state in positions.values() if state.shares > portfolio_reconstruction.EPSILON)
     gains_latents = valeur_positions - cout_base_ouvert
@@ -193,38 +209,72 @@ def compute_performance(db: Session) -> dict:
     }
 
 
-def compute_holding_returns(db: Session) -> dict[str, dict]:
+def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionState | None, now: datetime) -> dict:
+    """Calcul commun à `compute_holding_returns` (toutes les lignes) et
+    `compute_holding_return` (une seule, cf. LOT 4.2) — factorisé pour que les deux
+    renvoient garantiment le même résultat pour un même ticker, par construction plutôt
+    que par duplication de la formule à deux endroits."""
+    h = v.holding
+    depuis_achat = None
+    if h.prix_revient_moyen and h.prix_revient_moyen > EPSILON and h.market_data and h.market_data.prix_actuel:
+        depuis_achat = (h.market_data.prix_actuel / h.prix_revient_moyen - 1) * 100
+
+    annualise = None
+    if state and state.cash_flows and v.a_des_donnees:
+        # Sans prix de marché réel, la ligne est valorisée à son coût : un XIRR
+        # calculé sur ce flux fictif afficherait un 0% trompeur plutôt qu'une
+        # vraie mesure de performance. On préfère ne rien afficher dans ce cas.
+        flows = list(state.cash_flows) + [(now, v.valeur)]
+        annualise = xirr(flows)
+
+    return {
+        "rendement_depuis_achat_pct": round(depuis_achat, 2) if depuis_achat is not None else None,
+        "rendement_annualise_pct": round(annualise, 2) if annualise is not None else None,
+    }
+
+
+def compute_holding_returns(db: Session, positions: dict[str, PositionState] | None = None) -> dict[str, dict]:
     """Rendement par ligne du portefeuille :
     - `depuis_achat` : simple (prix actuel vs prix de revient), calculable pour toute ligne
       ayant un prix de revient et un prix actuel (y compris les lignes saisies manuellement).
     - `annualise` : XIRR sur les flux de trésorerie réels de cette ligne (achats/ventes),
       donc uniquement disponible pour les positions reconstruites depuis l'historique de
       transactions (une ligne ajoutée manuellement n'a pas de date d'achat connue).
+
+    `positions` : cf. LOT 4.3, résultat déjà calculé de `compute_positions(db)` à réutiliser
+    si l'appelant l'a déjà en main ; recalculé si omis, comportement inchangé.
     """
     holdings = db.query(Holding).all()
     valued = analysis_service.value_holdings(holdings)
-    positions = portfolio_reconstruction.compute_positions(db)
+    if positions is None:
+        positions = portfolio_reconstruction.compute_positions(db)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    results: dict[str, dict] = {}
-    for v in valued:
-        h = v.holding
-        depuis_achat = None
-        if h.prix_revient_moyen and h.prix_revient_moyen > EPSILON and h.market_data and h.market_data.prix_actuel:
-            depuis_achat = (h.market_data.prix_actuel / h.prix_revient_moyen - 1) * 100
+    return {v.holding.ticker: _rendement_pour_ligne(v, positions.get(v.holding.ticker), now) for v in valued}
 
-        annualise = None
-        state = positions.get(h.ticker)
-        if state and state.cash_flows and v.a_des_donnees:
-            # Sans prix de marché réel, la ligne est valorisée à son coût : un XIRR
-            # calculé sur ce flux fictif afficherait un 0% trompeur plutôt qu'une
-            # vraie mesure de performance. On préfère ne rien afficher dans ce cas.
-            flows = list(state.cash_flows) + [(now, v.valeur)]
-            annualise = xirr(flows)
 
-        results[h.ticker] = {
-            "rendement_depuis_achat_pct": round(depuis_achat, 2) if depuis_achat is not None else None,
-            "rendement_annualise_pct": round(annualise, 2) if annualise is not None else None,
-        }
+def compute_holding_return(db: Session, ticker: str, position: PositionState | None = None) -> dict:
+    """Variante ciblée sur une seule ligne (LOT 4.2) : évite de relire tout le grand
+    livre et de revaloriser tout le portefeuille (`compute_holding_returns(db)`) pour
+    n'en afficher qu'une seule fiche (`holding_detail_service.build_holding_detail`).
+    Renvoie exactement le même résultat que `compute_holding_returns(db)[ticker]` — même
+    calcul (`_rendement_pour_ligne`), sur les mêmes données pour ce ticker, seule la
+    façon de les obtenir change (une ligne + sa position, au lieu de tout le
+    portefeuille). `{"rendement_depuis_achat_pct": None, "rendement_annualise_pct":
+    None}` si le ticker n'existe pas dans le portefeuille, comme le ferait un `.get(ticker,
+    {})` sur le résultat de `compute_holding_returns` (valeurs absentes -> `None` côté API).
 
-    return results
+    `position` : cf. LOT 4.3, résultat déjà calculé de
+    `portfolio_reconstruction.compute_position(db, ticker)` à réutiliser si l'appelant
+    l'a déjà en main ; recalculé si omis.
+    """
+    holding = db.query(Holding).filter(Holding.ticker == ticker).first()
+    if holding is None:
+        return {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None}
+
+    v = analysis_service.value_holdings([holding])[0]
+    if position is None:
+        position = portfolio_reconstruction.compute_position(db, ticker)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    return _rendement_pour_ligne(v, position, now)

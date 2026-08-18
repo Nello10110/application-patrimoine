@@ -12,6 +12,11 @@
   mémoire du délai minimal entre rafraîchissements manuels (LOT 7.5) entre chaque
   test, pour qu'un test n'hérite pas d'un rafraîchissement déclenché par un test
   précédent dans le même process.
+- `reinitialiser_rafraichissement_arriere_plan` (autouse) : attend la fin du fil de
+  fond du rafraîchissement (LOT 4B, `market_data_service.demarrer_rafraichissement`)
+  et remet à zéro son état module-level entre chaque test. `attendre_fin_rafraichissement_arriere_plan`
+  (fonction, pas fixture) rend ce fil déterministe dans les tests qui veulent
+  observer son état final sans sonder à intervalles réels.
 """
 
 import itertools
@@ -88,6 +93,34 @@ def no_network_yfinance(monkeypatch):
 @pytest.fixture(autouse=True)
 def reinitialiser_limite_rafraichissement_manuel(monkeypatch):
     monkeypatch.setattr(market_data_service, "_dernier_rafraichissement_manuel", None)
+
+
+@pytest.fixture(autouse=True)
+def reinitialiser_rafraichissement_arriere_plan():
+    """Isole l'état module-level du rafraîchissement en tâche de fond (LOT 4B)
+    entre deux tests : sans ça, un `en_cours=True` laissé par un test précédent
+    ferait échouer le suivant en 409, et un fil encore vivant pourrait continuer à
+    écrire dans la base partagée par les tests après la fin du test qui l'a lancé.
+    Attend la fin du fil éventuellement laissé vivant (délai maximal court : aucun
+    test de cette suite ne simule un vrai appel réseau, donc rien ne devrait jamais
+    tourner plus de quelques millisecondes) avant de remettre l'état à zéro."""
+    yield
+    attendre_fin_rafraichissement_arriere_plan()
+    market_data_service._etat = market_data_service.EtatRafraichissement()
+    market_data_service._thread_courant = None
+
+
+def attendre_fin_rafraichissement_arriere_plan(timeout: float = 5.0) -> None:
+    """Rend le fil de fond de `market_data_service.demarrer_rafraichissement`
+    déterministe pour les tests : plutôt que de sonder l'état à intervalles réels
+    (ce que fait le frontend, cf. LOT 4B), on attend simplement que le fil ait
+    terminé, avec un délai maximal généreux pour ne jamais bloquer indéfiniment si
+    un test est mal formé. `no_network_yfinance` garantit qu'aucun test n'appelle
+    réellement Yahoo Finance, donc ce fil se termine en pratique quasi
+    instantanément."""
+    thread = market_data_service._thread_courant
+    if thread is not None:
+        thread.join(timeout=timeout)
 
 
 def make_transaction(db, **overrides) -> Transaction:

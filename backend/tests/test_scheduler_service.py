@@ -11,11 +11,15 @@ SQLite différent) : ce module lit donc et écrit directement via `SessionLocal`
 en nettoyant la ligne de config avant/après chaque test pour rester indépendant de
 l'ordre d'exécution."""
 
+import threading
+
 import pytest
 
 from app.database import SessionLocal
 from app.models import ScheduledJobConfig
 from app.services import market_data_service, scheduler_service
+
+from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
 
 
 def _supprimer_config_job():
@@ -87,3 +91,97 @@ def test_echec_utilise_une_session_dediee_pour_enregistrer_le_statut(monkeypatch
 
     assert len(sessions_creees) == 2  # session du rafraîchissement + session dédiée au statut d'échec
     assert sessions_creees[0] is not sessions_creees[1]
+
+
+# ---------------------------------------------------------------------------
+# LOT 4B — `run_job_now` (déclenchement manuel) ne bloque plus la requête
+# ---------------------------------------------------------------------------
+
+
+def test_run_job_now_ne_bloque_pas_et_renvoie_la_config_actuelle(db, monkeypatch):
+    """`run_job_now` doit rendre la main avant que le travail ne soit terminé : on
+    le bloque volontairement sur un événement pour le prouver, sans aucun sleep."""
+    make_holding(db, ticker="AAA", quantite=1.0)
+
+    demarre = threading.Event()
+    liberer = threading.Event()
+
+    def refresh_tickers_bloquant(db, items, on_progression=None):
+        demarre.set()
+        assert liberer.wait(timeout=5)
+        return []
+
+    monkeypatch.setattr(market_data_service, "refresh_tickers", refresh_tickers_bloquant)
+
+    config = scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH)
+
+    assert config.job_key == scheduler_service.MARKET_DATA_REFRESH
+    assert demarre.wait(timeout=5), "le fil de fond n'a pas démarré à temps"
+    # Toujours en cours au moment où `run_job_now` a déjà rendu la main : preuve que
+    # l'appel n'a pas attendu la fin du travail.
+    assert market_data_service.etat_rafraichissement().en_cours is True
+
+    liberer.set()
+    attendre_fin_rafraichissement_arriere_plan()
+
+
+def test_run_job_now_repercute_le_resultat_dans_scheduled_job_config(db, monkeypatch):
+    """Une fois le rafraîchissement terminé, le statut doit apparaître dans
+    `ScheduledJobConfig` (lu par la page Réglages via `GET /api/settings/jobs`),
+    exactement comme pour le job planifié."""
+    make_holding(db, ticker="AAA", quantite=1.0)
+    monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None: [])
+
+    scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH)
+    attendre_fin_rafraichissement_arriere_plan()
+
+    config = _lire_config_job()
+    assert config is not None
+    assert config.dernier_statut == "ok"
+
+
+def test_run_job_now_refuse_si_un_rafraichissement_est_deja_en_cours(db, monkeypatch):
+    make_holding(db, ticker="AAA", quantite=1.0)
+
+    demarre = threading.Event()
+    liberer = threading.Event()
+
+    def refresh_tickers_bloquant(db, items, on_progression=None):
+        demarre.set()
+        assert liberer.wait(timeout=5)
+        return []
+
+    monkeypatch.setattr(market_data_service, "refresh_tickers", refresh_tickers_bloquant)
+
+    scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH)
+    assert demarre.wait(timeout=5)
+
+    with pytest.raises(market_data_service.RafraichissementDejaEnCoursError):
+        scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH)
+
+    liberer.set()
+    attendre_fin_rafraichissement_arriere_plan()
+
+
+def test_route_run_now_202_puis_409_si_deja_en_cours(client, db, monkeypatch):
+    make_holding(db, ticker="AAA", quantite=1.0)
+
+    demarre = threading.Event()
+    liberer = threading.Event()
+
+    def refresh_tickers_bloquant(db, items, on_progression=None):
+        demarre.set()
+        assert liberer.wait(timeout=5)
+        return []
+
+    monkeypatch.setattr(market_data_service, "refresh_tickers", refresh_tickers_bloquant)
+
+    premier = client.post(f"/api/settings/jobs/{scheduler_service.MARKET_DATA_REFRESH}/run-now")
+    assert premier.status_code == 202
+    assert demarre.wait(timeout=5)
+
+    second = client.post(f"/api/settings/jobs/{scheduler_service.MARKET_DATA_REFRESH}/run-now")
+    assert second.status_code == 409
+
+    liberer.set()
+    attendre_fin_rafraichissement_arriere_plan()

@@ -3,10 +3,51 @@ look-through et des indicateurs de risque."""
 
 from datetime import datetime, timezone
 
+from sqlalchemy import event
+
 from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, FundComposition, Holding, MarketDataCache
 from app.services import analysis_service
 from app.services.analysis_service import breakdown_with_lookthrough, compute_data_quality, compute_risk_indicators, value_holdings
 from app.services.reference_indices import NON_CATEGORISE
+
+
+# --- 4.1 : Holding.market_data chargé en un lot, pas en N+1 requêtes -------------
+
+
+def test_market_data_charge_en_un_lot_pas_une_requete_par_ligne(db):
+    """Verrou anti-régression du LOT 4.1 : sans stratégie de chargement explicite sur
+    `Holding.market_data` (`lazy="selectin"`), SQLAlchemy émettrait une requête par
+    ligne dès que `.market_data` est accédé dans `value_holdings` — 1 requête
+    `holdings` + N requêtes `market_data_cache` pour N positions. On le prouve en
+    comptant réellement les requêtes SQL émises (écouteur sur `before_cursor_execute`),
+    seul moyen fiable de verrouiller durablement ce genre de correctif."""
+    nombre_lignes = 20
+    maintenant = datetime.now(timezone.utc)
+    for i in range(nombre_lignes):
+        ticker = f"MULTI{i}"
+        db.add(Holding(ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
+        db.add(MarketDataCache(ticker=ticker, prix_actuel=12.0, derniere_maj=maintenant))
+    db.commit()
+    db.expire_all()  # force un rechargement réel depuis la base, pas depuis l'identity map
+
+    requetes = []
+
+    def _compter(conn, cursor, statement, parameters, context, executemany):
+        requetes.append(statement)
+
+    moteur = db.get_bind()
+    event.listen(moteur, "before_cursor_execute", _compter)
+    try:
+        holdings = db.query(Holding).all()
+        valued = value_holdings(holdings)
+    finally:
+        event.remove(moteur, "before_cursor_execute", _compter)
+
+    assert len(valued) == nombre_lignes
+    # Sans le correctif : 1 (holdings) + `nombre_lignes` requêtes (une par `.market_data`)
+    # = 21. Avec `lazy="selectin"` : 1 (holdings) + 1 (market_data_cache en un seul `IN`),
+    # borné quel que soit `nombre_lignes` — donc très inférieur à 21 ici.
+    assert len(requetes) <= 3
 
 
 def test_value_holdings_valorise_au_prix_de_marche(db):

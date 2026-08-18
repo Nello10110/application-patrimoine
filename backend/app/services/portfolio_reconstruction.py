@@ -26,6 +26,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from ..models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding, Transaction
+from . import historique_cache
 
 EPSILON = 1e-6
 
@@ -146,6 +147,27 @@ def compute_positions(db: Session) -> dict[str, PositionState]:
     return positions
 
 
+def compute_position(db: Session, ticker: str) -> PositionState | None:
+    """Reconstruction ciblée sur un seul ticker (cf. LOT 4.2) : ne relit que les
+    transactions de ce ticker plutôt que de rejouer tout le grand livre pour n'en
+    garder qu'une position, comme le faisait `holding_detail_service` en passant par
+    `compute_positions(db)` complet pour afficher une seule fiche. Résultat
+    rigoureusement identique à `compute_positions(db).get(ticker)` — même fonction
+    de traitement (`_apply_transaction`/`_controler_coherence`) appliquée aux mêmes
+    transactions, seule la requête source change (filtrée par ticker plutôt que
+    ramenant tout le grand livre). Renvoie `None` si ce ticker n'a aucune
+    transaction (pas de ligne dans `positions` pour lui, comme `compute_positions`)."""
+    transactions = db.query(Transaction).filter(Transaction.symbol == ticker).order_by(Transaction.datetime_utc.asc()).all()
+    if not transactions:
+        return None
+
+    state = PositionState(symbol=ticker)
+    for tx in transactions:
+        _apply_transaction(state, tx)
+    _controler_coherence(state)
+    return state
+
+
 def _controler_coherence(state: PositionState) -> None:
     """Contrôle de fin de traitement : une quantité résiduelle négative signale un
     grand livre réellement incomplet (une vente sans achat correspondant), par
@@ -223,6 +245,14 @@ def rebuild_holdings(db: Session) -> ReconstructionResult:
         count += 1
 
     db.commit()
+
+    # Le portefeuille vient de changer : tout historique en cache (LOT 4.4/4.5,
+    # `services/historique_cache.py`) est potentiellement caduc — quantités détenues
+    # différentes à chaque date, nouvelles/disparues lignes. Purge complète plutôt que
+    # ciblée : `rebuild_holdings` ne connaît pas la liste des tickers avant reconstruction
+    # (une ligne peut disparaître), et c'est un événement rare (import), pas un chemin chaud.
+    historique_cache.invalider(db)
+
     return ReconstructionResult(
         positions_recalculees=count,
         anomalies_detectees=anomalies_detectees,

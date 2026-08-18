@@ -26,7 +26,11 @@ def build_holding_detail(db: Session, ticker: str) -> dict | None:
     prix = prix_actuel if prix_actuel is not None else holding.prix_revient_moyen
     nom_affiche = (md.nom if md and md.nom else None) or holding.nom
 
-    rendements = performance_service.compute_holding_returns(db).get(ticker, {})
+    # Rendement de cette seule ligne (LOT 4.2) : `compute_holding_return` ne relit que
+    # les transactions de ce ticker, plutôt que `compute_holding_returns(db)` qui
+    # rejouerait tout le grand livre et revaloriserait tout le portefeuille pour
+    # n'afficher au final que ces deux pourcentages sur une seule fiche.
+    rendements = performance_service.compute_holding_return(db, ticker)
 
     compositions = db.query(FundComposition).filter(FundComposition.ticker == ticker).all()
     repartition_geo = [{"categorie": c.categorie, "poids": c.poids} for c in compositions if c.type == "geo"]

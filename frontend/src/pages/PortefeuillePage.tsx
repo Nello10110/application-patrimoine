@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { Holding } from '../api/types'
 import Card from '../components/Card'
 import HoldingDetailModal from '../components/HoldingDetailModal'
+import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatEuro } from '../utils/format'
 
 function RendementCell({ value }: { value: number | null }) {
@@ -44,7 +45,6 @@ export default function PortefeuillePage() {
   const [categorie, setCategorie] = useState<Categorie>('TOUS')
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [form, setForm] = useState({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '' })
@@ -61,17 +61,14 @@ export default function PortefeuillePage() {
 
   useEffect(load, [])
 
-  async function handleRefresh() {
-    setRefreshing(true)
-    setError(null)
-    try {
-      await api.refreshMarketData()
-      load()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setRefreshing(false)
-    }
+  // Rafraîchissement des cours en tâche de fond (LOT 4B) : recharge les positions
+  // une fois le rafraîchissement terminé (succès ou échec), pour afficher les
+  // cours à jour sans attendre une action supplémentaire de l'utilisateur.
+  const { etat: etatRafraichissement, enCours: refreshing, erreur: erreurRafraichissement, declencher } =
+    useRafraichissementCours(() => load())
+
+  function handleRefresh() {
+    declencher(() => api.refreshMarketData())
   }
 
   async function handleDelete(e: React.MouseEvent, id: number) {
@@ -103,6 +100,11 @@ export default function PortefeuillePage() {
     }
   }
 
+  const libelleRafraichissement =
+    etatRafraichissement?.en_cours && etatRafraichissement.positions_total > 0
+      ? `Rafraîchissement... (${etatRafraichissement.positions_traitees} / ${etatRafraichissement.positions_total} positions)`
+      : 'Rafraîchissement...'
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -112,11 +114,12 @@ export default function PortefeuillePage() {
           disabled={refreshing || holdings.length === 0}
           className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
         >
-          {refreshing ? 'Rafraîchissement...' : 'Rafraîchir les cours'}
+          {refreshing ? libelleRafraichissement : 'Rafraîchir les cours'}
         </button>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {erreurRafraichissement && <p className="text-sm text-red-600">{erreurRafraichissement}</p>}
 
       <Card title="Ajouter une ligne manuellement">
         <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">

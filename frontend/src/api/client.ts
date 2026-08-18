@@ -5,13 +5,13 @@ import type {
   CategoryCompositionResponse,
   ColumnMapping,
   PortfolioHistoryResponse,
+  EtatRafraichissement,
   Holding,
   HoldingDetail,
   HoldingInput,
   HoldingPriceHistoryResponse,
   ImportPreview,
   ImportResult,
-  MarketData,
   PerformanceSummary,
   ScheduledJob,
   TransactionImportResult,
@@ -54,8 +54,11 @@ export const api = {
   importConfirm: (mapping: ColumnMapping) =>
     request<ImportResult>('/portfolio/import/confirm', { method: 'POST', body: JSON.stringify(mapping) }),
 
-  // Market data
-  refreshMarketData: () => request<MarketData[]>('/market-data/refresh', { method: 'POST' }),
+  // Market data — rafraîchissement en tâche de fond (LOT 4B) : `refreshMarketData`
+  // ne renvoie plus le cache complet mais l'état de démarrage (202), à sonder via
+  // `getRefreshStatus` pendant que `en_cours` vaut `true`.
+  refreshMarketData: () => request<EtatRafraichissement>('/market-data/refresh', { method: 'POST' }),
+  getRefreshStatus: () => request<EtatRafraichissement>('/market-data/refresh/status'),
 
   // Targets
   getDefaultTargets: () =>

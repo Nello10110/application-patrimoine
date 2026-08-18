@@ -107,7 +107,8 @@ def migrate_rename_categorie_autres() -> None:
     manuellement avant cette migration), la ligne "Autres" correspondante est laissée
     telle quelle plutôt que de provoquer une erreur ou d'écraser une valeur saisie."""
     inspector = inspect(engine)
-    if "allocation_targets" not in inspector.get_table_names():
+    tables = set(inspector.get_table_names())
+    if "allocation_targets" not in tables:
         return  # base neuve : create_all() vient de créer une table vide, rien à renommer
 
     renommages = (("geo", "Autres", "Autres zones"), ("sector", "Autres", "Autres secteurs"))
@@ -137,3 +138,72 @@ def migrate_rename_categorie_autres() -> None:
                     nouvelle,
                     type_,
                 )
+
+        # Les lignes de look-through déjà calculées portent elles aussi l'ancien
+        # libellé : sans ce renommage, le graphique afficherait une catégorie "Autres"
+        # fantôme à côté de "Autres zones" jusqu'au prochain rafraîchissement des
+        # cours (qui les réécrit toutes). Même UPDATE ciblé, même idempotence ; la
+        # contrainte d'unicité porte ici sur (ticker, type, categorie).
+        if "fund_composition" in tables:
+            for type_, ancienne, nouvelle in renommages:
+                resultat = conn.execute(
+                    text(
+                        """
+                        UPDATE fund_composition
+                        SET categorie = :nouvelle
+                        WHERE type = :type_ AND categorie = :ancienne
+                          AND NOT EXISTS (
+                              SELECT 1 FROM fund_composition AS existante
+                              WHERE existante.ticker = fund_composition.ticker
+                                AND existante.type = fund_composition.type
+                                AND existante.categorie = :nouvelle
+                          )
+                        """
+                    ),
+                    {"type_": type_, "ancienne": ancienne, "nouvelle": nouvelle},
+                )
+                if resultat.rowcount:
+                    logger.info(
+                        "migration: %d ligne(s) fund_composition renommée(s) de '%s' vers '%s' (type=%s)",
+                        resultat.rowcount,
+                        ancienne,
+                        nouvelle,
+                        type_,
+                    )
+
+
+def migrate_recalculer_regions_en_cache() -> None:
+    """Recalcule `market_data_cache.region` à partir du pays déjà stocké.
+
+    La zone géographique est figée en base au moment du rafraîchissement des cours.
+    Les entrées écrites avant le LOT 2.2 portent donc l'ancienne catégorie fourre-tout
+    "Autres", qui confondait deux situations désormais distinctes : un pays connu mais
+    hors de nos zones ("Autres zones") et une absence pure de donnée ("Non catégorisé",
+    cas de la crypto ou d'un titre dont le fournisseur ne renvoie aucun pays).
+
+    Un simple renommage serait donc faux. Comme `pays` est stocké à côté de `region`,
+    on peut reconstruire la zone exactement comme le ferait le code actuel, sans aucun
+    appel réseau et sans attendre le prochain rafraîchissement. Idempotente par
+    construction : rejouer la fonction recalcule les mêmes valeurs.
+    """
+    inspector = inspect(engine)
+    if "market_data_cache" not in inspector.get_table_names():
+        return
+
+    from .services.reference_indices import region_for_country
+
+    with engine.begin() as conn:
+        lignes = conn.execute(text("SELECT ticker, pays, region FROM market_data_cache")).fetchall()
+        corrigees = 0
+        for ticker, pays, region in lignes:
+            attendue = region_for_country(pays)
+            if region == attendue:
+                continue
+            conn.execute(
+                text("UPDATE market_data_cache SET region = :region WHERE ticker = :ticker"),
+                {"region": attendue, "ticker": ticker},
+            )
+            corrigees += 1
+
+    if corrigees:
+        logger.info("migration: zone géographique recalculée pour %d entrée(s) de market_data_cache", corrigees)

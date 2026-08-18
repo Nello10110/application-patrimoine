@@ -54,11 +54,17 @@ class Holding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
+    # `lazy="selectin"` (cf. LOT 4.1) : sans stratégie de chargement explicite, SQLAlchemy
+    # émet une requête PAR ligne dès que `.market_data` est accédé (N+1 — une requête par
+    # position affichée). `selectin` charge, en UNE requête `WHERE ticker IN (...)`, les
+    # `MarketDataCache` de tout un lot de `Holding` déjà chargés : le nombre de requêtes ne
+    # dépend donc plus du nombre de lignes du portefeuille.
     market_data: Mapped["MarketDataCache"] = relationship(
         "MarketDataCache",
         primaryjoin="foreign(MarketDataCache.ticker) == Holding.ticker",
         uselist=False,
         viewonly=True,
+        lazy="selectin",
     )
 
 
@@ -151,6 +157,20 @@ class FundTopHolding(Base):
     poids: Mapped[float] = mapped_column(Float)  # fraction 0-1 de la valeur du fonds
     pays: Mapped[str | None] = mapped_column(String, nullable=True)
     secteur: Mapped[str | None] = mapped_column(String, nullable=True)
+    derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class HistoriqueCache(Base):
+    """Cache persistant des séries d'historique de prix coûteuses à recalculer
+    (historique d'une ligne, historique du portefeuille — cf. LOT 4.4/4.5), géré
+    exclusivement par `services/historique_cache.py` (clé, sérialisation JSON,
+    durée de validité). Table créée automatiquement au démarrage comme les autres,
+    via `Base.metadata.create_all`."""
+
+    __tablename__ = "historique_cache"
+
+    cle: Mapped[str] = mapped_column(String, primary_key=True)
+    contenu_json: Mapped[str] = mapped_column(String)
     derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 

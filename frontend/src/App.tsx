@@ -1,10 +1,18 @@
+import { Suspense, lazy } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
-import DashboardPage from './pages/DashboardPage'
-import HoldingDetailPage from './pages/HoldingDetailPage'
-import ImportPage from './pages/ImportPage'
-import ObjectifsPage from './pages/ObjectifsPage'
-import PortefeuillePage from './pages/PortefeuillePage'
-import ReglagesPage from './pages/ReglagesPage'
+
+// Découpage par route (LOT 4.8) : `recharts` (utilisé par le Tableau de bord et la
+// fiche détaillée d'une position) pesait à lui seul une bonne part du bundle unique
+// d'origine (~690 ko), chargé même sur les pages qui n'affichent aucun graphique
+// (Portefeuille, Objectifs, Import, Réglages). `React.lazy` fait charger le code de
+// chaque page à la demande (au moment de la navigation) plutôt que tout d'un bloc
+// au premier chargement de l'application.
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
+const ImportPage = lazy(() => import('./pages/ImportPage'))
+const ObjectifsPage = lazy(() => import('./pages/ObjectifsPage'))
+const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
+const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', end: true },
@@ -40,14 +48,16 @@ function App() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/portefeuille" element={<PortefeuillePage />} />
-          <Route path="/portefeuille/:ticker" element={<HoldingDetailPage />} />
-          <Route path="/objectifs" element={<ObjectifsPage />} />
-          <Route path="/import" element={<ImportPage />} />
-          <Route path="/reglages" element={<ReglagesPage />} />
-        </Routes>
+        <Suspense fallback={<p className="text-sm text-slate-500">Chargement...</p>}>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/portefeuille" element={<PortefeuillePage />} />
+            <Route path="/portefeuille/:ticker" element={<HoldingDetailPage />} />
+            <Route path="/objectifs" element={<ObjectifsPage />} />
+            <Route path="/import" element={<ImportPage />} />
+            <Route path="/reglages" element={<ReglagesPage />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   )
