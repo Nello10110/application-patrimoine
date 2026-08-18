@@ -5,9 +5,14 @@ table déjà existante : si un modèle gagne une colonne ou une contrainte, la b
 d'une installation existante doit être mise à jour explicitement. `run_startup_migrations`
 fait ça automatiquement (ADD COLUMN / CREATE UNIQUE INDEX), de façon idempotente et
 jamais destructive — aucune donnée n'est jamais supprimée ou modifiée.
+
+Le chemin de la base est pilotable via la variable d'environnement `OUTIL_BOURSE_DB`
+(utile pour l'exploitation et pour isoler les tests d'une vraie `portfolio.db`) ;
+à défaut, on garde l'emplacement historique.
 """
 
 import logging
+import os
 from pathlib import Path
 
 from sqlalchemy import UniqueConstraint, create_engine, inspect, text
@@ -15,7 +20,8 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 logger = logging.getLogger("outil_bourse.database")
 
-DB_PATH = Path(__file__).resolve().parent.parent / "portfolio.db"
+_DB_PATH_PAR_DEFAUT = Path(__file__).resolve().parent.parent / "portfolio.db"
+DB_PATH = Path(os.environ["OUTIL_BOURSE_DB"]) if os.environ.get("OUTIL_BOURSE_DB") else _DB_PATH_PAR_DEFAUT
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
