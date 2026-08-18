@@ -7,6 +7,7 @@ import Card from '../components/Card'
 import CompositionModal from '../components/CompositionModal'
 import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
+import QualiteDonneesCard from '../components/QualiteDonneesCard'
 import StatTile from '../components/StatTile'
 import { formatEuro } from '../utils/format'
 
@@ -102,8 +103,10 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500">Aucune donnée</p>
           )}
           <p className="mt-2 text-xs text-slate-400">
-            Géographie des fonds/ETF estimée à partir de leurs 10 plus grosses lignes (extrapolée à 100% du fonds) ; secteur
-            des fonds basé sur leur composition complète. Clique sur une barre pour voir le détail des lignes.
+            Géographie des fonds/ETF issue de leur composition réelle (10 plus grosses lignes, extrapolées à 100% du fonds)
+            quand Yahoo Finance la fournit, sinon estimée à partir de l'indice suivi par le fonds (voir le détail de qualité
+            des données ci-dessous) ; secteur des fonds basé sur leur composition complète. Clique sur une barre pour voir le
+            détail des lignes.
           </p>
         </Card>
         <Card title="Répartition sectorielle — réel vs cible">
@@ -114,6 +117,8 @@ export default function DashboardPage() {
           )}
         </Card>
       </div>
+
+      <QualiteDonneesCard qualite={analysis.qualite_donnees} />
 
       {modal && <CompositionModal type={modal.type} categorie={modal.categorie} onClose={() => setModal(null)} />}
 

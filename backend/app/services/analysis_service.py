@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from ..models import FundComposition, Holding
-from .reference_indices import label_for_sector
+from ..models import SOURCE_INDICE, FundComposition, Holding
+from .reference_indices import NON_CATEGORISE, label_for_sector
 
 
 @dataclass
@@ -49,12 +49,28 @@ def _fund_composition_lookup(db: Session, tickers: list[str], type_: str) -> dic
     return lookup
 
 
+def categorie_propre_a_la_ligne(v: ValuedHolding, type_: str) -> str:
+    """Catégorie d'une ligne quand aucune composition interne n'est disponible pour
+    elle (ce n'est pas un fonds, ou son look-through est introuvable).
+
+    Cas particulier des fonds : le pays renvoyé par le fournisseur de données pour un
+    ETF est son pays de DOMICILIATION (Irlande, Luxembourg pour la quasi-totalité des
+    ETF européens), pas celui de ses actifs sous-jacents. Le retenir classerait un ETF
+    S&P 500 en "Europe" — une erreur bien pire qu'une absence de donnée. Faute de
+    composition ET de repli par l'indice suivi, un fonds reste donc explicitement non
+    catégorisé géographiquement.
+    """
+    if type_ == "geo" and v.holding.type_actif == "FUND":
+        return NON_CATEGORISE
+    valeur = v.region if type_ == "geo" else v.secteur_label
+    return valeur or NON_CATEGORISE
+
+
 def breakdown_with_lookthrough(db: Session, valued: list[ValuedHolding], type_: str) -> dict[str, float]:
     """Répartition géo/secteur du portefeuille : les fonds/ETF sont éclatés sur
     plusieurs catégories selon leur composition interne (`FundComposition`) plutôt
     que laissés en bloc dans "Non catégorisé". `type_` vaut "geo" ou "sector"."""
     comp_by_ticker = _fund_composition_lookup(db, [v.holding.ticker for v in valued], type_)
-    key = "region" if type_ == "geo" else "secteur_label"
 
     totals: dict[str, float] = {}
     for v in valued:
@@ -63,7 +79,7 @@ def breakdown_with_lookthrough(db: Session, valued: list[ValuedHolding], type_: 
             for row in rows:
                 totals[row.categorie] = totals.get(row.categorie, 0.0) + v.valeur * row.poids
         else:
-            categorie = getattr(v, key) or "Non catégorisé"
+            categorie = categorie_propre_a_la_ligne(v, type_)
             totals[categorie] = totals.get(categorie, 0.0) + v.valeur
     return totals
 
@@ -72,7 +88,6 @@ def holdings_in_category(db: Session, valued: list[ValuedHolding], type_: str, c
     """Détail des lignes qui composent une catégorie donnée (pour le camembert de
     composition) — même logique que `breakdown_with_lookthrough` mais sans sommer."""
     comp_by_ticker = _fund_composition_lookup(db, [v.holding.ticker for v in valued], type_)
-    key = "region" if type_ == "geo" else "secteur_label"
 
     lignes = []
     for v in valued:
@@ -80,8 +95,7 @@ def holdings_in_category(db: Session, valued: list[ValuedHolding], type_: str, c
         if rows:
             contribution = v.valeur * sum(row.poids for row in rows if row.categorie == categorie)
         else:
-            categorie_holding = getattr(v, key) or "Non catégorisé"
-            contribution = v.valeur if categorie_holding == categorie else 0.0
+            contribution = v.valeur if categorie_propre_a_la_ligne(v, type_) == categorie else 0.0
 
         if contribution > 1e-9:
             lignes.append({"ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(contribution, 2)})
@@ -131,4 +145,63 @@ def compute_risk_indicators(valued: list[ValuedHolding], geo_totals: dict[str, f
         "top_secteur_nom": top_secteur[0],
         "score_diversification": round((1 - hhi) * 100, 1),
         "lignes_sans_donnees": lignes_sans_donnees,
+    }
+
+
+def compute_data_quality(db: Session, valued: list[ValuedHolding]) -> dict:
+    """Qualifie, en euros et en pourcentage de la valeur totale, l'origine de la
+    répartition géographique affichée à l'écran (cf. 2.1/2.3) — le tableau de bord
+    compare réel et cible, encore faut-il savoir à quel point le "réel" est mesuré
+    plutôt qu'estimé. Trois catégories, non exclusives entre elles pour la dernière :
+
+    - composition réelle : géographie connue avec certitude, soit parce que la
+      ligne est un fonds dont Yahoo fournit `top_holdings` (`FundComposition.source
+      == SOURCE_COMPOSITION`), soit parce que c'est une ligne individuelle (action...)
+      dont le pays de cotation est connu ;
+    - estimée par indice : fonds sans `top_holdings`, dont la géographie est déduite
+      du nom de l'indice suivi (`FundComposition.source == SOURCE_INDICE`) ;
+    - non catégorisée : aucune donnée géographique disponible, ni composition ni
+      indice reconnu (finit dans "Non catégorisé" des graphiques) ;
+    - sans cotation (2.3) : lignes valorisées à leur coût de revient faute de cours
+      (`not a_des_donnees`) — indépendant des trois catégories précédentes, une ligne
+      sans cotation peut très bien avoir, par ailleurs, une géographie connue.
+    """
+    comp_by_ticker = _fund_composition_lookup(db, [v.holding.ticker for v in valued], "geo")
+    valeur_totale = sum(v.valeur for v in valued)
+
+    valeur_composition_reelle = 0.0
+    valeur_estimee_par_indice = 0.0
+    valeur_non_categorisee = 0.0
+    valeur_sans_cotation = 0.0
+
+    for v in valued:
+        rows = comp_by_ticker.get(v.holding.ticker)
+        if rows:
+            # Toutes les lignes géo d'un même ticker sont posées ensemble par un
+            # seul appel à `fetch_fund_composition` : leur source est forcément
+            # identique, on peut se fier à la première.
+            if rows[0].source == SOURCE_INDICE:
+                valeur_estimee_par_indice += v.valeur
+            else:
+                valeur_composition_reelle += v.valeur
+        elif categorie_propre_a_la_ligne(v, "geo") != NON_CATEGORISE:
+            valeur_composition_reelle += v.valeur
+        else:
+            valeur_non_categorisee += v.valeur
+
+        if not v.a_des_donnees:
+            valeur_sans_cotation += v.valeur
+
+    def pct(valeur: float) -> float:
+        return round(valeur / valeur_totale * 100, 1) if valeur_totale > 0 else 0.0
+
+    return {
+        "valeur_composition_reelle": round(valeur_composition_reelle, 2),
+        "pct_composition_reelle": pct(valeur_composition_reelle),
+        "valeur_estimee_par_indice": round(valeur_estimee_par_indice, 2),
+        "pct_estimee_par_indice": pct(valeur_estimee_par_indice),
+        "valeur_non_categorisee": round(valeur_non_categorisee, 2),
+        "pct_non_categorisee": pct(valeur_non_categorisee),
+        "valeur_sans_cotation": round(valeur_sans_cotation, 2),
+        "pct_sans_cotation": pct(valeur_sans_cotation),
     }

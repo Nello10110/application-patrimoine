@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import Base, engine, run_startup_migrations
+from .database import Base, engine, migrate_rename_categorie_autres, run_startup_migrations
 from .logging_config import configure_logging
 from .routers import analysis, market_data, performance, portfolio, settings, targets, transactions
 from .services import scheduler_service
@@ -15,6 +15,7 @@ from .services import scheduler_service
 configure_logging()
 Base.metadata.create_all(bind=engine)
 run_startup_migrations()
+migrate_rename_categorie_autres()
 
 
 @asynccontextmanager

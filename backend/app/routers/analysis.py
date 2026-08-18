@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import AllocationTarget, Holding
-from ..schemas import AllocationBreakdownItem, AnalysisResponse, CategoryCompositionResponse, RebalancingAction, RiskIndicators
+from ..schemas import (
+    AllocationBreakdownItem,
+    AnalysisResponse,
+    CategoryCompositionResponse,
+    QualiteDonnees,
+    RebalancingAction,
+    RiskIndicators,
+)
 from ..services import analysis_service, rebalancing
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
@@ -38,6 +45,7 @@ def get_analysis(annee: int, db: Session = Depends(get_db)):
     geo_reel = analysis_service.breakdown_with_lookthrough(db, valued, "geo")
     sector_reel = analysis_service.breakdown_with_lookthrough(db, valued, "sector")
     risques = analysis_service.compute_risk_indicators(valued, geo_reel, sector_reel)
+    qualite = analysis_service.compute_data_quality(db, valued)
 
     geo_items = _build_breakdown(geo_reel, geo_cibles, valeur_totale)
     sector_items = _build_breakdown(sector_reel, sector_cibles, valeur_totale)
@@ -55,6 +63,7 @@ def get_analysis(annee: int, db: Session = Depends(get_db)):
         sector=sector_items,
         risques=RiskIndicators(**risques),
         recommandations=[RebalancingAction(**a) for a in actions],
+        qualite_donnees=QualiteDonnees(**qualite),
     )
 
 

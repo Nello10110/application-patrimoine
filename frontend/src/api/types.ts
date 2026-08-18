@@ -33,6 +33,7 @@ export interface HoldingInput {
   prix_revient_moyen?: number | null
   compte?: string | null
   devise?: string | null
+  type_actif?: string | null
 }
 
 export interface ImportPreview {
@@ -107,6 +108,17 @@ export interface RebalancingAction {
   sens: 'reduire' | 'augmenter'
 }
 
+export interface QualiteDonnees {
+  valeur_composition_reelle: number
+  pct_composition_reelle: number
+  valeur_estimee_par_indice: number
+  pct_estimee_par_indice: number
+  valeur_non_categorisee: number
+  pct_non_categorisee: number
+  valeur_sans_cotation: number
+  pct_sans_cotation: number
+}
+
 export interface AnalysisResponse {
   annee: number
   valeur_totale: number
@@ -114,6 +126,7 @@ export interface AnalysisResponse {
   sector: AllocationBreakdownItem[]
   risques: RiskIndicators
   recommandations: RebalancingAction[]
+  qualite_donnees: QualiteDonnees
 }
 
 export interface TransactionImportResult {

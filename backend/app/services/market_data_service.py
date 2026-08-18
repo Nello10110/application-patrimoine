@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 import yfinance as yf
 from sqlalchemy.orm import Session
 
-from ..models import FundComposition, FundTopHolding, MarketDataCache, TickerResolution
-from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, region_for_country
+from ..models import SOURCE_COMPOSITION, SOURCE_INDICE, FundComposition, FundTopHolding, MarketDataCache, TickerResolution
+from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
 
 QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
     "STOCK": {"EQUITY"},
@@ -164,26 +164,34 @@ def fetch_one(identifiant: str, ticker_resolu: str | None, fx_cache: dict[str, f
 
 
 def fetch_fund_composition(
-    ticker_resolu: str, stock_info_cache: dict[str, dict]
+    ticker_resolu: str, stock_info_cache: dict[str, dict], nom_fonds: str | None = None
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """Look-through d'un ETF/fonds : répartition sectorielle (quasi complète, directement
     fournie par Yahoo), géographique (estimée en résolvant le pays des ~10 plus grosses
     lignes du fonds, puis en extrapolant ces poids à 100% du fonds), et détail nominatif
-    de ces mêmes lignes (symbole, nom, poids, pays, secteur). Retourne ([], [], []) si le
-    fonds n'est pas couvert par cette donnée (ex. ETC matières premières) — le holding
-    reste alors "Non catégorisé" comme avant, sans régression.
+    de ces mêmes lignes (symbole, nom, poids, pays, secteur).
+
+    Chaque ligne de `geo_rows`/`sector_rows` porte un champ `source` valant
+    `SOURCE_COMPOSITION` (donnée réelle du fonds) ou `SOURCE_INDICE` (repli sur le nom
+    de l'indice suivi, géographique seulement, cf. 2.1). Quand Yahoo ne renseigne pas
+    `top_holdings` (constaté sur la majorité des fonds détenus : ETF obligataires,
+    matières premières, ou simplement absence de couverture par Yahoo), on retombe sur
+    `repartition_geo_depuis_le_nom(nom_fonds)` plutôt que de laisser le holding
+    entièrement "Non catégorisé". Si ce repli échoue aussi (indice non reconnu),
+    `geo_rows` est vide comme avant — pas de régression pour le sectoriel, qui n'a pas
+    d'équivalent de repli (aucune table de correspondance indice -> secteurs fournie).
 
     `stock_info_cache` est partagé sur tout un rafraîchissement pour éviter de réinterroger
     Yahoo à chaque fois qu'un même titre (ex. NVDA, AAPL) apparaît dans plusieurs fonds.
     """
-    def _normalise(totaux: dict[str, float]) -> list[dict]:
+    def _normalise(totaux: dict[str, float], source: str) -> list[dict]:
         """Renormalise des poids qui devraient sommer à 1 mais ne le font pas
         exactement (ex. 1,0001 observé côté sectoriel sur Yahoo Finance), pour que
         la somme affichée à l'utilisateur vaille toujours 1,0."""
         total = sum(totaux.values())
         if total <= 0:
             return []
-        return [{"categorie": c, "poids": p / total} for c, p in totaux.items()]
+        return [{"categorie": c, "poids": p / total, "source": source} for c, p in totaux.items()]
 
     try:
         fd = yf.Ticker(ticker_resolu).funds_data
@@ -193,12 +201,12 @@ def fetch_fund_composition(
     sector_totals: dict[str, float] = {}
     try:
         for cle, poids in (fd.sector_weightings or {}).items():
-            label = FUND_SECTOR_WEIGHTING_LABELS.get(cle, "Autres")
+            label = FUND_SECTOR_WEIGHTING_LABELS.get(cle, SECTEUR_AUTRES)
             sector_totals[label] = sector_totals.get(label, 0.0) + poids
     except Exception:
         pass
     sector_totals = {c: p for c, p in sector_totals.items() if p > 0}
-    sector_rows = _normalise(sector_totals)
+    sector_rows = _normalise(sector_totals, SOURCE_COMPOSITION)
 
     geo_totals: dict[str, float] = {}
     top_holdings_detail: list[dict] = []
@@ -230,7 +238,15 @@ def fetch_fund_composition(
     except Exception:
         pass
 
-    geo_rows = _normalise(geo_totals)
+    geo_rows = _normalise(geo_totals, SOURCE_COMPOSITION)
+    if not geo_rows:
+        repli = repartition_geo_depuis_le_nom(nom_fonds)
+        if repli:
+            geo_rows = [
+                {"categorie": categorie, "poids": poids, "source": SOURCE_INDICE}
+                for categorie, poids in repli.items()
+                if poids > 0
+            ]
 
     return geo_rows, sector_rows, top_holdings_detail
 
@@ -270,11 +286,21 @@ def refresh_tickers(db: Session, items: list[tuple[str, str | None]]) -> list[di
         db.query(FundComposition).filter(FundComposition.ticker == identifiant).delete()
         db.query(FundTopHolding).filter(FundTopHolding.ticker == identifiant).delete()
         if asset_class == "FUND" and ticker_resolu is not None and data.get("erreur") is None:
-            geo_rows, sector_rows, top_holdings_detail = fetch_fund_composition(ticker_resolu, stock_info_cache)
+            geo_rows, sector_rows, top_holdings_detail = fetch_fund_composition(
+                ticker_resolu, stock_info_cache, data.get("nom")
+            )
             for row in geo_rows:
-                db.add(FundComposition(ticker=identifiant, type="geo", categorie=row["categorie"], poids=row["poids"]))
+                db.add(
+                    FundComposition(
+                        ticker=identifiant, type="geo", categorie=row["categorie"], poids=row["poids"], source=row["source"]
+                    )
+                )
             for row in sector_rows:
-                db.add(FundComposition(ticker=identifiant, type="sector", categorie=row["categorie"], poids=row["poids"]))
+                db.add(
+                    FundComposition(
+                        ticker=identifiant, type="sector", categorie=row["categorie"], poids=row["poids"], source=row["source"]
+                    )
+                )
             for row in top_holdings_detail:
                 db.add(
                     FundTopHolding(

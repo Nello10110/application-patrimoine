@@ -18,6 +18,14 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Qualification de l'origine d'une ligne `FundComposition.source` (cf. 2.1) : permet
+# de distinguer, dans l'API et à l'écran, une répartition mesurée d'une répartition
+# estimée. L'absence de ligne en base (aucune des deux) signale une donnée
+# indisponible — elle n'a donc pas de constante dédiée, seule son absence compte.
+SOURCE_COMPOSITION = "composition"  # lignes réelles du fonds (Yahoo top_holdings / sector_weightings)
+SOURCE_INDICE = "indice"  # déduite du nom du fonds via reference_indices.repartition_geo_depuis_le_nom
+
+
 class Holding(Base):
     __tablename__ = "holdings"
 
@@ -107,6 +115,11 @@ class FundComposition(Base):
     type: Mapped[str] = mapped_column(String)  # "geo" | "sector"
     categorie: Mapped[str] = mapped_column(String)
     poids: Mapped[float] = mapped_column(Float)  # fraction 0-1 de la valeur du fonds
+    # Origine de la ligne : SOURCE_COMPOSITION (données réelles du fonds) ou
+    # SOURCE_INDICE (estimée à partir du nom de l'indice suivi, cf. 2.1). Nullable
+    # pour les lignes posées avant l'ajout de cette colonne (migration ADD COLUMN) ;
+    # elles sont de toute façon recalculées à chaque rafraîchissement des cours.
+    source: Mapped[str | None] = mapped_column(String, nullable=True)
     derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 

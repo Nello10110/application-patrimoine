@@ -130,6 +130,21 @@ class RebalancingAction(BaseModel):
     sens: str  # "reduire" | "augmenter"
 
 
+class QualiteDonnees(BaseModel):
+    """Origine de la répartition géographique affichée (cf. LOT 2.1/2.3) : permet de
+    signaler à l'écran quand le "réel" du tableau de bord est mesuré plutôt qu'estimé,
+    voire pas du tout disponible."""
+
+    valeur_composition_reelle: float
+    pct_composition_reelle: float
+    valeur_estimee_par_indice: float
+    pct_estimee_par_indice: float
+    valeur_non_categorisee: float
+    pct_non_categorisee: float
+    valeur_sans_cotation: float
+    pct_sans_cotation: float
+
+
 class AnalysisResponse(BaseModel):
     annee: int
     valeur_totale: float
@@ -137,6 +152,7 @@ class AnalysisResponse(BaseModel):
     sector: list[AllocationBreakdownItem]
     risques: RiskIndicators
     recommandations: list[RebalancingAction]
+    qualite_donnees: QualiteDonnees
 
 
 class TransactionImportResult(BaseModel):

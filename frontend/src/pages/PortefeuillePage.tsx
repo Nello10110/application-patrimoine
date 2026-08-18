@@ -21,6 +21,19 @@ const CATEGORY_TABS: { key: Categorie; label: string }[] = [
   { key: 'AUTRES', label: 'Autres' },
 ]
 
+// Valeurs acceptées par le backend (cf. `Holding.type_actif` dans `models.py`) : une
+// ligne saisie à la main sans type explicite finit en "Autres" côté filtrage et
+// échappe au look-through par catégorie — d'où l'option "Non précisé" plutôt qu'un
+// type par défaut implicite.
+const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Non précisé' },
+  { value: 'STOCK', label: 'Action' },
+  { value: 'FUND', label: 'ETF / Fonds' },
+  { value: 'CRYPTO', label: 'Crypto' },
+  { value: 'BOND', label: 'Obligation' },
+  { value: 'PRIVATE_FUND', label: 'Private Equity' },
+]
+
 function categorieDe(h: Holding): Categorie {
   if (h.type_actif === 'STOCK' || h.type_actif === 'FUND' || h.type_actif === 'CRYPTO') return h.type_actif
   return 'AUTRES'
@@ -34,7 +47,7 @@ export default function PortefeuillePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [form, setForm] = useState({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '' })
+  const [form, setForm] = useState({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '' })
   const [saving, setSaving] = useState(false)
 
   function load() {
@@ -79,8 +92,9 @@ export default function PortefeuillePage() {
         quantite: Number(form.quantite),
         prix_revient_moyen: form.prix_revient_moyen ? Number(form.prix_revient_moyen) : null,
         compte: form.compte.trim() || null,
+        type_actif: form.type_actif || null,
       })
-      setForm({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '' })
+      setForm({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '' })
       load()
     } catch (err) {
       setError((err as Error).message)
@@ -143,6 +157,20 @@ export default function PortefeuillePage() {
               className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
               placeholder="PEA, CTO..."
             />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+            Type d'actif
+            <select
+              value={form.type_actif}
+              onChange={(e) => setForm({ ...form, type_actif: e.target.value })}
+              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              {TYPE_ACTIF_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
           <button
             type="submit"

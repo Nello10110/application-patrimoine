@@ -77,3 +77,54 @@ def run_startup_migrations() -> None:
                 colonnes_sql = ", ".join(f'"{c}"' for c in colonnes)
                 conn.execute(text(f'CREATE UNIQUE INDEX IF NOT EXISTS "{nom_index}" ON "{table.name}" ({colonnes_sql})'))
                 logger.info("migration: index unique %s créé sur %s", nom_index, table.name)
+
+
+def migrate_rename_categorie_autres() -> None:
+    """Renomme les objectifs enregistrés sous l'ancienne catégorie fourre-tout
+    "Autres" vers les nouveaux libellés "Autres zones" (géo) / "Autres secteurs"
+    (secteur), introduits pour distinguer une zone/un secteur résiduel connu d'une
+    donnée simplement manquante (cf. LOT 2.2, `reference_indices.NON_CATEGORISE`).
+
+    Migration de *contenu* (mise à jour de données existantes), volontairement
+    séparée de `run_startup_migrations` qui ne fait que de la migration de *schéma*
+    (ADD COLUMN / CREATE UNIQUE INDEX) : mélanger les deux aurait rendu cette
+    fonction-ci moins prévisible et plus difficile à tester isolément. Appelée une
+    fois au démarrage juste après `run_startup_migrations`, dans `main.py`.
+
+    Idempotente et jamais destructive : un UPDATE ciblé sur `categorie = 'Autres'`,
+    qui ne trouve donc plus rien à faire dès la deuxième exécution. Protégée contre
+    la contrainte d'unicité (annee, type, categorie) : si une ligne "Autres zones"/
+    "Autres secteurs" existe déjà pour la même année (ex. l'utilisateur les a créées
+    manuellement avant cette migration), la ligne "Autres" correspondante est laissée
+    telle quelle plutôt que de provoquer une erreur ou d'écraser une valeur saisie."""
+    inspector = inspect(engine)
+    if "allocation_targets" not in inspector.get_table_names():
+        return  # base neuve : create_all() vient de créer une table vide, rien à renommer
+
+    renommages = (("geo", "Autres", "Autres zones"), ("sector", "Autres", "Autres secteurs"))
+    with engine.begin() as conn:
+        for type_, ancienne, nouvelle in renommages:
+            resultat = conn.execute(
+                text(
+                    """
+                    UPDATE allocation_targets
+                    SET categorie = :nouvelle
+                    WHERE type = :type_ AND categorie = :ancienne
+                      AND NOT EXISTS (
+                          SELECT 1 FROM allocation_targets AS existante
+                          WHERE existante.annee = allocation_targets.annee
+                            AND existante.type = allocation_targets.type
+                            AND existante.categorie = :nouvelle
+                      )
+                    """
+                ),
+                {"type_": type_, "ancienne": ancienne, "nouvelle": nouvelle},
+            )
+            if resultat.rowcount:
+                logger.info(
+                    "migration: %d ligne(s) allocation_targets renommée(s) de '%s' vers '%s' (type=%s)",
+                    resultat.rowcount,
+                    ancienne,
+                    nouvelle,
+                    type_,
+                )
