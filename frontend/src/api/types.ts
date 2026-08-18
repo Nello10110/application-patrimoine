@@ -122,6 +122,7 @@ export interface TransactionImportResult {
   doublons_ignores: number
   mouvements_hors_bourse_exclus: number
   positions_recalculees: number
+  anomalies_detectees: number
 }
 
 export interface PerformanceSummary {
@@ -133,7 +134,9 @@ export interface PerformanceSummary {
   rendement_annualise_pct: number | null
   dividendes_percus: number
   interets_percus: number
+  autres_revenus: number
   frais_payes: number
+  impots_preleves: number
   gains_realises: number
   gains_latents: number
   nombre_transactions: number

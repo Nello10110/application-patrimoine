@@ -176,6 +176,15 @@ def fetch_fund_composition(
     `stock_info_cache` est partagé sur tout un rafraîchissement pour éviter de réinterroger
     Yahoo à chaque fois qu'un même titre (ex. NVDA, AAPL) apparaît dans plusieurs fonds.
     """
+    def _normalise(totaux: dict[str, float]) -> list[dict]:
+        """Renormalise des poids qui devraient sommer à 1 mais ne le font pas
+        exactement (ex. 1,0001 observé côté sectoriel sur Yahoo Finance), pour que
+        la somme affichée à l'utilisateur vaille toujours 1,0."""
+        total = sum(totaux.values())
+        if total <= 0:
+            return []
+        return [{"categorie": c, "poids": p / total} for c, p in totaux.items()]
+
     try:
         fd = yf.Ticker(ticker_resolu).funds_data
     except Exception:
@@ -188,7 +197,8 @@ def fetch_fund_composition(
             sector_totals[label] = sector_totals.get(label, 0.0) + poids
     except Exception:
         pass
-    sector_rows = [{"categorie": c, "poids": p} for c, p in sector_totals.items() if p > 0]
+    sector_totals = {c: p for c, p in sector_totals.items() if p > 0}
+    sector_rows = _normalise(sector_totals)
 
     geo_totals: dict[str, float] = {}
     top_holdings_detail: list[dict] = []
@@ -220,10 +230,7 @@ def fetch_fund_composition(
     except Exception:
         pass
 
-    total_geo = sum(geo_totals.values())
-    geo_rows = (
-        [{"categorie": c, "poids": p / total_geo} for c, p in geo_totals.items()] if total_geo > 0 else []
-    )
+    geo_rows = _normalise(geo_totals)
 
     return geo_rows, sector_rows, top_holdings_detail
 

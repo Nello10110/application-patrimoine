@@ -36,18 +36,26 @@ export default function PerformanceCard({ performance }: { performance: Performa
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3 lg:grid-cols-6">
         <div>
-          <p className="text-xs text-slate-500">Dividendes perçus</p>
+          <p className="text-xs text-slate-500">Dividendes perçus (net)</p>
           <p className="text-sm font-medium text-slate-900">{formatEuro(performance.dividendes_percus, 0)}</p>
         </div>
         <div>
-          <p className="text-xs text-slate-500">Intérêts perçus</p>
+          <p className="text-xs text-slate-500">Intérêts perçus (net)</p>
           <p className="text-sm font-medium text-slate-900">{formatEuro(performance.interets_percus, 0)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Autres revenus</p>
+          <p className="text-sm font-medium text-slate-900">{formatEuro(performance.autres_revenus, 0)}</p>
         </div>
         <div>
           <p className="text-xs text-slate-500">Frais payés</p>
           <p className="text-sm font-medium text-slate-900">{formatEuro(performance.frais_payes, 0)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Impôts prélevés</p>
+          <p className="text-sm font-medium text-slate-900">{formatEuro(performance.impots_preleves, 0)}</p>
         </div>
         <div>
           <p className="text-xs text-slate-500">Gains réalisés (ventes)</p>

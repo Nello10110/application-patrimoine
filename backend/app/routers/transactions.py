@@ -34,7 +34,7 @@ async def import_transactions(file: UploadFile, db: Session = Depends(get_db)):
 
     db.commit()
 
-    positions_recalculees = portfolio_reconstruction.rebuild_holdings(db)
+    positions_recalculees, anomalies_detectees = portfolio_reconstruction.rebuild_holdings(db)
 
     return TransactionImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -42,13 +42,14 @@ async def import_transactions(file: UploadFile, db: Session = Depends(get_db)):
         doublons_ignores=doublons,
         mouvements_hors_bourse_exclus=parsed.mouvements_hors_bourse_exclus,
         positions_recalculees=positions_recalculees,
+        anomalies_detectees=anomalies_detectees,
     )
 
 
 @router.post("/reconstruct")
 def reconstruct(db: Session = Depends(get_db)):
-    positions_recalculees = portfolio_reconstruction.rebuild_holdings(db)
-    return {"positions_recalculees": positions_recalculees}
+    positions_recalculees, anomalies_detectees = portfolio_reconstruction.rebuild_holdings(db)
+    return {"positions_recalculees": positions_recalculees, "anomalies_detectees": anomalies_detectees}
 
 
 @router.get("/count")

@@ -145,6 +145,7 @@ class TransactionImportResult(BaseModel):
     doublons_ignores: int
     mouvements_hors_bourse_exclus: int
     positions_recalculees: int
+    anomalies_detectees: int = 0
 
 
 class PerformanceSummary(BaseModel):
@@ -156,7 +157,9 @@ class PerformanceSummary(BaseModel):
     rendement_annualise_pct: float | None
     dividendes_percus: float
     interets_percus: float
+    autres_revenus: float
     frais_payes: float
+    impots_preleves: float
     gains_realises: float
     gains_latents: float
     nombre_transactions: int

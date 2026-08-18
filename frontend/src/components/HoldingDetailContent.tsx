@@ -55,6 +55,9 @@ export default function HoldingDetailContent({ detail }: { detail: HoldingDetail
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Rendement annualisé</p>
             <p className="mt-1 text-lg font-semibold text-slate-900">{formatPct(detail.rendement_annualise_pct)}</p>
+            {detail.rendement_annualise_pct === null && (
+              <p className="text-xs text-slate-500">indisponible : moins de 90 jours de détention, ou pas d'historique exploitable</p>
+            )}
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Secteur</p>

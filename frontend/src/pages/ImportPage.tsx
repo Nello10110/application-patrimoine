@@ -46,6 +46,12 @@ function TransactionImportSection() {
             , {result.mouvements_hors_bourse_exclus} mouvement(s) hors suivi boursier exclu(s).
           </p>
           <p className="mt-1">{result.positions_recalculees} position(s) recalculée(s) dans le portefeuille.</p>
+          {result.anomalies_detectees > 0 && (
+            <p className="mt-1 text-amber-700">
+              {result.anomalies_detectees} anomalie(s) détectée(s) (vente supérieure à la quantité détenue) —
+              position(s) bornée(s) à 0, voir les journaux serveur.
+            </p>
+          )}
           <button onClick={() => navigate('/')} className="mt-2 font-medium underline">
             Voir le tableau de bord →
           </button>
