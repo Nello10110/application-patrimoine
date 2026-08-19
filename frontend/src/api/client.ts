@@ -10,6 +10,7 @@ import type {
   HoldingDetail,
   HoldingInput,
   HoldingPriceHistoryResponse,
+  HoldingUpdateInput,
   ImportPreview,
   ImportResult,
   PerformanceSummary,
@@ -41,6 +42,8 @@ export const api = {
   listHoldings: () => request<Holding[]>('/portfolio/holdings'),
   createHolding: (payload: HoldingInput) =>
     request<Holding>('/portfolio/holdings', { method: 'POST', body: JSON.stringify(payload) }),
+  updateHolding: (id: number, payload: HoldingUpdateInput) =>
+    request<Holding>(`/portfolio/holdings/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteHolding: (id: number) => request<{ ok: boolean }>(`/portfolio/holdings/${id}`, { method: 'DELETE' }),
   getHoldingDetail: (ticker: string) => request<HoldingDetail>(`/portfolio/holdings/${encodeURIComponent(ticker)}/detail`),
   getHoldingPriceHistory: (ticker: string) =>
@@ -65,6 +68,7 @@ export const api = {
     request<{ geo: { categorie: string; pourcentage_cible: number }[]; sector: { categorie: string; pourcentage_cible: number }[] }>(
       '/targets/defaults',
     ),
+  listTargetYears: () => request<number[]>('/targets/'),
   getTargets: (annee: number) => request<AllocationTargetOut[]>(`/targets/${annee}`),
   setTargets: (annee: number, payload: AllocationTargetsSet) =>
     request<AllocationTargetOut[]>(`/targets/${annee}`, { method: 'PUT', body: JSON.stringify(payload) }),

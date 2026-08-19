@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatEuro, formatPct } from './format'
+import { formatDate, formatDateHeure, formatEuro, formatPct } from './format'
 
 describe('formatEuro', () => {
   it('affiche un tiret cadratin pour une valeur nulle', () => {
@@ -32,5 +32,23 @@ describe('formatPct', () => {
 describe('formatDate', () => {
   it('convertit une date ISO en jj/mm/aaaa', () => {
     expect(formatDate('2024-03-07')).toBe('07/03/2024')
+  })
+})
+
+describe('formatDateHeure', () => {
+  it('affiche "Jamais exécuté" pour une valeur nulle', () => {
+    expect(formatDateHeure(null)).toBe('Jamais exécuté')
+  })
+
+  it('ajoute le Z manquant avant interprétation (dates API en UTC sans fuseau)', () => {
+    // Le conteneur de test tourne en UTC (cf. `TZ`) : sans le `Z` ajouté par
+    // `parseDateApi`, cette date serait interprétée comme une heure locale déjà en
+    // UTC et donnerait le même résultat — ce test verrouille surtout le format
+    // jj/mm/aaaa hh:mm, la conversion de fuseau elle-même est testée indirectement.
+    expect(formatDateHeure('2026-08-18T14:32:00')).toBe('18/08/2026 14:32')
+  })
+
+  it('accepte une date déjà suffixée par Z', () => {
+    expect(formatDateHeure('2026-08-18T14:32:00Z')).toBe('18/08/2026 14:32')
   })
 })

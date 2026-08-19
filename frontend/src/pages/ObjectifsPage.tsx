@@ -4,6 +4,8 @@ import type { AllocationTargetInput } from '../api/types'
 import Card from '../components/Card'
 
 const CURRENT_YEAR = new Date().getFullYear()
+const ANNEE_MIN = 1990
+const ANNEE_MAX = 2100
 
 function AllocationEditor({
   title,
@@ -87,11 +89,52 @@ function AllocationEditor({
 
 export default function ObjectifsPage() {
   const [annee, setAnnee] = useState(CURRENT_YEAR)
+  const [anneesDisponibles, setAnneesDisponibles] = useState<number[]>([CURRENT_YEAR, CURRENT_YEAR + 1])
+  const [nouvelleAnnee, setNouvelleAnnee] = useState('')
+  const [erreurNouvelleAnnee, setErreurNouvelleAnnee] = useState<string | null>(null)
   const [geo, setGeo] = useState<AllocationTargetInput[]>([])
   const [sector, setSector] = useState<AllocationTargetInput[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Le sélecteur d'année s'alimente des années réellement enregistrées
+  // (`GET /api/targets/`, cf. LOT 5.4) plutôt que de la fenêtre glissante
+  // année précédente/courante/suivante posée en dur auparavant — une année cible
+  // saisie il y a plusieurs années doit rester accessible.
+  function inclureAnnees(annees: number[]) {
+    setAnneesDisponibles((prev) => {
+      const ensemble = new Set([...prev, ...annees, CURRENT_YEAR, CURRENT_YEAR + 1])
+      return Array.from(ensemble).sort((a, b) => b - a)
+    })
+  }
+
+  useEffect(() => {
+    api
+      .listTargetYears()
+      .then(inclureAnnees)
+      .catch(() => {
+        // Liste d'années dégradée sans année déjà enregistrée plutôt qu'un
+        // sélecteur bloquant : l'utilisateur peut toujours en ajouter une à la main.
+      })
+  }, [])
+
+  function ajouterAnnee() {
+    const valeur = nouvelleAnnee.trim()
+    const parsed = Number(valeur)
+    if (!valeur || !Number.isInteger(parsed)) {
+      setErreurNouvelleAnnee('Saisis une année entière.')
+      return
+    }
+    if (parsed < ANNEE_MIN || parsed > ANNEE_MAX) {
+      setErreurNouvelleAnnee(`L'année doit être comprise entre ${ANNEE_MIN} et ${ANNEE_MAX}.`)
+      return
+    }
+    setErreurNouvelleAnnee(null)
+    inclureAnnees([parsed])
+    setAnnee(parsed)
+    setNouvelleAnnee('')
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -136,12 +179,34 @@ export default function ObjectifsPage() {
             onChange={(e) => setAnnee(Number(e.target.value))}
             className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
           >
-            {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((y) => (
+            {anneesDisponibles.map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
             ))}
           </select>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1">
+              <input
+                value={nouvelleAnnee}
+                onChange={(e) => {
+                  setNouvelleAnnee(e.target.value)
+                  if (erreurNouvelleAnnee) setErreurNouvelleAnnee(null)
+                }}
+                placeholder="Ajouter une année"
+                aria-label="Ajouter une année"
+                className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              />
+              <button
+                onClick={ajouterAnnee}
+                type="button"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700"
+              >
+                Ajouter
+              </button>
+            </div>
+            {erreurNouvelleAnnee && <p className="mt-1 text-xs text-red-600">{erreurNouvelleAnnee}</p>}
+          </div>
           <button
             onClick={handleSave}
             disabled={saving || loading}

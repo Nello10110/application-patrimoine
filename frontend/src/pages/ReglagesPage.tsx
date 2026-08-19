@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { ScheduledJob } from '../api/types'
 import Card from '../components/Card'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
+import { formatDateHeure } from '../utils/format'
 
 const JOB_LABELS: Record<string, string> = {
   market_data_refresh: 'Rafraîchissement des données de marché',
@@ -13,12 +14,6 @@ const JOB_DESCRIPTIONS: Record<string, string> = {
 }
 
 const INTERVAL_OPTIONS = [1, 6, 12, 24, 48]
-
-function formatDateHeure(iso: string | null): string {
-  if (!iso) return 'Jamais exécuté'
-  const date = new Date(iso.endsWith('Z') ? iso : `${iso}Z`)
-  return date.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-}
 
 function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: ScheduledJob) => void }) {
   const [saving, setSaving] = useState(false)
@@ -157,6 +152,33 @@ export default function ReglagesPage() {
           <JobCard key={job.job_key} job={job} onChange={updateJobInState} />
         ))}
       </div>
+
+      <Card title="Exporter">
+        <p className="mb-4 text-sm text-slate-600">
+          Fichiers CSV compatibles Excel (séparateur point-virgule, décimale virgule), téléchargés directement par le
+          navigateur.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <a
+            href="/api/export/positions"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+          >
+            Positions
+          </a>
+          <a
+            href="/api/export/transactions"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+          >
+            Transactions
+          </a>
+          <a
+            href="/api/export/performance"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+          >
+            Rentabilité
+          </a>
+        </div>
+      </Card>
     </div>
   )
 }

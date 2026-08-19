@@ -53,6 +53,19 @@ export interface HoldingInput {
   type_actif?: string | null
 }
 
+// Champs modifiables via `PATCH /api/portfolio/holdings/{id}` (cf. `HoldingUpdate`
+// côté backend, `schemas.py`) : tous optionnels, seuls les champs présents sont
+// écrasés (`exclude_unset`) — omettre un champ le laisse inchangé en base.
+export interface HoldingUpdateInput {
+  ticker?: string
+  nom?: string | null
+  quantite?: number
+  prix_revient_moyen?: number | null
+  compte?: string | null
+  devise?: string | null
+  type_actif?: string | null
+}
+
 export interface ImportPreview {
   file_token: string
   columns: string[]
