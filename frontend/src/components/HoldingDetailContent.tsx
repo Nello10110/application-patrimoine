@@ -3,7 +3,7 @@ import type { HoldingDetail } from '../api/types'
 import Card from './Card'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import PieChartCard from './PieChartCard'
-import { formatEuro, formatPct } from '../utils/format'
+import { formatEuro, formatPct, formatQuantite } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -35,7 +35,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Quantité</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{detail.quantite}</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatQuantite(detail.quantite)}</p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Prix de revient</p>

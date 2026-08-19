@@ -5,7 +5,7 @@ import Card from '../components/Card'
 import HoldingDetailModal from '../components/HoldingDetailModal'
 import Modale from '../components/Modale'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
-import { formatDateHeure, formatEuro, parseDateApi } from '../utils/format'
+import { formatDateHeure, formatEuro, formatQuantite, parseDateApi } from '../utils/format'
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-slate-400 dark:text-slate-500">—</span>
@@ -480,7 +480,7 @@ export default function PortefeuillePage() {
                             className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                           />
                         ) : (
-                          h.quantite
+                          formatQuantite(h.quantite)
                         )}
                       </td>
                       <td className="py-2 pr-4">{formatEuro(md?.prix_actuel ?? null)}</td>

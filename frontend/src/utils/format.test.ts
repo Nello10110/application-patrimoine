@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateHeure, formatEuro, formatPct } from './format'
+import { formatDate, formatDateHeure, formatEuro, formatPct, formatQuantite } from './format'
 
 describe('formatEuro', () => {
   it('affiche un tiret cadratin pour une valeur nulle', () => {
@@ -26,6 +26,20 @@ describe('formatPct', () => {
 
   it("n'ajoute pas de signe pour les valeurs négatives", () => {
     expect(formatPct(-5.6)).toBe('-5.6%')
+  })
+})
+
+describe('formatQuantite', () => {
+  it('élimine le bruit de virgule flottante (LOT 6.11, ex. fiche LVMH)', () => {
+    expect(formatQuantite(0.16835499999999995).replace(/\s/g, ' ')).toBe('0,168355')
+  })
+
+  it('affiche un entier sans décimale', () => {
+    expect(formatQuantite(10).replace(/\s/g, ' ')).toBe('10')
+  })
+
+  it('conserve une quantité fractionnaire légitime (crypto)', () => {
+    expect(formatQuantite(0.00034521).replace(/\s/g, ' ')).toBe('0,00034521')
   })
 })
 

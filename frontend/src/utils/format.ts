@@ -9,6 +9,15 @@ export function formatEuro(value: number | null, decimales: 0 | 2 = 2): string {
   }).format(value)
 }
 
+/** Quantité détenue d'une position. Les positions reconstruites depuis l'historique
+ * de transactions accumulent du bruit de virgule flottante (ex. 0.16835499999999995
+ * au lieu de 0.168355) : arrondi à 8 décimales (précision suffisante même pour une
+ * position crypto fractionnaire) avant formatage, zéros inutiles supprimés par
+ * `toLocaleString`. */
+export function formatQuantite(value: number): string {
+  return Number(value.toFixed(8)).toLocaleString('fr-FR', { maximumFractionDigits: 8 })
+}
+
 export function formatPct(value: number | null): string {
   if (value === null) return '—'
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
