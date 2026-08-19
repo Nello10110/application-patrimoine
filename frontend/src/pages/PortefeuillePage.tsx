@@ -15,12 +15,14 @@ function RendementCell({ value }: { value: number | null }) {
   )
 }
 
-type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'CRYPTO' | 'AUTRES'
+type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'BOND' | 'PRIVATE_FUND' | 'CRYPTO' | 'AUTRES'
 
 const CATEGORY_TABS: { key: Categorie; label: string }[] = [
   { key: 'TOUS', label: 'Tous' },
   { key: 'STOCK', label: 'Actions' },
   { key: 'FUND', label: 'ETF' },
+  { key: 'BOND', label: 'Obligations' },
+  { key: 'PRIVATE_FUND', label: 'Private Equity' },
   { key: 'CRYPTO', label: 'Crypto' },
   { key: 'AUTRES', label: 'Autres' },
 ]
@@ -39,7 +41,15 @@ const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
 ]
 
 function categorieDe(h: Holding): Categorie {
-  if (h.type_actif === 'STOCK' || h.type_actif === 'FUND' || h.type_actif === 'CRYPTO') return h.type_actif
+  if (
+    h.type_actif === 'STOCK' ||
+    h.type_actif === 'FUND' ||
+    h.type_actif === 'BOND' ||
+    h.type_actif === 'PRIVATE_FUND' ||
+    h.type_actif === 'CRYPTO'
+  ) {
+    return h.type_actif
+  }
   return 'AUTRES'
 }
 

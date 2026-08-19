@@ -154,6 +154,33 @@ describe('PortefeuillePage', () => {
     })
   })
 
+  describe('filtre par catégorie : obligations et private equity distinguées de "Autres"', () => {
+    it('BOND et PRIVATE_FUND ont leur propre onglet, "Autres" ne garde que le type non précisé', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', type_actif: 'BOND', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+        holding({ id: 2, ticker: 'BBB', type_actif: 'PRIVATE_FUND', market_data: marketData({ ticker: 'BBB', prix_actuel: 100 }) }),
+        holding({ id: 3, ticker: 'CCC', type_actif: null, market_data: marketData({ ticker: 'CCC', prix_actuel: 100 }) }),
+      ])
+      render(<PortefeuillePage />)
+
+      await screen.findByText('3 positions')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Obligations' }))
+      await screen.findByText('1 position')
+      expect(screen.getByText('AAA')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Private Equity' }))
+      await screen.findByText('1 position')
+      expect(screen.getByText('BBB')).toBeInTheDocument()
+
+      // "Autres" ne garde que la ligne sans type précisé : BOND/PRIVATE_FUND n'y
+      // basculent plus (avant cet ajout, les deux y auraient été rangées).
+      fireEvent.click(screen.getByRole('button', { name: 'Autres' }))
+      await screen.findByText('1 position')
+      expect(screen.getByText('CCC')).toBeInTheDocument()
+    })
+  })
+
   describe('filtre par compte (LOT 5.1)', () => {
     it('se combine au filtre de catégorie et met à jour la ligne de total', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([
