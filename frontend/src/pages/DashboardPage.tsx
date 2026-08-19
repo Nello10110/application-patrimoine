@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { AnalysisResponse, PerformanceSummary, RepartitionComptesResponse } from '../api/types'
-import AllocationBarChart from '../components/AllocationBarChart'
+import AllocationChartCard from '../components/AllocationChartCard'
 import Card from '../components/Card'
 import CompositionModal from '../components/CompositionModal'
 import PerformanceCard from '../components/PerformanceCard'
@@ -164,26 +164,24 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card title="Répartition géographique — réel vs cible">
-              {analysis.geo.length > 0 ? (
-                <AllocationBarChart items={analysis.geo} onCategoryClick={(categorie) => setModal({ type: 'geo', categorie })} />
-              ) : (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Aucune donnée</p>
-              )}
-              <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-                Géographie des fonds/ETF issue de leur composition réelle (10 plus grosses lignes, extrapolées à 100% du fonds)
-                quand Yahoo Finance la fournit, sinon estimée à partir de l'indice suivi par le fonds (voir le détail de qualité
-                des données ci-dessous) ; secteur des fonds basé sur leur composition complète. Clique sur une barre pour voir le
-                détail des lignes.
-              </p>
-            </Card>
-            <Card title="Répartition sectorielle — réel vs cible">
-              {analysis.sector.length > 0 ? (
-                <AllocationBarChart items={analysis.sector} onCategoryClick={(categorie) => setModal({ type: 'sector', categorie })} />
-              ) : (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Aucune donnée</p>
-              )}
-            </Card>
+            <AllocationChartCard
+              title="Répartition géographique — réel vs cible"
+              items={analysis.geo}
+              onCategoryClick={(categorie) => setModal({ type: 'geo', categorie })}
+              footnote={
+                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                  Géographie des fonds/ETF issue de leur composition réelle (10 plus grosses lignes, extrapolées à 100% du fonds)
+                  quand Yahoo Finance la fournit, sinon estimée à partir de l'indice suivi par le fonds (voir le détail de qualité
+                  des données ci-dessous) ; secteur des fonds basé sur leur composition complète. Clique sur une barre (ou une
+                  ligne du tableau en plein écran) pour voir le détail des lignes.
+                </p>
+              }
+            />
+            <AllocationChartCard
+              title="Répartition sectorielle — réel vs cible"
+              items={analysis.sector}
+              onCategoryClick={(categorie) => setModal({ type: 'sector', categorie })}
+            />
           </div>
 
           <QualiteDonneesCard qualite={analysis.qualite_donnees} />
