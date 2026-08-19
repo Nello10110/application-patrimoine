@@ -255,6 +255,8 @@ export interface HoldingDetail {
   frais_transaction_payes: number
   repartition_geo: RepartitionItem[]
   repartition_sector: RepartitionItem[]
+  repartition_geo_detaillee: RepartitionItem[]
+  repartition_sector_detaillee: RepartitionItem[]
   composition_actions: FundTopHoldingItem[]
 }
 

@@ -195,6 +195,40 @@ prudence requise envers une ressource sans support.
 > `backend/app/services/market_data_service.py`, `backend/app/services/scheduler_service.py`,
 > `backend/app/services/reference_indices.py`, `backend/app/models.py`.
 
+**Second lot de livraison — 19/08/2026 (Increment 9)**, suite à une recette complète demandée par
+l'utilisateur sur les 26 ETF réels :
+
+- **Bug corrigé** : `JUSTETF_SECTOR_LABELS` avait été construite sur un seul fonds de reconnaissance
+  et ne couvrait pas toute la taxonomie sectorielle réelle de justETF. Audit sur les 26 ETF → 4
+  libellés manquants (`Consumer Cyclicals`, `Consumer Non-Cyclicals`, `Non-Energy Materials`,
+  `Telecommunication`), causant jusqu'à ~56 % d'un fonds à tort dans "Autres secteurs" (les 3
+  déclinaisons MSCI India). Corrigé et vérifié : redescendu à 38 % (le vrai résiduel justETF).
+- **Confirmé, pas un bug** : le zonage géographique à 6 catégories (ex. Inde → "Marchés émergents")
+  est voulu, cohérent avec `COUNTRY_TO_REGION` (couverture à 100 % vérifiée sur les 26 ETF). À la
+  demande de l'utilisateur, une **répartition détaillée** (intitulés exacts justETF, ex. "Inde") a
+  été ajoutée en complément sur la fiche détaillée d'une position — nouvelle table
+  `fund_composition_brute`, affichage seul, aucun calcul agrégé.
+- **Descriptions justETF** ajoutées pour les fonds (`MarketDataCache.description`, alimentée par
+  `justetf_refresh`) — disponibles pour les 26 ETF, y compris les 5 sans composition couverte
+  (extraction découplée : la description est présente même sur une fiche sans onglet Holdings).
+- **Prix de référence des ETF = justETF** (décision utilisateur explicite) : `market_data_service`
+  n'utilise plus `yfinance` pour le cours d'un ETF (API JSON stable de justETF, déjà en EUR).
+  Aucun repli sur `yfinance` en cas d'échec (`erreur="Cotation indisponible (justETF)"`) — décision
+  délibérée, pour ne jamais mélanger deux sources de prix sur une même position.
+- **Vérifié en conditions réelles** : recette complète sur les 26 ETF (sectoriel corrigé, détail
+  brut conforme à la fiche justETF réelle, description présente sur 26/26, prix cross-vérifiés
+  contre l'API justETF en direct pour plusieurs ETF y compris les 5 sans composition). Déclenchement
+  **automatique** (pas seulement manuel) confirmé pour de vrai : intervalle de `justetf_refresh`
+  réglé sur le minimum autorisé (15 minutes) sans aucun déclenchement manuel, `derniere_execution`
+  a avancé toute seule 18 minutes plus tard (17:05:59, contre 16:47:30 avant) — le mécanisme
+  APScheduler fonctionne réellement, pas seulement au niveau de son enregistrement au démarrage.
+  Intervalle remis à 168h (défaut) une fois la vérification faite ; `market_data_refresh` partage
+  exactement le même code de programmation/reprogrammation, donc la même garantie s'applique.
+
+> Fichiers additionnels : `backend/app/services/justetf_service.py` (dataclass `FicheJustETF`,
+> `fetch_price`), `backend/app/services/holding_detail_service.py`, `backend/app/schemas.py`,
+> `frontend/src/api/types.ts`, `frontend/src/components/HoldingDetailContent.tsx`.
+
 ---
 
 ## 3. Robustesse, validation et exploitation

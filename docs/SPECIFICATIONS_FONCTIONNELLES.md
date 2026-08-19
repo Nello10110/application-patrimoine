@@ -72,7 +72,7 @@ Chaque position a un `type_actif` (issu de `asset_class` dans le grand livre, ou
 
 Un ETF n'a pas de pays/secteur unique. Sa contribution à la répartition du portefeuille est éclatée selon sa composition interne (`FundComposition`, recalculée à chaque rafraîchissement — jamais figée), avec une hiérarchie de quatre sources de donnée, de la plus fiable à la moins disponible :
 
-1. **Composition réelle via justETF** (`source = justetf`, cf. 2.4) : répartition pays et secteurs réelle, publiée sur la fiche ETF de justETF.com (~4-5 plus grosses lignes + un résiduel « Other »), récupérée par un job planifié dédié (`justetf_refresh`, hebdomadaire par défaut). Prioritaire sur les deux sources suivantes quand disponible — le rafraîchissement des cours ne la recalcule ni ne l'écrase, cadences différentes obligent (cf. § 7 Manuel d'exploitation). Fonctionne pour la majorité des ETF à réplication physique ; échoue pour les ETF à réplication synthétique (swap, sans composition physique à publier) et les ETC (or, matières premières).
+1. **Composition réelle via justETF** (`source = justetf`, cf. 2.4) : répartition pays et secteurs réelle, publiée sur la fiche ETF de justETF.com (~4-5 plus grosses lignes + un résiduel « Other »), récupérée par un job planifié dédié (`justetf_refresh`, hebdomadaire par défaut). Prioritaire sur les deux sources suivantes quand disponible — le rafraîchissement des cours ne la recalcule ni ne l'écrase, cadences différentes obligent (cf. § 7 Manuel d'exploitation). Fonctionne pour la majorité des ETF à réplication physique ; échoue pour les ETF à réplication synthétique (swap, sans composition physique à publier) et les ETC (or, matières premières) — vérifié sur les 26 ETF du portefeuille réel : 21 couverts, 5 non couverts, tous légitimement (absence d'onglet composition sur leur fiche justETF, pas un défaut d'extraction).
 2. **Composition réelle via Yahoo Finance** (`source = composition`) : n'entre en jeu que pour un fonds non couvert par justETF. Secteur, couverture quasi complète (`funds_data.sector_weightings`) ; géographie, résolue individuellement pour chacune des ~10 plus grosses lignes du fonds (`funds_data.top_holdings`), puis extrapolée à 100 % du fonds — une approximation, mais fondée sur la composition réelle.
 3. **Repli par indice** (`source = indice`, géographique uniquement) : quand ni justETF ni Yahoo Finance ne fournissent de composition — la répartition géographique est déduite du **nom de l'indice suivi par le fonds** (ex. « MSCI World », « S&P 500 », « Emerging Markets », « Euro Stoxx »...), via une table de correspondance nom → répartition de référence (`services/reference_indices.py`). Ce sont des ordres de grandeur approximatifs, arrondis, à revoir périodiquement — la pondération pays des indices larges dérive lentement dans le temps.
 4. **Non catégorisé** : aucune des trois sources ci-dessus n'a abouti.
@@ -84,6 +84,29 @@ Un ETF n'a pas de pays/secteur unique. Sa contribution à la répartition du por
 **Qualité des données exposée.** L'API (`GET /api/analysis/{annee}`, champ `qualite_donnees`) et l'interface (encart « Qualité des données » du Tableau de bord) qualifient, en euros et en pourcentage de la valeur totale du portefeuille, l'origine de la répartition géographique affichée : part en composition réelle, part estimée par indice, part non catégorisée, part valorisée à son coût de revient faute de cotation. Sans cette information, la comparaison réel vs cible du tableau de bord laisserait croire à une précision qu'elle n'a pas.
 
 **Poids sectoriels normalisés.** Les poids géo et sectoriels d'un fonds sont renormalisés pour sommer exactement à 1,0 (Yahoo Finance renvoie parfois une somme légèrement différente, ex. 1,0001) — cohérence nécessaire pour que la somme des catégories affichées corresponde toujours à 100 % de la ligne.
+
+**Répartition détaillée (brute), en complément du zonage.** Les 6 zones géographiques et catégories
+sectorielles ci-dessus restent la seule base des graphiques et des objectifs du portefeuille — un
+zonage volontairement large (ex. l'Inde et la Chine sont toutes deux « Marchés émergents »). Sur la
+fiche détaillée d'une position couverte par justETF, une section supplémentaire (« Répartition
+géographique/sectorielle détaillée ») affiche les intitulés **tels que justETF les publie** (ex.
+« India » plutôt que « Marchés émergents », « Non-Energy Materials » plutôt que « Matériaux »),
+stockés séparément dans `FundCompositionBrute` — une table d'affichage seul, jamais utilisée dans un
+calcul agrégé. Absente pour toute position non couverte par justETF.
+
+**Deux taxonomies sectorielles justETF cohabitent.** Le libellé d'un secteur diffère selon les fonds
+(ex. « Consumer Cyclicals » vs « Consumer Discretionary » pour la même réalité) — `JUSTETF_SECTOR_LABELS`
+(`services/reference_indices.py`) reconnaît les deux variantes observées sur le portefeuille réel et
+les fait converger vers le même libellé français. Un libellé non reconnu (rare, ex. « Business
+Services », vu une fois à un poids négligeable) bascule sur « Autres secteurs » plutôt que de faire
+échouer l'extraction.
+
+**Résumé descriptif d'un fonds.** Pour une action, le résumé de la fiche détaillée vient de Yahoo
+Finance (`longBusinessSummary`, récupéré à la demande). Pour un fonds, il vient désormais de la
+description publiée sur sa fiche justETF (`MarketDataCache.description`, alimentée par
+`justetf_refresh`) — disponible même pour un fonds sans composition couverte (réplication
+synthétique, ETC) : la description est extraite indépendamment de la composition, les deux axes
+n'ayant aucune raison technique d'échouer ensemble sur la même fiche justETF.
 
 ### 3.5 Rentabilité
 
@@ -123,7 +146,7 @@ Trois granularités différentes plutôt qu'un fichier unique : les mélanger ob
 
 Deux tâches planifiées indépendantes (APScheduler), chacune configurable (activation, intervalle) depuis l'écran Réglages :
 
-- **`market_data_refresh`** : prix, composition rapide des fonds (Yahoo Finance) et principales lignes sous-jacentes de toutes les positions. Intervalle par défaut 24h. Déclenchement manuel possible à tout moment, depuis le Portefeuille ou les Réglages ; s'exécute **en tâche de fond**, sans bloquer l'interface — sa progression (« x / y positions ») est consultable pendant qu'il tourne, et l'écran se recharge automatiquement une fois terminé. Deux garde-fous limitent la fréquence des appels vers Yahoo Finance, qui n'offre aucun SLA et peut limiter les requêtes trop fréquentes : une temporisation entre deux positions traitées au sein d'un même rafraîchissement, et un délai minimal entre deux déclenchements manuels.
+- **`market_data_refresh`** : prix de toutes les positions, composition rapide et lignes sous-jacentes des fonds non couverts par justETF. **Depuis le 19/08/2026 (2.4), le cours de référence d'un ETF vient de l'API JSON de justETF** (`justetf_service.fetch_price`), pas de Yahoo Finance — décision explicite pour fiabiliser le prix des ETF ; en cas d'échec justETF, la position affiche « Cotation indisponible (justETF) », **sans repli sur Yahoo Finance** (choix délibéré, pour ne jamais mélanger deux sources de prix sur une même ligne). Les actions/crypto restent intégralement sur Yahoo Finance, sans changement. Intervalle par défaut 24h. Déclenchement manuel possible à tout moment, depuis le Portefeuille ou les Réglages ; s'exécute **en tâche de fond**, sans bloquer l'interface — sa progression (« x / y positions ») est consultable pendant qu'il tourne, et l'écran se recharge automatiquement une fois terminé. Deux garde-fous de débit indépendants (un par ressource externe sollicitée) limitent la fréquence des appels : une temporisation entre deux positions traitées au sein d'un même rafraîchissement (Yahoo Finance et, séparément, justETF), et un délai minimal entre deux déclenchements manuels.
 - **`justetf_refresh`** (2.4) : look-through géo/secteur complet via justETF, cadence bien plus lente par défaut (une semaine) — la composition d'un fonds évolue lentement, et justETF n'offre aucun support en cas de blocage. Ne recalcule jamais la composition d'un ticker déjà couvert par `market_data_refresh` pour un même ticker sans raison : c'est l'inverse — une fois qu'un ticker a une composition justETF en base, `market_data_refresh` cesse de la recalculer pour lui (cadences différentes, la donnée la plus riche ne doit pas être écrasée par la moins riche). Déclenchement manuel synchrone (la requête HTTP attend la fin, contrairement à `market_data_refresh`) : le nombre de fonds à traiter reste faible et déjà throttlé, ce qui garde ce choix simple.
 
 Les historiques de prix (série d'une ligne pour la fiche détaillée, historique de valeur du portefeuille pour le Tableau de bord), coûteux à recalculer, sont mis en cache **24 heures** — cohérent avec la fréquence hebdomadaire des séries elles-mêmes. Le cache est invalidé automatiquement après un rafraîchissement des cours ou une reconstruction du portefeuille, pour ne jamais afficher un historique devenu incohérent avec les valeurs affichées à côté.
@@ -140,8 +163,9 @@ L'import d'un relevé de positions est **transactionnel** : une erreur en cours 
 |---|---|
 | `transactions` | Grand livre importé (source de vérité), dédoublonné par `transaction_id` |
 | `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) |
-| `market_data_cache` | Cache des cours/secteur/pays par position, horodaté |
-| `fund_composition` | Look-through géo/secteur des fonds. `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
+| `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) |
+| `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques/objectifs). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
+| `fund_composition_brute` | Répartition géo/sectorielle **brute** (non zone-mappée) d'un fonds telle que publiée par justETF, affichage seul sur la fiche détaillée (cf. § 3.4) — jamais utilisée dans un calcul agrégé |
 | `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds |
 | `ticker_resolution` | Cache ISIN/symbole → ticker Yahoo Finance |
 | `allocation_targets` | Objectifs de répartition géo/sectorielle par année |
@@ -156,7 +180,7 @@ Aucune vraie clé étrangère : les relations se font par correspondance de `tic
 Voir `BACKLOG.md` pour la liste complète des points relevés à l'audit et leur état de traitement. Limites structurelles assumées, non résolues par construction :
 
 - **Look-through géographique encore partiel.** justETF (2.4) donne la composition réelle des ~4-5 plus grosses lignes par fonds + un résiduel « Autres » agrégé, pas la liste complète (la fiche justETF l'offre via un bouton « Show more » nécessitant une session dynamique côté site, volontairement non reproduite — jugée trop fragile hors navigateur, cf. `services/justetf_service.py`). Pour les fonds hors couverture justETF (réplication synthétique/swap, ETC), l'extrapolation Yahoo Finance ou le repli par indice (§ 3.4) restent des estimations à revoir périodiquement.
-- **Dépendance à justETF, sans SLA ni support.** Le look-through complet (2.4) repose sur une autorisation informelle obtenue directement de justETF, révocable et non garantie dans le temps ; en cas de blocage ou de changement de mise en page côté justETF, `justetf_refresh` échoue proprement (statut « erreur » visible dans Réglages) sans perdre les données déjà en base ni bloquer le reste de l'application — les positions retombent alors sur la source suivante de la hiérarchie (§ 3.4).
+- **Dépendance à justETF, sans SLA ni support.** Le look-through complet (2.4) **et désormais le cours de référence des ETF** (§ 3.9) reposent sur une autorisation informelle obtenue directement de justETF, révocable et non garantie dans le temps. Deux comportements différents en cas de blocage/changement de mise en page côté justETF : la **composition** échoue proprement (statut « erreur » de `justetf_refresh` visible dans Réglages) sans perdre les données déjà en base, et une position retombe alors sur la source suivante de la hiérarchie (§ 3.4) ; le **prix** d'un ETF, lui, n'a **aucun repli** (décision utilisateur explicite, § 3.9) — un échec affiche « Cotation indisponible (justETF) » plutôt que de retomber sur Yahoo Finance.
 - **Rentabilité par compte non calculable.** Cf. § 3.7 : le compte est une annotation manuelle, le grand livre importé ne porte aucune information de compte. Ce n'est pas un chantier reporté, c'est une absence structurelle de la donnée source.
 - **Aucune simulation fiscale.** L'application suit la performance d'un portefeuille, elle ne modélise ni le régime PEA (durée de détention, plafond de versement), ni aucune autre fiscalité. Non-objectif produit assumé (point 5.7 du backlog).
 - **Application 100 % locale, sans authentification.** Non prévue pour être exposée hors `localhost` ; l'authentification serait un préalable bloquant, pas une évolution de confort, si cela devait changer (point 7.7 du backlog).

@@ -173,6 +173,15 @@ JUSTETF_SECTOR_LABELS: dict[str, str] = {
     "Materials": "Matériaux",
     "Utilities": "Services publics",
     "Real Estate": "Immobilier",
+    # Variante de taxonomie justETF observée sur d'autres fonds que celui de
+    # reconnaissance initiale (MSCI World) — audit sur les 26 ETF réels du
+    # portefeuille (Increment 9) : sans ces 4 entrées, jusqu'à ~56% d'un fonds
+    # basculait à tort dans SECTEUR_AUTRES (ex. les 3 déclinaisons MSCI India).
+    # Les deux taxonomies cohabitent sans conflit dans un même dict.
+    "Consumer Cyclicals": "Consommation discrétionnaire",
+    "Consumer Non-Cyclicals": "Consommation de base",
+    "Non-Energy Materials": "Matériaux",
+    "Telecommunication": "Communication",
 }
 
 

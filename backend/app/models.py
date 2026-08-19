@@ -80,6 +80,12 @@ class MarketDataCache(Base):
     pays: Mapped[str | None] = mapped_column(String, nullable=True)
     region: Mapped[str | None] = mapped_column(String, nullable=True)
     erreur: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Descriptif du fonds/ETF, alimenté uniquement pour `type_actif == "FUND"` par
+    # `justetf_service.refresh_all` (2.4, Increment 9) — indépendant du succès de la
+    # composition (cf. `FundCompositionBrute` ci-dessous) : présent même pour un ETF
+    # sans onglet Holdings (réplication synthétique/ETC). Colonne additive, couverte
+    # automatiquement par `database.run_startup_migrations`.
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
     derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
@@ -141,6 +147,25 @@ class FundComposition(Base):
     # pour les lignes posées avant l'ajout de cette colonne (migration ADD COLUMN) ;
     # elles sont de toute façon recalculées à chaque rafraîchissement des cours.
     source: Mapped[str | None] = mapped_column(String, nullable=True)
+    derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class FundCompositionBrute(Base):
+    """Répartition géo/sectorielle BRUTE d'un fonds, telle qu'affichée par justETF
+    (ex. "India" plutôt que "Marchés émergents") — affichage uniquement sur la fiche
+    détaillée d'une position (2.4). Ne sert à aucun calcul agrégé du portefeuille :
+    `FundComposition` (zones/secteurs internes) reste la seule source pour les
+    graphiques et indicateurs du tableau de bord. Alimentée uniquement par justETF ;
+    absente pour une position dont la composition n'est pas couverte (cf. 2.4)."""
+
+    __tablename__ = "fund_composition_brute"
+    __table_args__ = (UniqueConstraint("ticker", "type", "categorie", name="uq_fund_comp_brute_ticker_type_categorie"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String, index=True)  # identifiant (ISIN) du fonds, cf. Holding.ticker
+    type: Mapped[str] = mapped_column(String)  # "geo" | "sector"
+    categorie: Mapped[str] = mapped_column(String)  # nom brut justETF (ex. "India", "Finance", "Other")
+    poids: Mapped[float] = mapped_column(Float)  # fraction 0-1 de la valeur du fonds
     derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 

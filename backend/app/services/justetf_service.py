@@ -27,13 +27,15 @@ détenus via `yfinance`).
 
 import logging
 import os
+import re
 import time
+from dataclasses import dataclass, field
 
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
-from ..models import SOURCE_JUSTETF, FundComposition, Holding
+from ..models import SOURCE_JUSTETF, FundComposition, FundCompositionBrute, Holding, MarketDataCache
 from .reference_indices import JUSTETF_SECTOR_LABELS, SECTEUR_AUTRES, ZONE_AUTRES, region_for_country
 
 logger = logging.getLogger("patrimoine.justetf")
@@ -51,8 +53,31 @@ _USER_AGENT = (
 )
 
 _URL_FICHE_ETF = "https://www.justetf.com/en/etf-profile.html?isin={isin}"
+_URL_COTATION = "https://www.justetf.com/api/etfs/{isin}/quote?locale=en&currency=EUR&isin={isin}"
 
 _LIGNE_RESIDUELLE = "Other"
+
+_DESCRIPTION_TESTID = "etf-quote-section_description-content-inner"
+
+
+@dataclass
+class FicheJustETF:
+    """Résultat de `fetch_composition` : composition zone-mappée (comportement
+    historique, utilisée pour les graphiques/objectifs du portefeuille via
+    `FundComposition`) + détail brut justETF et description (2.4, Increment 9),
+    tous deux affichage seul (`FundCompositionBrute`/`MarketDataCache.description`).
+
+    Les trois axes (composition zone-mappée, détail brut, description) sont
+    délibérément indépendants les uns des autres au niveau du parsing : la
+    description est présente même sur les fiches sans onglet Holdings (ETF à
+    réplication synthétique ou ETC), donc `geo_rows`/`sector_rows`/`geo_brut`/
+    `sector_brut` peuvent être vides alors que `description` est renseignée."""
+
+    geo_rows: list[dict] = field(default_factory=list)
+    sector_rows: list[dict] = field(default_factory=list)
+    geo_brut: list[dict] = field(default_factory=list)
+    sector_brut: list[dict] = field(default_factory=list)
+    description: str | None = None
 
 
 def _fetch_page_html(url: str) -> str | None:
@@ -93,6 +118,18 @@ def _extraire_lignes_brutes(soup: BeautifulSoup, row_testid: str, name_testid: s
     return bruts
 
 
+def _extraire_description(soup: BeautifulSoup) -> str | None:
+    """Extrait le paragraphe de description de la fiche ETF
+    (`data-testid="etf-quote-section_description-content-inner"`, texte complet —
+    contrairement à `etf-quote-section_summary-text` qui tronque la première
+    phrase). Espaces/retours à la ligne multiples réduits à un seul espace."""
+    el = soup.find(attrs={"data-testid": _DESCRIPTION_TESTID})
+    if el is None:
+        return None
+    texte = re.sub(r"\s+", " ", el.get_text(separator=" ", strip=True)).strip()
+    return texte or None
+
+
 def _normalise(totaux: dict[str, float]) -> list[dict]:
     """Renormalise pour que la somme des poids affichés vaille exactement 1,0 —
     même raisonnement que `market_data_service.fetch_fund_composition._normalise`
@@ -104,16 +141,18 @@ def _normalise(totaux: dict[str, float]) -> list[dict]:
     return [{"categorie": categorie, "poids": poids / total} for categorie, poids in totaux.items()]
 
 
-def fetch_composition(isin: str) -> tuple[list[dict], list[dict]] | None:
-    """Récupère et parse la fiche ETF justETF de `isin`. Renvoie `(geo_rows,
-    sector_rows)`, chaque ligne étant `{"categorie": str, "poids": float}` (poids
-    renormalisés à 1,0 sur chaque axe) — sans champ `source`, posé par l'appelant
-    (`refresh_all`) au moment de la persistance.
+def fetch_composition(isin: str) -> FicheJustETF | None:
+    """Récupère et parse la fiche ETF justETF de `isin`. Renvoie une `FicheJustETF`
+    (zone-mappé + détail brut + description) — sans champ `source` sur les lignes
+    de composition, posé par l'appelant (`refresh_all`) au moment de la persistance.
 
-    Ne lève jamais : toute défaillance (réseau, statut HTTP, ISIN absent du site,
-    structure HTML inattendue, ou absence totale de données pays/secteurs) renvoie
-    `None`, à charge pour l'appelant de laisser inchangées les données déjà en
-    base plutôt que d'écraser une donnée valide par une absence."""
+    Ne lève jamais et ne renvoie `None` que si la page elle-même n'a pas pu être
+    récupérée/parsée (échec réseau, statut HTTP, HTML totalement inattendu) : la
+    description est présente même sur les fiches sans onglet Holdings (ETF à
+    réplication synthétique ou ETC), donc l'ABSENCE de données pays/secteurs ne
+    doit plus, à elle seule, faire échouer tout l'appel (cf. Increment 9) — sinon
+    l'appelant laisserait `description` non renseignée pour ces ETF alors qu'elle
+    est bien disponible."""
     html = _fetch_page_html(_URL_FICHE_ETF.format(isin=isin))
     if not html:
         return None
@@ -146,13 +185,44 @@ def fetch_composition(isin: str) -> tuple[list[dict], list[dict]] | None:
 
         geo_rows = _normalise(geo_totaux)
         sector_rows = _normalise(secteur_totaux)
+        geo_brut = _normalise(pays_bruts)
+        sector_brut = _normalise(secteurs_bruts)
+
+        description = _extraire_description(soup)
     except Exception:
         return None
 
-    if not geo_rows and not sector_rows:
-        return None
+    return FicheJustETF(
+        geo_rows=geo_rows,
+        sector_rows=sector_rows,
+        geo_brut=geo_brut,
+        sector_brut=sector_brut,
+        description=description,
+    )
 
-    return geo_rows, sector_rows
+
+def fetch_price(isin: str) -> dict | None:
+    """Cours de référence d'un ETF via l'API JSON stable de justETF (pas de
+    scraping HTML pour cette partie, contrairement à `fetch_composition`) :
+    `GET /api/etfs/{isin}/quote?locale=en&currency=EUR&isin={isin}`. `currency=EUR`
+    est demandé explicitement, donc `latestQuote.raw` est déjà en EUR — aucune
+    conversion de change à faire côté application, contrairement au pipeline
+    yfinance (`market_data_service.get_fx_rate_to_eur`).
+
+    Renvoie `{"prix_actuel": float}` sur succès, `None` sur tout échec (réseau,
+    statut non 200, JSON inattendu/clé manquante) : à charge de l'appelant de ne
+    pas retomber sur yfinance en cas d'échec (décision utilisateur, cf. 2.4)."""
+    try:
+        reponse = requests.get(
+            _URL_COTATION.format(isin=isin), headers={"User-Agent": _USER_AGENT}, timeout=_TIMEOUT_SECONDES
+        )
+        if reponse.status_code != 200:
+            return None
+        donnees = reponse.json()
+        prix = donnees["latestQuote"]["raw"]
+        return {"prix_actuel": float(prix)}
+    except Exception:
+        return None
 
 
 def refresh_all(db: Session) -> dict:
@@ -160,14 +230,23 @@ def refresh_all(db: Session) -> dict:
     (`Holding.type_actif == "FUND"`), throttlé par
     `DELAI_ENTRE_APPELS_JUSTETF_SECONDES` entre deux ISIN traités.
 
-    Pour chaque ISIN où `fetch_composition` réussit : remplace **toutes** les
-    lignes `FundComposition` existantes (toutes sources confondues) par les
-    nouvelles lignes taguées `SOURCE_JUSTETF`, pour ne jamais additionner deux fois
-    la même position avec une éventuelle donnée `yfinance`/repli par nom d'indice
-    déjà en base. En cas d'échec pour un ISIN, les lignes existantes restent
-    intactes — aucune régression, `fetch_composition` ne levant jamais.
+    Pour chaque ISIN où `fetch_composition` renvoie une `FicheJustETF` :
+    - si `geo_rows`/`sector_rows` sont non vides (composition réellement
+      couverte) : remplace **toutes** les lignes `FundComposition` existantes
+      (toutes sources confondues) par les nouvelles lignes taguées
+      `SOURCE_JUSTETF`, et de même pour `FundCompositionBrute` (détail brut,
+      affichage seul, cf. 2.4) — les deux tables sont toujours écrites ensemble,
+      depuis le même résultat, pour ne jamais désynchroniser zone-mappé et brut ;
+    - indépendamment, si `description` est renseignée : upsert dans
+      `MarketDataCache.description` — un ETF sans onglet Holdings (réplication
+      synthétique/ETC) obtient ainsi sa description sans jamais obtenir de ligne
+      de composition, les deux axes étant délibérément découplés (Increment 9).
 
-    Renvoie `{"traites": int, "reussis": int}`, utilisé par
+    En cas d'échec réseau/parsing pour un ISIN (`fetch_composition` renvoie
+    `None`), rien n'est touché pour cet ISIN — aucune régression.
+
+    Renvoie `{"traites": int, "reussis": int}` (`reussis` compte les ISIN où la
+    composition a été écrite, pas seulement la description), utilisé par
     `scheduler_service._run_justetf_refresh` pour construire le message de statut
     affiché dans Réglages."""
     items = db.query(Holding.ticker, Holding.type_actif).filter(Holding.type_actif == "FUND").distinct().all()
@@ -188,25 +267,37 @@ def refresh_all(db: Session) -> dict:
         seen.add(isin)
         traites += 1
 
-        resultat = fetch_composition(isin)
-        if resultat is None:
+        fiche = fetch_composition(isin)
+        if fiche is None:
             continue
-        geo_rows, sector_rows = resultat
 
-        db.query(FundComposition).filter(FundComposition.ticker == isin).delete()
-        for row in geo_rows:
-            db.add(
-                FundComposition(
-                    ticker=isin, type="geo", categorie=row["categorie"], poids=row["poids"], source=SOURCE_JUSTETF
+        if fiche.geo_rows or fiche.sector_rows:
+            db.query(FundComposition).filter(FundComposition.ticker == isin).delete()
+            db.query(FundCompositionBrute).filter(FundCompositionBrute.ticker == isin).delete()
+            for row in fiche.geo_rows:
+                db.add(
+                    FundComposition(
+                        ticker=isin, type="geo", categorie=row["categorie"], poids=row["poids"], source=SOURCE_JUSTETF
+                    )
                 )
-            )
-        for row in sector_rows:
-            db.add(
-                FundComposition(
-                    ticker=isin, type="sector", categorie=row["categorie"], poids=row["poids"], source=SOURCE_JUSTETF
+            for row in fiche.sector_rows:
+                db.add(
+                    FundComposition(
+                        ticker=isin, type="sector", categorie=row["categorie"], poids=row["poids"], source=SOURCE_JUSTETF
+                    )
                 )
-            )
-        reussis += 1
+            for row in fiche.geo_brut:
+                db.add(FundCompositionBrute(ticker=isin, type="geo", categorie=row["categorie"], poids=row["poids"]))
+            for row in fiche.sector_brut:
+                db.add(FundCompositionBrute(ticker=isin, type="sector", categorie=row["categorie"], poids=row["poids"]))
+            reussis += 1
+
+        if fiche.description:
+            cache_entry = db.get(MarketDataCache, isin)
+            if cache_entry is None:
+                cache_entry = MarketDataCache(ticker=isin)
+                db.add(cache_entry)
+            cache_entry.description = fiche.description
 
     db.commit()
     return {"traites": traites, "reussis": reussis}

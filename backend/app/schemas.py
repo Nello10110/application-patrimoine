@@ -394,6 +394,9 @@ class HoldingDetail(BaseModel):
     frais_transaction_payes: float = 0.0
     repartition_geo: list[RepartitionItem] = []
     repartition_sector: list[RepartitionItem] = []
+    # Détail brut justETF (2.4, Increment 9), affichage seul — cf. `FundCompositionBrute`.
+    repartition_geo_detaillee: list[RepartitionItem] = []
+    repartition_sector_detaillee: list[RepartitionItem] = []
     composition_actions: list[FundTopHoldingItem] = []
 
 

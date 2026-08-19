@@ -107,6 +107,43 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
         <PieChartCard title="Répartition sectorielle" items={detail.repartition_sector} />
       </div>
 
+      {(detail.repartition_geo_detaillee.length > 0 || detail.repartition_sector_detaillee.length > 0) && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {detail.repartition_geo_detaillee.length > 0 && (
+            <Card title="Répartition géographique détaillée">
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {[...detail.repartition_geo_detaillee]
+                    .sort((a, b) => b.poids - a.poids)
+                    .map((item) => (
+                      <tr key={item.categorie}>
+                        <td className="py-2 pr-4 text-slate-700 dark:text-slate-300">{item.categorie}</td>
+                        <td className="py-2 text-right font-medium text-slate-900 dark:text-slate-100">{(item.poids * 100).toFixed(2)}%</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+          {detail.repartition_sector_detaillee.length > 0 && (
+            <Card title="Répartition sectorielle détaillée">
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {[...detail.repartition_sector_detaillee]
+                    .sort((a, b) => b.poids - a.poids)
+                    .map((item) => (
+                      <tr key={item.categorie}>
+                        <td className="py-2 pr-4 text-slate-700 dark:text-slate-300">{item.categorie}</td>
+                        <td className="py-2 text-right font-medium text-slate-900 dark:text-slate-100">{(item.poids * 100).toFixed(2)}%</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </div>
+      )}
+
       {detail.composition_actions.length > 0 && (
         <Card title="Composition en actions (10 plus grosses lignes du fonds)">
           <ResponsiveContainer width="100%" height={Math.max(220, detail.composition_actions.length * 36)}>

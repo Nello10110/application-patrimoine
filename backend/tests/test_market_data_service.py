@@ -8,7 +8,7 @@ même rafraîchissement, et délai minimal entre deux rafraîchissements manuels
 import pytest
 import yfinance as yf
 
-from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding
+from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding, MarketDataCache
 from app.services import market_data_service
 from app.services.market_data_service import fetch_fund_composition
 
@@ -288,3 +288,82 @@ def test_refresh_tickers_preserve_fund_top_holding_si_composition_justetf(db, mo
     lignes = db.query(FundTopHolding).filter(FundTopHolding.ticker == "IE00JUSTETF").all()
     assert len(lignes) == 1
     assert lignes[0].holding_symbol == "ASML.AS"
+
+
+# ---------------------------------------------------------------------------
+# 2.4 / Increment 9 — cours de référence des ETF via justETF (pas yfinance,
+# sans repli en cas d'échec — décision utilisateur explicite)
+# ---------------------------------------------------------------------------
+
+
+def test_refresh_tickers_fund_utilise_justetf_pas_yfinance_pour_le_prix(db, monkeypatch):
+    """Le prix de référence d'un ETF vient désormais de `justetf_service.fetch_price`
+    (déjà en EUR) — `fetch_one` (yfinance) ne doit plus jamais être sollicité pour
+    la cotation d'un `FUND`, même en cas de succès."""
+
+    def _fetch_one_interdit(*args, **kwargs):
+        raise AssertionError("fetch_one (yfinance) ne doit jamais être appelé pour un FUND")
+
+    monkeypatch.setattr(market_data_service, "fetch_one", _fetch_one_interdit)
+    monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", lambda isin: {"prix_actuel": 127.09})
+
+    resultats = market_data_service.refresh_tickers(db, [("IE00B4L5Y983", "FUND")])
+
+    assert resultats == [{"ticker": "IE00B4L5Y983", "prix_actuel": pytest.approx(127.09), "devise": "EUR", "erreur": None}]
+    cache = db.get(MarketDataCache, "IE00B4L5Y983")
+    assert cache is not None
+    assert cache.prix_actuel == pytest.approx(127.09)
+    assert cache.devise == "EUR"
+    assert cache.erreur is None
+
+
+def test_refresh_tickers_fund_echec_justetf_aucun_repli_yfinance(db, monkeypatch):
+    """Décision utilisateur explicite (2.4) : un échec justETF affiche « cotation
+    indisponible », sans jamais retomber sur yfinance."""
+
+    def _fetch_one_interdit(*args, **kwargs):
+        raise AssertionError("fetch_one (yfinance) ne doit jamais être appelé, même après un échec justETF")
+
+    monkeypatch.setattr(market_data_service, "fetch_one", _fetch_one_interdit)
+    monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", lambda isin: None)
+
+    resultats = market_data_service.refresh_tickers(db, [("IE00B4L5Y983", "FUND")])
+
+    assert resultats == [{"ticker": "IE00B4L5Y983", "erreur": "Cotation indisponible (justETF)"}]
+    cache = db.get(MarketDataCache, "IE00B4L5Y983")
+    assert cache is not None
+    assert cache.erreur == "Cotation indisponible (justETF)"
+    assert cache.prix_actuel is None
+
+
+def test_refresh_tickers_stock_et_crypto_ignorent_justetf(db, monkeypatch):
+    """Comportement `STOCK`/`CRYPTO` totalement inchangé : toujours `fetch_one`
+    (yfinance), `justetf_service.fetch_price` jamais sollicité pour ces types."""
+
+    def _fetch_price_interdit(*args, **kwargs):
+        raise AssertionError("justetf_service.fetch_price ne doit être appelé que pour asset_class == 'FUND'")
+
+    monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", _fetch_price_interdit)
+
+    resultats = market_data_service.refresh_tickers(db, [("AAPL", "STOCK"), ("BTC", "CRYPTO")])
+
+    assert resultats == [
+        {"ticker": "AAPL", "erreur": "Cotation indisponible (titre non coté ou non reconnu)"},
+        {"ticker": "BTC", "erreur": "Cotation indisponible (titre non coté ou non reconnu)"},
+    ]
+
+
+def test_refresh_tickers_temporise_aussi_entre_deux_appels_justetf(db, monkeypatch):
+    """Garde-fou de débit dédié (2.4) : `justetf_service.DELAI_ENTRE_APPELS_JUSTETF_SECONDES`,
+    indépendant de `DELAI_ENTRE_APPELS_SECONDES` (yfinance) — jamais de temporisation
+    avant le tout premier appel justETF, comme pour le garde-fou yfinance existant."""
+    monkeypatch.setattr(market_data_service, "DELAI_ENTRE_APPELS_SECONDES", 0.0)
+    monkeypatch.setattr(market_data_service.justetf_service, "DELAI_ENTRE_APPELS_JUSTETF_SECONDES", 3.0)
+    monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", lambda isin: None)
+
+    appels_sleep = []
+    monkeypatch.setattr(market_data_service.time, "sleep", lambda s: appels_sleep.append(s))
+
+    market_data_service.refresh_tickers(db, [("AAA", "FUND"), ("BBB", "FUND"), ("CCC", "FUND")])
+
+    assert appels_sleep == [3.0, 3.0]

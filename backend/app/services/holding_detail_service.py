@@ -6,7 +6,7 @@ les routeurs fins et cette logique testable indépendamment de FastAPI.
 
 from sqlalchemy.orm import Session
 
-from ..models import FundComposition, FundTopHolding, Holding, Transaction
+from ..models import FundComposition, FundCompositionBrute, FundTopHolding, Holding, Transaction
 from . import market_data_service, performance_service, reference_indices
 
 
@@ -36,6 +36,13 @@ def build_holding_detail(db: Session, ticker: str) -> dict | None:
     repartition_geo = [{"categorie": c.categorie, "poids": c.poids} for c in compositions if c.type == "geo"]
     repartition_sector = [{"categorie": c.categorie, "poids": c.poids} for c in compositions if c.type == "sector"]
 
+    # Détail brut justETF (2.4, Increment 9) : affichage seul, en complément des
+    # répartitions zone-mappées ci-dessus — vide pour toute position non couverte
+    # par justETF (non-fonds, ou fonds sans composition publiée).
+    compositions_brutes = db.query(FundCompositionBrute).filter(FundCompositionBrute.ticker == ticker).all()
+    repartition_geo_detaillee = [{"categorie": c.categorie, "poids": c.poids} for c in compositions_brutes if c.type == "geo"]
+    repartition_sector_detaillee = [{"categorie": c.categorie, "poids": c.poids} for c in compositions_brutes if c.type == "sector"]
+
     top_holdings = db.query(FundTopHolding).filter(FundTopHolding.ticker == ticker).order_by(FundTopHolding.poids.desc()).all()
     composition_actions = [
         {"symbol": t.holding_symbol, "nom": t.holding_nom, "poids": t.poids, "pays": t.pays, "secteur": t.secteur}
@@ -49,6 +56,15 @@ def build_holding_detail(db: Session, ticker: str) -> dict | None:
         # Repli pour les cotations à données pauvres (ex. secondaire allemande sans
         # `fundFamily`) : la marque de l'émetteur figure presque toujours dans le nom.
         emetteur = reference_indices.guess_emetteur_from_name(nom_affiche)
+
+    # Résumé : yfinance (`longBusinessSummary`, à la demande) pour une action,
+    # description justETF (récupérée en masse par `justetf_service.refresh_all`,
+    # 2.4) pour un fonds — `fetch_holding_extra_info` renvoie toujours `resume=None`
+    # pour un FUND (cf. sa docstring), donc `extra.get("resume")` reste le
+    # comportement `STOCK` inchangé.
+    resume = extra.get("resume")
+    if holding.type_actif == "FUND" and md and md.description:
+        resume = md.description
 
     return {
         "ticker": holding.ticker,
@@ -64,10 +80,12 @@ def build_holding_detail(db: Session, ticker: str) -> dict | None:
         "rendement_depuis_achat_pct": rendements.get("rendement_depuis_achat_pct"),
         "rendement_annualise_pct": rendements.get("rendement_annualise_pct"),
         "emetteur": emetteur,
-        "resume": extra.get("resume"),
+        "resume": resume,
         "frais_gestion_pct": extra.get("frais_gestion_pct"),
         "frais_transaction_payes": round(_frais_transaction_payes(db, ticker), 2),
         "repartition_geo": repartition_geo,
         "repartition_sector": repartition_sector,
+        "repartition_geo_detaillee": repartition_geo_detaillee,
+        "repartition_sector_detaillee": repartition_sector_detaillee,
         "composition_actions": composition_actions,
     }

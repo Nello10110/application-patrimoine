@@ -34,6 +34,8 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     frais_transaction_payes: 0,
     repartition_geo: [],
     repartition_sector: [],
+    repartition_geo_detaillee: [],
+    repartition_sector_detaillee: [],
     composition_actions: [],
     ...overrides,
   }

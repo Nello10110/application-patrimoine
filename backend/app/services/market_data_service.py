@@ -16,6 +16,15 @@ convertis en EUR via les paires de change Yahoo (`XXXEUR=X`) avant stockage :
 `prix_actuel` est donc toujours en EUR, quelle que soit la devise de cotation
 d'origine (conservée à titre indicatif dans `devise`).
 
+Exception à « via yfinance » ci-dessus : depuis l'Increment 9 (2.4), le cours de
+référence d'un ETF (`Holding.type_actif == "FUND"`) vient de l'API JSON de
+justETF (`justetf_service.fetch_price`), pas de yfinance — décision utilisateur
+explicite, sans repli sur yfinance en cas d'échec (`refresh_tickers` pose alors
+`erreur="Cotation indisponible (justETF)"`). `resolve_ticker`/yfinance restent en
+revanche utilisés pour un fonds, mais uniquement pour le repli de composition
+(`fetch_fund_composition`, cf. `refresh_tickers` ci-dessous) quand justETF ne
+couvre pas l'ETF.
+
 Yahoo Finance n'offrant aucun SLA et limitant les appels côté serveur (LOT 7.5),
 deux garde-fous limitent la fréquence des sollicitations :
 - `DELAI_ENTRE_APPELS_SECONDES` : temporisation entre deux identifiants traités au
@@ -49,6 +58,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding, MarketDataCache, TickerResolution
+from . import justetf_service
 from .historique_cache import cle_historique_portefeuille, invalider
 from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
 
@@ -330,6 +340,7 @@ def refresh_tickers(
     results = []
     now = datetime.now(timezone.utc)
     seen: set[str] = set()
+    seen_justetf: set[str] = set()
     fx_cache: dict[str, float | None] = {}
     stock_info_cache: dict[str, dict] = {}
     total = len(items)
@@ -347,7 +358,32 @@ def refresh_tickers(
         seen.add(identifiant)
 
         ticker_resolu = resolve_ticker(db, identifiant, asset_class)
-        data = fetch_one(identifiant, ticker_resolu, fx_cache)
+
+        # 2.4/Increment 9 — le cours de référence d'un ETF vient désormais de
+        # l'API JSON justETF, pas de yfinance : plus robuste (contrat d'API stable
+        # plutôt qu'un scraping fragile), et déjà en EUR (pas de conversion de
+        # change à faire, contrairement à `fetch_one`). Décision utilisateur
+        # explicite : pas de repli sur yfinance en cas d'échec justETF, pour ne
+        # pas mélanger deux sources de prix différentes pour la même position.
+        if asset_class == "FUND":
+            # Ressource externe distincte de yfinance, temporisée séparément avec
+            # son propre garde-fou (`justetf_service.DELAI_ENTRE_APPELS_JUSTETF_SECONDES`)
+            # — même garde que ci-dessus : jamais avant le tout premier appel justETF.
+            if seen_justetf and justetf_service.DELAI_ENTRE_APPELS_JUSTETF_SECONDES:
+                time.sleep(justetf_service.DELAI_ENTRE_APPELS_JUSTETF_SECONDES)
+            seen_justetf.add(identifiant)
+            cotation = justetf_service.fetch_price(identifiant)
+            if cotation is not None:
+                data = {
+                    "ticker": identifiant,
+                    "prix_actuel": cotation["prix_actuel"],
+                    "devise": "EUR",
+                    "erreur": None,
+                }
+            else:
+                data = {"ticker": identifiant, "erreur": "Cotation indisponible (justETF)"}
+        else:
+            data = fetch_one(identifiant, ticker_resolu, fx_cache)
         results.append(data)
 
         cache_entry = db.get(MarketDataCache, identifiant)

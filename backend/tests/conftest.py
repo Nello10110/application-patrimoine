@@ -8,6 +8,11 @@
 - `no_network_yfinance` (autouse) : neutralise `yf.Ticker` et `yf.Search`, les
   deux seuls points d'entrée yfinance utilisés par le projet, pour qu'aucun test
   ne dépende du réseau ni de la disponibilité de Yahoo Finance.
+- `no_network_justetf` (autouse) : même principe, côté `requests.get` — seul point
+  d'entrée réseau de `justetf_service` (`_fetch_page_html`/`fetch_price`, 2.4).
+  Sans cette neutralisation, tout test exerçant `market_data_service.refresh_tickers`
+  ou `justetf_service.refresh_all` sur un ticker `FUND` sans monkeypatch explicite
+  ferait un vrai appel réseau vers justetf.com.
 - `reinitialiser_limite_rafraichissement_manuel` (autouse) : remet à zéro l'état
   mémoire du délai minimal entre rafraîchissements manuels (LOT 7.5) entre chaque
   test, pour qu'un test n'hérite pas d'un rafraîchissement déclenché par un test
@@ -33,7 +38,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.main import app
 from app.models import Holding, Transaction
-from app.services import market_data_service
+from app.services import justetf_service, market_data_service
 
 _compteur_transaction_id = itertools.count(1)
 
@@ -88,6 +93,21 @@ class FauxSearch:
 def no_network_yfinance(monkeypatch):
     monkeypatch.setattr(yf, "Ticker", FauxTicker)
     monkeypatch.setattr(yf, "Search", FauxSearch)
+
+
+def _requests_get_bloque(*args, **kwargs):
+    raise ConnectionError("appel réseau réel bloqué en test — cf. fixture no_network_justetf")
+
+
+@pytest.fixture(autouse=True)
+def no_network_justetf(monkeypatch):
+    """Neutralise `requests.get` (seul point d'entrée réseau de `justetf_service`,
+    cf. docstring du module) pour qu'aucun test n'appelle réellement justetf.com.
+    `_fetch_page_html` et `fetch_price` absorbent déjà toute exception réseau et
+    renvoient `None` — un test qui a besoin d'un scénario précis (succès, statut
+    HTTP particulier, JSON inattendu...) monkeypatche `requests.get` lui-même, ce
+    qui prime naturellement sur ce défaut."""
+    monkeypatch.setattr(justetf_service.requests, "get", _requests_get_bloque)
 
 
 @pytest.fixture(autouse=True)
