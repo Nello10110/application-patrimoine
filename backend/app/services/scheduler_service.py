@@ -17,11 +17,20 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
-from . import market_data_service
+from . import justetf_service, market_data_service
 
 logger = logging.getLogger("patrimoine.scheduler")
 
 MARKET_DATA_REFRESH = "market_data_refresh"
+JUSTETF_REFRESH = "justetf_refresh"
+
+# Intervalle par défaut (heures) appliqué à la création de la config d'un job, à la
+# place du `24.0` du modèle `ScheduledJobConfig` (correct pour MARKET_DATA_REFRESH,
+# mais trop fréquent pour justETF — cf. `_run_justetf_refresh`) : composition d'un
+# ETF qui change lentement, et politesse envers une ressource sans SLA ni support
+# recommandent d'y aller doucement (hebdomadaire par défaut, ajustable ensuite
+# depuis Réglages comme n'importe quel job).
+DEFAULTS: dict[str, float] = {JUSTETF_REFRESH: 168.0}
 
 
 def _run_market_data_refresh() -> None:
@@ -52,7 +61,34 @@ def _run_market_data_refresh() -> None:
         db.close()
 
 
-JOBS: dict[str, Callable[[], None]] = {MARKET_DATA_REFRESH: _run_market_data_refresh}
+def _run_justetf_refresh() -> None:
+    """Rafraîchit la composition pays/secteurs des ETF via justETF (2.4). Même
+    structure que `_run_market_data_refresh` (session dédiée pour `_record_result`
+    en cas d'échec — voir sa docstring pour le pourquoi) : ne laisse jamais une
+    exception remonter, bien que `justetf_service.refresh_all` ne soit de toute
+    façon pas censé en lever (chaque ISIN est traité défensivement)."""
+    db = SessionLocal()
+    try:
+        resume = justetf_service.refresh_all(db)
+        _record_result(
+            db, JUSTETF_REFRESH, "ok", f"{resume['reussis']}/{resume['traites']} ETF mis à jour"
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("échec du rafraîchissement justETF planifié")
+        db_statut = SessionLocal()
+        try:
+            _record_result(db_statut, JUSTETF_REFRESH, "erreur", str(exc))
+        finally:
+            db_statut.close()
+    finally:
+        db.close()
+
+
+JOBS: dict[str, Callable[[], None]] = {
+    MARKET_DATA_REFRESH: _run_market_data_refresh,
+    JUSTETF_REFRESH: _run_justetf_refresh,
+}
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -60,7 +96,10 @@ _scheduler: BackgroundScheduler | None = None
 def _get_or_create_config(db: Session, job_key: str) -> ScheduledJobConfig:
     config = db.get(ScheduledJobConfig, job_key)
     if config is None:
-        config = ScheduledJobConfig(job_key=job_key)
+        if job_key in DEFAULTS:
+            config = ScheduledJobConfig(job_key=job_key, intervalle_heures=DEFAULTS[job_key])
+        else:
+            config = ScheduledJobConfig(job_key=job_key)
         db.add(config)
         db.commit()
         db.refresh(config)
@@ -132,18 +171,27 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
     `POST /api/market-data/refresh` (4.7), `_run_market_data_refresh` dépasse
     largement la minute sur le portefeuille réel de l'utilisateur.
 
-    Le seul job connu à ce jour (`MARKET_DATA_REFRESH`) est *littéralement* un
-    rafraîchissement des cours : le déclenchement manuel réutilise donc directement
-    l'exécuteur partagé de `market_data_service` (même fil, même état consultable
-    via `GET /api/market-data/refresh/status`) plutôt que de dupliquer toute une
+    `MARKET_DATA_REFRESH` est *littéralement* un rafraîchissement des cours : son
+    déclenchement manuel réutilise donc directement l'exécuteur partagé de
+    `market_data_service` (même fil, même état consultable via
+    `GET /api/market-data/refresh/status`) plutôt que de dupliquer toute une
     infrastructure de suivi de progression. Deux bénéfices : un seul
     rafraîchissement de cours à la fois quel que soit l'écran d'où il est déclenché
     (Portefeuille ou Réglages, `RafraichissementDejaEnCoursError` protège les deux),
     et une progression ("x / y positions") que `ScheduledJobConfig` ne peut pas
     exposer sans lui ajouter une colonne (hors périmètre de ce lot — `models.py`
-    n'est pas censé changer ici). Si `JOBS` accueille un jour un job d'une autre
-    nature, ce court-circuit devra être généralisé (par exemple : chaque job expose
-    son propre couple `demarrer`/`etat`, sur le modèle de `market_data_service`).
+    n'est pas censé changer ici).
+
+    `JUSTETF_REFRESH` (2.4) est le premier job d'une autre nature anticipé par le
+    paragraphe précédent dans une version antérieure de cette docstring : il ne
+    dépasse pas la minute (une trentaine d'ISIN au plus, throttlés bien moins
+    agressivement que Yahoo Finance) et n'a pas besoin d'un état de progression
+    consultable — il tombe donc simplement dans la branche générique `else`
+    ci-dessous, qui appelle `JOBS[job_key]()` de façon synchrone. Un futur job plus
+    long qu'`JUSTETF_REFRESH` mais qui ne serait pas non plus `MARKET_DATA_REFRESH`
+    justifierait alors de généraliser le court-circuit (par exemple : chaque job
+    expose son propre couple `demarrer`/`etat`, sur le modèle de
+    `market_data_service`).
 
     Renvoie immédiatement la config *actuelle*, pas encore mise à jour par cette
     exécution : le frontend doit re-solliciter `GET /api/settings/jobs` une fois le
@@ -168,7 +216,7 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
                 db_statut.close()
 
         market_data_service.demarrer_rafraichissement(items, on_termine=_sur_fin)
-    else:  # pragma: no cover - aucun autre job à ce jour, cf. docstring ci-dessus
+    else:  # branche générique (ex. JUSTETF_REFRESH), cf. docstring ci-dessus
         JOBS[job_key]()
 
     return _get_or_create_config(db, job_key)

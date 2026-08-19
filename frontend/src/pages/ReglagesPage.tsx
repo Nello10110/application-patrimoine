@@ -133,13 +133,20 @@ function PreferencesCard() {
 
 const JOB_LABELS: Record<string, string> = {
   market_data_refresh: 'Rafraîchissement des données de marché',
+  justetf_refresh: 'Composition géographique/sectorielle (justETF)',
 }
 
 const JOB_DESCRIPTIONS: Record<string, string> = {
   market_data_refresh: 'Cours, composition des ETF et principales lignes sous-jacentes, pour toutes les positions du portefeuille.',
+  justetf_refresh:
+    "Répartition pays/secteurs réelle des ETF détenus, récupérée sur justETF.com. Cadence hebdomadaire par défaut : la composition d'un ETF évolue lentement, et justETF n'offre aucun support en cas de blocage.",
 }
 
-const INTERVAL_OPTIONS = [1, 6, 12, 24, 48]
+// 168h (une semaine) couvre l'intervalle par défaut de justetf_refresh
+// (`scheduler_service.DEFAULTS`) — sans cette option, le sélecteur afficherait une
+// valeur ne correspondant à aucune entrée tant que l'utilisateur n'a pas modifié
+// l'intervalle une première fois.
+const INTERVAL_OPTIONS = [1, 6, 12, 24, 48, 168]
 
 function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: ScheduledJob) => void }) {
   const [saving, setSaving] = useState(false)

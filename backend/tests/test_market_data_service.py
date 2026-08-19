@@ -8,7 +8,7 @@ même rafraîchissement, et délai minimal entre deux rafraîchissements manuels
 import pytest
 import yfinance as yf
 
-from app.models import SOURCE_COMPOSITION, SOURCE_INDICE
+from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding
 from app.services import market_data_service
 from app.services.market_data_service import fetch_fund_composition
 
@@ -220,3 +220,71 @@ def test_refresh_manuel_delai_ecoule_de_nouveau_accepte(client, db, monkeypatch)
 
     second = client.post("/api/market-data/refresh")
     assert second.status_code == 202
+
+
+# ---------------------------------------------------------------------------
+# 2.4 — une composition justETF déjà en base n'est jamais écrasée par ce
+# rafraîchissement (cadence bien plus fréquente que le job justETF dédié)
+# ---------------------------------------------------------------------------
+
+
+def test_refresh_tickers_ne_recalcule_pas_si_composition_justetf_deja_presente(db, monkeypatch):
+    """Une ligne `FundComposition` `source=SOURCE_JUSTETF` déjà en base pour un
+    ticker doit rester intacte : `refresh_tickers` ne doit ni la supprimer, ni la
+    dupliquer, ni la remplacer par un recalcul yfinance — même si yfinance
+    produirait ici une composition différente."""
+    make_holding(db, ticker="IE00JUSTETF", type_actif="FUND")
+    db.add(FundComposition(ticker="IE00JUSTETF", type="geo", categorie="Europe", poids=1.0, source=SOURCE_JUSTETF))
+    db.commit()
+
+    class FauxTickerAvecCompositionDifferente:
+        def __init__(self, symbole, *args, **kwargs):
+            self.symbole = symbole
+            self.info = {
+                "regularMarketPrice": 100.0,
+                "currency": "EUR",
+                "country": "France",
+                "sector": "Technology",
+            }
+            self.funds_data = FauxFundsData(sector_weightings={"technology": 1.0}, top_holdings=None)
+
+    monkeypatch.setattr(yf, "Ticker", FauxTickerAvecCompositionDifferente)
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db, identifiant, asset_class: "FAKE.ETF")
+
+    market_data_service.refresh_tickers(db, [("IE00JUSTETF", "FUND")])
+
+    lignes = db.query(FundComposition).filter(FundComposition.ticker == "IE00JUSTETF").all()
+    assert len(lignes) == 1
+    assert lignes[0].source == SOURCE_JUSTETF
+    assert lignes[0].categorie == "Europe"
+
+
+def test_refresh_tickers_preserve_fund_top_holding_si_composition_justetf(db, monkeypatch):
+    """`FundTopHolding` (détail nominatif) est peuplé par le même bloc que
+    `FundComposition` côté yfinance : sauter ce bloc pour un ticker géré par
+    justETF ne doit pas non plus vider `FundTopHolding` sans jamais le
+    reconstruire — la ligne déjà en base doit survivre à l'identique."""
+    make_holding(db, ticker="IE00JUSTETF", type_actif="FUND")
+    db.add(FundComposition(ticker="IE00JUSTETF", type="geo", categorie="Europe", poids=1.0, source=SOURCE_JUSTETF))
+    db.add(FundTopHolding(ticker="IE00JUSTETF", holding_symbol="ASML.AS", holding_nom="ASML", poids=0.1))
+    db.commit()
+
+    class FauxTickerAvecCompositionDifferente:
+        def __init__(self, symbole, *args, **kwargs):
+            self.symbole = symbole
+            self.info = {
+                "regularMarketPrice": 100.0,
+                "currency": "EUR",
+                "country": "France",
+                "sector": "Technology",
+            }
+            self.funds_data = FauxFundsData(sector_weightings={"technology": 1.0}, top_holdings=None)
+
+    monkeypatch.setattr(yf, "Ticker", FauxTickerAvecCompositionDifferente)
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db, identifiant, asset_class: "FAKE.ETF")
+
+    market_data_service.refresh_tickers(db, [("IE00JUSTETF", "FUND")])
+
+    lignes = db.query(FundTopHolding).filter(FundTopHolding.ticker == "IE00JUSTETF").all()
+    assert len(lignes) == 1
+    assert lignes[0].holding_symbol == "ASML.AS"

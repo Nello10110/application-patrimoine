@@ -24,6 +24,7 @@ def utcnow() -> datetime:
 # indisponible — elle n'a donc pas de constante dédiée, seule son absence compte.
 SOURCE_COMPOSITION = "composition"  # lignes réelles du fonds (Yahoo top_holdings / sector_weightings)
 SOURCE_INDICE = "indice"  # déduite du nom du fonds via reference_indices.repartition_geo_depuis_le_nom
+SOURCE_JUSTETF = "justetf"  # composition pays/secteurs réelle scrapée sur justetf.com (2.4, `services/justetf_service.py`)
 
 # Qualification de `Holding.origine` (cf. LOT 3.4) : arbitre le conflit entre saisie
 # manuelle et reconstruction automatique depuis le grand livre de transactions. Une

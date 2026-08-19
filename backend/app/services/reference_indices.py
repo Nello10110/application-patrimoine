@@ -152,6 +152,29 @@ FUND_SECTOR_WEIGHTING_LABELS: dict[str, str] = {
     "realestate": "Immobilier",
 }
 
+# Nom de secteur affiché par justETF (fiche ETF, section "Sector breakdown") ->
+# même libellé français, pour pouvoir agréger avec les deux tables ci-dessus dans
+# les mêmes catégories. Taxonomie encore différente des deux précédentes (ni le
+# GICS de `.info['sector']`, ni le snake_case de `funds_data.sector_weightings') :
+# justETF utilise ses propres intitulés anglais courts (ex. "Finance" au lieu de
+# "Financial Services"), d'où cette troisième table plutôt que de réutiliser l'une
+# des deux existantes. Une catégorie absente d'ici (non observée à la
+# reconnaissance) bascule sur SECTEUR_AUTRES au niveau de l'appelant, comme pour
+# `region_for_country`/`label_for_sector`.
+JUSTETF_SECTOR_LABELS: dict[str, str] = {
+    "Finance": "Financières",
+    "Technology": "Technologies de l'information",
+    "Industrials": "Industrie",
+    "Healthcare": "Santé",
+    "Consumer Discretionary": "Consommation discrétionnaire",
+    "Consumer Staples": "Consommation de base",
+    "Communication": "Communication",
+    "Energy": "Énergie",
+    "Materials": "Matériaux",
+    "Utilities": "Services publics",
+    "Real Estate": "Immobilier",
+}
+
 
 # Libellé du secteur fourre-tout, distinct de "Non catégorisé" (donnée absente) pour
 # la même raison que ZONE_AUTRES ci-dessus.

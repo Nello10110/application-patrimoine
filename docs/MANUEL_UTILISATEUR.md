@@ -78,10 +78,20 @@ Sélectionner une année dans la liste (alimentée par les années réellement e
 
 ### Rafraîchissement automatique des données de marché
 
+Deux tâches planifiées, chacune avec sa propre carte : **Rafraîchissement des données de marché**
+(cours, composition rapide des fonds — cadence par défaut 24h) et **Composition
+géographique/sectorielle (justETF)** (look-through complet des ETF — cadence par défaut
+hebdomadaire, plus lente par politesse envers justETF qui n'offre aucun support). Pour chacune :
+
 - **Activé** : active/désactive l'exécution planifiée.
 - **Toutes les X h** : intervalle entre deux exécutions automatiques.
-- **Lancer maintenant** : déclenche immédiatement un rafraîchissement, indépendamment de la planification. Comme le bouton du Portefeuille, il s'exécute en tâche de fond avec une progression affichée, et ne peut pas se lancer si un rafraîchissement est déjà en cours (déclenché depuis cet écran ou depuis le Portefeuille).
-- La dernière exécution (date/heure, succès ou échec, message) est affichée sous le formulaire.
+- **Lancer maintenant** : déclenche immédiatement cette tâche, indépendamment de la planification.
+  Pour le rafraîchissement des cours, comme le bouton du Portefeuille, il s'exécute en tâche de
+  fond avec une progression affichée, et ne peut pas se lancer si un rafraîchissement est déjà en
+  cours (déclenché depuis cet écran ou depuis le Portefeuille). Pour la composition justETF, le
+  bouton reste indisponible le temps du traitement (pouvant prendre jusqu'à une minute selon le
+  nombre d'ETF détenus) mais sans compteur de progression.
+- La dernière exécution (date/heure, succès ou échec, message) est affichée sous chaque carte.
 
 ### Exporter
 

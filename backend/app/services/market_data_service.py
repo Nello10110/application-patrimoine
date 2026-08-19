@@ -48,7 +48,7 @@ import yfinance as yf
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
-from ..models import SOURCE_COMPOSITION, SOURCE_INDICE, FundComposition, FundTopHolding, MarketDataCache, TickerResolution
+from ..models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding, MarketDataCache, TickerResolution
 from .historique_cache import cle_historique_portefeuille, invalider
 from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
 
@@ -364,35 +364,52 @@ def refresh_tickers(
         cache_entry.erreur = data.get("erreur")
         cache_entry.derniere_maj = now
 
-        db.query(FundComposition).filter(FundComposition.ticker == identifiant).delete()
-        db.query(FundTopHolding).filter(FundTopHolding.ticker == identifiant).delete()
-        if asset_class == "FUND" and ticker_resolu is not None and data.get("erreur") is None:
-            geo_rows, sector_rows, top_holdings_detail = fetch_fund_composition(
-                ticker_resolu, stock_info_cache, data.get("nom")
-            )
-            for row in geo_rows:
-                db.add(
-                    FundComposition(
-                        ticker=identifiant, type="geo", categorie=row["categorie"], poids=row["poids"], source=row["source"]
-                    )
+        # Une composition justETF déjà en base (2.4) ne doit jamais être écrasée par
+        # ce recalcul yfinance : les deux jobs tournent à des cadences différentes
+        # (prix potentiellement plusieurs fois par jour, composition justETF une
+        # fois par semaine par défaut) — sans cette garde, chaque rafraîchissement
+        # de prix effacerait la donnée justETF plus riche pour la remplacer par le
+        # repli yfinance, voire par rien du tout. `FundTopHolding` (détail nominatif
+        # des plus grosses lignes, non fourni par justETF) suit la même garde : sans
+        # ça, il serait supprimé à chaque rafraîchissement de prix sans jamais être
+        # réinséré dès qu'un ticker bascule sur justETF, puisque sa reconstruction
+        # est imbriquée dans le même bloc que le calcul de composition ci-dessous.
+        a_deja_composition_justetf = (
+            db.query(FundComposition)
+            .filter(FundComposition.ticker == identifiant, FundComposition.source == SOURCE_JUSTETF)
+            .first()
+            is not None
+        )
+        if not a_deja_composition_justetf:
+            db.query(FundComposition).filter(FundComposition.ticker == identifiant).delete()
+            db.query(FundTopHolding).filter(FundTopHolding.ticker == identifiant).delete()
+            if asset_class == "FUND" and ticker_resolu is not None and data.get("erreur") is None:
+                geo_rows, sector_rows, top_holdings_detail = fetch_fund_composition(
+                    ticker_resolu, stock_info_cache, data.get("nom")
                 )
-            for row in sector_rows:
-                db.add(
-                    FundComposition(
-                        ticker=identifiant, type="sector", categorie=row["categorie"], poids=row["poids"], source=row["source"]
+                for row in geo_rows:
+                    db.add(
+                        FundComposition(
+                            ticker=identifiant, type="geo", categorie=row["categorie"], poids=row["poids"], source=row["source"]
+                        )
                     )
-                )
-            for row in top_holdings_detail:
-                db.add(
-                    FundTopHolding(
-                        ticker=identifiant,
-                        holding_symbol=row["symbol"],
-                        holding_nom=row["nom"],
-                        poids=row["poids"],
-                        pays=row["pays"],
-                        secteur=row["secteur"],
+                for row in sector_rows:
+                    db.add(
+                        FundComposition(
+                            ticker=identifiant, type="sector", categorie=row["categorie"], poids=row["poids"], source=row["source"]
+                        )
                     )
-                )
+                for row in top_holdings_detail:
+                    db.add(
+                        FundTopHolding(
+                            ticker=identifiant,
+                            holding_symbol=row["symbol"],
+                            holding_nom=row["nom"],
+                            poids=row["poids"],
+                            pays=row["pays"],
+                            secteur=row["secteur"],
+                        )
+                    )
 
         if on_progression:
             on_progression(index, total)
