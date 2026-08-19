@@ -15,9 +15,10 @@ import pandas as pd
 import pytest
 import yfinance as yf
 
-from app.models import HistoriqueCache, Holding
+from app.models import HistoriqueCache, Holding, MarketDataCache
 from app.services import historical_performance_service, historique_cache, portfolio_reconstruction
 from app.services.historical_performance_service import (
+    _devise_historique_yfinance,
     _value_at,
     compute_holding_price_history,
     compute_portfolio_history,
@@ -175,6 +176,94 @@ def test_portfolio_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(db, 
     resultat_chaud = compute_portfolio_history(db)
 
     assert resultat_chaud == resultat_froid
+
+
+class _FauxTickerAvecDeviseUSD(_FauxTickerAvecHistorique):
+    """Simule un fonds dont l'historique yfinance est en USD (ex. `IWDA.L`, vérifié
+    réel) alors que `MarketDataCache.devise` vaut "EUR" — c'est le cas de tout
+    fonds dont le cours vient désormais de justETF (2.4) : `devise` y reflète la
+    devise de la cotation justETF (toujours EUR, `currency=EUR` demandé
+    explicitement à leur API), pas celle de l'historique yfinance sous-jacent."""
+
+    def __init__(self, symbole=None, *args, **kwargs):
+        super().__init__(symbole, *args, **kwargs)
+        self.info = {"currency": "USD"}
+
+
+def _faux_taux_change_fixe(devise, start):
+    # Premier point volontairement bien avant la série OHLC simulée (2024-01-01) :
+    # `_history_to_series` convertit chaque date OHLC via `.astimezone(timezone.utc)`,
+    # qui interprète une date naïve comme heure LOCALE avant de la convertir — sur
+    # une machine en avance sur UTC, un taux fixé pile au 1er janvier arriverait
+    # après la conversion du premier point OHLC et le ferait ignorer (`rate=None`).
+    return [(datetime(2023, 12, 1), 0.5), (datetime(2024, 1, 15), 0.5)]
+
+
+# ---------------------------------------------------------------------------
+# 2.4 (Increment 9) — régression du 19/08/2026 : la conversion de change de
+# l'historique ne doit jamais dépendre de `MarketDataCache.devise`, devenu
+# systématiquement "EUR" pour un fonds depuis le passage de son cours à
+# justETF, alors que l'historique yfinance sous-jacent reste dans sa devise de
+# cotation d'origine (USD, GBp...). Utiliser ce champ pour décider s'il faut
+# convertir saute la conversion et fausse tout l'historique d'un fonds coté
+# hors zone euro — reproduit et corrigé ici, verrouillé pour ne plus jamais
+# se reproduire silencieusement.
+# ---------------------------------------------------------------------------
+
+
+def test_devise_historique_yfinance_lit_info_currency_pas_market_data_cache():
+    class _Faux:
+        info = {"currency": "USD"}
+
+    assert _devise_historique_yfinance(_Faux()) == "USD"
+
+
+def test_devise_historique_yfinance_renvoie_none_si_info_leve():
+    class _FauxDefaillant:
+        @property
+        def info(self):
+            raise Exception("panne réseau simulée")
+
+    assert _devise_historique_yfinance(_FauxDefaillant()) is None
+
+
+def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(db, monkeypatch):
+    """Un fonds dont `MarketDataCache.devise == "EUR"` (cotation justETF) mais dont
+    l'historique yfinance est réellement en USD doit quand même être converti."""
+    make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    rebuild_holdings(db)
+    db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=110.0))
+    db.commit()
+
+    monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecDeviseUSD)
+    monkeypatch.setattr(historical_performance_service, "_fetch_fx_history", _faux_taux_change_fixe)
+
+    resultat = compute_portfolio_history(db)
+
+    # Dernier prix connu de la série simulée (110.0, en USD) x 10 parts x taux
+    # simulé (0.5) = 550 €. Sans la conversion (bug reproduit), la valeur
+    # afficherait 1100 (110 x 10, jamais convertie).
+    dernier_point = resultat[-1]
+    assert dernier_point["valeur_portefeuille"] == pytest.approx(550.0)
+
+
+def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_eur(db, monkeypatch):
+    """Même verrouillage côté fiche détaillée d'une position (`compute_holding_price_history`)."""
+    db.add(Holding(ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="FUND"))
+    db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=110.0))
+    db.commit()
+
+    monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecDeviseUSD)
+    monkeypatch.setattr(historical_performance_service, "_fetch_fx_history", _faux_taux_change_fixe)
+
+    resultat = compute_holding_price_history(db, "AAA")
+
+    assert resultat is not None
+    # Série simulée 100/105/110 (USD) x taux simulé 0.5 = 50/52.5/55.
+    prix = [p["prix"] for p in resultat["points"]]
+    assert prix == pytest.approx([50.0, 52.5, 55.0])
 
 
 def test_portfolio_history_invalide_apres_reconstruction_du_portefeuille(db, monkeypatch):

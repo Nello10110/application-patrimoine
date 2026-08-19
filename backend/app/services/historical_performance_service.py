@@ -70,6 +70,21 @@ def _history_to_series(hist: pd.DataFrame, fx_series: TimeSeries | None) -> Time
     return series
 
 
+def _devise_historique_yfinance(ticker_yf: yf.Ticker) -> str | None:
+    """Devise dans laquelle `ticker_yf.history()` renvoie ses prix. À ne JAMAIS
+    confondre avec `MarketDataCache.devise` : depuis le passage du cours des ETF à
+    justETF (2.4), ce champ vaut systématiquement "EUR" pour un fonds (devise de
+    la cotation justETF), quelle que soit la devise réelle de cotation Yahoo
+    Finance de l'historique sous-jacent (ex. `IWDA.L` cote en USD, `XSDR.L` en
+    GBp) — l'utiliser ici ferait sauter à tort la conversion de change et
+    fausserait tout l'historique de ce titre. Toujours redemandée directement à
+    yfinance plutôt que déduite d'un champ désormais réutilisé à d'autres fins."""
+    try:
+        return ticker_yf.info.get("currency")
+    except Exception:
+        return None
+
+
 def _fetch_fx_history(devise: str, start: datetime) -> TimeSeries:
     pence = devise in ("GBp", "GBX")
     code = "GBP" if pence else devise.upper()
@@ -119,18 +134,17 @@ def _compute_portfolio_history(db: Session, positions: dict[str, PositionState])
     for symbol, state in positions.items():
         if not state.shares_history:
             continue
-        holding = holdings_by_ticker.get(symbol)
-        devise = holding.market_data.devise if holding and holding.market_data else None
-
         ticker_resolu = market_data_service.resolve_ticker(db, symbol, state.asset_class)
         if ticker_resolu is None:
             continue
         try:
-            hist = yf.Ticker(ticker_resolu).history(start=start.date().isoformat(), interval="1wk")
+            ticker_yf = yf.Ticker(ticker_resolu)
+            hist = ticker_yf.history(start=start.date().isoformat(), interval="1wk")
         except Exception:
             continue
         if hist is None or hist.empty:
             continue
+        devise = _devise_historique_yfinance(ticker_yf)
 
         fx_series = None
         if devise and devise != "EUR":
@@ -202,13 +216,14 @@ def _compute_holding_price_history(db: Session, identifiant: str) -> dict | None
         return None
 
     try:
-        hist = yf.Ticker(ticker_resolu).history(period="max", interval="1wk")
+        ticker_yf = yf.Ticker(ticker_resolu)
+        hist = ticker_yf.history(period="max", interval="1wk")
     except Exception:
         return None
     if hist is None or hist.empty:
         return None
 
-    devise = holding.market_data.devise if holding.market_data else None
+    devise = _devise_historique_yfinance(ticker_yf)
     first_date = hist.index[0].to_pydatetime().astimezone(timezone.utc).replace(tzinfo=None)
     fx_series = None
     if devise and devise != "EUR":
