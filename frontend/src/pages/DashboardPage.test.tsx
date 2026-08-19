@@ -140,7 +140,7 @@ describe('DashboardPage — bandeau d\'alerte (LOT 5.5)', () => {
     })
   })
 
-  it('affiche le bandeau ambre quand des alertes sont présentes', async () => {
+  it('affiche le bandeau ambre replié par défaut, dépliable au clic', async () => {
     vi.mocked(api.getAnalysis).mockResolvedValue(
       analyse(CURRENT_YEAR, {
         alertes: [{ type: 'geo', categorie: 'Europe', ecart_pourcentage: 8.0, montant_a_ajuster: 100, sens: 'reduire' }],
@@ -148,7 +148,15 @@ describe('DashboardPage — bandeau d\'alerte (LOT 5.5)', () => {
     )
     renderPage()
 
-    await screen.findByText(/1 alerte de rééquilibrage/)
+    const resume = await screen.findByText(/1 alerte de rééquilibrage/)
+    const details = resume.closest('details')
+    expect(details).not.toBeNull()
+    expect(details).not.toHaveAttribute('open')
+
+    const { fireEvent } = await import('@testing-library/react')
+    fireEvent.click(resume)
+
+    expect(details).toHaveAttribute('open')
     expect(screen.getByText('Europe')).toBeInTheDocument()
   })
 

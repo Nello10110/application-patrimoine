@@ -97,23 +97,6 @@ export default function DashboardPage() {
 
       {!loading && !error && analysis && (
         <>
-          {analysis.alertes.length > 0 && (
-            <Card className="border-amber-300 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
-              <p className="mb-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
-                {analysis.alertes.length} alerte{analysis.alertes.length > 1 ? 's' : ''} de rééquilibrage
-              </p>
-              <ul className="space-y-1">
-                {analysis.alertes.map((alerte) => (
-                  <li key={`${alerte.type}-${alerte.categorie}`} className="text-sm text-amber-800 dark:text-amber-200/90">
-                    <span className="font-medium">{alerte.categorie}</span> ({alerte.type === 'geo' ? 'géographie' : 'secteur'}) :
-                    écart de {alerte.ecart_pourcentage > 0 ? '+' : ''}
-                    {alerte.ecart_pourcentage}% par rapport à l'objectif
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
           <PortfolioHistoryChart />
 
           {hasNoHoldings && (
@@ -203,6 +186,24 @@ export default function DashboardPage() {
           )}
 
           {modal && <CompositionModal type={modal.type} categorie={modal.categorie} onClose={() => setModal(null)} />}
+
+          {analysis.alertes.length > 0 && (
+            <details className="group rounded-xl border border-amber-300 bg-amber-50 p-5 shadow-sm dark:border-amber-400/30 dark:bg-amber-950/40">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-amber-800 marker:content-none dark:text-amber-300">
+                <span className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
+                {analysis.alertes.length} alerte{analysis.alertes.length > 1 ? 's' : ''} de rééquilibrage
+              </summary>
+              <ul className="mt-3 space-y-1 pl-4">
+                {analysis.alertes.map((alerte) => (
+                  <li key={`${alerte.type}-${alerte.categorie}`} className="text-sm text-amber-800 dark:text-amber-200/90">
+                    <span className="font-medium">{alerte.categorie}</span> ({alerte.type === 'geo' ? 'géographie' : 'secteur'}) :
+                    écart de {alerte.ecart_pourcentage > 0 ? '+' : ''}
+                    {alerte.ecart_pourcentage}% par rapport à l'objectif
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
 
           <Card title="Actions de rééquilibrage recommandées">
             {analysis.recommandations.length === 0 ? (
