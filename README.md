@@ -19,12 +19,26 @@ npm run dev
 
 Puis ouvrir `http://localhost:5173`.
 
+## Tests
+
+```bash
+# Backend
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest -q
+
+# Frontend
+cd frontend
+npm run test
+```
+
 ## Documentation
 
 - [Spécifications fonctionnelles](docs/SPECIFICATIONS_FONCTIONNELLES.md) — périmètre, règles métier, modèle de données
 - [Manuel utilisateur](docs/MANUEL_UTILISATEUR.md) — mode d'emploi de chaque écran
-- [Manuel d'exploitation](docs/MANUEL_EXPLOITATION.md) — architecture, démarrage, sauvegarde, dépannage
+- [Manuel d'exploitation](docs/MANUEL_EXPLOITATION.md) — architecture, démarrage, tests, sauvegarde, dépannage
 - [Backlog](docs/BACKLOG.md) — évolutions futures envisagées
+- [État du chantier](docs/ETAT_DU_CHANTIER.md) — avancement du chantier de refonte en cours
 
 ## Stack technique
 

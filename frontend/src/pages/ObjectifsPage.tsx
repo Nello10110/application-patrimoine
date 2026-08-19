@@ -102,6 +102,7 @@ export default function ObjectifsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [echecChargement, setEchecChargement] = useState<string | null>(null)
 
   // Le sélecteur d'année s'alimente des années réellement enregistrées
   // (`GET /api/targets/`, cf. LOT 5.4) plutôt que de la fenêtre glissante
@@ -141,25 +142,52 @@ export default function ObjectifsPage() {
     setNouvelleAnnee('')
   }
 
+  // `compteurRechargement` sert uniquement à relancer l'effet ci-dessous au clic sur
+  // « Réessayer », sans dupliquer la logique de chargement hors de l'effet.
+  const [compteurRechargement, setCompteurRechargement] = useState(0)
+
   useEffect(() => {
+    let annule = false
     setLoading(true)
     setMessage(null)
+    setEchecChargement(null)
     api
       .getTargets(annee)
       .then(async (existing) => {
         if (existing.length > 0) {
-          setGeo(existing.filter((t) => t.type === 'geo').map((t) => ({ categorie: t.categorie, pourcentage_cible: t.pourcentage_cible })))
-          setSector(
-            existing.filter((t) => t.type === 'sector').map((t) => ({ categorie: t.categorie, pourcentage_cible: t.pourcentage_cible })),
-          )
-        } else {
-          const defaults = await api.getDefaultTargets()
-          setGeo(defaults.geo)
-          setSector(defaults.sector)
+          return {
+            geo: existing.filter((t) => t.type === 'geo').map((t) => ({ categorie: t.categorie, pourcentage_cible: t.pourcentage_cible })),
+            sector: existing
+              .filter((t) => t.type === 'sector')
+              .map((t) => ({ categorie: t.categorie, pourcentage_cible: t.pourcentage_cible })),
+          }
         }
+        const defaults = await api.getDefaultTargets()
+        return { geo: defaults.geo, sector: defaults.sector }
       })
-      .finally(() => setLoading(false))
-  }, [annee])
+      .then((charges) => {
+        if (annule) return
+        setGeo(charges.geo)
+        setSector(charges.sector)
+      })
+      .catch((err) => {
+        if (annule) return
+        // Sans ce traitement, un échec de chargement laissait deux éditeurs VIDES sans
+        // aucun message : un clic sur « Enregistrer » aurait alors écrasé les objectifs
+        // réellement enregistrés par une répartition vide. On bloque donc la saisie et
+        // on propose explicitement de réessayer.
+        setEchecChargement((err as Error).message)
+        setGeo([])
+        setSector([])
+      })
+      .finally(() => {
+        if (!annule) setLoading(false)
+      })
+
+    return () => {
+      annule = true
+    }
+  }, [annee, compteurRechargement])
 
   async function handleSave() {
     setSaving(true)
@@ -214,7 +242,7 @@ export default function ObjectifsPage() {
           </div>
           <button
             onClick={handleSave}
-            disabled={saving || loading}
+            disabled={saving || loading || echecChargement !== null}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
           >
             {saving ? 'Enregistrement...' : 'Enregistrer'}
@@ -228,7 +256,26 @@ export default function ObjectifsPage() {
         </p>
       )}
 
-      {loading ? (
+      {echecChargement && (
+        <Card className="border-red-200 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10">
+          <p className="text-sm text-red-800 dark:text-red-300">
+            Impossible de charger les objectifs de {annee} : {echecChargement}
+          </p>
+          <p className="mt-1 text-xs text-red-700 dark:text-red-400">
+            La saisie est désactivée tant que les objectifs enregistrés n'ont pas pu être relus — enregistrer
+            maintenant les remplacerait par une répartition vide.
+          </p>
+          <button
+            onClick={() => setCompteurRechargement((n) => n + 1)}
+            type="button"
+            className="mt-3 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+          >
+            Réessayer
+          </button>
+        </Card>
+      )}
+
+      {echecChargement ? null : loading ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

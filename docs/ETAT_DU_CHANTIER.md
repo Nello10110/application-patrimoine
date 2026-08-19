@@ -57,8 +57,8 @@ Mesuré sur ta base réelle (4 059 transactions, 49 positions) :
 
 | | Avant | Après |
 |---|---:|---:|
-| Gain / perte total | 1 525,78 € | **1 625,94 €** |
-| Rendement simple | 15,21 % | **16,20 %** |
+| Gain / perte total | 1 525,78 € | **1 627,94 €** |
+| Rendement simple | 15,21 % | **16,22 %** |
 
 L'écart de +100 € vient de trois corrections :
 - les frais étaient comptés **deux fois** (déjà dans le coût de revient, et resoustraits ensuite) ;

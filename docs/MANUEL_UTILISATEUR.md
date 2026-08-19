@@ -12,56 +12,77 @@ Parcours type conseillé :
 1. Importer son historique de transactions (écran **Import**).
 2. Rafraîchir les cours (bouton sur l'écran **Portefeuille**, ou automatiquement via **Réglages**).
 3. Définir ses objectifs de répartition pour l'année (écran **Objectifs**).
-4. Consulter le **Tableau de bord** pour voir l'écart réel/cible et les recommandations.
+4. Consulter le **Tableau de bord** pour voir l'écart réel/cible, les alertes et les recommandations.
+
+Un bouton en haut à droite de chaque écran bascule l'apparence entre thème clair, thème sombre et suivi automatique du système (un clic fait passer de l'un à l'autre) ; le choix est mémorisé d'une visite à l'autre.
 
 ## Écran Import
 
 ### Historique de transactions
 
-Section du haut. Accepte un export CSV au format reconnu automatiquement (colonnes `transaction_id`, `category`, `type`, `asset_class`, etc. — format Trade Republic et compatibles). Aucun mapping à faire.
+Section du haut. Accepte un export CSV au format reconnu automatiquement (format Trade Republic et compatibles). Aucun mapping à faire.
 
-Le résumé affiché après import indique : nombre de transactions importées, doublons déjà présents ignorés (ré-import sans risque), mouvements hors suivi boursier exclus (carte bancaire, virements bancaires), et positions recalculées.
+Le résumé affiché après import indique : nombre de transactions importées, doublons déjà présents ignorés (ré-import sans risque), mouvements hors suivi boursier exclus (carte bancaire, virements bancaires), et positions recalculées. Si le grand livre contient des ventes sans achat correspondant, une anomalie est signalée ici (la position concernée n'apparaît alors pas dans le portefeuille). Si une ligne saisie manuellement portait le même identifiant qu'une position reconstruite par cet import, c'est aussi indiqué : le grand livre fait foi, la ligne manuelle a été remplacée.
 
 ### Relevé de positions
 
-Section du bas. Pour un simple export de positions (pas un historique de mouvements). Après upload, un aperçu du fichier s'affiche : associer les colonnes du fichier aux champs attendus (Ticker et Quantité obligatoires ; Nom, Prix de revient, Compte, Devise optionnels), puis confirmer. La case « Remplacer le portefeuille existant » permet de repartir de zéro plutôt que d'ajouter à la suite.
+Section du bas. Pour un simple export de positions (pas un historique de mouvements). Après upload, un aperçu du fichier s'affiche : associer les colonnes du fichier aux champs attendus (Ticker et Quantité obligatoires ; Nom, Prix de revient, Compte, Devise optionnels), puis confirmer. La case « Remplacer les lignes déjà saisies ou importées manuellement » permet de repartir de zéro sur ces lignes-là uniquement ; les positions issues d'un historique de transactions ne sont jamais touchées par cette case.
 
 ## Écran Portefeuille
 
-Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, rendement depuis achat, rendement annualisé, secteur, pays. Les onglets au-dessus du tableau filtrent par catégorie (Actions / ETF / Crypto / Autres).
+Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, rendement depuis achat, rendement annualisé, secteur, pays. Une ligne saisie manuellement porte une étiquette « saisie manuelle ».
 
-- **Cliquer sur une ligne** ouvre la fiche détaillée de la position.
-- **Rafraîchir les cours** relance manuellement la récupération des données de marché pour tout le portefeuille (peut prendre plusieurs dizaines de secondes selon le nombre de lignes).
-- **Ajouter une ligne manuellement** : pour une position hors historique de transactions (ex. actif détenu ailleurs).
+- **Trier** : cliquer sur l'en-tête d'une colonne (ticker, nom, quantité, prix actuel, valeur, rendement depuis achat, rendement annualisé) trie le tableau selon cette colonne ; un second clic inverse le sens. Une valeur inconnue (« — ») se retrouve toujours en fin de liste.
+- **Total** : en bas du tableau, le nombre de positions affichées et la somme de leur valeur — recalculés selon les filtres actifs (catégorie, compte).
+- **Filtrer** : les onglets au-dessus du tableau filtrent par catégorie (Actions / ETF / Crypto / Autres) ; un sélecteur « Filtrer par compte » (visible dès qu'au moins une ligne porte un compte) filtre en plus par l'annotation de compte.
+- **Fraîcheur des cours** : à côté du bouton de rafraîchissement, la date/heure du cours le plus ancien parmi les positions cotées. Affichée en orange si elle date de plus de 48 heures.
+- **Cliquer sur une ligne** ouvre la fiche détaillée de la position (en fenêtre superposée).
+- **Modifier une ligne** : le bouton « Modifier » ouvre une édition en ligne (quantité, prix de revient, compte, type d'actif) sans quitter le tableau ; « Enregistrer » valide, « Annuler » abandonne. Une saisie invalide (ex. quantité négative) affiche l'erreur sans perdre le reste de la saisie en cours.
+- **Supprimer une ligne** : le bouton « Supprimer » ouvre une confirmation avant suppression définitive.
+- **Rafraîchir les cours** relance la récupération des données de marché pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions ») et le tableau se met à jour tout seul une fois terminé, sans bloquer le reste de l'écran.
+- **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif) — pour une position hors historique de transactions (ex. actif détenu ailleurs).
 
 ## Fiche détaillée d'une position
 
-Accessible en cliquant sur une ligne du Portefeuille, ou depuis un camembert du Tableau de bord. Affiche :
+Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/portefeuille/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. Affiche :
 
-- valorisation (quantité, prix de revient, prix actuel, valeur), rendements ;
+- valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ;
 - émetteur et résumé d'activité (pour les actions), frais de gestion annuels et frais de transaction cumulés (pour les fonds) ;
 - graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) ;
-- pour un ETF : deux camemberts (répartition géographique et sectorielle interne du fonds) et le tableau des ~10 plus grosses lignes sous-jacentes.
+- pour un fonds : deux camemberts (répartition géographique et sectorielle interne) et le tableau des ~10 plus grosses lignes sous-jacentes, quand cette donnée est disponible.
 
-Une action individuelle ou une crypto affiche « Titre unique, pas de décomposition interne » à la place des camemberts.
+Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique).
 
 ## Écran Objectifs
 
-Sélectionner une année, puis ajuster les pourcentages cibles de répartition géographique et sectorielle (pré-remplis avec une répartition de référence à la première utilisation). Chaque catégorie peut être modifiée, supprimée, ou une nouvelle ajoutée. Le total doit sommer à 100 % (indiqué en vert quand c'est le cas). **Enregistrer** sauvegarde les objectifs de l'année sélectionnée.
+Sélectionner une année dans la liste (alimentée par les années réellement enregistrées), ou en ajouter une nouvelle par le champ dédié, puis ajuster les pourcentages cibles de répartition géographique et sectorielle (pré-remplis avec une répartition de référence à la première utilisation d'une année). Chaque catégorie peut être modifiée, supprimée, ou une nouvelle ajoutée. Le total doit sommer à 100 % (indiqué en vert quand c'est le cas). **Enregistrer** sauvegarde les objectifs de l'année sélectionnée.
 
 ## Tableau de bord
 
-- **Évolution du portefeuille** : graphique avec sélecteur d'échelle (1 an / 5 ans / depuis le début) et un mode étagé (case à cocher) qui distingue le capital investi des gains cumulés.
-- **Rentabilité globale** : coût total investi, gain/perte total, rendement annualisé, dividendes/intérêts perçus, frais payés, gains réalisés.
+- **Sélecteur d'année**, en haut à droite : change l'année de comparaison réel/cible sur tout l'écran (répartitions, recommandations, alertes), sans toucher à la rentabilité globale ni à la répartition par compte, indépendantes de l'année. Le bouton **Actualiser** recharge toutes les données de l'écran.
+- **Bandeau d'alertes** : apparaît en haut de l'écran dès qu'un écart entre répartition réelle et objectif dépasse le seuil réglé dans les Réglages (5 points par défaut), avec le détail de chaque écart concerné.
+- **Évolution du portefeuille** : graphique avec sélecteur d'échelle et un mode étagé qui distingue le capital investi des gains cumulés.
+- **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net), autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits une seconde fois.
 - **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer sur une barre ouvre le détail des lignes qui composent cette catégorie.
+- **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une partie du portefeuille n'est pas mesurée avec certitude — répartition géographique estimée à partir de l'indice suivi par un fonds (faute de composition détaillée), donnée totalement manquante, ou position valorisée à son coût de revient faute de cotation. N'apparaît pas si tout le portefeuille est couvert par une donnée réelle et coté.
+- **Répartition par compte** : n'apparaît que si au moins une ligne porte une annotation de compte. Rappelle explicitement qu'aucune rentabilité par compte n'est calculable, seule la valeur actuelle l'est (le grand livre importé ne porte aucune information de compte).
 - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne, concentration géographique.
-- **Actions de rééquilibrage recommandées** : liste des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster.
+- **Actions de rééquilibrage recommandées** : liste des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster. Un sous-ensemble de ces écarts, ceux qui dépassent le seuil d'alerte, est repris dans le bandeau d'alertes en haut de l'écran.
 
 ## Écran Réglages
 
-Configuration du rafraîchissement automatique des données de marché :
+### Préférences
+
+- **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
+- **Alertes** : seuil d'écart, en points de pourcentage, au-delà duquel une recommandation de rééquilibrage devient une alerte mise en avant sur le tableau de bord.
+
+### Rafraîchissement automatique des données de marché
 
 - **Activé** : active/désactive l'exécution planifiée.
-- **Toutes les X h** : intervalle entre deux exécutions automatiques (1h à 48h).
-- **Lancer maintenant** : déclenche immédiatement un rafraîchissement, indépendamment de la planification.
+- **Toutes les X h** : intervalle entre deux exécutions automatiques.
+- **Lancer maintenant** : déclenche immédiatement un rafraîchissement, indépendamment de la planification. Comme le bouton du Portefeuille, il s'exécute en tâche de fond avec une progression affichée, et ne peut pas se lancer si un rafraîchissement est déjà en cours (déclenché depuis cet écran ou depuis le Portefeuille).
 - La dernière exécution (date/heure, succès ou échec, message) est affichée sous le formulaire.
+
+### Exporter
+
+Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule).

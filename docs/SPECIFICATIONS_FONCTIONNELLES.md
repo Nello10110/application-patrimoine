@@ -4,39 +4,56 @@
 
 Application web locale et mono-utilisateur de suivi de portefeuille boursier. Elle permet de :
 
-1. reconstruire automatiquement le portefeuille réel à partir d'un export d'historique de transactions (courtier Trade Republic et compatibles) ;
-2. enrichir chaque position avec des données de marché (cours, secteur, pays, composition des ETF) via Yahoo Finance (`yfinance`) ;
-3. définir des objectifs de répartition géographique et sectorielle par année, et visualiser les écarts avec le portefeuille réel ;
-4. calculer la rentabilité globale et par ligne (gain/perte, rendement annualisé money-weighted) ;
+1. reconstruire automatiquement le portefeuille réel à partir d'un export d'historique de transactions (courtier Trade Republic et compatibles), avec un choix de méthode de calcul du coût de revient (coût moyen pondéré ou FIFO) ;
+2. enrichir chaque position avec des données de marché (cours, secteur, pays, composition des ETF) via Yahoo Finance (`yfinance`), avec mise en cache pour limiter la fréquence des appels ;
+3. définir des objectifs de répartition géographique et sectorielle par année, visualiser les écarts avec le portefeuille réel et être alerté quand un écart dépasse un seuil réglable ;
+4. calculer la rentabilité globale et par ligne (gain/perte, rendement annualisé money-weighted), à partir d'une convention de données algébrique et sans double comptage des frais ;
 5. proposer des actions de rééquilibrage mécaniques (aucun conseil sur des titres précis) ;
-6. planifier le rafraîchissement automatique des données de marché.
+6. annoter chaque ligne d'un compte (PEA, CTO...) à titre purement indicatif, pour lire la répartition de la valeur actuelle par enveloppe ;
+7. exporter positions, transactions et synthèse de rentabilité en CSV compatible Excel français ;
+8. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface.
 
-L'application ne fournit **aucun conseil en investissement personnalisé** : les objectifs de répartition sont définis par l'utilisateur lui-même, les recommandations ne portent que sur des catégories (zone géographique, secteur), jamais sur un titre à acheter ou vendre.
+L'application ne fournit **aucun conseil en investissement personnalisé** : les objectifs de répartition sont définis par l'utilisateur lui-même, les recommandations ne portent que sur des catégories (zone géographique, secteur), jamais sur un titre à acheter ou vendre. Elle ne simule aucune fiscalité (cf. § 5, non-objectif assumé).
 
 ## 2. Écrans
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Vue d'ensemble : évolution du portefeuille, rentabilité globale, répartition réel vs cible, indicateurs de risque, recommandations |
-| Portefeuille | `/portefeuille` | Liste des positions, filtrage par catégorie d'actif, ajout manuel, accès à la fiche détaillée |
-| Fiche détaillée | `/portefeuille/:ticker` | Détail d'une position : valorisation, rendement, émetteur/résumé, look-through géo/secteur, historique de prix |
-| Objectifs | `/objectifs` | Définition des cibles de répartition géo/sectorielle par année |
+| Tableau de bord | `/` | Vue d'ensemble : année sélectionnable, bandeau d'alertes de rééquilibrage, évolution du portefeuille, rentabilité globale, répartition réel vs cible, qualité des données de répartition, répartition par compte (si annotée), indicateurs de risque, recommandations |
+| Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif et par compte, édition en ligne, fraîcheur des cours, ajout manuel, accès à la fiche détaillée |
+| Fiche détaillée | `/portefeuille/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | Détail d'une position : valorisation, rendements, émetteur/résumé, look-through géo/secteur, historique de prix |
+| Objectifs | `/objectifs` | Définition des cibles de répartition géo/sectorielle par année, année sélectionnable parmi celles réellement enregistrées |
 | Import | `/import` | Import de l'historique de transactions ou d'un relevé de positions |
-| Réglages | `/reglages` | Configuration des tâches planifiées (rafraîchissement automatique) |
+| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV |
+
+Un bouton dans l'en-tête bascule le thème clair/sombre (ou suit le système), sur tous les écrans.
 
 ## 3. Règles métier
 
-### 3.1 Reconstruction du portefeuille (coût moyen pondéré)
+### 3.1 Reconstruction du portefeuille
 
-Le portefeuille n'est pas saisi manuellement : il est **entièrement recalculé** à partir du grand livre de transactions importé (`services/portfolio_reconstruction.py`), traité chronologiquement par symbole :
+Le portefeuille n'est pas saisi manuellement par défaut : il est **entièrement recalculé** à partir du grand livre de transactions importé (`services/portfolio_reconstruction.py`), traité chronologiquement par symbole.
 
-- **Achat** (`TRADING/BUY`) : quantité et coût de base augmentent (coût = montant + frais + taxes).
-- **Vente** (`TRADING/SELL`) : la quantité vendue est retirée au coût moyen pondéré du moment ; le gain réalisé (`produit net − coût retiré`) est cumulé séparément.
-- **Investissement en fonds non coté** (`CASH/PRIVATE_MARKET_BUY`, Private Equity) : traité comme 1 part = 1 € investi, faute de cotation.
-- **Opérations sur titres** (splits, actions gratuites, migrations, fusions, `WORTHLESS`...) : ajustent uniquement la quantité, à coût nul (ces mouvements s'équilibrent historiquement à ~0 par titre chez ce type de courtier).
-- **Dividendes** (`CASH/DIVIDEND`) : le champ quantité de ces lignes est une information de référence (nombre de titres détenus à la date de détachement), jamais additionné à la position.
+**Convention de données.** Établie par analyse de l'export réel : `amount` est le montant **brut** de l'opération ; `fee` (courtage) et `tax` (impôts/taxes) sont des montants **séparés et algébriques** — négatifs quand ce sont des charges, positifs dans le cas, réel et observé, d'un remboursement (ex. une ligne de régularisation fiscale `TAX_OPTIMIZATION` avec `tax` positif). Tous les flux nets se calculent donc par une simple somme `amount + fee + tax`, jamais par une valeur absolue qui transformerait un remboursement en charge. Cette normalisation est faite une seule fois, au parsing (`services/transaction_import.py`) ; tous les services qui consomment `Transaction` travaillent ensuite sur cette convention garantie.
 
-Une position dont la quantité retombe à ~0 disparaît du portefeuille (pas de ligne à quantité nulle affichée).
+**Deux méthodes de calcul du coût de revient**, réglables depuis l'écran Réglages (défaut : coût moyen pondéré, comportement historique inchangé) :
+
+- **Coût moyen pondéré** : chaque achat augmente quantité et coût de base (coût = `montant + frais + taxes`, algébrique) ; chaque vente retire, du coût de base, la moyenne pondérée de **toute** la position au moment de la vente (`coût moyen × quantité vendue`), et le gain réalisé (`produit net − coût retiré`) est cumulé séparément.
+- **FIFO (premier entré, premier sorti)** : chaque achat empile un lot (quantité, coût unitaire) ; une vente consomme ces lots du plus ancien au plus récent, et c'est le coût réel de ces lots-là — pas une moyenne — qui est retiré. Dans les deux cas, le prix de revient moyen affiché d'une position ouverte reste `coût de base restant / quantité restante`.
+
+Changer de méthode depuis les Réglages déclenche une reconstruction immédiate de tout le portefeuille (nouveaux prix de revient, nouveaux gains réalisés) : ce n'est pas un simple filtre d'affichage.
+
+**Investissement en fonds non coté** (`CASH/PRIVATE_MARKET_BUY`, Private Equity) : traité comme 1 part = 1 € **brut** investi, faute de cotation, mais les frais et taxes de l'opération alourdissent malgré tout le coût de base — exactement comme pour un achat en bourse — sans faire varier le nombre de parts. C'est le seul flux qui, avant correction, n'était comptabilisé nulle part dans le coût de revient.
+
+**Opérations sur titres** (splits, actions gratuites, migrations, fusions, `WORTHLESS`...) : ajustent uniquement la quantité, à coût nul (ces mouvements s'équilibrent historiquement à ~0 par titre chez ce type de courtier). En FIFO, une quantité ajoutée par ce type d'opération crée un lot à coût unitaire nul, pour qu'une vente ultérieure de ces titres n'y retire aucun coût.
+
+**Dividendes** (`CASH/DIVIDEND`) : le champ quantité de ces lignes est une information de référence (nombre de titres détenus à la date de détachement), jamais additionné à la position.
+
+**Garde-fou de reconstruction — vente sans achat correspondant.** Le coût de base n'est jamais retiré au-delà de ce qu'il contient (une vente portant sur plus de titres que détenu ne peut pas le faire passer en négatif). La **quantité**, en revanche, n'est volontairement **pas** bornée à zéro en cours de traitement : chez ce type de courtier, la vente d'un titre offert est parfois horodatée avant la ligne d'acquisition correspondante (cas réel constaté : titre offert, vendu le même jour avant que l'achat ne soit enregistré quelques minutes plus tard). Borner la quantité dès la vente ferait alors apparaître une anomalie fantôme sur une position parfaitement cohérente une fois le grand livre rejoué en entier. L'anomalie n'est donc jugée qu'**en fin de traitement** : si la quantité reste négative une fois tout le grand livre rejoué, c'est le signe d'un grand livre réellement incomplet (vente sans achat, jamais compensée) — la position correspondante n'est pas affichée dans le portefeuille reconstruit, et l'anomalie est journalisée et comptée dans le résultat de l'import.
+
+Une position dont la quantité retombe à ~0 (ou reste négative en fin de traitement) disparaît du portefeuille reconstruit — pas de ligne à quantité nulle ou négative affichée.
+
+**Arbitrage saisie manuelle / reconstruction (origine d'une ligne).** Chaque ligne du portefeuille porte une origine, `manuel` ou `reconstruit` (`Holding.origine`). Une ligne saisie à la main (formulaire, ou relevé de positions importé) survit à un nouvel import de transactions, **sauf** si le grand livre reconstruit une position sur le même ticker : dans ce cas le grand livre fait foi, la ligne manuelle est supprimée (elle ferait doublon dans tous les calculs) et l'événement est compté et affiché à l'utilisateur. Symétriquement, un import de transactions ne touche jamais aux lignes manuelles d'un autre ticker, et « Remplacer le portefeuille existant » à l'import d'un relevé de positions ne vide que les lignes gérées manuellement, jamais celles issues du grand livre.
 
 ### 3.2 Exclusion des mouvements hors bourse
 
@@ -45,55 +62,99 @@ Seule l'activité **boursière** est suivie. Sont exclus dès le parsing de l'im
 - les mouvements de carte bancaire (`CARD_TRANSACTION`, `CARD_TRANSACTION_INTERNATIONAL`, `CARD_ORDERING_FEE`, ou toute ligne portant un `mcc_code`) ;
 - les virements avec la banque : dépôts/retraits sur le compte courant (`TRANSFER_IN/OUT`, `TRANSFER_INBOUND`, `TRANSFER_INSTANT_INBOUND`, `CUSTOMER_INBOUND`, `CUSTOMER_INPAYMENT`, `CUSTOMER_OUTBOUND_REQUEST`).
 
-Conséquence : l'application ne calcule ni « solde de cash », ni « net investi » au sens bancaire — uniquement un « coût total investi » basé sur les achats de titres.
+Conséquence : l'application ne calcule ni « solde de cash », ni « net investi » au sens bancaire — uniquement un « coût total investi » basé sur les achats de titres et les investissements en fonds non cotés.
 
 ### 3.3 Taxonomie des catégories d'actifs
 
-Chaque position a un `type_actif` (issu de `asset_class` dans le grand livre) : `STOCK` (action), `FUND` (ETF/fonds), `CRYPTO`, `BOND` (obligation), `PRIVATE_FUND` (private equity), ou `null` (saisie manuelle). L'écran Portefeuille filtre sur : Tous / Actions / ETF / Crypto / Autres (regroupe obligations, private equity et non renseigné).
+Chaque position a un `type_actif` (issu de `asset_class` dans le grand livre, ou saisi explicitement pour une ligne manuelle) : `STOCK` (action), `FUND` (ETF/fonds), `CRYPTO`, `BOND` (obligation), `PRIVATE_FUND` (private equity), ou `null` (saisie manuelle sans type précisé). L'écran Portefeuille filtre sur : Tous / Actions / ETF / Crypto / Autres (regroupe obligations, private equity et non renseigné).
 
-### 3.4 Look-through géographique et sectoriel des ETF
+### 3.4 Look-through géographique et sectoriel des fonds
 
-Un ETF n'a pas de pays/secteur unique. Sa contribution à la répartition du portefeuille est éclatée selon sa composition interne (`FundComposition`, recalculée à chaque rafraîchissement — jamais figée) :
+Un ETF n'a pas de pays/secteur unique. Sa contribution à la répartition du portefeuille est éclatée selon sa composition interne (`FundComposition`, recalculée à chaque rafraîchissement des cours — jamais figée), avec une hiérarchie de trois sources de donnée, de la plus fiable à la moins disponible :
 
-- **Secteur** : couverture quasi complète, directement fournie par Yahoo Finance (`funds_data.sector_weightings`).
-- **Géographie** : **approximation** — le pays de chacune des ~10 plus grosses lignes du fonds (`funds_data.top_holdings`) est résolu individuellement, puis ces poids sont extrapolés à 100 % du fonds. C'est une limite connue (cf. `BACKLOG.md`), signalée dans l'interface.
+1. **Composition réelle** (`source = composition`) : secteur, couverture quasi complète, directement fournie par Yahoo Finance (`funds_data.sector_weightings`) ; géographie, résolue individuellement pour chacune des ~10 plus grosses lignes du fonds (`funds_data.top_holdings`), puis extrapolée à 100 % du fonds — une approximation, mais fondée sur la composition réelle.
+2. **Repli par indice** (`source = indice`, géographique uniquement) : quand Yahoo Finance ne fournit pas `top_holdings` — constaté sur une part significative des fonds détenus (ETF obligataires, matières premières, ou simple absence de couverture) — la répartition géographique est déduite du **nom de l'indice suivi par le fonds** (ex. « MSCI World », « S&P 500 », « Emerging Markets », « Euro Stoxx »...), via une table de correspondance nom → répartition de référence (`services/reference_indices.py`). Ce sont des ordres de grandeur approximatifs, arrondis, à revoir périodiquement — la pondération pays des indices larges dérive lentement dans le temps.
+3. **Non catégorisé** : ni composition réelle, ni indice reconnu dans le nom du fonds.
 
-Une position sans composition disponible (fonds non couvert, ex. ETC matières premières, action individuelle) reste classée sur son propre pays/secteur, ou « Non catégorisé » si l'un ou l'autre est inconnu.
+**Un fonds n'est jamais classé sur son pays de domiciliation.** Le pays renvoyé par le fournisseur de données pour un ETF est celui de sa domiciliation légale (Irlande, Luxembourg pour la quasi-totalité des ETF européens), pas celui de ses actifs sous-jacents : le retenir classerait par exemple un ETF S&P 500 domicilié en Irlande en « Europe », une erreur bien pire qu'une absence de donnée. Faute de composition réelle et de repli par indice, un fonds reste donc explicitement **« Non catégorisé »** géographiquement — jamais rattaché à son propre pays.
+
+**Deux fourre-tout distincts.** « Non catégorisé » (donnée manquante : pays/secteur inconnu, ou fonds sans composition ni indice reconnu) est distinct d'« Autres zones »/« Autres secteurs » (une zone ou un secteur réel, connu, mais résiduel — hors des catégories habituelles). Confondre les deux masquerait la différence entre « je ne sais pas » et « je sais, et c'est une catégorie mineure ».
+
+**Qualité des données exposée.** L'API (`GET /api/analysis/{annee}`, champ `qualite_donnees`) et l'interface (encart « Qualité des données » du Tableau de bord) qualifient, en euros et en pourcentage de la valeur totale du portefeuille, l'origine de la répartition géographique affichée : part en composition réelle, part estimée par indice, part non catégorisée, part valorisée à son coût de revient faute de cotation. Sans cette information, la comparaison réel vs cible du tableau de bord laisserait croire à une précision qu'elle n'a pas.
+
+**Poids sectoriels normalisés.** Les poids géo et sectoriels d'un fonds sont renormalisés pour sommer exactement à 1,0 (Yahoo Finance renvoie parfois une somme légèrement différente, ex. 1,0001) — cohérence nécessaire pour que la somme des catégories affichées corresponde toujours à 100 % de la ligne.
 
 ### 3.5 Rentabilité
 
-- **Rendement depuis achat** (par ligne) : `prix actuel / prix de revient moyen − 1`, disponible dès qu'un prix de revient et un prix actuel existent (y compris les lignes saisies manuellement).
-- **Rendement annualisé** (par ligne et pour le portefeuille) : XIRR (money-weighted), calculé par bissection sur les flux de trésorerie réels (achats en négatif, ventes en positif, valeur actuelle en positif à la date du jour). Non disponible pour une ligne sans historique de transactions (pas de date d'achat connue), ni quand la ligne n'a pas de prix de marché réel (évite un XIRR trompeur basé sur une valorisation au coût).
-- **Gain/perte total** (portefeuille) = gains latents + gains réalisés + dividendes perçus + intérêts perçus − frais payés.
+**Rendement depuis achat** (par ligne) : `prix actuel / prix de revient moyen − 1`, disponible dès qu'un prix de revient et un prix actuel existent (y compris pour les lignes saisies manuellement).
 
-### 3.6 Recommandations de rééquilibrage
+**Rendement annualisé** (par ligne et pour le portefeuille) : XIRR (money-weighted), calculé par bissection sur les flux de trésorerie réels (achats en négatif, ventes en positif, valeur actuelle en positif à la date du jour). `None` (affiché « — ») dans plusieurs cas, choisis pour ne jamais afficher un pourcentage trompeur : pas d'historique de transactions pour la ligne (pas de date d'achat connue) ; ligne sans prix de marché réel (évite un XIRR calculé sur une valorisation au coût, qui afficherait un 0 % artificiel) ; durée de détention inférieure à **90 jours** (annualiser quelques jours de détention produit un pourcentage à quatre chiffres mathématiquement exact mais sans signification) ; bissection qui ne converge pas dans une tolérance relative à la taille des flux (200 itérations) ; taux trouvé dont la valeur absolue dépasse **1 000 %/an** (résultat non fiable ou aberrant, mieux vaut « — » qu'un chiffre extravagant).
 
-Pour chaque catégorie (géo ou secteur) dont l'écart entre poids réel et poids cible dépasse 2 points, une action est proposée : réduire ou augmenter la catégorie du montant en euros nécessaire pour revenir à la cible. Aucun titre précis n'est recommandé — l'utilisateur reste seul décideur des instruments.
+**Gain/perte total** (portefeuille) = gains latents + gains réalisés + dividendes perçus (nets) + intérêts perçus (nets) + autres revenus. **Les frais et les impôts ne figurent plus dans cette formule** : ils sont déjà intégrés en amont — frais et taxes d'achat dans le coût de revient (donc déjà déduits des gains latents), frais de vente dans le produit de cession (donc déjà déduits des gains réalisés), impôts sur dividendes et intérêts déjà retirés du montant net crédité par le courtier. Les resoustraire une seconde fois créait un double comptage. `frais_payes` et `impots_preleves` restent calculés et **affichés à titre informatif** sur la carte Rentabilité, mais hors de la formule de résultat.
 
-### 3.7 Rafraîchissement automatique
+**Autres revenus.** Le grand livre contient des flux d'espèces boursiers en dehors des dividendes et intérêts (cashback/parrainage du courtier, action offerte, bonus, opération promotionnelle, régularisation fiscale...). Ils sont intégrés au résultat via une **liste explicite et fermée** de types de mouvements reconnus (`BENEFITS_SAVEBACK`, `STOCKPERK`, `BONUS`, `PEA_MARKETING`, `GIFT`, `TAX_OPTIMIZATION`) — jamais un `else` fourre-tout, qui capterait tôt ou tard un mouvement non boursier (dépense carte, virement bancaire) et fausserait le résultat sans qu'on s'en rende compte. Un type de mouvement non reconnu reste invisible du calcul plutôt que d'y entrer silencieusement.
 
-Une tâche planifiée (`market_data_refresh`, APScheduler) rafraîchit prix, composition ETF et principales lignes sous-jacentes de toutes les positions, à intervalle configurable (1h à 48h) depuis l'écran Réglages. Déclenchement manuel possible à tout moment.
+**Dividendes et intérêts nets.** Puisque `amount` est le montant brut et que la taxe est une ligne séparée et algébrique, `dividendes_percus`/`interets_percus` (calculés par `amount + fee + tax`) sont, par construction, des montants **nets** d'impôt — cohérent avec le libellé affiché à l'écran (« Dividendes perçus (net) », « Intérêts perçus (net) »).
+
+### 3.6 Recommandations de rééquilibrage et alertes
+
+Pour chaque catégorie (géo ou secteur) dont l'écart entre poids réel et poids cible dépasse **2 points**, une **recommandation** est calculée : réduire ou augmenter la catégorie du montant en euros nécessaire pour revenir à la cible. Aucun titre précis n'est recommandé — l'utilisateur reste seul décideur des instruments.
+
+Une **alerte** est un sous-ensemble des recommandations dont l'écart absolu dépasse un **seuil réglable** (par défaut 5 points, modifiable depuis les Réglages) — jamais un recalcul distinct. La distinction est volontaire : une recommandation informe simplement d'un écart mesuré (consultable à la demande, sur le Tableau de bord), une alerte réclame une action et est mise en avant dans un bandeau visible dès le chargement de la page, sans que l'utilisateur ait à aller la chercher.
+
+### 3.7 Multi-compte
+
+Chaque ligne du portefeuille peut être annotée d'un compte (PEA, CTO, ou tout libellé libre saisi par l'utilisateur, à la création ou en édition). Cette annotation est **purement manuelle** : le grand livre de transactions importé (format Trade Republic) ne porte **aucune information de compte**. En conséquence, seule la répartition de la **valeur actuelle** du portefeuille par compte est calculable (affichée sur le Tableau de bord dès qu'au moins une ligne est annotée) — il est **impossible d'en déduire une rentabilité par compte** (XIRR, gains réalisés) : rien dans les données importées ne permet de savoir quelles transactions appartiennent à quel compte. Ce n'est pas une limite technique contournable, c'est une absence structurelle de la donnée source ; l'interface le rappelle explicitement à côté de la répartition par compte.
+
+L'annotation de compte est préservée à travers un nouvel import de transactions : `rebuild_holdings` reporte le compte déjà saisi sur une ligne existante vers la ligne recalculée du même ticker, pour ne pas perdre l'information entre deux imports.
+
+### 3.8 Export
+
+Trois exports CSV indépendants, disponibles depuis l'écran Réglages, au format compatible Excel en locale française (séparateur `;`, décimale `,`, encodage UTF-8 avec BOM) :
+
+- **Positions** : une ligne par position du portefeuille (ticker, nom, type, compte, origine, quantité, prix de revient, prix actuel, valeur, rendements, secteur, pays, fraîcheur du cours) ;
+- **Transactions** : une ligne par écriture du grand livre ;
+- **Rentabilité** : la synthèse de la carte Rentabilité, un indicateur par ligne.
+
+Trois granularités différentes plutôt qu'un fichier unique : les mélanger obligerait à aplatir artificiellement des données qui n'ont pas le même niveau de détail.
+
+### 3.9 Rafraîchissement des données de marché
+
+Une tâche planifiée (`market_data_refresh`, APScheduler) rafraîchit prix, composition des fonds et principales lignes sous-jacentes de toutes les positions, à intervalle configurable (15 minutes à une semaine) depuis l'écran Réglages. Déclenchement manuel possible à tout moment, depuis le Portefeuille ou les Réglages.
+
+Le rafraîchissement (automatique comme manuel) s'exécute **en tâche de fond**, sans bloquer l'interface : sa progression (« x / y positions ») est consultable pendant qu'il tourne, et l'écran se recharge automatiquement une fois terminé. Deux garde-fous limitent la fréquence des appels vers Yahoo Finance, qui n'offre aucun SLA et peut limiter les requêtes trop fréquentes : une temporisation entre deux positions traitées au sein d'un même rafraîchissement, et un délai minimal entre deux déclenchements manuels.
+
+Les historiques de prix (série d'une ligne pour la fiche détaillée, historique de valeur du portefeuille pour le Tableau de bord), coûteux à recalculer, sont mis en cache **24 heures** — cohérent avec la fréquence hebdomadaire des séries elles-mêmes. Le cache est invalidé automatiquement après un rafraîchissement des cours ou une reconstruction du portefeuille, pour ne jamais afficher un historique devenu incohérent avec les valeurs affichées à côté.
+
+### 3.10 Validation des saisies et robustesse des imports
+
+Les créations/modifications de position, les objectifs de répartition et la configuration des tâches planifiées sont validées (quantité strictement positive, prix non négatif, pourcentages entre 0 et 100, catégories non dupliquées, intervalle de planification borné...) ; toute violation renvoie une erreur **400** avec un message en français, plutôt qu'une erreur générique ou un plantage silencieux.
+
+L'import d'un relevé de positions est **transactionnel** : une erreur en cours d'import déclenche un rollback explicite, le portefeuille n'est jamais laissé dans un état partiellement vidé. Les colonnes choisies lors du mapping sont vérifiées comme existant réellement dans le fichier avant l'import, pour ne pas produire un import silencieusement vide en cas d'erreur de mapping. Les fichiers importés sont plafonnés en taille (25 Mo) pour éviter d'épuiser la mémoire du process sur un fichier anormalement volumineux.
 
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
 |---|---|
 | `transactions` | Grand livre importé (source de vérité), dédoublonné par `transaction_id` |
-| `holdings` | Portefeuille reconstruit (ou saisi manuellement) |
+| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) |
 | `market_data_cache` | Cache des cours/secteur/pays par position, horodaté |
-| `fund_composition` | Look-through géo/secteur des ETF (recalculé à chaque rafraîchissement) |
-| `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque ETF |
+| `fund_composition` | Look-through géo/secteur des fonds (recalculé à chaque rafraîchissement). `source` (`composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) |
+| `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds |
 | `ticker_resolution` | Cache ISIN/symbole → ticker Yahoo Finance |
 | `allocation_targets` | Objectifs de répartition géo/sectorielle par année |
-| `scheduled_job_config` | Configuration des tâches planifiées |
+| `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |
+| `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, seuil d'alerte), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
+| `historique_cache` | Cache persistant (24 h) des séries d'historique de prix coûteuses à recalculer (ligne et portefeuille), cf. § 3.9 |
 
-Aucune vraie clé étrangère : les relations se font par correspondance de `ticker` (identifiant ISIN/symbole), car `holdings` est entièrement reconstructible depuis `transactions`.
+Aucune vraie clé étrangère : les relations se font par correspondance de `ticker` (identifiant ISIN/symbole), car `holdings` (les lignes d'origine `reconstruit`) est entièrement reconstructible depuis `transactions`. Toute évolution de ce modèle est appliquée automatiquement au démarrage par des migrations non destructives (`ALTER TABLE ADD COLUMN`, `CREATE UNIQUE INDEX`) — voir `MANUEL_EXPLOITATION.md`.
 
 ## 5. Limites connues
 
-Voir `BACKLOG.md` pour la liste complète des évolutions envisagées. Limites structurelles actuelles :
+Voir `BACKLOG.md` pour la liste complète des points relevés à l'audit et leur état de traitement. Limites structurelles assumées, non résolues par construction :
 
-- Look-through géographique des ETF basé sur une approximation top-10 (pas la composition complète).
-- Aucun test automatisé (validation manuelle systématique tout au long du développement).
-- Historique de prix par ligne recalculé à chaque ouverture de la fiche détaillée (pas de cache).
-- Application 100 % locale, sans authentification (non prévue pour être exposée hors `localhost`).
+- **Look-through géographique approximatif.** Même dans le meilleur cas (composition réelle disponible), la répartition géographique d'un fonds reste une extrapolation des ~10 plus grosses lignes à 100 % du fonds, pas sa composition complète — et le repli par indice (cf. § 3.4) est une estimation par nature, à revoir périodiquement. Une source de données tierce donnant la composition complète améliorerait la précision, mais n'a pas été intégrée (payante ou à scraper) — assumé au backlog (point 2.4).
+- **Rentabilité par compte non calculable.** Cf. § 3.7 : le compte est une annotation manuelle, le grand livre importé ne porte aucune information de compte. Ce n'est pas un chantier reporté, c'est une absence structurelle de la donnée source.
+- **Aucune simulation fiscale.** L'application suit la performance d'un portefeuille, elle ne modélise ni le régime PEA (durée de détention, plafond de versement), ni aucune autre fiscalité. Non-objectif produit assumé (point 5.7 du backlog).
+- **Application 100 % locale, sans authentification.** Non prévue pour être exposée hors `localhost` ; l'authentification serait un préalable bloquant, pas une évolution de confort, si cela devait changer (point 7.7 du backlog).
+- **Dépendance à Yahoo Finance (`yfinance`), sans SLA officiel.** Les garde-fous de fréquence (§ 3.9) réduisent le risque de blocage mais ne l'éliminent pas ; une indisponibilité ou une limitation côté Yahoo Finance dégrade la fraîcheur des données sans faire échouer l'application (chaque position est traitée indépendamment, une erreur reste locale à la ligne concernée).

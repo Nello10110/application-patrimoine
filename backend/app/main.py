@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from .database import (
     Base,
+    SessionLocal,
     engine,
     migrate_recalculer_regions_en_cache,
     migrate_rename_categorie_autres,
@@ -18,13 +19,23 @@ from .database import (
 )
 from .logging_config import configure_logging
 from .routers import analysis, export, market_data, performance, portfolio, settings, targets, transactions
-from .services import scheduler_service
+from .services import scheduler_service, startup_maintenance
 
 configure_logging()
 Base.metadata.create_all(bind=engine)
 run_startup_migrations()
 migrate_rename_categorie_autres()
 migrate_recalculer_regions_en_cache()
+
+# Après les migrations de schéma et de contenu : remise à niveau du portefeuille
+# reconstruit si les règles de calcul ont changé depuis la dernière reconstruction
+# (cf. `services/startup_maintenance` pour le pourquoi — sans ça, les prix de revient
+# stockés restent ceux de l'ancienne version jusqu'au prochain import).
+_db_demarrage = SessionLocal()
+try:
+    startup_maintenance.reconstruire_si_regles_de_calcul_modifiees(_db_demarrage)
+finally:
+    _db_demarrage.close()
 
 
 @asynccontextmanager
