@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import AllocationTarget, Holding
+from ..models import AllocationTarget
 from ..schemas import (
     AllocationBreakdownItem,
     AnalysisResponse,
@@ -25,7 +25,10 @@ def get_category_composition(type: str, categorie: str, db: Session = Depends(ge
     if type not in ("geo", "sector"):
         raise HTTPException(status_code=400, detail="type doit être 'geo' ou 'sector'")
 
-    holdings = db.query(Holding).all()
+    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
+    # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
+    # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
+    holdings = analysis_service.holdings_financiers(db)
     valued = analysis_service.value_holdings(holdings)
     lignes = analysis_service.holdings_in_category(db, valued, type, categorie)
     valeur_totale = sum(l["valeur"] for l in lignes)
@@ -40,7 +43,10 @@ def get_repartition_comptes(db: Session = Depends(get_db)):
     n'est ni calculée ni calculable, seule la valeur l'est. Déclarée AVANT
     `/{annee}` : sans cet ordre, FastAPI tenterait de convertir "comptes" en `int`
     pour la route paramétrée et renverrait une erreur de validation."""
-    holdings = db.query(Holding).all()
+    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
+    # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
+    # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
+    holdings = analysis_service.holdings_financiers(db)
     valued = analysis_service.value_holdings(holdings)
     valeur_totale = sum(v.valeur for v in valued)
     items = analysis_service.repartition_par_compte(valued)
@@ -51,7 +57,10 @@ def get_repartition_comptes(db: Session = Depends(get_db)):
 
 @router.get("/{annee}", response_model=AnalysisResponse)
 def get_analysis(annee: int, db: Session = Depends(get_db)):
-    holdings = db.query(Holding).all()
+    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
+    # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
+    # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
+    holdings = analysis_service.holdings_financiers(db)
     valued = analysis_service.value_holdings(holdings)
     valeur_totale = sum(v.valeur for v in valued)
 

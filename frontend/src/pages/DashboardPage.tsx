@@ -5,6 +5,7 @@ import type { AnalysisResponse, PerformanceSummary, RepartitionComptesResponse }
 import AllocationChartCard from '../components/AllocationChartCard'
 import Card from '../components/Card'
 import CompositionModal from '../components/CompositionModal'
+import PatrimoineNetCard from '../components/PatrimoineNetCard'
 import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
@@ -91,6 +92,8 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <PatrimoineNetCard />
 
       {loading && <p className="text-slate-500 dark:text-slate-400">Chargement...</p>}
       {error && <p className="text-red-600 dark:text-red-400">Erreur: {error}</p>}

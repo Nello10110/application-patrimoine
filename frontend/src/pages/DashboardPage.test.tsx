@@ -21,6 +21,9 @@ vi.mock('../components/AllocationBarChart', () => ({ default: () => <div /> }))
 vi.mock('../components/CompositionModal', () => ({ default: () => <div /> }))
 vi.mock('../components/PerformanceCard', () => ({ default: () => <div /> }))
 vi.mock('../components/QualiteDonneesCard', () => ({ default: () => <div /> }))
+// Patrimoine net (roadmap Phase 1) : carte autonome avec son propre appel API, hors
+// de l'objet de ce fichier — testée séparément dans PatrimoineNetCard.test.tsx.
+vi.mock('../components/PatrimoineNetCard', () => ({ default: () => <div /> }))
 
 const CURRENT_YEAR = new Date().getFullYear()
 

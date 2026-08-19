@@ -2,9 +2,10 @@
 
 from dataclasses import dataclass
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..models import SOURCE_INDICE, FundComposition, Holding
+from ..models import SOURCE_INDICE, TYPES_ACTIF_PATRIMOINE_MANUEL, FundComposition, Holding
 from .reference_indices import NON_CATEGORISE, label_for_sector
 
 
@@ -23,10 +24,43 @@ class ValuedHolding:
     a_des_donnees: bool
 
 
+def holdings_financiers(db: Session) -> list[Holding]:
+    """Portefeuille FINANCIER seul (actions/ETF/crypto/obligations/private equity, ou
+    type non renseigné) — exclut l'immobilier/SCPI/assurance-vie/PER (Phase 1 de
+    `docs/ROADMAP.md`, cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`), qui n'entrent ni
+    dans le look-through géo/sectoriel, ni dans les objectifs, ni dans la rentabilité
+    boursière (`performance_service.compute_performance`) — ils entrent en revanche
+    dans le patrimoine net (`services/patrimoine_service.py`), qui n'utilise pas cette
+    fonction et reste sur `db.query(Holding).all()`.
+
+    `.notin_()` seul exclurait aussi les lignes `type_actif IS NULL` (sémantique SQL :
+    `NULL NOT IN (...)` vaut NULL, pas TRUE) — `or_(.is_(None), ...)` les garde,
+    puisqu'une ligne sans type renseigné est un cas normal du portefeuille financier
+    existant (saisie manuelle sans type précisé), pas un nouvel actif patrimonial."""
+    return (
+        db.query(Holding)
+        .filter(or_(Holding.type_actif.is_(None), Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL)))
+        .all()
+    )
+
+
 def value_holdings(holdings: list[Holding]) -> list[ValuedHolding]:
-    """Valorise chaque ligne (prix actuel, ou coût de revient à défaut de cotation)."""
+    """Valorise chaque ligne (prix actuel, ou coût de revient à défaut de cotation).
+
+    `Holding.valeur_estimee` (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/
+    PER — cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) est un montant ABSOLU en euros,
+    prioritaire sur `prix * quantite` quand renseigné : `quantite` vaut 1 par convention
+    pour ces lignes, la multiplication resterait correcte, mais autant ne pas en
+    dépendre. `a_des_donnees=True` dans ce cas : une estimation manuelle tenue à jour
+    par l'utilisateur est une vraie donnée, à ne pas confondre avec le repli « valorisé
+    au coût faute de cotation » (`PRIVATE_FUND`/`BOND`, `a_des_donnees=False`)."""
     valued = []
     for h in holdings:
+        if h.valeur_estimee is not None:
+            valued.append(
+                ValuedHolding(holding=h, valeur=h.valeur_estimee, region=None, pays=None, secteur_label=None, a_des_donnees=True)
+            )
+            continue
         md = h.market_data
         prix = md.prix_actuel if md and md.prix_actuel is not None else h.prix_revient_moyen
         a_des_donnees = md is not None and md.erreur is None and md.prix_actuel is not None

@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { Holding } from '../api/types'
 import Card from '../components/Card'
 import HoldingDetailModal from '../components/HoldingDetailModal'
+import LoansCard from '../components/LoansCard'
 import Modale from '../components/Modale'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure, formatEuro, formatQuantite, parseDateApi } from '../utils/format'
@@ -15,7 +16,7 @@ function RendementCell({ value }: { value: number | null }) {
   )
 }
 
-type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'BOND' | 'PRIVATE_FUND' | 'CRYPTO' | 'AUTRES'
+type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'BOND' | 'PRIVATE_FUND' | 'CRYPTO' | 'PATRIMOINE' | 'AUTRES'
 
 const CATEGORY_TABS: { key: Categorie; label: string }[] = [
   { key: 'TOUS', label: 'Tous' },
@@ -24,8 +25,14 @@ const CATEGORY_TABS: { key: Categorie; label: string }[] = [
   { key: 'BOND', label: 'Obligations' },
   { key: 'PRIVATE_FUND', label: 'Private Equity' },
   { key: 'CRYPTO', label: 'Crypto' },
+  { key: 'PATRIMOINE', label: 'Immobilier & Épargne' },
   { key: 'AUTRES', label: 'Autres' },
 ]
+
+// Immobilier/SCPI/assurance-vie/PER (roadmap Phase 1, patrimoine net) : aucune
+// cotation automatique, valorisés via `Holding.valeur_estimee`. Cf.
+// `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
+const TYPES_PATRIMOINE = new Set(['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'PENSION'])
 
 // Valeurs acceptées par le backend (cf. `Holding.type_actif` dans `models.py`) : une
 // ligne saisie à la main sans type explicite finit en "Autres" côté filtrage et
@@ -38,9 +45,14 @@ const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
   { value: 'CRYPTO', label: 'Crypto' },
   { value: 'BOND', label: 'Obligation' },
   { value: 'PRIVATE_FUND', label: 'Private Equity' },
+  { value: 'REAL_ESTATE', label: 'Immobilier' },
+  { value: 'SCPI', label: 'SCPI' },
+  { value: 'LIFE_INSURANCE', label: 'Assurance-vie' },
+  { value: 'PENSION', label: 'PER / Épargne retraite' },
 ]
 
 function categorieDe(h: Holding): Categorie {
+  if (h.type_actif && TYPES_PATRIMOINE.has(h.type_actif)) return 'PATRIMOINE'
   if (
     h.type_actif === 'STOCK' ||
     h.type_actif === 'FUND' ||
@@ -123,6 +135,7 @@ interface EditForm {
   prix_revient_moyen: string
   compte: string
   type_actif: string
+  valeur_estimee: string
 }
 
 export default function PortefeuillePage() {
@@ -134,7 +147,7 @@ export default function PortefeuillePage() {
   const [error, setError] = useState<string | null>(null)
   const [tri, setTri] = useState<{ cle: CleTri; direction: SensTri } | null>(null)
 
-  const [form, setForm] = useState({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '' })
+  const [form, setForm] = useState({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '' })
   const [saving, setSaving] = useState(false)
 
   // Édition en ligne (LOT 5.8) : une seule ligne éditable à la fois, identifiée par
@@ -142,7 +155,7 @@ export default function PortefeuillePage() {
   // l'utilisateur taper librement (y compris un champ numérique vidé) sans que
   // `Number('')` (= 0) n'écrase la saisie en cours.
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState<EditForm>({ quantite: '', prix_revient_moyen: '', compte: '', type_actif: '' })
+  const [editForm, setEditForm] = useState<EditForm>({ quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -206,8 +219,9 @@ export default function PortefeuillePage() {
         prix_revient_moyen: form.prix_revient_moyen ? Number(form.prix_revient_moyen) : null,
         compte: form.compte.trim() || null,
         type_actif: form.type_actif || null,
+        valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
       })
-      setForm({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '' })
+      setForm({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '' })
       load()
     } catch (err) {
       setError((err as Error).message)
@@ -235,6 +249,7 @@ export default function PortefeuillePage() {
       prix_revient_moyen: h.prix_revient_moyen !== null && h.prix_revient_moyen !== undefined ? String(h.prix_revient_moyen) : '',
       compte: h.compte ?? '',
       type_actif: h.type_actif ?? '',
+      valeur_estimee: h.valeur_estimee !== null && h.valeur_estimee !== undefined ? String(h.valeur_estimee) : '',
     })
     setEditError(null)
   }
@@ -255,6 +270,7 @@ export default function PortefeuillePage() {
         prix_revient_moyen: editForm.prix_revient_moyen ? Number(editForm.prix_revient_moyen) : null,
         compte: editForm.compte.trim() || null,
         type_actif: editForm.type_actif || null,
+        valeur_estimee: editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
       })
       setEditingId(null)
       load()
@@ -366,6 +382,17 @@ export default function PortefeuillePage() {
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+            Valeur estimée
+            <input
+              value={form.valeur_estimee}
+              onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
+              type="number"
+              step="any"
+              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="optionnel"
+            />
+          </label>
           <button
             type="submit"
             disabled={saving}
@@ -374,6 +401,10 @@ export default function PortefeuillePage() {
             Ajouter
           </button>
         </form>
+        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+          Pour l'immobilier, une SCPI, une assurance-vie ou un PER : laisser Quantité à 1 et renseigner Valeur estimée — elle
+          remplace le calcul prix × quantité et se met à jour à la main, périodiquement.
+        </p>
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -575,6 +606,19 @@ export default function PortefeuillePage() {
                               ))}
                             </select>
                           </label>
+                          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                            Valeur estimée
+                            <input
+                              value={editForm.valeur_estimee}
+                              onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
+                              onClick={(e) => e.stopPropagation()}
+                              type="number"
+                              step="any"
+                              aria-label="Valeur estimée (édition)"
+                              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                              placeholder="optionnel"
+                            />
+                          </label>
                         </div>
                         {editError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editError}</p>}
                       </td>
@@ -594,6 +638,8 @@ export default function PortefeuillePage() {
           </div>
         )}
       </Card>
+
+      <LoansCard />
 
       {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
 

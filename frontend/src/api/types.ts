@@ -45,6 +45,11 @@ export interface Holding {
   // revient, `null` si aucun des deux n'est connu) — cf. `analysis_service.value_holdings`
   // côté backend. Le frontend n'a plus à refaire ce calcul (LOT 6.7).
   valeur: number | null
+  // Valorisation manuelle (immobilier/SCPI/assurance-vie/PER — roadmap Phase 1) :
+  // montant ABSOLU en euros, prioritaire sur `prix * quantite` quand renseigné.
+  // `date_valeur_estimee` n'est jamais saisie par l'utilisateur, posée côté serveur.
+  valeur_estimee: number | null
+  date_valeur_estimee: string | null
 }
 
 export interface HoldingInput {
@@ -55,6 +60,7 @@ export interface HoldingInput {
   compte?: string | null
   devise?: string | null
   type_actif?: string | null
+  valeur_estimee?: number | null
 }
 
 // Champs modifiables via `PATCH /api/portfolio/holdings/{id}` (cf. `HoldingUpdate`
@@ -68,6 +74,66 @@ export interface HoldingUpdateInput {
   compte?: string | null
   devise?: string | null
   type_actif?: string | null
+  valeur_estimee?: number | null
+}
+
+// Types d'actifs valorisés manuellement (roadmap Phase 1, patrimoine net) — aucune
+// cotation automatique, `Holding.valeur_estimee` porte leur valeur. Cf.
+// `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
+export const TYPES_ACTIF_PATRIMOINE_MANUEL = ['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'PENSION'] as const
+export type TypeActifPatrimoineManuel = (typeof TYPES_ACTIF_PATRIMOINE_MANUEL)[number]
+
+// Emprunt (roadmap Phase 1, patrimoine net) — premier passif de l'application.
+// `capital_restant_du` est toujours calculé côté serveur (`loan_service.py`), jamais
+// recalculé côté frontend.
+export interface Loan {
+  id: number
+  libelle: string
+  capital_initial: number
+  taux_annuel_pct: number
+  mensualite: number
+  date_debut: string
+  duree_mois: number
+  capital_restant_du_manuel: number | null
+  derniere_maj_manuelle: string | null
+  capital_restant_du: number
+  created_at: string
+  updated_at: string
+}
+
+export interface LoanInput {
+  libelle: string
+  capital_initial: number
+  taux_annuel_pct: number
+  mensualite: number
+  date_debut: string
+  duree_mois: number
+  capital_restant_du_manuel?: number | null
+}
+
+export interface LoanUpdateInput {
+  libelle?: string
+  capital_initial?: number
+  taux_annuel_pct?: number
+  mensualite?: number
+  date_debut?: string
+  duree_mois?: number
+  capital_restant_du_manuel?: number | null
+}
+
+export interface RepartitionParClasseItem {
+  categorie: string
+  valeur: number
+}
+
+// Patrimoine net global (roadmap Phase 1) — distinct de `AnalysisResponse.valeur_totale`
+// (scopé au seul portefeuille financier) : couvre en plus l'immobilier/SCPI/
+// assurance-vie/PER, et retranche les emprunts.
+export interface PatrimoineNet {
+  actifs_totaux: number
+  passifs_totaux: number
+  patrimoine_net: number
+  repartition_par_classe: RepartitionParClasseItem[]
 }
 
 export interface ImportPreview {

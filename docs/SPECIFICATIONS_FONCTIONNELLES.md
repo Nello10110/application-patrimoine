@@ -11,7 +11,8 @@ Application web locale et mono-utilisateur de suivi de portefeuille boursier. El
 5. proposer des actions de rééquilibrage mécaniques (aucun conseil sur des titres précis) ;
 6. annoter chaque ligne d'un compte (PEA, CTO...) à titre purement indicatif, pour lire la répartition de la valeur actuelle par enveloppe ;
 7. exporter positions, transactions et synthèse de rentabilité en CSV compatible Excel français ;
-8. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface.
+8. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface ;
+9. suivre le **patrimoine net global** (roadmap Phase 1, `docs/ROADMAP.md`) : au-delà du seul portefeuille financier, immobilier/SCPI/assurance-vie/PER valorisés manuellement et emprunts (passifs), avec une répartition par grande classe d'actif.
 
 L'application ne fournit **aucun conseil en investissement personnalisé** : les objectifs de répartition sont définis par l'utilisateur lui-même, les recommandations ne portent que sur des catégories (zone géographique, secteur), jamais sur un titre à acheter ou vendre. Elle ne simule aucune fiscalité (cf. § 5, non-objectif assumé).
 
@@ -19,8 +20,8 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Vue d'ensemble : année sélectionnable, bandeau d'alertes de rééquilibrage, évolution du portefeuille, rentabilité globale, répartition réel vs cible, qualité des données de répartition, répartition par compte (si annotée), indicateurs de risque, recommandations |
-| Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif et par compte, édition en ligne, fraîcheur des cours, ajout manuel, accès à la fiche détaillée |
+| Tableau de bord | `/` | Vue d'ensemble : patrimoine net (actifs/passifs/net, répartition par classe d'actif), année sélectionnable, bandeau d'alertes de rééquilibrage, évolution du portefeuille, rentabilité globale, répartition réel vs cible, qualité des données de répartition, répartition par compte (si annotée), indicateurs de risque, recommandations |
+| Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/portefeuille/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | Détail d'une position : valorisation, rendements, émetteur/résumé, look-through géo/secteur, historique de prix |
 | Objectifs | `/objectifs` | Définition des cibles de répartition géo/sectorielle par année, année sélectionnable parmi celles réellement enregistrées |
 | Import | `/import` | Import de l'historique de transactions ou d'un relevé de positions |
@@ -169,12 +170,21 @@ Les créations/modifications de position, les objectifs de répartition et la co
 
 L'import d'un relevé de positions est **transactionnel** : une erreur en cours d'import déclenche un rollback explicite, le portefeuille n'est jamais laissé dans un état partiellement vidé. Les colonnes choisies lors du mapping sont vérifiées comme existant réellement dans le fichier avant l'import, pour ne pas produire un import silencieusement vide en cas d'erreur de mapping. Les fichiers importés sont plafonnés en taille (25 Mo) pour éviter d'épuiser la mémoire du process sur un fichier anormalement volumineux.
 
+### 3.11 Patrimoine net global (roadmap Phase 1)
+
+Quatre nouveaux `type_actif` valorisés **manuellement** (`REAL_ESTATE`, `SCPI`, `LIFE_INSURANCE`, `PENSION`) : aucune tentative de cotation automatique n'a de sens pour eux (un bien immobilier n'a pas de ticker coté). Leur valeur vient de `Holding.valeur_estimee` (montant absolu en euros, saisi et mis à jour manuellement — `quantite` reste conventionnellement à 1), distincte de `prix_revient_moyen` qui garde son sens habituel de coût d'acquisition : le rendement depuis achat de ces lignes se calcule donc normalement (`valeur_estimee / prix_revient_moyen − 1`), sans XIRR possible faute d'historique de transactions.
+
+**Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps).
+
+**Deux périmètres volontairement distincts.** Le portefeuille FINANCIER (actions, ETF, crypto, obligations, private equity — `analysis_service.holdings_financiers`) reste seul concerné par le look-through géo/sectoriel, les objectifs et la carte Rentabilité boursière (§ 3.2, § 3.4, § 3.5) : y mélanger un bien immobilier n'aurait pas de sens (pas de géographie/secteur boursier, pas de coût de base dans le grand livre de transactions). Le **patrimoine net global** (`GET /api/patrimoine/net`, `services/patrimoine_service.py`) est une vue **additive** : actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER, valorisés par la même règle que `value_holdings`) moins passifs totaux (somme des capitaux restants dus), avec une répartition par grande classe d'actif. Il n'écrase ni ne remplace les écrans existants.
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
 |---|---|
 | `transactions` | Grand livre importé (source de vérité), dédoublonné par `transaction_id` |
-| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) |
+| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de l'immobilier/SCPI/assurance-vie/PER (cf. § 3.11) |
+| `loans` | Emprunts (patrimoine net, cf. § 3.11) : capital initial, taux, mensualité, date de début, durée, recalage manuel optionnel du capital restant dû |
 | `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) |
 | `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques/objectifs). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
 | `fund_composition_brute` | Répartition géo/sectorielle **brute** (non zone-mappée) d'un fonds telle que publiée par justETF, affichage seul sur la fiche détaillée (cf. § 3.4) — jamais utilisée dans un calcul agrégé |

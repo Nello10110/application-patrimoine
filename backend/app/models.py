@@ -39,6 +39,23 @@ SOURCE_JUSTETF = "justetf"  # composition pays/secteurs réelle scrapée sur jus
 ORIGINE_MANUEL = "manuel"
 ORIGINE_RECONSTRUIT = "reconstruit"
 
+# Types d'actifs valorisés manuellement (Phase 1 de `docs/ROADMAP.md`, patrimoine net
+# façon Finary) : aucune tentative de cotation automatique n'a de sens pour eux — un
+# bien immobilier ou un contrat d'assurance-vie n'a pas de ticker coté sur un marché.
+# Leur valeur vient de `Holding.valeur_estimee`, saisie et mise à jour manuellement par
+# l'utilisateur, jamais de `MarketDataCache`. En conséquence, ils sont exclus :
+# - du rafraîchissement des cours (`market_data_service.refresh_tickers`) ;
+# - du look-through géo/sectoriel, des objectifs et de la carte Rentabilité boursière
+#   (`routers/analysis.py`, `services/performance_service.compute_performance`), qui
+#   restent le périmètre du seul portefeuille FINANCIER, inchangé ;
+# et inclus dans le patrimoine net global (`services/patrimoine_service.py`), qui est
+# la somme de tout ce qui précède moins les emprunts (`Loan`).
+TYPE_ACTIF_REAL_ESTATE = "REAL_ESTATE"
+TYPE_ACTIF_SCPI = "SCPI"
+TYPE_ACTIF_LIFE_INSURANCE = "LIFE_INSURANCE"
+TYPE_ACTIF_PENSION = "PENSION"
+TYPES_ACTIF_PATRIMOINE_MANUEL = {TYPE_ACTIF_REAL_ESTATE, TYPE_ACTIF_SCPI, TYPE_ACTIF_LIFE_INSURANCE, TYPE_ACTIF_PENSION}
+
 
 class Holding(Base):
     __tablename__ = "holdings"
@@ -50,8 +67,19 @@ class Holding(Base):
     prix_revient_moyen: Mapped[float | None] = mapped_column(Float, nullable=True)
     compte: Mapped[str | None] = mapped_column(String, nullable=True)
     devise: Mapped[str | None] = mapped_column(String, nullable=True)
-    type_actif: Mapped[str | None] = mapped_column(String, nullable=True)  # STOCK | FUND | CRYPTO | BOND | PRIVATE_FUND
+    type_actif: Mapped[str | None] = mapped_column(String, nullable=True)  # STOCK | FUND | CRYPTO | BOND | PRIVATE_FUND | REAL_ESTATE | SCPI | LIFE_INSURANCE | PENSION
     origine: Mapped[str] = mapped_column(String, default=ORIGINE_RECONSTRUIT, server_default=ORIGINE_RECONSTRUIT)
+    # Valorisation manuelle (colonnes additives, cf. `TYPES_ACTIF_PATRIMOINE_MANUEL`
+    # ci-dessus) : `valeur_estimee` est un montant ABSOLU en euros (pas un prix par
+    # part) qui, quand renseigné, remplace `prix_actuel * quantite` partout où une
+    # ligne est valorisée (`analysis_service.value_holdings`) — `quantite` reste posée
+    # à 1 par convention pour ces lignes, comme pour `PRIVATE_FUND` aujourd'hui.
+    # `prix_revient_moyen` (champ déjà existant) porte le montant investi à l'origine,
+    # ce qui permet un vrai calcul de gain (valeur_estimee vs prix_revient_moyen),
+    # contrairement à `PRIVATE_FUND`/`BOND` qui restent valorisés à leur coût faute de
+    # toute mise à jour possible.
+    valeur_estimee: Mapped[float | None] = mapped_column(Float, nullable=True)
+    date_valeur_estimee: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -67,6 +95,31 @@ class Holding(Base):
         viewonly=True,
         lazy="selectin",
     )
+
+
+class Loan(Base):
+    """Emprunt (Phase 1 de `docs/ROADMAP.md`, patrimoine net façon Finary) — premier
+    vrai PASSIF de l'application, jusqu'ici entièrement composée d'actifs. Le capital
+    restant dû (`services/loan_service.compute_capital_restant_du`) est calculé par
+    amortissement standard à taux fixe à partir de `capital_initial`/`taux_annuel_pct`/
+    `mensualite`/`date_debut`/`duree_mois`, sauf si `capital_restant_du_manuel` est
+    renseigné — un recalage explicite de l'utilisateur (relevé bancaire réel) prime
+    alors sur le calcul théorique, qui peut dériver (remboursement anticipé, report
+    d'échéance...). Table neuve, créée par `Base.metadata.create_all()`."""
+
+    __tablename__ = "loans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    libelle: Mapped[str] = mapped_column(String)
+    capital_initial: Mapped[float] = mapped_column(Float)
+    taux_annuel_pct: Mapped[float] = mapped_column(Float)
+    mensualite: Mapped[float] = mapped_column(Float)
+    date_debut: Mapped[datetime] = mapped_column(DateTime)
+    duree_mois: Mapped[int] = mapped_column(Integer)
+    capital_restant_du_manuel: Mapped[float | None] = mapped_column(Float, nullable=True)
+    derniere_maj_manuelle: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class MarketDataCache(Base):

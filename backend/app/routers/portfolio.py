@@ -1,6 +1,8 @@
 """Portefeuille : import de relevé (mapping manuel de colonnes), CRUD des positions,
 fiche détaillée et historique de prix d'une ligne."""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -172,7 +174,13 @@ def get_holding_price_history(ticker: str, db: Session = Depends(get_db)):
 def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)):
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
-    holding = Holding(**payload.model_dump(), origine=ORIGINE_MANUEL)
+    donnees = payload.model_dump()
+    # `date_valeur_estimee` (immobilier/SCPI/assurance-vie/PER, Phase 1 de
+    # `docs/ROADMAP.md`) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
+    # ici dès qu'une valeur estimée est fournie à la création.
+    if donnees.get("valeur_estimee") is not None:
+        donnees["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
+    holding = Holding(**donnees, origine=ORIGINE_MANUEL)
     db.add(holding)
     db.commit()
     db.refresh(holding)
@@ -185,6 +193,11 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     updates = payload.model_dump(exclude_unset=True)
+    # `date_valeur_estimee` n'avance que si `valeur_estimee` change réellement dans cet
+    # appel — pas à chaque modification de la ligne (compte, nom...), pour rester une
+    # vraie date de « dernière mise à jour de l'estimation ».
+    if "valeur_estimee" in updates:
+        updates["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
     for key, value in updates.items():
         setattr(holding, key, value)
     db.commit()

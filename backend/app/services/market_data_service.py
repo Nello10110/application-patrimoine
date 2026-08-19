@@ -57,7 +57,16 @@ import yfinance as yf
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
-from ..models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding, MarketDataCache, TickerResolution
+from ..models import (
+    SOURCE_COMPOSITION,
+    SOURCE_INDICE,
+    SOURCE_JUSTETF,
+    TYPES_ACTIF_PATRIMOINE_MANUEL,
+    FundComposition,
+    FundTopHolding,
+    MarketDataCache,
+    TickerResolution,
+)
 from . import justetf_service
 from .historique_cache import cle_historique_portefeuille, invalider
 from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
@@ -347,7 +356,11 @@ def refresh_tickers(
 
     for index, (identifiant_brut, asset_class) in enumerate(items, start=1):
         identifiant = (identifiant_brut or "").strip().upper()
-        if not identifiant or identifiant in seen:
+        # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) : aucune
+        # cotation à chercher, ni sur yfinance ni sur justETF — un bien immobilier n'a
+        # pas de ticker. Sauté avant même la déduplication `seen`/la temporisation, qui
+        # n'ont de sens que pour des identifiants effectivement interrogés en réseau.
+        if not identifiant or identifiant in seen or asset_class in TYPES_ACTIF_PATRIMOINE_MANUEL:
             if on_progression:
                 on_progression(index, total)
             continue

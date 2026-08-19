@@ -120,6 +120,12 @@ def test_create_holding_sans_prix_revient_accepte(client):
     assert reponse.json()["prix_revient_moyen"] is None
 
 
+def test_create_holding_valeur_estimee_negative_refusee_en_400(client):
+    """Phase 1 de `docs/ROADMAP.md` (immobilier/SCPI/assurance-vie/PER)."""
+    reponse = client.post("/api/portfolio/holdings", json={"ticker": "MAISON", "quantite": 1, "valeur_estimee": -1})
+    assert reponse.status_code == 400
+
+
 # ---------------------------------------------------------------------------
 # 3.2 — HoldingUpdate : mêmes contraintes, appliquées seulement aux champs fournis
 # ---------------------------------------------------------------------------
@@ -155,6 +161,12 @@ def test_update_holding_ticker_vide_refuse_en_400(client):
 def test_update_holding_prix_revient_negatif_refuse_en_400(client):
     holding_id = _creer_holding(client)
     reponse = client.patch(f"/api/portfolio/holdings/{holding_id}", json={"prix_revient_moyen": -10})
+    assert reponse.status_code == 400
+
+
+def test_update_holding_valeur_estimee_negative_refusee_en_400(client):
+    holding_id = _creer_holding(client)
+    reponse = client.patch(f"/api/portfolio/holdings/{holding_id}", json={"valeur_estimee": -1})
     assert reponse.status_code == 400
 
 

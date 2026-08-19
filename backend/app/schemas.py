@@ -18,6 +18,7 @@ from .services.preferences_service import METHODES_VALIDES
 MESSAGE_TICKER_VIDE = "Le ticker ne peut pas être vide"
 MESSAGE_QUANTITE_POSITIVE = "La quantité doit être strictement positive (les positions vendues à découvert ne sont pas gérées)"
 MESSAGE_PRIX_NON_NEGATIF = "Le prix de revient moyen ne peut pas être négatif"
+MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE = "La valeur estimée ne peut pas être négative"
 
 
 def _normaliser_ticker(valeur: str) -> str:
@@ -35,6 +36,11 @@ class HoldingBase(BaseModel):
     compte: str | None = None
     devise: str | None = None
     type_actif: str | None = None
+    # Valorisation manuelle (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/
+    # PER — cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) : montant ABSOLU en euros, pas
+    # un prix par part. `date_valeur_estimee` n'est jamais saisie par le client — posée
+    # côté serveur au moment où `valeur_estimee` change (cf. `routers/portfolio.py`).
+    valeur_estimee: float | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -58,6 +64,13 @@ class HoldingBase(BaseModel):
             raise ValueError(MESSAGE_PRIX_NON_NEGATIF)
         return v
 
+    @field_validator("valeur_estimee")
+    @classmethod
+    def _valider_valeur_estimee(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE)
+        return v
+
 
 class HoldingCreate(HoldingBase):
     pass
@@ -71,6 +84,7 @@ class HoldingUpdate(BaseModel):
     compte: str | None = None
     devise: str | None = None
     type_actif: str | None = None
+    valeur_estimee: float | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -94,6 +108,13 @@ class HoldingUpdate(BaseModel):
     def _valider_prix_revient(cls, v: float | None) -> float | None:
         if v is not None and v < 0:
             raise ValueError(MESSAGE_PRIX_NON_NEGATIF)
+        return v
+
+    @field_validator("valeur_estimee")
+    @classmethod
+    def _valider_valeur_estimee(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE)
         return v
 
 
@@ -125,6 +146,7 @@ class HoldingOut(HoldingBase):
     # deux n'est connu), calculée côté serveur avec `analysis_service.value_holdings`
     # pour éviter que le frontend ne recalcule le même chiffre (LOT 6.7).
     valeur: float | None = None
+    date_valeur_estimee: datetime | None = None
 
 
 class ImportPreviewResponse(BaseModel):
@@ -473,6 +495,153 @@ class PreferencesUpdateResponse(Preferences):
     change réellement, `None` sinon)."""
 
     positions_recalculees: int | None = None
+
+
+class LoanBase(BaseModel):
+    """Emprunt (Phase 1 de `docs/ROADMAP.md`, patrimoine net) — cf. `models.Loan`."""
+
+    libelle: str
+    capital_initial: float
+    taux_annuel_pct: float
+    mensualite: float
+    date_debut: datetime
+    duree_mois: int
+    capital_restant_du_manuel: float | None = None
+
+    @field_validator("libelle")
+    @classmethod
+    def _valider_libelle(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Le libellé de l'emprunt ne peut pas être vide")
+        return v
+
+    @field_validator("capital_initial")
+    @classmethod
+    def _valider_capital_initial(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Le capital initial doit être strictement positif")
+        return v
+
+    @field_validator("taux_annuel_pct")
+    @classmethod
+    def _valider_taux(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("Le taux annuel ne peut pas être négatif")
+        return v
+
+    @field_validator("mensualite")
+    @classmethod
+    def _valider_mensualite(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("La mensualité doit être strictement positive")
+        return v
+
+    @field_validator("duree_mois")
+    @classmethod
+    def _valider_duree(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("La durée doit être strictement positive (en mois)")
+        return v
+
+    @field_validator("capital_restant_du_manuel")
+    @classmethod
+    def _valider_capital_restant_du_manuel(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("Le capital restant dû ne peut pas être négatif")
+        return v
+
+
+class LoanCreate(LoanBase):
+    pass
+
+
+class LoanUpdate(BaseModel):
+    libelle: str | None = None
+    capital_initial: float | None = None
+    taux_annuel_pct: float | None = None
+    mensualite: float | None = None
+    date_debut: datetime | None = None
+    duree_mois: int | None = None
+    capital_restant_du_manuel: float | None = None
+
+    @field_validator("libelle")
+    @classmethod
+    def _valider_libelle(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Le libellé de l'emprunt ne peut pas être vide")
+        return v
+
+    @field_validator("capital_initial")
+    @classmethod
+    def _valider_capital_initial(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError("Le capital initial doit être strictement positif")
+        return v
+
+    @field_validator("taux_annuel_pct")
+    @classmethod
+    def _valider_taux(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("Le taux annuel ne peut pas être négatif")
+        return v
+
+    @field_validator("mensualite")
+    @classmethod
+    def _valider_mensualite(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError("La mensualité doit être strictement positive")
+        return v
+
+    @field_validator("duree_mois")
+    @classmethod
+    def _valider_duree(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("La durée doit être strictement positive (en mois)")
+        return v
+
+    @field_validator("capital_restant_du_manuel")
+    @classmethod
+    def _valider_capital_restant_du_manuel(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("Le capital restant dû ne peut pas être négatif")
+        return v
+
+
+class LoanOut(LoanBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    derniere_maj_manuelle: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    # Calculé côté serveur (`loan_service.compute_capital_restant_du`) — jamais recalculé
+    # côté frontend, même raison que `HoldingOut.valeur` (LOT 6.7) : une seule source de
+    # vérité pour un chiffre qui compte (c'est un passif du patrimoine net). Pas une
+    # colonne de `models.Loan` : la valeur par défaut ci-dessous n'existe que pour que
+    # `model_validate(loan)` réussisse (`from_attributes=True` exige l'attribut) avant
+    # d'être systématiquement écrasée par `routers/loans._vers_loan_out`.
+    capital_restant_du: float = 0.0
+
+
+class RepartitionParClasseItem(BaseModel):
+    categorie: str
+    valeur: float
+
+
+class PatrimoineNetResponse(BaseModel):
+    """Patrimoine net global (Phase 1 de `docs/ROADMAP.md`) — `services/patrimoine_service.py`.
+    Distinct de `AnalysisResponse.valeur_totale` (scopé au seul portefeuille financier,
+    cf. `analysis_service.holdings_financiers`) : `actifs_totaux` ici couvre en plus
+    l'immobilier/SCPI/assurance-vie/PER, et `patrimoine_net` en retranche les emprunts."""
+
+    actifs_totaux: float
+    passifs_totaux: float
+    patrimoine_net: float
+    repartition_par_classe: list[RepartitionParClasseItem]
 
 
 class ZoneGeographiqueInfo(BaseModel):

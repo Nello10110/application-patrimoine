@@ -13,6 +13,10 @@ import type {
   HoldingUpdateInput,
   ImportPreview,
   ImportResult,
+  Loan,
+  LoanInput,
+  LoanUpdateInput,
+  PatrimoineNet,
   PerformanceSummary,
   Preferences,
   PreferencesUpdateResponse,
@@ -128,4 +132,14 @@ export const api = {
 
   // Aide (FAQ)
   getZonesGeographiques: () => request<ZoneGeographiqueInfo[]>('/reference/zones-geographiques'),
+
+  // Emprunts (roadmap Phase 1, patrimoine net)
+  listLoans: () => request<Loan[]>('/loans'),
+  createLoan: (payload: LoanInput) => request<Loan>('/loans', { method: 'POST', body: JSON.stringify(payload) }),
+  updateLoan: (id: number, payload: LoanUpdateInput) =>
+    request<Loan>(`/loans/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteLoan: (id: number) => request<{ ok: boolean }>(`/loans/${id}`, { method: 'DELETE' }),
+
+  // Patrimoine net global (roadmap Phase 1)
+  getPatrimoineNet: () => request<PatrimoineNet>('/patrimoine/net'),
 }

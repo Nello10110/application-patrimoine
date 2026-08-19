@@ -73,6 +73,37 @@ def test_value_holdings_repli_sur_cout_de_revient_sans_cotation(db):
     assert valued[0].a_des_donnees is False
 
 
+def test_value_holdings_valeur_estimee_prime_sur_prix_fois_quantite(db):
+    """Phase 1 de `docs/ROADMAP.md` (immobilier/SCPI/assurance-vie/PER) : une
+    `valeur_estimee` renseignée est un montant ABSOLU, prioritaire même si une
+    `MarketDataCache` existait par ailleurs (cas normalement impossible pour ces
+    types, mais la priorité doit être sans ambiguïté)."""
+    db.add(Holding(ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.add(MarketDataCache(ticker="MAISON", prix_actuel=1.0, derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+
+    valued = value_holdings(db.query(Holding).all())
+
+    assert valued[0].valeur == 250000.0
+    # Une estimation manuelle tenue à jour est une vraie donnée — à distinguer du
+    # repli "valorisé au coût faute de cotation" (`a_des_donnees=False`).
+    assert valued[0].a_des_donnees is True
+
+
+def test_holdings_financiers_exclut_les_types_valorises_manuellement(db):
+    db.add(Holding(ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(Holding(ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.add(Holding(ticker="SANS_TYPE", quantite=1.0, prix_revient_moyen=50.0, type_actif=None))
+    db.commit()
+
+    financiers = analysis_service.holdings_financiers(db)
+    tickers = {h.ticker for h in financiers}
+
+    # AAA (type financier) et SANS_TYPE (type non renseigné, cas normal du
+    # portefeuille financier existant) restent inclus ; MAISON est exclue.
+    assert tickers == {"AAA", "SANS_TYPE"}
+
+
 def test_breakdown_lookthrough_eclate_un_etf_sur_sa_composition(db):
     db.add(Holding(ticker="ETF1", quantite=1.0, prix_revient_moyen=1000.0))
     db.add(MarketDataCache(ticker="ETF1", prix_actuel=1000.0, derniere_maj=datetime.now(timezone.utc)))

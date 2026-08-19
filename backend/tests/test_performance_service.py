@@ -57,6 +57,41 @@ def test_pas_de_rendement_annualise_sans_prix_de_marche_reel(db):
     assert resultats["ABC"]["rendement_annualise_pct"] is None
 
 
+def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
+    """Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) : pas de
+    `MarketDataCache`, mais `valeur_estimee` joue le rôle du prix actuel."""
+    db.add(
+        Holding(
+            ticker="MAISON", nom="Résidence", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=230000.0
+        )
+    )
+    db.commit()
+
+    resultats = compute_holding_returns(db)
+
+    assert resultats["MAISON"]["rendement_depuis_achat_pct"] == 15.0
+    # Pas d'historique de transactions pour cette ligne : pas de XIRR possible.
+    assert resultats["MAISON"]["rendement_annualise_pct"] is None
+
+
+def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
+    """Phase 1 de `docs/ROADMAP.md` : un bien immobilier n'a pas de coût de base
+    dans `positions` (jamais issu du grand livre de transactions) — l'inclure dans
+    `valeur_positions`/`gains_latents` gonflerait le gain latent de sa valeur
+    entière. La carte Rentabilité (boursière pure, increment 5) doit l'ignorer."""
+    make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
+    rebuild_holdings(db)
+    db.add(MarketDataCache(ticker="ABC", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
+    db.add(Holding(ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.commit()
+
+    resultat = compute_performance(db)
+
+    # 10 * 150 = 1500 (ABC seul, la maison à 250000 € n'y figure pas).
+    assert resultat["valeur_positions"] == 1500.0
+    assert resultat["gains_latents"] == pytest.approx(500.0)  # 1500 - 1000 (coût de base d'ABC)
+
+
 # --- 1.1 + 1.2 + 1.3 : arithmétique algébrique de compute_performance ------------
 
 

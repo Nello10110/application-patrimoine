@@ -170,6 +170,24 @@ def test_refresh_tickers_ne_temporise_pas_si_delai_nul(db, monkeypatch):
     assert appels_sleep == []
 
 
+def test_refresh_tickers_saute_le_patrimoine_valorise_manuellement(db, monkeypatch):
+    """Phase 1 de `docs/ROADMAP.md` : immobilier/SCPI/assurance-vie/PER n'ont pas de
+    ticker coté — ni `resolve_ticker` (yfinance) ni justETF ne doivent être sollicités,
+    et aucune `MarketDataCache` ne doit être créée pour ces lignes."""
+    appels_resolve = []
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db, identifiant, asset_class: appels_resolve.append(identifiant) or None)
+
+    resultats = market_data_service.refresh_tickers(
+        db, [("MAISON", "REAL_ESTATE"), ("AV1", "LIFE_INSURANCE"), ("AAA", "STOCK")]
+    )
+
+    assert appels_resolve == ["AAA"]
+    assert db.get(MarketDataCache, "MAISON") is None
+    assert db.get(MarketDataCache, "AV1") is None
+    # La ligne financière, elle, est bien traitée normalement.
+    assert any(r.get("ticker") == "AAA" for r in resultats)
+
+
 def test_refresh_manuel_second_appel_immediat_refuse_en_429(client, db):
     make_holding(db, ticker="AAA", quantite=1.0)
 

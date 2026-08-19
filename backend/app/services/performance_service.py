@@ -164,7 +164,14 @@ def compute_performance(db: Session, positions: dict[str, PositionState] | None 
             # lot, n'était comptabilisé nulle part.
             cout_total_investi += -(tx.amount + tx.fee + tx.tax)
 
-    holdings = db.query(Holding).all()
+    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
+    # carte reste volontairement scopée à l'activité BOURSIÈRE pure (increment 5) —
+    # `gains_latents` ci-dessous se base sur `cout_base_ouvert`, qui ne connaît que les
+    # positions reconstruites depuis le grand livre de transactions ; y inclure un bien
+    # immobilier sans coût de base associé gonflerait le gain latent de sa valeur
+    # entière. Ces actifs entrent dans le patrimoine net (`patrimoine_service.py`), pas
+    # dans la rentabilité boursière.
+    holdings = analysis_service.holdings_financiers(db)
     valued = analysis_service.value_holdings(holdings)
     valeur_positions = sum(v.valeur for v in valued)
 
@@ -215,9 +222,15 @@ def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionStat
     renvoient garantiment le même résultat pour un même ticker, par construction plutôt
     que par duplication de la formule à deux endroits."""
     h = v.holding
+    # `valeur_estimee` (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/PER)
+    # joue le rôle du prix actuel pour ces lignes : c'est un montant absolu, mais
+    # `quantite` vaut 1 par convention pour elles (cf. `models.Holding.valeur_estimee`),
+    # donc la comparer directement à `prix_revient_moyen` (le montant investi à
+    # l'origine) reste correcte.
+    prix_actuel_effectif = h.valeur_estimee if h.valeur_estimee is not None else (h.market_data.prix_actuel if h.market_data else None)
     depuis_achat = None
-    if h.prix_revient_moyen and h.prix_revient_moyen > EPSILON and h.market_data and h.market_data.prix_actuel:
-        depuis_achat = (h.market_data.prix_actuel / h.prix_revient_moyen - 1) * 100
+    if h.prix_revient_moyen and h.prix_revient_moyen > EPSILON and prix_actuel_effectif is not None:
+        depuis_achat = (prix_actuel_effectif / h.prix_revient_moyen - 1) * 100
 
     annualise = None
     if state and state.cash_flows and v.a_des_donnees:

@@ -12,6 +12,10 @@ vi.mock('../api/client', () => ({
     deleteHolding: vi.fn(),
     refreshMarketData: vi.fn(),
     getRefreshStatus: vi.fn(),
+    // `LoansCard` (roadmap Phase 1) est rendue par cette page mais n'est pas l'objet
+    // de ce fichier — mise de côté (cf. le mock ci-dessous), donc jamais appelée en
+    // pratique ; gardée ici uniquement pour que le typage de `api` reste cohérent.
+    listLoans: vi.fn(),
   },
 }))
 
@@ -20,6 +24,10 @@ vi.mock('../api/client', () => ({
 vi.mock('../components/HoldingDetailModal', () => ({
   default: ({ ticker }: { ticker: string }) => <div data-testid="modale-detail">{ticker}</div>,
 }))
+
+// Dettes et emprunts (roadmap Phase 1) : carte autonome avec ses propres appels API,
+// hors de l'objet de ce fichier — testée séparément dans LoansCard.test.tsx.
+vi.mock('../components/LoansCard', () => ({ default: () => <div /> }))
 
 // `valeur` est calculée côté backend (LOT 6.7) : par défaut, on reproduit ici la
 // même règle (prix de marché, à défaut prix de revient, `null` sinon) à partir des
@@ -42,6 +50,8 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     rendement_depuis_achat_pct: null,
     rendement_annualise_pct: null,
     valeur: null,
+    valeur_estimee: null,
+    date_valeur_estimee: null,
     ...overrides,
   }
   if (overrides.valeur === undefined) {
@@ -257,6 +267,7 @@ describe('PortefeuillePage', () => {
           prix_revient_moyen: 100,
           compte: 'PEA',
           type_actif: 'STOCK',
+          valeur_estimee: null,
         }),
       )
       await waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))

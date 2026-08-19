@@ -18,7 +18,7 @@ from .database import (
     run_startup_migrations,
 )
 from .logging_config import configure_logging
-from .routers import analysis, export, market_data, performance, portfolio, reference, settings, targets, transactions
+from .routers import analysis, export, loans, market_data, patrimoine, performance, portfolio, reference, settings, targets, transactions
 from .services import scheduler_service, startup_maintenance
 
 configure_logging()
@@ -87,6 +87,8 @@ app.include_router(performance.router)
 app.include_router(settings.router)
 app.include_router(export.router)
 app.include_router(reference.router)
+app.include_router(loans.router)
+app.include_router(patrimoine.router)
 
 
 @app.get("/api/health")

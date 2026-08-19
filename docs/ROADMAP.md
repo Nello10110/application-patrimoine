@@ -26,7 +26,7 @@ de positionnement, pas seulement des cases à cocher.
 
 ```mermaid
 flowchart LR
-    P1["Phase 1\nPatrimoine net complet\nimmobilier · SCPI/AV/PER · dettes"]
+    P1["Phase 1 ✓ livrée 19/08/2026\nPatrimoine net complet\nimmobilier · SCPI/AV/PER · dettes"]
     P2["Phase 2\nProjections\nsimulateur · FIRE"]
     P3["Phase 3\nConfort quotidien\ndividendes · PDF · PWA"]
     P4["Phase 4\nDécisions à trancher\nbudget · partage · agrégation bancaire"]
@@ -35,7 +35,7 @@ flowchart LR
 
 ---
 
-## Phase 1 — Patrimoine net complet (fondation)
+## Phase 1 — Patrimoine net complet (fondation) — livrée le 19/08/2026
 
 **Backlog** : A.1 (immobilier), A.2 (SCPI/assurance-vie/PER), A.3 (dettes et emprunts).
 **Effort total** : `L`. **Pourquoi en premier** : c'est la promesse centrale d'un agrégateur
@@ -65,10 +65,27 @@ un modèle déjà rodé (`PRIVATE_FUND` existe déjà et suit exactement ce patr
    principale). Recommandation : ajouter cette répartition par classe d'actif plutôt que de forcer
    ces nouveaux actifs dans le look-through géo/sectoriel existant, qui n'a pas de sens pour eux.
 
-**Vérification prévue** : recette sur au moins un bien réel de l'utilisateur par catégorie
-(immobilier, une ligne d'assurance-vie/SCPI si applicable, un emprunt), contrôle que le patrimoine
-net affiché correspond au calcul manuel (Σ actifs − Σ passifs), TNR sur le calcul d'amortissement
-des emprunts.
+### Ce qui a été livré (19/08/2026) — écart avec le plan ci-dessus
+
+- **Immobilier + SCPI/assurance-vie/PER regroupés dans un seul onglet** « Immobilier & Épargne »,
+  pas quatre onglets séparés comme envisagé au point 3 — leur mode de valorisation (manuel,
+  `Holding.valeur_estimee`) est identique, un onglet par type aurait dispersé sans raison.
+- **Les dettes ne sont PAS un onglet du tableau des positions** : un emprunt n'a ni quantité ni prix,
+  sa forme de données est trop différente d'un `Holding` pour partager la même table. Livré comme
+  une **carte séparée** « Dettes et emprunts » sous le tableau du Portefeuille, avec son propre CRUD.
+- **Répartition par classe d'actif** (point 4) : tranchée comme prévu — nouvelle dimension, n'entre
+  pas dans le look-through géo/sectoriel existant. Affichée directement dans la carte « Patrimoine
+  net » du Tableau de bord (`GET /api/patrimoine/net`), pas dans un écran séparé.
+- **Deux périmètres de calcul distincts et documentés** (`docs/SPECIFICATIONS_FONCTIONNELLES.md`
+  § 3.11) : le portefeuille financier (`analysis_service.holdings_financiers`, exclut les 4 nouveaux
+  types) reste seul consulté par le look-through géo/sectoriel, les objectifs et la carte Rentabilité
+  boursière ; le patrimoine net (`patrimoine_service.py`) est une vue additive séparée.
+
+**Vérification faite** : recette en conditions réelles sur le portefeuille de l'utilisateur (ligne
+immobilière + emprunt de test, créés puis supprimés après contrôle), patrimoine net recoupé à l'euro
+près (actifs − passifs), non-régression confirmée sur `/api/analysis/{annee}` et `/api/performance`
+(inchangés), 378 tests backend + 93 tests frontend au vert. Détail complet dans
+[`docs/BACKLOG.md`](BACKLOG.md) § 2.A.3.
 
 ---
 

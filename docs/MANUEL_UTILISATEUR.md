@@ -34,13 +34,17 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 
 - **Trier** : cliquer sur l'en-tête d'une colonne (ticker, nom, quantité, prix actuel, valeur, rendement depuis achat, rendement annualisé) trie le tableau selon cette colonne ; un second clic inverse le sens. Une valeur inconnue (« — ») se retrouve toujours en fin de liste.
 - **Total** : en bas du tableau, le nombre de positions affichées et la somme de leur valeur — recalculés selon les filtres actifs (catégorie, compte).
-- **Filtrer** : les onglets au-dessus du tableau filtrent par catégorie (Actions / ETF / Crypto / Autres) ; un sélecteur « Filtrer par compte » (visible dès qu'au moins une ligne porte un compte) filtre en plus par l'annotation de compte.
+- **Filtrer** : les onglets au-dessus du tableau filtrent par catégorie (Actions / ETF / Obligations / Private Equity / Crypto / **Immobilier & Épargne** / Autres) ; un sélecteur « Filtrer par compte » (visible dès qu'au moins une ligne porte un compte) filtre en plus par l'annotation de compte.
 - **Fraîcheur des cours** : à côté du bouton de rafraîchissement, la date/heure du cours le plus ancien parmi les positions cotées. Affichée en orange si elle date de plus de 48 heures.
 - **Cliquer sur une ligne** ouvre la fiche détaillée de la position (en fenêtre superposée).
-- **Modifier une ligne** : le bouton « Modifier » ouvre une édition en ligne (quantité, prix de revient, compte, type d'actif) sans quitter le tableau ; « Enregistrer » valide, « Annuler » abandonne. Une saisie invalide (ex. quantité négative) affiche l'erreur sans perdre le reste de la saisie en cours.
+- **Modifier une ligne** : le bouton « Modifier » ouvre une édition en ligne (quantité, prix de revient, compte, type d'actif, valeur estimée) sans quitter le tableau ; « Enregistrer » valide, « Annuler » abandonne. Une saisie invalide (ex. quantité négative) affiche l'erreur sans perdre le reste de la saisie en cours.
 - **Supprimer une ligne** : le bouton « Supprimer » ouvre une confirmation avant suppression définitive.
 - **Rafraîchir les cours** relance la récupération des données de marché pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions ») et le tableau se met à jour tout seul une fois terminé, sans bloquer le reste de l'écran.
-- **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif) — pour une position hors historique de transactions (ex. actif détenu ailleurs).
+- **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif, valeur estimée) — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie ou un PER : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat.
+
+### Dettes et emprunts
+
+Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Supprimer** retire définitivement un emprunt, après confirmation.
 
 ## Fiche détaillée d'une position
 
@@ -60,6 +64,7 @@ Sélectionner une année dans la liste (alimentée par les années réellement e
 
 ## Tableau de bord
 
+- **Patrimoine net** : en tout premier sur l'écran, distinct du reste (indépendant de l'année sélectionnée) — actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER), passifs (somme des emprunts), patrimoine net, et une répartition par grande classe d'actif. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
 - **Sélecteur d'année**, en haut à droite : change l'année de comparaison réel/cible sur tout l'écran (répartitions, recommandations, alertes), sans toucher à la rentabilité globale ni à la répartition par compte, indépendantes de l'année. Le bouton **Actualiser** recharge toutes les données de l'écran.
 - **Bandeau d'alertes** : apparaît en haut de l'écran dès qu'un écart entre répartition réelle et objectif dépasse le seuil réglé dans les Réglages (5 points par défaut), avec le détail de chaque écart concerné.
 - **Évolution du portefeuille** : graphique avec sélecteur d'échelle et un mode étagé qui distingue le capital investi des gains cumulés.

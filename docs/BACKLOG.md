@@ -35,11 +35,11 @@ une assurance-vie coéditée avec BlackRock et Generali).
 | Axe | Finary | Application Patrimoine (aujourd'hui) | Écart |
 |---|---|---|---|
 | Actions, ETF, crypto | Oui, synchronisé automatiquement | Oui — via import du grand livre + `yfinance`/justETF | Équivalent en couverture, écart sur l'automatisation (§ 2.E) |
-| Immobilier | Oui, valorisation automatique estimée | Absent | Nouveau (§ 2.A) |
-| SCPI, assurance-vie, PER | Oui, synchronisé | Absent | Nouveau (§ 2.A) |
+| Immobilier | Oui, valorisation automatique estimée | Valorisation manuelle (`valeur_estimee`), livré le 19/08/2026 | Traité (§ 2.A.1) — pas de valorisation automatique (aucune source gratuite fiable) |
+| SCPI, assurance-vie, PER | Oui, synchronisé | Valorisation manuelle, livré le 19/08/2026 | Traité (§ 2.A.2) |
 | Métaux précieux | Oui | Partiel (via ETF/ETC or, ex. `IE00B4ND3602`) | Cas générique manquant (§ 2.A) |
-| Actifs alternatifs (art, montres, voitures, private equity) | Oui | Private Equity seul (déjà suivi, coût de revient) | Catégorie « autre actif » manuelle manquante (§ 2.A) |
-| Dettes / emprunts | Oui | Absent | Nouveau (§ 2.A) |
+| Actifs alternatifs (art, montres, voitures, private equity) | Oui | Private Equity suivi (coût de revient) ; objets de valeur/métaux physiques via la même mécanique que A.1/A.2 depuis le 19/08/2026 en choisissant un type existant, catégorie dédiée encore manquante | Catégorie « autre actif » manuelle manquante (§ 2.A.4) |
+| Dettes / emprunts | Oui | Livré le 19/08/2026 : capital restant dû calculé (amortissement à taux fixe) ou recalé manuellement | Traité (§ 2.A.3) — patrimoine net = actifs − passifs |
 | Synchronisation bancaire automatique | Oui, 10 000-20 000 établissements (Powens/Budget Insight, Plaid) | Non — import CSV du grand livre de transactions | Écart structurel, coût commercial (§ 2.E, § 3) |
 | Répartition géo/sectorielle | Oui, par pays/secteur/segment | Oui — look-through justETF + yfinance, déjà audité (Increment 8/9) | Équivalent, voire plus transparent (qualité des données affichée explicitement) |
 | Score de diversification | Oui (plan payant) | Oui, déjà gratuit chez nous | Déjà en avance |
@@ -73,27 +73,52 @@ la roadmap l'ordonnance dans le temps.
 
 ### A. Nouveaux types d'actifs (fondation du reste)
 
-#### A.1 — `majeur` · `L` · `P0` · `non traité` — Immobilier
+#### A.1 — `majeur` · `L` · `P0` · `traité` — Immobilier
 
-Nouveau `type_actif = "REAL_ESTATE"`. Saisie manuelle (adresse ou libellé, valeur estimée, date de
-la dernière estimation, éventuel crédit associé — cf. A.3). Pas de valorisation automatique en v1
-(aucune source gratuite fiable identifiée pour de l'estimation immobilière à l'échelle d'un bien
-précis — voir § 3 pour ce qui a été écarté). L'utilisateur met à jour la valeur manuellement,
-comme il le fait déjà pour le Private Equity.
+Nouveau `type_actif = "REAL_ESTATE"`. Saisie manuelle via `Holding.valeur_estimee` (montant absolu
+en euros, `quantite` conventionnellement à 1) — `prix_revient_moyen` garde son sens habituel de
+montant investi à l'origine, ce qui permet un vrai calcul de gain latent (contrairement à
+`PRIVATE_FUND`, valorisé au coût faute d'alternative). Pas de valorisation automatique (aucune
+source gratuite fiable identifiée pour de l'estimation immobilière à l'échelle d'un bien précis —
+voir § 3). L'utilisateur met à jour la valeur manuellement depuis le Portefeuille (onglet
+« Immobilier & Épargne »).
 
-#### A.2 — `majeur` · `M` · `P0` · `non traité` — SCPI, assurance-vie, PER
+#### A.2 — `majeur` · `M` · `P0` · `traité` — SCPI, assurance-vie, PER
 
-Trois nouveaux `type_actif` (`SCPI`, `LIFE_INSURANCE`, `PENSION`). Même traitement que
-`PRIVATE_FUND` aujourd'hui : valorisation manuelle périodique (ces supports publient une valeur de
-part trimestrielle ou mensuelle, pas de cours quotidien), pas de tentative de cotation automatique.
+Trois nouveaux `type_actif` (`SCPI`, `LIFE_INSURANCE`, `PENSION`), même mécanisme que A.1
+(`valeur_estimee`). Regroupés avec l'immobilier dans un même onglet Portefeuille plutôt que quatre
+onglets séparés — leur mode de valorisation (manuel, périodique) est identique.
 
-#### A.3 — `majeur` · `M` · `P0` · `non traité` — Dettes et emprunts
+#### A.3 — `majeur` · `M` · `P0` · `traité` — Dettes et emprunts
 
-Nouveau modèle `Loan` (libellé, capital initial, taux, mensualité, date de début/fin, capital
-restant dû). Le capital restant dû se **soustrait** de la valeur totale du patrimoine (Finary
-l'appelle le patrimoine « net » — c'est la vraie mesure d'un patrimoine, pas juste la somme des
-actifs). Amortissement calculé (formule standard, pas de saisie manuelle mensuelle) avec possibilité
-de recaler manuellement le capital restant dû si l'échéancier théorique dérive du réel.
+Nouveau modèle `Loan` (libellé, capital initial, taux, mensualité, date de début, durée). Carte
+dédiée « Dettes et emprunts » sous le tableau du Portefeuille (pas un onglet — un emprunt n'a ni
+quantité ni prix, sa forme de données est trop différente d'un `Holding`). Le capital restant dû se
+**soustrait** de la valeur totale du patrimoine (`services/patrimoine_service.py`) — premier vrai
+passif de l'application, jusque-là entièrement composée d'actifs. Amortissement calculé par formule
+standard à taux fixe (`services/loan_service.py`), avec recalage manuel prioritaire
+(`capital_restant_du_manuel`) pour corriger une dérive réelle (remboursement anticipé...).
+
+**Vérifié en conditions réelles** (19/08/2026) sur le vrai portefeuille de l'utilisateur : ligne
+immobilière de test créée (200 000 € investis, 250 000 € estimés) → rendement depuis achat affiché
+`+25,0 %`, correctement exclue du look-through géo/sectoriel et de la carte Rentabilité boursière
+(`GET /api/analysis/2026` et `GET /api/performance` inchangés à l'euro près) ; emprunt de test créé
+(150 000 €, 3,5 %/an, 800 €/mois, débuté en janvier 2020) → capital restant dû calculé à 117 847 €,
+cohérent avec un amortissement de ~6,5 ans ; `GET /api/patrimoine/net` a alors renvoyé
+actifs 260 999 € / passifs 117 847 € / net 143 152 € (= 260 999 − 117 847, exact), avec une
+répartition par classe correctement triée par valeur décroissante. Les deux lignes de test ont
+ensuite été supprimées, le patrimoine net réel de l'utilisateur revérifié inchangé (10 998,93 €).
+378 tests backend (45 nouveaux) + 93 tests frontend (9 nouveaux), `tsc`/`oxlint`/`vite build`
+propres.
+
+**Incident détecté et corrigé pendant ce lot** (sans lien direct avec les nouvelles fonctionnalités,
+mais découvert au premier redémarrage du backend après ces changements) : `app/database.py` choisit
+la base SQLite à utiliser (`patrimoine.db` vs l'ancien nom `portfolio.db`) par simple test
+d'existence de fichier — un `patrimoine.db` vide (schéma créé sans donnée, apparu on ne sait
+comment plus tôt dans la session) suffisait à masquer silencieusement les 49 positions/4 059
+transactions réelles de `portfolio.db`. Corrigé pour comparer le CONTENU des deux fichiers, pas
+seulement leur présence (`_base_semble_vide`, cf. `docs/MANUEL_EXPLOITATION.md` § 4) ; verrouillé
+par deux nouveaux tests. Aucune perte de données réelle (la vraie base n'a jamais été modifiée).
 
 #### A.4 — `mineur` · `S` · `P1` · `non traité` — Catégorie « autre actif » générique
 
@@ -234,8 +259,9 @@ Ordre proposé, du plus fondateur au plus différable — le détail (pourquoi c
 lot débloque) est dans [`docs/ROADMAP.md`](ROADMAP.md) :
 
 1. **P0 — Fondation patrimoine net** : A.1 (immobilier), A.2 (SCPI/assurance-vie/PER), A.3 (dettes).
-   Rien du reste (projections, rapports) n'a de sens tant que le patrimoine affiché n'inclut pas
-   l'essentiel de ce qu'un ménage possède réellement.
+   **Livré et vérifié le 19/08/2026** (cf. le détail dans chaque point ci-dessus). Rien du reste
+   (projections, rapports) n'avait de sens tant que le patrimoine affiché n'incluait pas l'essentiel
+   de ce qu'un ménage possède réellement — c'est désormais le cas.
 2. **P1 — Ce que le patrimoine permet** : B.1 (simulateur), B.2 (FIRE), A.4 (catégorie libre).
    Se construit directement sur P0.
 3. **P2 — Confort et transparence** : C.1 (calendrier dividendes), D.1 (PDF), E.1 (formats
