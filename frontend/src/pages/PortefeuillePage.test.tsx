@@ -144,6 +144,36 @@ describe('PortefeuillePage', () => {
     })
   })
 
+  describe('filtre par compte (LOT 5.1)', () => {
+    it('se combine au filtre de catégorie et met à jour la ligne de total', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', quantite: 10, compte: 'PEA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+        holding({ id: 2, ticker: 'BBB', quantite: 1, compte: 'CTO', type_actif: 'STOCK', market_data: marketData({ ticker: 'BBB', prix_actuel: 200 }) }),
+        holding({ id: 3, ticker: 'CCC', quantite: 1, compte: 'PEA', type_actif: 'FUND', market_data: marketData({ ticker: 'CCC', prix_actuel: 300 }) }),
+        holding({ id: 4, ticker: 'DDD', quantite: 1, compte: null, type_actif: 'STOCK', market_data: marketData({ ticker: 'DDD', prix_actuel: 50 }) }),
+      ])
+      render(<PortefeuillePage />)
+
+      await screen.findByText('4 positions')
+
+      const selecteurCompte = screen.getByLabelText('Filtrer par compte')
+      // Toutes les valeurs présentes, plus "Sans compte" car une ligne n'est pas annotée.
+      const options = Array.from(selecteurCompte.querySelectorAll('option')).map((o) => o.textContent)
+      expect(options).toEqual(['Tous les comptes', 'CTO', 'PEA', 'Sans compte'])
+
+      fireEvent.change(selecteurCompte, { target: { value: 'PEA' } })
+      await screen.findByText('2 positions') // AAA + CCC, toutes deux PEA
+
+      // Combiné au filtre de catégorie : PEA + Actions -> seule AAA reste.
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+      await screen.findByText('1 position')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Tous' }))
+      fireEvent.change(selecteurCompte, { target: { value: 'SANS_COMPTE' } })
+      await screen.findByText('1 position') // seule DDD n'a pas de compte
+    })
+  })
+
   describe('édition en ligne (LOT 5.8)', () => {
     function positionUnique() {
       return [holding({ id: 42, ticker: 'AAA', quantite: 10, prix_revient_moyen: 100, compte: 'PEA', type_actif: 'STOCK' })]

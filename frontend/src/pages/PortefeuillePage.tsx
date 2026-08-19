@@ -40,6 +40,25 @@ function categorieDe(h: Holding): Categorie {
   return 'AUTRES'
 }
 
+// Filtre par compte (LOT 5.1), combiné au filtre de catégorie ci-dessus. Le compte
+// est une simple annotation manuelle par ligne (`Holding.compte`, cf. le formulaire
+// d'ajout et l'édition en ligne) : ce filtre ne fait que répartir la valeur AFFICHÉE,
+// il ne calcule aucune rentabilité par compte (impossible depuis le grand livre
+// importé, cf. `GET /api/analysis/comptes`).
+const FILTRE_TOUS_COMPTES = 'TOUS'
+const FILTRE_SANS_COMPTE = 'SANS_COMPTE'
+
+function comptesDisponibles(holdings: Holding[]): string[] {
+  const comptes = new Set(holdings.map((h) => h.compte).filter((c): c is string => Boolean(c)))
+  return Array.from(comptes).sort((a, b) => a.localeCompare(b, 'fr'))
+}
+
+function correspondAuFiltreCompte(h: Holding, filtreCompte: string): boolean {
+  if (filtreCompte === FILTRE_TOUS_COMPTES) return true
+  if (filtreCompte === FILTRE_SANS_COMPTE) return h.compte === null
+  return h.compte === filtreCompte
+}
+
 // Valeur affichée/triée/sommée d'une ligne : prix actuel si connu, sinon prix de
 // revient à défaut de cotation (même repli qu'à l'affichage du prix), `null` si ni
 // l'un ni l'autre n'est disponible.
@@ -104,6 +123,7 @@ interface EditForm {
 export default function PortefeuillePage() {
   const [holdings, setHoldings] = useState<Holding[]>([])
   const [categorie, setCategorie] = useState<Categorie>('TOUS')
+  const [filtreCompte, setFiltreCompte] = useState<string>(FILTRE_TOUS_COMPTES)
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -227,7 +247,9 @@ export default function PortefeuillePage() {
       ? `Rafraîchissement... (${etatRafraichissement.positions_traitees} / ${etatRafraichissement.positions_total} positions)`
       : 'Rafraîchissement...'
 
-  const lignesFiltrees = holdings.filter((h) => categorie === 'TOUS' || categorieDe(h) === categorie)
+  const lignesFiltrees = holdings.filter(
+    (h) => (categorie === 'TOUS' || categorieDe(h) === categorie) && correspondAuFiltreCompte(h, filtreCompte),
+  )
   const lignesAffichees = tri
     ? [...lignesFiltrees].sort((a, b) => {
         const colonne = COLONNES_TRIABLES.find((c) => c.cle === tri.cle)
@@ -329,18 +351,39 @@ export default function PortefeuillePage() {
         </form>
       </Card>
 
-      <div className="flex gap-1">
-        {CATEGORY_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setCategorie(tab.key)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              categorie === tab.key ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1">
+          {CATEGORY_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setCategorie(tab.key)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                categorie === tab.key ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {holdings.length > 0 && (
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-500">
+            Filtrer par compte
+            <select
+              value={filtreCompte}
+              onChange={(e) => setFiltreCompte(e.target.value)}
+              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700"
+            >
+              <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
+              {comptesDisponibles(holdings).map((compte) => (
+                <option key={compte} value={compte}>
+                  {compte}
+                </option>
+              ))}
+              {holdings.some((h) => h.compte === null) && <option value={FILTRE_SANS_COMPTE}>Sans compte</option>}
+            </select>
+          </label>
+        )}
       </div>
 
       <Card>

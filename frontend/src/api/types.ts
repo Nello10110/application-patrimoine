@@ -156,7 +156,39 @@ export interface AnalysisResponse {
   sector: AllocationBreakdownItem[]
   risques: RiskIndicators
   recommandations: RebalancingAction[]
+  // Sous-ensemble de `recommandations` (LOT 5.5) dont l'écart absolu dépasse le
+  // seuil réglable `seuil_alerte_ecart_pct` (cf. `Preferences`) — pas un recalcul.
+  alertes: RebalancingAction[]
   qualite_donnees: QualiteDonnees
+}
+
+// Répartition de la VALEUR ACTUELLE par compte (LOT 5.1). Le compte est une
+// annotation manuelle par ligne (`Holding.compte`) : le grand livre importé ne
+// porte aucune information de compte, la rentabilité par compte n'est donc pas
+// calculable — cf. `pas_de_rentabilite_par_compte`, à afficher tel quel à l'écran.
+export interface RepartitionCompteItem {
+  compte: string
+  valeur: number
+  pourcentage: number
+}
+
+export interface RepartitionComptesResponse {
+  valeur_totale: number
+  items: RepartitionCompteItem[]
+  a_des_comptes_annotes: boolean
+  pas_de_rentabilite_par_compte: string
+}
+
+// Réglages applicatifs persistants (LOT 5B).
+export interface Preferences {
+  methode_cout: 'cout_moyen_pondere' | 'fifo'
+  seuil_alerte_ecart_pct: number
+}
+
+export interface PreferencesUpdateResponse extends Preferences {
+  // Nombre de positions recalculées si le changement de méthode a déclenché une
+  // reconstruction du portefeuille (LOT 5.6), `null` sinon (seuil seul modifié).
+  positions_recalculees: number | null
 }
 
 export interface TransactionImportResult {

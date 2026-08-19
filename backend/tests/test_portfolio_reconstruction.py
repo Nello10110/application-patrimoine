@@ -324,3 +324,143 @@ def test_rebuild_holdings_ne_touche_pas_aux_autres_lignes_manuelles(db):
     ligne_zzz = db.query(Holding).filter(Holding.ticker == "ZZZ").one()
     assert ligne_zzz.origine == ORIGINE_MANUEL
     assert ligne_zzz.quantite == 5.0
+
+
+# ---------------------------------------------------------------------------
+# LOT 5.1 — préservation du compte (annotation manuelle) à la reconstruction
+# ---------------------------------------------------------------------------
+
+
+def test_rebuild_holdings_preserve_le_compte_annote_manuellement(db):
+    """Le compte n'existe nulle part dans le grand livre importé (format Trade
+    Republic) : c'est une annotation manuelle par ligne, saisie via `PATCH
+    /api/portfolio/holdings/{id}` après un premier import. Sans report explicite,
+    le second import (qui vide puis recrée les lignes reconstruites) l'effacerait
+    silencieusement — verrou direct de la correction."""
+    make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
+    rebuild_holdings(db)
+
+    ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
+    ligne.compte = "PEA"
+    db.commit()
+
+    # Deuxième import (simulé) : nouvelles transactions arrivent, la reconstruction
+    # est rejouée comme le ferait `routers/transactions.import_transactions`.
+    make_transaction(db, transaction_id="tx-2", symbol="AAA", shares=5.0, amount=-600.0)
+    rebuild_holdings(db)
+
+    ligne_recreee = db.query(Holding).filter(Holding.ticker == "AAA").one()
+    assert ligne_recreee.compte == "PEA"
+    assert ligne_recreee.quantite == 15.0  # bien la ligne recalculée, pas l'ancienne
+
+
+def test_rebuild_holdings_sans_compte_annote_reste_a_none(db):
+    """Une ligne jamais annotée ne se voit pas attribuer un compte par accident."""
+    make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
+
+    rebuild_holdings(db)
+
+    ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
+    assert ligne.compte is None
+
+
+# ---------------------------------------------------------------------------
+# LOT 5.6 — méthode FIFO en option (coût de revient)
+# ---------------------------------------------------------------------------
+
+
+def test_fifo_vs_cout_moyen_pondere_gains_realises_et_prix_de_revient_different(db):
+    """Scénario central du LOT 5.6 : trois achats à des prix différents, puis une
+    vente partielle. Calcul à la main :
+
+    Achats : 10 titres à 100€ (coût 1000€), 10 à 200€ (coût 2000€), 10 à 300€
+    (coût 3000€) -> 30 titres détenus, coût de base total 6000€.
+    Vente de 20 titres, produit net 5000€ (250€/titre).
+
+    Coût moyen pondéré :
+      coût moyen = 6000 / 30 = 200€/titre
+      coût retiré = 200 * 20 = 4000€
+      gain réalisé = 5000 - 4000 = 1000,00€
+      position restante : 10 titres, coût de base 6000 - 4000 = 2000€
+      prix de revient moyen = 2000 / 10 = 200,00€
+
+    FIFO (on vide les lots du plus ancien au plus récent) :
+      lot 1 (10 @ 100€ = 1000€) intégralement consommé
+      lot 2 (10 @ 200€ = 2000€) intégralement consommé (10 + 10 = 20 titres vendus)
+      coût retiré = 1000 + 2000 = 3000€
+      gain réalisé = 5000 - 3000 = 2000,00€
+      position restante : 10 titres, uniquement le lot 3 (10 @ 300€) encore ouvert
+      coût de base restant = 3000€ ; prix de revient moyen = 3000 / 10 = 300,00€
+
+    Les deux méthodes partent du même grand livre et donnent bien des gains
+    réalisés et des prix de revient différents, au centime près.
+    """
+    make_transaction(db, transaction_id="tx-1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(db, transaction_id="tx-2", symbol="AAA", shares=10.0, amount=-2000.0, datetime_utc=datetime(2024, 2, 1))
+    make_transaction(db, transaction_id="tx-3", symbol="AAA", shares=10.0, amount=-3000.0, datetime_utc=datetime(2024, 3, 1))
+    make_transaction(
+        db, transaction_id="tx-4", symbol="AAA", type="SELL", shares=-20.0, amount=5000.0, datetime_utc=datetime(2024, 4, 1)
+    )
+
+    etat_moyen = compute_positions(db, methode="cout_moyen_pondere")["AAA"]
+    assert etat_moyen.shares == 10.0
+    assert round(etat_moyen.realized_gain, 2) == 1000.00
+    assert round(etat_moyen.cost_basis, 2) == 2000.00
+    assert round(etat_moyen.cost_basis / etat_moyen.shares, 2) == 200.00
+
+    etat_fifo = compute_positions(db, methode="fifo")["AAA"]
+    assert etat_fifo.shares == 10.0
+    assert round(etat_fifo.realized_gain, 2) == 2000.00
+    assert round(etat_fifo.cost_basis, 2) == 3000.00
+    assert round(etat_fifo.cost_basis / etat_fifo.shares, 2) == 300.00
+
+    # Les deux méthodes divergent bel et bien.
+    assert etat_moyen.realized_gain != etat_fifo.realized_gain
+    assert etat_moyen.cost_basis != etat_fifo.cost_basis
+
+
+def test_fifo_defaut_reste_cout_moyen_pondere_sans_reglage_en_base(db):
+    """Sans préférence enregistrée (base neuve), `compute_positions` doit se
+    comporter EXACTEMENT comme avant ce lot : coût moyen pondéré."""
+    make_transaction(db, transaction_id="tx-1", symbol="BBB", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(db, transaction_id="tx-2", symbol="BBB", shares=10.0, amount=-2000.0, datetime_utc=datetime(2024, 2, 1))
+
+    etat_defaut = compute_positions(db)["BBB"]
+    etat_moyen = compute_positions(db, methode="cout_moyen_pondere")["BBB"]
+
+    assert etat_defaut.cost_basis == etat_moyen.cost_basis == 3000.0
+    assert etat_defaut.shares == etat_moyen.shares == 20.0
+
+
+def test_fifo_operation_sur_titre_a_cout_nul_empile_un_lot_a_cout_nul(db):
+    """Action gratuite reçue (coût nul) puis vente : en FIFO, le lot gratuit est
+    consommé en premier (le plus ancien), donc sans aucun coût retiré pour la
+    partie vendue qui provient de ce lot."""
+    make_transaction(db, transaction_id="tx-1", symbol="CCC", shares=5.0, amount=0.0, category="CORPORATE_ACTION", type="FREE_RECEIPT", datetime_utc=datetime(2024, 1, 1))
+    make_transaction(db, transaction_id="tx-2", symbol="CCC", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 2, 1))
+    make_transaction(
+        db, transaction_id="tx-3", symbol="CCC", type="SELL", shares=-5.0, amount=600.0, datetime_utc=datetime(2024, 3, 1)
+    )
+
+    etat = compute_positions(db, methode="fifo")["CCC"]
+
+    # Les 5 titres vendus proviennent entièrement du lot gratuit (coût nul) :
+    # tout le produit de la vente est un gain réalisé.
+    assert round(etat.realized_gain, 2) == 600.00
+    assert etat.shares == 10.0
+    assert round(etat.cost_basis, 2) == 1000.00  # coût du deuxième lot (achat), intact
+
+
+def test_fifo_vente_avec_lots_insuffisants_ne_retire_pas_plus_que_le_cout_disponible(db):
+    """Grand livre incomplet en FIFO (miroir du test équivalent en coût moyen
+    pondéré) : une vente sans achat correspondant ne doit jamais faire passer le
+    coût de base sous zéro."""
+    make_transaction(db, transaction_id="tx-1", symbol="DDD", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
+    make_transaction(
+        db, transaction_id="tx-2", symbol="DDD", type="SELL", shares=-15.0, amount=1800.0, datetime_utc=datetime(2024, 2, 1)
+    )
+
+    etat = compute_positions(db, methode="fifo")["DDD"]
+
+    assert etat.cost_basis == pytest.approx(0.0, abs=1e-6)
+    assert len(etat.anomalies) == 1

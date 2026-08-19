@@ -14,6 +14,9 @@ import type {
   ImportPreview,
   ImportResult,
   PerformanceSummary,
+  Preferences,
+  PreferencesUpdateResponse,
+  RepartitionComptesResponse,
   ScheduledJob,
   TransactionImportResult,
 } from './types'
@@ -77,6 +80,7 @@ export const api = {
   getAnalysis: (annee: number) => request<AnalysisResponse>(`/analysis/${annee}`),
   getCategoryComposition: (type: 'geo' | 'sector', categorie: string) =>
     request<CategoryCompositionResponse>(`/analysis/composition?type=${type}&categorie=${encodeURIComponent(categorie)}`),
+  getRepartitionComptes: () => request<RepartitionComptesResponse>('/analysis/comptes'),
 
   // Transactions & performance
   importTransactions: (file: File) => {
@@ -92,4 +96,9 @@ export const api = {
   updateJob: (jobKey: string, payload: { enabled: boolean; intervalle_heures: number }) =>
     request<ScheduledJob>(`/settings/jobs/${jobKey}`, { method: 'PUT', body: JSON.stringify(payload) }),
   runJobNow: (jobKey: string) => request<ScheduledJob>(`/settings/jobs/${jobKey}/run-now`, { method: 'POST' }),
+
+  // Réglages (préférences applicatives, LOT 5B)
+  getPreferences: () => request<Preferences>('/settings/preferences'),
+  updatePreferences: (payload: Preferences) =>
+    request<PreferencesUpdateResponse>('/settings/preferences', { method: 'PUT', body: JSON.stringify(payload) }),
 }

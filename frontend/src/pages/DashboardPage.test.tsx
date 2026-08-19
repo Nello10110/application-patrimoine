@@ -10,6 +10,7 @@ vi.mock('../api/client', () => ({
     listTargetYears: vi.fn(),
     getAnalysis: vi.fn(),
     getPerformance: vi.fn(),
+    getRepartitionComptes: vi.fn(),
   },
 }))
 
@@ -21,7 +22,9 @@ vi.mock('../components/CompositionModal', () => ({ default: () => <div /> }))
 vi.mock('../components/PerformanceCard', () => ({ default: () => <div /> }))
 vi.mock('../components/QualiteDonneesCard', () => ({ default: () => <div /> }))
 
-function analyse(annee: number): AnalysisResponse {
+const CURRENT_YEAR = new Date().getFullYear()
+
+function analyse(annee: number, overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
   return {
     annee,
     valeur_totale: 1000,
@@ -40,6 +43,7 @@ function analyse(annee: number): AnalysisResponse {
       lignes_sans_donnees: 0,
     },
     recommandations: [],
+    alertes: [],
     qualite_donnees: {
       valeur_composition_reelle: 1000,
       pct_composition_reelle: 100,
@@ -50,6 +54,7 @@ function analyse(annee: number): AnalysisResponse {
       valeur_sans_cotation: 0,
       pct_sans_cotation: 0,
     },
+    ...overrides,
   }
 }
 
@@ -67,6 +72,12 @@ describe('DashboardPage — sélecteur d\'année', () => {
     vi.mocked(api.listTargetYears).mockResolvedValue([2023, 2024])
     vi.mocked(api.getAnalysis).mockImplementation((annee: number) => Promise.resolve(analyse(annee)))
     vi.mocked(api.getPerformance).mockResolvedValue(null as never)
+    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
+      valeur_totale: 0,
+      items: [],
+      a_des_comptes_annotes: false,
+      pas_de_rentabilite_par_compte: '',
+    })
   })
 
   it("charge l'analyse de l'année courante au montage, et propose les années enregistrées plus l'année courante", async () => {
@@ -113,5 +124,39 @@ describe('DashboardPage — sélecteur d\'année', () => {
     await screen.findByText(/Erreur: panne simulée/)
     expect(screen.getByRole('combobox')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Actualiser/ })).toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage — bandeau d\'alerte (LOT 5.5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.listTargetYears).mockResolvedValue([])
+    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
+    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
+      valeur_totale: 0,
+      items: [],
+      a_des_comptes_annotes: false,
+      pas_de_rentabilite_par_compte: '',
+    })
+  })
+
+  it('affiche le bandeau ambre quand des alertes sont présentes', async () => {
+    vi.mocked(api.getAnalysis).mockResolvedValue(
+      analyse(CURRENT_YEAR, {
+        alertes: [{ type: 'geo', categorie: 'Europe', ecart_pourcentage: 8.0, montant_a_ajuster: 100, sens: 'reduire' }],
+      }),
+    )
+    renderPage()
+
+    await screen.findByText(/1 alerte de rééquilibrage/)
+    expect(screen.getByText('Europe')).toBeInTheDocument()
+  })
+
+  it("n'affiche aucun bandeau quand la liste d'alertes est vide", async () => {
+    vi.mocked(api.getAnalysis).mockResolvedValue(analyse(CURRENT_YEAR))
+    renderPage()
+
+    await waitFor(() => expect(api.getAnalysis).toHaveBeenCalled())
+    expect(screen.queryByText(/alerte de rééquilibrage/)).not.toBeInTheDocument()
   })
 })

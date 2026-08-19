@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { AnalysisResponse, PerformanceSummary } from '../api/types'
+import type { AnalysisResponse, PerformanceSummary, RepartitionComptesResponse } from '../api/types'
 import AllocationBarChart from '../components/AllocationBarChart'
 import Card from '../components/Card'
 import CompositionModal from '../components/CompositionModal'
@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [anneesDisponibles, setAnneesDisponibles] = useState<number[]>([CURRENT_YEAR])
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [performance, setPerformance] = useState<PerformanceSummary | null>(null)
+  const [comptes, setComptes] = useState<RepartitionComptesResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<{ type: 'geo' | 'sector'; categorie: string } | null>(null)
@@ -50,6 +51,9 @@ export default function DashboardPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
     api.getPerformance().then(setPerformance).catch(() => setPerformance(null))
+    // Répartition par compte (LOT 5.1) : indépendante de l'année sélectionnée, comme
+    // la rentabilité ci-dessus — pas de blocage de la page si elle échoue.
+    api.getRepartitionComptes().then(setComptes).catch(() => setComptes(null))
   }
 
   useEffect(chargerDonnees, [annee])
@@ -93,6 +97,23 @@ export default function DashboardPage() {
 
       {!loading && !error && analysis && (
         <>
+          {analysis.alertes.length > 0 && (
+            <Card className="border-amber-300 bg-amber-50">
+              <p className="mb-2 text-sm font-semibold text-amber-800">
+                {analysis.alertes.length} alerte{analysis.alertes.length > 1 ? 's' : ''} de rééquilibrage
+              </p>
+              <ul className="space-y-1">
+                {analysis.alertes.map((alerte) => (
+                  <li key={`${alerte.type}-${alerte.categorie}`} className="text-sm text-amber-800">
+                    <span className="font-medium">{alerte.categorie}</span> ({alerte.type === 'geo' ? 'géographie' : 'secteur'}) :
+                    écart de {alerte.ecart_pourcentage > 0 ? '+' : ''}
+                    {alerte.ecart_pourcentage}% par rapport à l'objectif
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <PortfolioHistoryChart />
 
           {hasNoHoldings && (
@@ -166,6 +187,22 @@ export default function DashboardPage() {
           </div>
 
           <QualiteDonneesCard qualite={analysis.qualite_donnees} />
+
+          {comptes && comptes.a_des_comptes_annotes && (
+            <Card title="Répartition par compte">
+              <ul className="divide-y divide-slate-100">
+                {comptes.items.map((item) => (
+                  <li key={item.compte} className="flex items-center justify-between py-2 text-sm">
+                    <span className="text-slate-700">{item.compte}</span>
+                    <span className="font-medium text-slate-900">
+                      {formatEuro(item.valeur, 0)} · {item.pourcentage}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-slate-400">{comptes.pas_de_rentabilite_par_compte}</p>
+            </Card>
+          )}
 
           {modal && <CompositionModal type={modal.type} categorie={modal.categorie} onClose={() => setModal(null)} />}
 

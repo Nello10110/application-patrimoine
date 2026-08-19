@@ -1,9 +1,132 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { ScheduledJob } from '../api/types'
+import type { Preferences, ScheduledJob } from '../api/types'
 import Card from '../components/Card'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure } from '../utils/format'
+
+const METHODE_OPTIONS: { value: Preferences['methode_cout']; label: string; description: string }[] = [
+  {
+    value: 'cout_moyen_pondere',
+    label: 'Coût moyen pondéré',
+    description: "Chaque vente retire le coût moyen de TOUTE la position au moment de la vente : le prix de revient reste une moyenne unique, quelle que soit l'ancienneté des titres vendus. Méthode par défaut de l'application.",
+  },
+  {
+    value: 'fifo',
+    label: 'FIFO (premier entré, premier sorti)',
+    description: "Chaque vente consomme d'abord les titres achetés les plus anciens : le coût retiré est celui de ces titres-là, pas une moyenne. Le prix de revient restant ne reflète alors que les lots les plus récents.",
+  },
+]
+
+function PreferencesCard() {
+  const [prefs, setPrefs] = useState<Preferences | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    api
+      .getPreferences()
+      .then(setPrefs)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleMethodeChange(methode_cout: Preferences['methode_cout']) {
+    if (!prefs) return
+    setSaving(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const resultat = await api.updatePreferences({ methode_cout, seuil_alerte_ecart_pct: prefs.seuil_alerte_ecart_pct })
+      setPrefs({ methode_cout: resultat.methode_cout, seuil_alerte_ecart_pct: resultat.seuil_alerte_ecart_pct })
+      if (resultat.positions_recalculees !== null) {
+        setMessage(
+          `${resultat.positions_recalculees} position${resultat.positions_recalculees > 1 ? 's' : ''} du portefeuille recalculée${
+            resultat.positions_recalculees > 1 ? 's' : ''
+          } avec la nouvelle méthode.`,
+        )
+      }
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleSeuilChange(seuil_alerte_ecart_pct: number) {
+    if (!prefs) return
+    setSaving(true)
+    setError(null)
+    try {
+      const resultat = await api.updatePreferences({ methode_cout: prefs.methode_cout, seuil_alerte_ecart_pct })
+      setPrefs({ methode_cout: resultat.methode_cout, seuil_alerte_ecart_pct: resultat.seuil_alerte_ecart_pct })
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <p className="text-sm text-slate-500">Chargement...</p>
+  if (!prefs) return error ? <p className="text-sm text-red-600">{error}</p> : null
+
+  return (
+    <>
+      <Card title="Méthode de calcul du coût de revient">
+        <p className="mb-4 text-sm text-amber-700">
+          Attention : changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de TOUT le
+          portefeuille.
+        </p>
+        <div className="space-y-3">
+          {METHODE_OPTIONS.map((option) => (
+            <label key={option.value} className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3">
+              <input
+                type="radio"
+                name="methode_cout"
+                checked={prefs.methode_cout === option.value}
+                disabled={saving}
+                onChange={() => handleMethodeChange(option.value)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-medium text-slate-900">{option.label}</span>
+                <span className="block text-xs text-slate-500">{option.description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {message && <p className="mt-3 text-sm text-emerald-600">{message}</p>}
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      </Card>
+
+      <Card title="Alertes">
+        <p className="mb-4 text-sm text-slate-600">
+          Seuil d'écart (en points de pourcentage) entre la répartition réelle et l'objectif au-delà duquel une
+          recommandation de rééquilibrage devient une alerte, mise en avant sur le tableau de bord.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          Seuil d'alerte
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="0.5"
+            defaultValue={prefs.seuil_alerte_ecart_pct}
+            disabled={saving}
+            onBlur={(e) => {
+              const valeur = Number(e.target.value)
+              if (!Number.isNaN(valeur) && valeur !== prefs.seuil_alerte_ecart_pct) handleSeuilChange(valeur)
+            }}
+            className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          />
+          points
+        </label>
+      </Card>
+    </>
+  )
+}
 
 const JOB_LABELS: Record<string, string> = {
   market_data_refresh: 'Rafraîchissement des données de marché',
@@ -146,6 +269,10 @@ export default function ReglagesPage() {
 
       {loading && <p className="text-sm text-slate-500">Chargement...</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <div className="space-y-4">
+        <PreferencesCard />
+      </div>
 
       <div className="space-y-4">
         {jobs.map((job) => (

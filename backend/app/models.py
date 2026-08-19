@@ -186,3 +186,23 @@ class ScheduledJobConfig(Base):
     derniere_execution: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     dernier_statut: Mapped[str | None] = mapped_column(String, nullable=True)  # "ok" | "erreur"
     dernier_message: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class Parametre(Base):
+    """Table de configuration générique clé/valeur (LOT 5B), pour les réglages
+    applicatifs qui ne concernent pas une tâche planifiée (cf. `ScheduledJobConfig`,
+    dédié à celles-ci et à leur suivi d'exécution). `valeur` est volontairement un
+    simple texte : la conversion (booléen, nombre, énumération contrainte...) et la
+    valeur par défaut d'un réglage absent sont la responsabilité de
+    `services/preferences_service.py`, seul module qui expose des accesseurs typés
+    et nommés par réglage — jamais un `get(cle)` générique laissé aux appelants.
+    Une application locale mono-utilisateur n'a pas besoin d'un schéma de
+    configuration typé en base (une colonne dédiée par réglage) : ce choix évite
+    surtout une migration (`database.run_startup_migrations`) à chaque nouveau
+    réglage — l'ajout d'un réglage n'ajoute qu'une ligne de données, jamais une
+    colonne de schéma."""
+
+    __tablename__ = "parametres"
+
+    cle: Mapped[str] = mapped_column(String, primary_key=True)
+    valeur: Mapped[str] = mapped_column(String)

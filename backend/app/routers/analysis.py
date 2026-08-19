@@ -12,9 +12,10 @@ from ..schemas import (
     CategoryCompositionResponse,
     QualiteDonnees,
     RebalancingAction,
+    RepartitionComptesResponse,
     RiskIndicators,
 )
-from ..services import analysis_service, rebalancing
+from ..services import analysis_service, preferences_service, rebalancing
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
@@ -30,6 +31,22 @@ def get_category_composition(type: str, categorie: str, db: Session = Depends(ge
     valeur_totale = sum(l["valeur"] for l in lignes)
 
     return CategoryCompositionResponse(type=type, categorie=categorie, valeur_totale=round(valeur_totale, 2), lignes=lignes)
+
+
+@router.get("/comptes", response_model=RepartitionComptesResponse)
+def get_repartition_comptes(db: Session = Depends(get_db)):
+    """Répartition de la valeur actuelle par compte (LOT 5.1) : cf. docstring de
+    `analysis_service.repartition_par_compte` — aucune rentabilité par compte
+    n'est ni calculée ni calculable, seule la valeur l'est. Déclarée AVANT
+    `/{annee}` : sans cet ordre, FastAPI tenterait de convertir "comptes" en `int`
+    pour la route paramétrée et renverrait une erreur de validation."""
+    holdings = db.query(Holding).all()
+    valued = analysis_service.value_holdings(holdings)
+    valeur_totale = sum(v.valeur for v in valued)
+    items = analysis_service.repartition_par_compte(valued)
+    a_des_comptes_annotes = any(v.holding.compte for v in valued)
+
+    return RepartitionComptesResponse(valeur_totale=round(valeur_totale, 2), items=items, a_des_comptes_annotes=a_des_comptes_annotes)
 
 
 @router.get("/{annee}", response_model=AnalysisResponse)
@@ -56,6 +73,15 @@ def get_analysis(annee: int, db: Session = Depends(get_db)):
         actions += rebalancing.compute_actions("sector", sector_reel, sector_cibles, valeur_totale)
     actions.sort(key=lambda a: abs(a["ecart_pourcentage"]), reverse=True)
 
+    # Alertes (LOT 5.5) : sous-ensemble des recommandations déjà calculées ci-dessus,
+    # dont l'écart absolu dépasse le seuil réglable (défaut 5 points) — jamais
+    # recalculé depuis `geo_reel`/`sector_reel`. Seuil distinct de
+    # `rebalancing.SEUIL_ECART_PCT` (2 points, fixe) qui décide, lui, si une
+    # recommandation existe tout court : une recommandation informe, une alerte
+    # réclame une action de l'utilisateur.
+    seuil_alerte = preferences_service.lire_seuil_alerte_ecart_pct(db)
+    alertes = [a for a in actions if abs(a["ecart_pourcentage"]) > seuil_alerte]
+
     return AnalysisResponse(
         annee=annee,
         valeur_totale=valeur_totale,
@@ -63,6 +89,7 @@ def get_analysis(annee: int, db: Session = Depends(get_db)):
         sector=sector_items,
         risques=RiskIndicators(**risques),
         recommandations=[RebalancingAction(**a) for a in actions],
+        alertes=[RebalancingAction(**a) for a in alertes],
         qualite_donnees=QualiteDonnees(**qualite),
     )
 

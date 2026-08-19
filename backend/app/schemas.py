@@ -13,6 +13,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from .services.preferences_service import METHODES_VALIDES
+
 MESSAGE_TICKER_VIDE = "Le ticker ne peut pas être vide"
 MESSAGE_QUANTITE_POSITIVE = "La quantité doit être strictement positive (les positions vendues à découvert ne sont pas gérées)"
 MESSAGE_PRIX_NON_NEGATIF = "Le prix de revient moyen ne peut pas être négatif"
@@ -256,7 +258,39 @@ class AnalysisResponse(BaseModel):
     sector: list[AllocationBreakdownItem]
     risques: RiskIndicators
     recommandations: list[RebalancingAction]
+    # Sous-ensemble de `recommandations` (LOT 5.5) dont l'écart absolu dépasse le
+    # seuil `seuil_alerte_ecart_pct` (réglable, cf. `Preferences`) — pas un
+    # recalcul : une recommandation informe d'un écart mesuré, une alerte réclame
+    # une action de la part de l'utilisateur (cf. `routers/analysis.get_analysis`).
+    alertes: list[RebalancingAction]
     qualite_donnees: QualiteDonnees
+
+
+class RepartitionCompteItem(BaseModel):
+    compte: str
+    valeur: float
+    pourcentage: float
+
+
+class RepartitionComptesResponse(BaseModel):
+    """Réponse de `GET /api/analysis/comptes` (LOT 5.1) : répartition de la VALEUR
+    ACTUELLE du portefeuille par compte. Le compte est une annotation manuelle par
+    ligne (`models.Holding.compte`) — le grand livre de transactions importé
+    (format Trade Republic) ne porte aucune information de compte, il est donc
+    impossible d'en déduire une rentabilité (XIRR, gains réalisés) par compte ;
+    seule une répartition de la valeur actuelle est possible, cf. `pas_de_rentabilite_par_compte`."""
+
+    valeur_totale: float
+    items: list[RepartitionCompteItem]
+    # `True` si au moins une ligne du portefeuille porte un compte renseigné —
+    # sert au frontend à décider d'afficher ou non la carte dédiée du tableau de
+    # bord (inutile tant qu'aucune ligne n'est annotée).
+    a_des_comptes_annotes: bool
+    pas_de_rentabilite_par_compte: str = (
+        "Le compte est une annotation manuelle par ligne : le grand livre de transactions importé ne "
+        "porte aucune information de compte, la rentabilité (XIRR, gains réalisés) par compte n'est "
+        "donc pas calculable — seule la répartition de la valeur actuelle l'est."
+    )
 
 
 class TransactionImportResult(BaseModel):
@@ -397,3 +431,38 @@ class ScheduledJobUpdate(BaseModel):
         if not (0.25 <= v <= 168):
             raise ValueError("L'intervalle doit être compris entre 0,25 heure (15 minutes) et 168 heures (une semaine)")
         return v
+
+
+class Preferences(BaseModel):
+    """Réglages applicatifs persistants (LOT 5B), cf. `services/preferences_service.py`."""
+
+    methode_cout: str  # "cout_moyen_pondere" | "fifo"
+    seuil_alerte_ecart_pct: float
+
+
+class PreferencesUpdate(BaseModel):
+    methode_cout: str
+    seuil_alerte_ecart_pct: float
+
+    @field_validator("methode_cout")
+    @classmethod
+    def _valider_methode(cls, v: str) -> str:
+        if v not in METHODES_VALIDES:
+            raise ValueError(f"Méthode de calcul du coût de revient invalide : doit être l'une de {METHODES_VALIDES}")
+        return v
+
+    @field_validator("seuil_alerte_ecart_pct")
+    @classmethod
+    def _valider_seuil(cls, v: float) -> float:
+        if not (0 <= v <= 100):
+            raise ValueError("Le seuil d'alerte doit être compris entre 0 et 100")
+        return v
+
+
+class PreferencesUpdateResponse(Preferences):
+    """Réponse de `PUT /api/settings/preferences` : les préférences enregistrées,
+    plus le nombre de positions recalculées si le changement a déclenché une
+    reconstruction du portefeuille (LOT 5.6 — uniquement quand `methode_cout`
+    change réellement, `None` sinon)."""
+
+    positions_recalculees: int | None = None

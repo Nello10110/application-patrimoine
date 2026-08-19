@@ -8,9 +8,11 @@ ROUTES_GET = [
     "/api/performance",
     "/api/performance/history",
     "/api/analysis/2024",
+    "/api/analysis/comptes",
     "/api/targets/defaults",
     "/api/targets/",
     "/api/settings/jobs",
+    "/api/settings/preferences",
     "/api/market-data",
     "/api/transactions/count",
 ]

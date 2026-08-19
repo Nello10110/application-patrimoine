@@ -8,6 +8,11 @@ from ..models import SOURCE_INDICE, FundComposition, Holding
 from .reference_indices import NON_CATEGORISE, label_for_sector
 
 
+# Libellé affiché pour regrouper les lignes sans compte renseigné (LOT 5.1), plutôt
+# que de les écarter du total ou de laisser un libellé vide/ambigu dans la répartition.
+COMPTE_SANS_ANNOTATION = "Sans compte renseigné"
+
+
 @dataclass
 class ValuedHolding:
     holding: Holding
@@ -205,3 +210,31 @@ def compute_data_quality(db: Session, valued: list[ValuedHolding]) -> dict:
         "valeur_sans_cotation": round(valeur_sans_cotation, 2),
         "pct_sans_cotation": pct(valeur_sans_cotation),
     }
+
+
+def repartition_par_compte(valued: list[ValuedHolding]) -> list[dict]:
+    """Répartition de la VALEUR ACTUELLE du portefeuille par compte (LOT 5.1).
+
+    Le compte (`models.Holding.compte`) est une annotation manuelle par ligne : le
+    grand livre de transactions importé (format Trade Republic) ne porte aucune
+    information de compte, il est donc impossible d'en déduire une rentabilité
+    (XIRR, gains réalisés) par compte a posteriori — seule une répartition de la
+    valeur actuelle est calculable ici, jamais une performance. Les lignes sans
+    compte renseigné sont regroupées sous `COMPTE_SANS_ANNOTATION` plutôt que
+    d'être écartées du total (le portefeuille reste entièrement représenté)."""
+    totaux: dict[str, float] = {}
+    for v in valued:
+        compte = v.holding.compte or COMPTE_SANS_ANNOTATION
+        totaux[compte] = totaux.get(compte, 0.0) + v.valeur
+
+    valeur_totale = sum(v.valeur for v in valued)
+    items = [
+        {
+            "compte": compte,
+            "valeur": round(valeur, 2),
+            "pourcentage": round(valeur / valeur_totale * 100, 1) if valeur_totale > 0 else 0.0,
+        }
+        for compte, valeur in totaux.items()
+    ]
+    items.sort(key=lambda i: -i["valeur"])
+    return items
