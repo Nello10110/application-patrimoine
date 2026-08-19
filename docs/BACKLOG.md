@@ -23,8 +23,9 @@ ajoutée par rapport à la version initiale de ce document.
 
 ## État d'avancement (synthèse)
 
-Sur les 55 points : **52 traités**, **3 hors périmètre** assumés dès l'audit (2.4 look-through
-géographique complet, 5.7 fiscalité PEA, 7.7 authentification). Aucun point en attente.
+Sur les 55 points : **52 traités**, **2 hors périmètre** assumés dès l'audit (5.7 fiscalité PEA,
+7.7 authentification), **1 non traité** (2.4 look-through géographique complet — rouvert le
+19/08/2026, cf. § 2.4, suite à une autorisation obtenue de justETF).
 
 L'ordre d'exécution retenu est en fin de document (§ Plan d'exécution, devenu un historique — le
 chantier qu'il décrit est terminé).
@@ -154,13 +155,25 @@ documenté dans les spécifications, mais invisible à l'endroit où le chiffre 
 
 > Fichiers : `backend/app/services/analysis_service.py`, `frontend/src/pages/DashboardPage.tsx`.
 
-### 2.4 — `mineur` · `M` · `hors périmètre` — Look-through géographique complet des ETF
+### 2.4 — `mineur` · `M` · `non traité` — Look-through géographique complet des ETF (justETF)
 
 Point historique du backlog : l'approximation top-10 extrapolée à 100 % du fonds reste une
 approximation même quand elle fonctionne. Une source donnant la composition géographique complète
-améliorerait la précision, en particulier sur les fonds très diversifiés. **Non réalisable en
-l'état** sans source de données tierce (payante ou à scraper) — conservé au backlog comme limite
-assumée, tracé dans les spécifications.
+améliorerait la précision, en particulier sur les fonds très diversifiés. Classé **hors périmètre**
+jusqu'au 19/08/2026 faute de source tierce accessible sans y être autorisé (les CGU de justETF
+interdisent explicitement les requêtes automatisées, section 3.1).
+
+**Rouvert le 19/08/2026** : l'utilisateur indique avoir obtenu l'autorisation directe de justETF
+(échange avec l'éditeur du site) d'utiliser les données du site et son API, à charge pour lui de
+s'auto-supporter (pas d'assistance de leur part en cas de souci). Autorisation informelle
+(réseau social), non documentée par écrit à ce stade — à conserver comme preuve de son côté.
+Passe donc de « hors périmètre » à « non traité » : reste à faire la reconnaissance technique
+(endpoints disponibles, format des données, limites de débit à respecter en l'absence de support)
+avant toute implémentation.
+
+> Fichiers concernés à terme : `backend/app/services/market_data_service.py` (nouvelle source de
+> composition, en complément ou remplacement du repli par nom de fonds posé en 2.1),
+> `backend/app/services/reference_indices.py`.
 
 ---
 
@@ -541,6 +554,8 @@ documents · recette finale.
 
 ### Hors périmètre, assumé
 
-`2.4` look-through géographique complet (nécessite une source de données tierce) ·
 `5.7` fiscalité PEA (non-objectif produit) · `7.7` authentification (sans objet tant que
 l'application reste sur `localhost`).
+
+`2.4` look-through géographique complet a été hors périmètre pour la même raison (pas de source de
+donnée tierce accessible) jusqu'au 19/08/2026 ; rouvert depuis, cf. § 2.4.
