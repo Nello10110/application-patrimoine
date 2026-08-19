@@ -51,7 +51,7 @@ function App() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <header className="border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Outil Bourse</h1>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Application Patrimoine</h1>
           <nav className="flex gap-1">
             {navItems.map((item) => (
               <NavLink

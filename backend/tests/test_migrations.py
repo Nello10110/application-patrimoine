@@ -4,7 +4,7 @@ appliqué ici à la nouvelle colonne `FundComposition.source` et, pour le LOT 3.
 `Holding.origine`) et renommage de contenu "Autres" -> "Autres zones"/"Autres
 secteurs" (`migrate_rename_categorie_autres`, introduit par le LOT 2.2). Chaque
 test pointe `app.database.engine` vers une base SQLite jetable dédiée, jamais la
-vraie `portfolio.db` ni celle des autres tests."""
+vraie `patrimoine.db` ni celle des autres tests."""
 
 import sqlite3
 
@@ -294,3 +294,26 @@ def test_recalcul_des_zones_en_cache_distingue_zone_residuelle_et_donnee_manquan
         "FR": "Europe",
     }
     engine_test.dispose()
+
+
+def test_la_base_historique_est_reutilisee_apres_le_renommage_du_projet(tmp_path, monkeypatch):
+    """Le projet s'appelait « Outil Bourse » et sa base `portfolio.db`. Une installation
+    existante ne doit pas démarrer sur une base vide après la mise à jour : tant que
+    l'ancien fichier est le seul présent, c'est lui qui est utilisé."""
+    import importlib
+
+    monkeypatch.delenv("PATRIMOINE_DB", raising=False)
+    monkeypatch.setattr(database_module, "_RACINE_BACKEND", tmp_path)
+
+    # Aucun fichier : une installation neuve vise le nouveau nom.
+    assert database_module._chemin_base_par_defaut().name == "patrimoine.db"
+
+    # Seule l'ancienne base existe : on la réutilise plutôt que d'en créer une vide.
+    (tmp_path / "portfolio.db").write_bytes(b"")
+    assert database_module._chemin_base_par_defaut().name == "portfolio.db"
+
+    # Les deux existent : le nouveau nom prime (l'utilisateur a fait le renommage).
+    (tmp_path / "patrimoine.db").write_bytes(b"")
+    assert database_module._chemin_base_par_defaut().name == "patrimoine.db"
+
+    del importlib  # garde-fou : aucun rechargement de module, on teste la fonction seule

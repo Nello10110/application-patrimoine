@@ -27,7 +27,7 @@ deux garde-fous limitent la fréquence des sollicitations :
   pas concerné, il a déjà son propre intervalle réglable depuis les Réglages.
 
 `DELAI_ENTRE_APPELS_SECONDES` est neutralisé (mis à 0) sous test : la variable
-d'environnement `OUTIL_BOURSE_TESTING`, posée par `backend/conftest.py` avant tout
+d'environnement `PATRIMOINE_TESTING`, posée par `backend/conftest.py` avant tout
 import de l'application, est lue une seule fois ici à l'import du module. C'est la
 solution la plus simple qui n'exige aucune modification des fichiers de test
 existants (contrairement à un monkeypatch qu'il aurait fallu répéter partout où
@@ -52,7 +52,7 @@ from ..models import SOURCE_COMPOSITION, SOURCE_INDICE, FundComposition, FundTop
 from .historique_cache import cle_historique_portefeuille, invalider
 from .reference_indices import FUND_SECTOR_WEIGHTING_LABELS, SECTEUR_AUTRES, region_for_country, repartition_geo_depuis_le_nom
 
-logger = logging.getLogger("outil_bourse.market_data")
+logger = logging.getLogger("patrimoine.market_data")
 
 QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
     "STOCK": {"EQUITY"},
@@ -61,7 +61,7 @@ QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
     "BOND": {"EQUITY", "ETF"},
 }
 
-DELAI_ENTRE_APPELS_SECONDES = 0.0 if os.environ.get("OUTIL_BOURSE_TESTING") else 0.25
+DELAI_ENTRE_APPELS_SECONDES = 0.0 if os.environ.get("PATRIMOINE_TESTING") else 0.25
 DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES = 60
 
 # Horodatage du dernier rafraîchissement manuel accepté (état mémoire du process,

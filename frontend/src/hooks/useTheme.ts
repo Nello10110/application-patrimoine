@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 export type Theme = 'clair' | 'sombre' | 'systeme'
 
-const CLE_STOCKAGE = 'outil-bourse:theme'
+const CLE_STOCKAGE = 'patrimoine:theme'
 const THEMES: Theme[] = ['clair', 'sombre', 'systeme']
 
 function themeValide(valeur: string | null): valeur is Theme {

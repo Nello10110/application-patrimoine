@@ -142,7 +142,7 @@ def test_fonds_ni_top_holdings_ni_indice_reconnu_naboutit_a_aucune_ligne(monkeyp
 
 
 def test_delai_entre_appels_neutralise_sous_test():
-    """`backend/conftest.py` pose `OUTIL_BOURSE_TESTING` avant tout import de
+    """`backend/conftest.py` pose `PATRIMOINE_TESTING` avant tout import de
     l'application : le module doit avoir lu cette variable à l'import et neutralisé
     la temporisation, sans quoi toute la suite de tests serait ralentie."""
     assert market_data_service.DELAI_ENTRE_APPELS_SECONDES == 0.0

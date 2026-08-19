@@ -6,9 +6,9 @@ d'une installation existante doit être mise à jour explicitement. `run_startup
 fait ça automatiquement (ADD COLUMN / CREATE UNIQUE INDEX), de façon idempotente et
 jamais destructive — aucune donnée n'est jamais supprimée ou modifiée.
 
-Le chemin de la base est pilotable via la variable d'environnement `OUTIL_BOURSE_DB`
-(utile pour l'exploitation et pour isoler les tests d'une vraie `portfolio.db`) ;
-à défaut, on garde l'emplacement historique.
+Le chemin de la base est pilotable via la variable d'environnement `PATRIMOINE_DB`
+(utile pour l'exploitation et pour isoler les tests d'une vraie `patrimoine.db`) ;
+à défaut, `_chemin_base_par_defaut()` choisit l'emplacement.
 """
 
 import logging
@@ -18,10 +18,37 @@ from pathlib import Path
 from sqlalchemy import UniqueConstraint, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-logger = logging.getLogger("outil_bourse.database")
+logger = logging.getLogger("patrimoine.database")
 
-_DB_PATH_PAR_DEFAUT = Path(__file__).resolve().parent.parent / "portfolio.db"
-DB_PATH = Path(os.environ["OUTIL_BOURSE_DB"]) if os.environ.get("OUTIL_BOURSE_DB") else _DB_PATH_PAR_DEFAUT
+_RACINE_BACKEND = Path(__file__).resolve().parent.parent
+_NOM_BASE = "patrimoine.db"
+# Nom porté par la base avant que le projet ne soit renommé « Application Patrimoine ».
+_NOM_BASE_HISTORIQUE = "portfolio.db"
+
+
+def _chemin_base_par_defaut() -> Path:
+    """Emplacement de la base quand `PATRIMOINE_DB` n'est pas défini.
+
+    Le projet s'appelait « Outil Bourse » et sa base `portfolio.db`. Plutôt que
+    d'imposer un renommage manuel du fichier — au risque qu'une installation
+    existante démarre sur une base vide et donne l'impression d'avoir tout perdu —
+    on continue d'utiliser l'ancien fichier tant qu'il est le seul présent. Une
+    installation neuve, elle, crée directement `patrimoine.db`.
+    """
+    nouveau = _RACINE_BACKEND / _NOM_BASE
+    historique = _RACINE_BACKEND / _NOM_BASE_HISTORIQUE
+    if not nouveau.exists() and historique.exists():
+        logger.info(
+            "base de données : utilisation du fichier historique %s (le projet a été renommé ; "
+            "renommez-le en %s quand vous voulez, l'application suivra).",
+            historique.name,
+            _NOM_BASE,
+        )
+        return historique
+    return nouveau
+
+
+DB_PATH = Path(os.environ["PATRIMOINE_DB"]) if os.environ.get("PATRIMOINE_DB") else _chemin_base_par_defaut()
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

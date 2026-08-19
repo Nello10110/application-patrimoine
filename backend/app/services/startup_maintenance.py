@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from ..models import Parametre, Transaction
 from . import historique_cache, portfolio_reconstruction
 
-logger = logging.getLogger("outil_bourse.maintenance")
+logger = logging.getLogger("patrimoine.maintenance")
 
 CLE_VERSION_CALCUL = "version_calcul_portefeuille"
 

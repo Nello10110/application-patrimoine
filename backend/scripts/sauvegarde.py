@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Sauvegarde et restauration de la base SQLite d'Outil Bourse (LOT 7.6).
+"""Sauvegarde et restauration de la base SQLite d'Application Patrimoine (LOT 7.6).
 
-`portfolio.db` contient l'intégralité de l'historique financier personnel de
+`patrimoine.db` contient l'intégralité de l'historique financier personnel de
 l'utilisateur, sans sauvegarde automatique ni procédure de restauration testée
 avant ce script (cf. BACKLOG.md, §7.6). Deux choix de conception découlent
 directement de ce constat :
@@ -29,8 +29,8 @@ paquet `app`) : ce script doit pouvoir tourner même si l'application elle-même
 ne démarre plus (base corrompue, dépendance cassée...), et fonctionner qu'il
 soit lancé directement (`python scripts/sauvegarde.py`) ou importé depuis les
 tests (`from scripts.sauvegarde import ...`). Il respecte néanmoins la même
-variable d'environnement `OUTIL_BOURSE_DB` que `app/database.py` pour repérer la
-base source, avec le même chemin par défaut (`backend/portfolio.db`).
+variable d'environnement `PATRIMOINE_DB` que `app/database.py` pour repérer la
+base source, avec le même chemin par défaut (`backend/patrimoine.db`).
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-logger = logging.getLogger("outil_bourse.sauvegarde")
+logger = logging.getLogger("patrimoine.sauvegarde")
 
 # Tables dont l'absence ou l'illisibilité, après copie, signale à coup sûr une
 # sauvegarde inexploitable — sans prétendre à l'exhaustivité de tout le schéma
@@ -53,16 +53,16 @@ TABLES_PRINCIPALES = ("holdings", "transactions", "market_data_cache", "allocati
 RETENTION_PAR_DEFAUT = 10
 
 _RACINE_BACKEND = Path(__file__).resolve().parent.parent
-_CHEMIN_BASE_PAR_DEFAUT = _RACINE_BACKEND / "portfolio.db"
+_CHEMIN_BASE_PAR_DEFAUT = _RACINE_BACKEND / "patrimoine.db"
 DOSSIER_SAUVEGARDES_PAR_DEFAUT = _RACINE_BACKEND / "sauvegardes"
 
 _FORMAT_HORODATAGE = "%Y%m%d-%H%M%S"
 # Une sauvegarde normale : "portfolio-AAAAMMJJ-HHMMSS.db", avec un suffixe "-2",
 # "-3"... en cas de collision (deux sauvegardes lancées dans la même seconde).
 # Distinct par construction du nom des copies de sécurité créées par `restaurer`
-# ("portfolio-avant-restauration-...") : `appliquer_retention` ne doit jamais
+# ("patrimoine-avant-restauration-...") : `appliquer_retention` ne doit jamais
 # purger ces dernières, qui ne sont pas des sauvegardes périodiques.
-_MOTIF_NOM_SAUVEGARDE = re.compile(r"^portfolio-\d{8}-\d{6}(-\d+)?\.db$")
+_MOTIF_NOM_SAUVEGARDE = re.compile(r"^patrimoine-\d{8}-\d{6}(-\d+)?\.db$")
 
 
 class SauvegardeInvalideError(RuntimeError):
@@ -72,10 +72,10 @@ class SauvegardeInvalideError(RuntimeError):
 
 
 def chemin_base_source() -> Path:
-    """Chemin de la base SQLite source, piloté par `OUTIL_BOURSE_DB` comme le
+    """Chemin de la base SQLite source, piloté par `PATRIMOINE_DB` comme le
     reste de l'application (`app/database.py`) ; à défaut, l'emplacement
-    historique `backend/portfolio.db`."""
-    valeur = os.environ.get("OUTIL_BOURSE_DB")
+    historique `backend/patrimoine.db`."""
+    valeur = os.environ.get("PATRIMOINE_DB")
     return Path(valeur) if valeur else _CHEMIN_BASE_PAR_DEFAUT
 
 
@@ -163,7 +163,7 @@ def sauvegarder(chemin_source: Path, dossier_destination: Path, *, horodatage: d
     dossier_destination.mkdir(parents=True, exist_ok=True)
 
     horodatage = horodatage or datetime.now()
-    chemin_destination = _nom_disponible(dossier_destination, f"portfolio-{horodatage.strftime(_FORMAT_HORODATAGE)}")
+    chemin_destination = _nom_disponible(dossier_destination, f"patrimoine-{horodatage.strftime(_FORMAT_HORODATAGE)}")
 
     _copier_via_api_sauvegarde_sqlite(chemin_source, chemin_destination)
     verifier_integrite(chemin_destination)
@@ -173,7 +173,7 @@ def sauvegarder(chemin_source: Path, dossier_destination: Path, *, horodatage: d
 
 
 def lister_sauvegardes(dossier: Path) -> list[Path]:
-    """Sauvegardes périodiques présentes dans `dossier` (motif `portfolio-
+    """Sauvegardes périodiques présentes dans `dossier` (motif `patrimoine-
     AAAAMMJJ-HHMMSS[-N].db` uniquement — exclut les copies de sécurité créées par
     `restaurer`), triées de la plus ancienne à la plus récente. Le tri lexical sur
     le nom de fichier suffit : le format d'horodatage `AAAAMMJJ-HHMMSS` est
@@ -220,7 +220,7 @@ def restaurer(
     Vérifie d'abord l'intégrité du fichier à restaurer — avant de toucher à quoi
     que ce soit — puis, si `chemin_base_cible` existe déjà, la met de côté dans
     `dossier_sauvegardes` sous un nom horodaté distinct des sauvegardes
-    périodiques (`portfolio-avant-restauration-AAAAMMJJ-HHMMSS.db`), pour ne
+    périodiques (`patrimoine-avant-restauration-AAAAMMJJ-HHMMSS.db`), pour ne
     jamais perdre les dernières données en cas de restauration déclenchée par
     erreur. La copie de côté comme la restauration elle-même utilisent l'API de
     sauvegarde SQLite, pas une copie de fichier brute.
@@ -241,7 +241,7 @@ def restaurer(
         dossier_sauvegardes.mkdir(parents=True, exist_ok=True)
         horodatage = horodatage or datetime.now()
         chemin_mise_de_cote = _nom_disponible(
-            dossier_sauvegardes, f"portfolio-avant-restauration-{horodatage.strftime(_FORMAT_HORODATAGE)}"
+            dossier_sauvegardes, f"patrimoine-avant-restauration-{horodatage.strftime(_FORMAT_HORODATAGE)}"
         )
         _copier_via_api_sauvegarde_sqlite(chemin_base_cible, chemin_mise_de_cote)
         logger.info("base courante mise de côté avant restauration : %s", chemin_mise_de_cote)
@@ -255,7 +255,7 @@ def _construire_analyseur() -> argparse.ArgumentParser:
     analyseur = argparse.ArgumentParser(
         prog="sauvegarde.py",
         description=(
-            "Sauvegarde et restauration de la base SQLite d'Outil Bourse. Sans "
+            "Sauvegarde et restauration de la base SQLite d'Application Patrimoine. Sans "
             "--restaurer, effectue une sauvegarde à chaud (cohérente même "
             "application démarrée) puis applique la rétention. Avec --restaurer, "
             "remplace la base courante par le fichier indiqué, après l'avoir "
@@ -265,8 +265,8 @@ def _construire_analyseur() -> argparse.ArgumentParser:
             "Exemples :\n"
             "  python scripts/sauvegarde.py\n"
             "  python scripts/sauvegarde.py --dossier /mnt/sauvegardes --retention 30\n"
-            "  python scripts/sauvegarde.py --restaurer sauvegardes/portfolio-20260101-020000.db\n"
-            "  python scripts/sauvegarde.py --restaurer sauvegardes/portfolio-20260101-020000.db --forcer\n"
+            "  python scripts/sauvegarde.py --restaurer sauvegardes/patrimoine-20260101-020000.db\n"
+            "  python scripts/sauvegarde.py --restaurer sauvegardes/patrimoine-20260101-020000.db --forcer\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -276,7 +276,7 @@ def _construire_analyseur() -> argparse.ArgumentParser:
         default=None,
         metavar="CHEMIN",
         help="Chemin de la base SQLite source (sauvegarde) ou cible (restauration). "
-        "Par défaut : $OUTIL_BOURSE_DB si défini, sinon backend/portfolio.db.",
+        "Par défaut : $PATRIMOINE_DB si défini, sinon backend/patrimoine.db.",
     )
     analyseur.add_argument(
         "--dossier",

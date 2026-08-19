@@ -1,4 +1,4 @@
-# Frontend — Outil Bourse
+# Frontend — Application Patrimoine
 
 Interface web (React + TypeScript + Vite + Tailwind CSS) de l'application de suivi
 de portefeuille boursier. Voir le [README racine](../README.md) pour une vue

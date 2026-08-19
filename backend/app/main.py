@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     scheduler_service.shutdown_scheduler()
 
 
-app = FastAPI(title="Outil Bourse API", lifespan=lifespan)
+app = FastAPI(title="Application Patrimoine API", lifespan=lifespan)
 
 # Application 100% locale, prévue pour tourner uniquement contre le frontend Vite en
 # développement local (`localhost`/`127.0.0.1:5173`) : aucun cookie/session n'est

@@ -1,7 +1,7 @@
 """Fixtures partagées par toute la suite de tests backend.
 
 - `db` : session SQLAlchemy sur une base SQLite temporaire et jetable (fichier
-  distinct à chaque test, jamais la vraie `portfolio.db`), schéma posé via
+  distinct à chaque test, jamais la vraie `patrimoine.db`), schéma posé via
   `Base.metadata.create_all`.
 - `client` : `TestClient` FastAPI dont la dépendance `get_db` est basculée vers
   cette même base jetable.
@@ -40,7 +40,7 @@ _compteur_transaction_id = itertools.count(1)
 
 @pytest.fixture
 def db():
-    fd, chemin = tempfile.mkstemp(prefix="outil_bourse_test_db_", suffix=".db")
+    fd, chemin = tempfile.mkstemp(prefix="patrimoine_test_db_", suffix=".db")
     os.close(fd)
     engine_test = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine_test)

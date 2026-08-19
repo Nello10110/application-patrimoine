@@ -1,4 +1,4 @@
-# Manuel utilisateur — Outil Bourse
+# Manuel utilisateur — Application Patrimoine
 
 ## Prise en main
 

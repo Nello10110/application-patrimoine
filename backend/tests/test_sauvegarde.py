@@ -1,7 +1,7 @@
 """Tests de `scripts/sauvegarde.py` (LOT 7.6) : sauvegarde à chaud, rétention,
 contrôle d'intégrité, restauration. Chaque test construit ses propres fichiers
-SQLite dans `tmp_path` — jamais la vraie `portfolio.db` (garanti par
-`backend/conftest.py`, qui redirige `OUTIL_BOURSE_DB` avant tout import, mais ce
+SQLite dans `tmp_path` — jamais la vraie `patrimoine.db` (garanti par
+`backend/conftest.py`, qui redirige `PATRIMOINE_DB` avant tout import, mais ce
 fichier n'en dépend même pas : les chemins de base sont explicites de bout en
 bout, sans jamais retomber sur un défaut)."""
 
@@ -79,7 +79,7 @@ def _ecrire_fichier_invalide(chemin: Path) -> None:
 
 
 def test_sauvegarde_contenu_identique_a_loriginal(tmp_path):
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "sauvegardes"
 
@@ -87,13 +87,13 @@ def test_sauvegarde_contenu_identique_a_loriginal(tmp_path):
 
     assert chemin_sauvegarde.exists()
     assert chemin_sauvegarde.parent == dossier
-    assert chemin_sauvegarde.name.startswith("portfolio-") and chemin_sauvegarde.suffix == ".db"
+    assert chemin_sauvegarde.name.startswith("patrimoine-") and chemin_sauvegarde.suffix == ".db"
     for table in ("holdings", "transactions", "market_data_cache"):
         assert _lignes(chemin_sauvegarde, table) == _lignes(source, table)
 
 
 def test_sauvegarde_cree_le_dossier_destination_sil_nexiste_pas(tmp_path):
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "nouveau" / "sauvegardes"
     assert not dossier.exists()
@@ -112,7 +112,7 @@ def test_sauvegarde_source_introuvable_leve_file_not_found(tmp_path):
 def test_deux_sauvegardes_a_lidentique_ne_secrasent_pas(tmp_path):
     """Même horodatage explicite (deux appels dans la même seconde en pratique) :
     le second fichier ne doit jamais écraser silencieusement le premier."""
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "sauvegardes"
     horodatage = datetime(2026, 1, 1, 2, 0, 0)
@@ -128,7 +128,7 @@ def test_deux_sauvegardes_a_lidentique_ne_secrasent_pas(tmp_path):
 
 
 def test_verifier_integrite_accepte_une_base_valide(tmp_path):
-    chemin = tmp_path / "portfolio.db"
+    chemin = tmp_path / "patrimoine.db"
     _creer_base_peuplee(chemin)
     sauvegarde.verifier_integrite(chemin)  # ne lève rien
 
@@ -163,7 +163,7 @@ def test_verifier_integrite_fichier_introuvable(tmp_path):
 
 
 def test_retention_conserve_les_plus_recentes_et_supprime_les_plus_anciennes(tmp_path):
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "sauvegardes"
 
@@ -181,7 +181,7 @@ def test_retention_conserve_les_plus_recentes_et_supprime_les_plus_anciennes(tmp
 
 
 def test_retention_ne_fait_rien_si_moins_de_sauvegardes_que_la_limite(tmp_path):
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "sauvegardes"
     for minute in range(3):
@@ -194,7 +194,7 @@ def test_retention_ne_fait_rien_si_moins_de_sauvegardes_que_la_limite(tmp_path):
 
 
 def test_retention_zero_ou_negative_ne_supprime_rien(tmp_path):
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "sauvegardes"
     for minute in range(3):
@@ -207,15 +207,15 @@ def test_retention_zero_ou_negative_ne_supprime_rien(tmp_path):
 
 def test_retention_ignore_les_copies_de_securite_avant_restauration(tmp_path):
     """`appliquer_retention` ne doit purger que les sauvegardes périodiques, jamais
-    les copies de sécurité créées par `restaurer` (`portfolio-avant-restauration-
+    les copies de sécurité créées par `restaurer` (`patrimoine-avant-restauration-
     ...`), qui suivent un cycle de vie distinct."""
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "sauvegardes"
     sauvegarde_a_restaurer = sauvegarde.sauvegarder(source, dossier, horodatage=datetime(2026, 1, 1, 0, 0, 0))
 
     sauvegarde.restaurer(sauvegarde_a_restaurer, source, dossier, horodatage=datetime(2026, 1, 2, 0, 0, 0))
-    copies_de_securite = list(dossier.glob("portfolio-avant-restauration-*.db"))
+    copies_de_securite = list(dossier.glob("patrimoine-avant-restauration-*.db"))
     assert len(copies_de_securite) == 1
 
     sauvegarde.appliquer_retention(dossier, retention=0)
@@ -229,7 +229,7 @@ def test_retention_ignore_les_copies_de_securite_avant_restauration(tmp_path):
 def test_restauration_remplace_la_base_et_met_lancienne_de_cote(tmp_path):
     dossier = tmp_path / "sauvegardes"
 
-    base_courante = tmp_path / "portfolio.db"
+    base_courante = tmp_path / "patrimoine.db"
     _creer_base_peuplee(base_courante, ticker="ANCIEN")
 
     fichier_a_restaurer = tmp_path / "portfolio-a-restaurer.db"
@@ -243,7 +243,7 @@ def test_restauration_remplace_la_base_et_met_lancienne_de_cote(tmp_path):
 
     # L'ancienne base a été mise de côté, contenu intact, sous un nom distinct des
     # sauvegardes périodiques.
-    copies = list(dossier.glob("portfolio-avant-restauration-*.db"))
+    copies = list(dossier.glob("patrimoine-avant-restauration-*.db"))
     assert len(copies) == 1
     tickers_mis_de_cote = {ligne[1] for ligne in _lignes(copies[0], "holdings")}
     assert tickers_mis_de_cote == {"ANCIEN"}
@@ -252,19 +252,19 @@ def test_restauration_remplace_la_base_et_met_lancienne_de_cote(tmp_path):
 
 def test_restauration_sans_base_courante_existante_ne_cree_pas_de_copie_de_securite(tmp_path):
     dossier = tmp_path / "sauvegardes"
-    base_cible = tmp_path / "portfolio.db"  # n'existe pas encore
+    base_cible = tmp_path / "patrimoine.db"  # n'existe pas encore
     fichier_a_restaurer = tmp_path / "portfolio-a-restaurer.db"
     _creer_base_peuplee(fichier_a_restaurer)
 
     sauvegarde.restaurer(fichier_a_restaurer, base_cible, dossier)
 
     assert base_cible.exists()
-    assert list(dossier.glob("portfolio-avant-restauration-*.db")) == []
+    assert list(dossier.glob("patrimoine-avant-restauration-*.db")) == []
 
 
 def test_restauration_fichier_introuvable_leve_file_not_found_et_ne_touche_rien(tmp_path):
     dossier = tmp_path / "sauvegardes"
-    base_courante = tmp_path / "portfolio.db"
+    base_courante = tmp_path / "patrimoine.db"
     _creer_base_peuplee(base_courante, ticker="INTACT")
 
     with pytest.raises(FileNotFoundError):
@@ -276,7 +276,7 @@ def test_restauration_fichier_introuvable_leve_file_not_found_et_ne_touche_rien(
 
 def test_restauration_fichier_invalide_refuse_avant_de_toucher_a_la_base_courante(tmp_path):
     dossier = tmp_path / "sauvegardes"
-    base_courante = tmp_path / "portfolio.db"
+    base_courante = tmp_path / "patrimoine.db"
     _creer_base_peuplee(base_courante, ticker="INTACT")
 
     fichier_invalide = tmp_path / "invalide.db"
@@ -295,7 +295,7 @@ def test_restauration_fichier_invalide_refuse_avant_de_toucher_a_la_base_courant
 
 
 def test_cli_sauvegarde_par_defaut(tmp_path, capsys):
-    source = tmp_path / "portfolio.db"
+    source = tmp_path / "patrimoine.db"
     _creer_base_peuplee(source)
     dossier = tmp_path / "sauvegardes"
 
@@ -308,7 +308,7 @@ def test_cli_sauvegarde_par_defaut(tmp_path, capsys):
 
 def test_cli_restauration_annulee_sans_confirmation(tmp_path, monkeypatch, capsys):
     dossier = tmp_path / "sauvegardes"
-    base_courante = tmp_path / "portfolio.db"
+    base_courante = tmp_path / "patrimoine.db"
     _creer_base_peuplee(base_courante, ticker="INTACT")
     fichier_a_restaurer = tmp_path / "autre.db"
     _creer_base_peuplee(fichier_a_restaurer, ticker="AUTRE")
@@ -325,7 +325,7 @@ def test_cli_restauration_annulee_sans_confirmation(tmp_path, monkeypatch, capsy
 
 def test_cli_restauration_avec_forcer_ne_demande_pas_confirmation(tmp_path, monkeypatch, capsys):
     dossier = tmp_path / "sauvegardes"
-    base_courante = tmp_path / "portfolio.db"
+    base_courante = tmp_path / "patrimoine.db"
     _creer_base_peuplee(base_courante, ticker="INTACT")
     fichier_a_restaurer = tmp_path / "autre.db"
     _creer_base_peuplee(fichier_a_restaurer, ticker="AUTRE")

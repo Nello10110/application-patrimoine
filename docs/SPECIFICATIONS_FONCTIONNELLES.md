@@ -1,4 +1,4 @@
-# Spécifications fonctionnelles — Outil Bourse
+# Spécifications fonctionnelles — Application Patrimoine
 
 ## 1. Périmètre
 

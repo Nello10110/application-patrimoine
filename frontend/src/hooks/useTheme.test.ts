@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTheme } from './useTheme'
 
-const CLE_STOCKAGE = 'outil-bourse:theme'
+const CLE_STOCKAGE = 'patrimoine:theme'
 
 // jsdom n'implémente pas `matchMedia` : on le simule nous-mêmes, avec un moyen de
 // déclencher les écouteurs `change` pour tester le suivi du mode "système".

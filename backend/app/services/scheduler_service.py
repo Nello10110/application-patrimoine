@@ -19,7 +19,7 @@ from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
 from . import market_data_service
 
-logger = logging.getLogger("outil_bourse.scheduler")
+logger = logging.getLogger("patrimoine.scheduler")
 
 MARKET_DATA_REFRESH = "market_data_refresh"
 

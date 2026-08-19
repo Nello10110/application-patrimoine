@@ -105,7 +105,7 @@ def test_un_echec_ne_fait_jamais_echouer_le_demarrage(db, monkeypatch, caplog):
 
     monkeypatch.setattr(startup_maintenance.portfolio_reconstruction, "rebuild_holdings", _echouer)
 
-    with caplog.at_level("ERROR", logger="outil_bourse.maintenance"):
+    with caplog.at_level("ERROR", logger="patrimoine.maintenance"):
         assert reconstruire_si_regles_de_calcul_modifiees(db) is None
 
     assert any("remise à niveau" in r.getMessage() for r in caplog.records)

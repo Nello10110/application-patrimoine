@@ -1,4 +1,4 @@
-# Outil Bourse
+# Application Patrimoine
 
 Application web locale de suivi de portefeuille boursier : reconstruction automatique du portefeuille depuis un historique de transactions, enrichissement des positions via Yahoo Finance, comparaison de la répartition réelle à des objectifs géo/sectoriels, calcul de rentabilité (XIRR), et rafraîchissement planifiable.
 

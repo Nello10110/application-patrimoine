@@ -63,7 +63,7 @@ from . import historique_cache, preferences_service
 
 EPSILON = 1e-6
 
-logger = logging.getLogger("outil_bourse.reconstruction")
+logger = logging.getLogger("patrimoine.reconstruction")
 
 
 @dataclass

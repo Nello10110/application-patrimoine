@@ -1,4 +1,4 @@
-# Backlog — Outil Bourse
+# Backlog — Application Patrimoine
 
 Backlog unique du projet : évolutions envisagées **et** points relevés à l'audit technique et
 fonctionnel du 18/08/2026 (revue complète backend, frontend, documentation, plus vérification
@@ -425,7 +425,7 @@ Priorité aux modules les plus sensibles : `portfolio_reconstruction` (coût moy
 ### 7.2 — `majeur` · `S` · `traité` — Projet non versionné
 
 Aucun dépôt git : pas d'historique, pas de retour arrière, pas de diff. Et le seul `.gitignore`
-existant est dans `frontend/` — rien ne protège `backend/venv/`, `backend/portfolio.db` (données
+existant est dans `frontend/` — rien ne protège `backend/venv/`, `backend/patrimoine.db` (données
 financières personnelles) ni les `__pycache__/`.
 
 ### 7.3 — `mineur` · `S` · `traité` — CORS trop permissif pour l'usage réel
@@ -447,7 +447,7 @@ de se faire couper l'accès.
 
 ### 7.6 — `mineur` · `M` · `traité` — Sauvegarde de la base non outillée
 
-`portfolio.db` contient l'intégralité de l'historique financier personnel, sans sauvegarde
+`patrimoine.db` contient l'intégralité de l'historique financier personnel, sans sauvegarde
 automatique ni procédure de restauration testée. Le manuel d'exploitation décrit la sauvegarde
 manuelle ; un script la rendrait fiable.
 

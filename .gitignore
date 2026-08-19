@@ -7,3 +7,6 @@ dist/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Sauvegardes locales de la base (contiennent tes données financières)
+backend/sauvegardes/

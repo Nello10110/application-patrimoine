@@ -195,7 +195,7 @@ def test_vente_sans_achat_correspondant_est_signalee_et_le_cout_reste_positif(db
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    with caplog.at_level(logging.WARNING, logger="outil_bourse.reconstruction"):
+    with caplog.at_level(logging.WARNING, logger="patrimoine.reconstruction"):
         etat = compute_positions(db)["III"]
 
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-6)  # jamais négatif, borné à zéro
@@ -233,7 +233,7 @@ def test_vente_horodatee_avant_son_achat_ne_cree_pas_de_position_fantome(db, cap
         datetime_utc=datetime(2024, 3, 1, 16, 20),
     )
 
-    with caplog.at_level(logging.WARNING, logger="outil_bourse.reconstruction"):
+    with caplog.at_level(logging.WARNING, logger="patrimoine.reconstruction"):
         etat = compute_positions(db)["KKK"]
 
     assert etat.shares == pytest.approx(0.0, abs=1e-9)
