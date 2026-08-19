@@ -4,6 +4,7 @@ import Card from './Card'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import PieChartCard from './PieChartCard'
 import { formatEuro, formatPct } from '../utils/format'
+import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
 const CATEGORY_LABELS: Record<string, string> = {
   STOCK: 'Action',
@@ -13,16 +14,18 @@ const CATEGORY_LABELS: Record<string, string> = {
   PRIVATE_FUND: 'Private Equity',
 }
 
-export default function HoldingDetailContent({ detail }: { detail: HoldingDetail }) {
+export default function HoldingDetailContent({ detail, titleId }: { detail: HoldingDetail; titleId?: string }) {
   const gainPositif = (detail.rendement_depuis_achat_pct ?? 0) >= 0
 
   return (
     <div className="space-y-6">
       <div className="flex items-baseline gap-3">
-        <h2 className="text-xl font-semibold text-slate-900">{detail.nom ?? detail.ticker}</h2>
-        <span className="text-sm text-slate-500">{detail.ticker}</span>
+        <h2 id={titleId} className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+          {detail.nom ?? detail.ticker}
+        </h2>
+        <span className="text-sm text-slate-500 dark:text-slate-400">{detail.ticker}</span>
         {detail.type_actif && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
             {CATEGORY_LABELS[detail.type_actif] ?? detail.type_actif}
           </span>
         )}
@@ -31,41 +34,43 @@ export default function HoldingDetailContent({ detail }: { detail: HoldingDetail
       <Card>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Quantité</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{detail.quantite}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Quantité</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{detail.quantite}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Prix de revient</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{formatEuro(detail.prix_revient_moyen)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Prix de revient</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_revient_moyen)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Prix actuel</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{formatEuro(detail.prix_actuel)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Prix actuel</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_actuel)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Valeur</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{formatEuro(detail.valeur)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Valeur</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.valeur)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Depuis achat</p>
-            <p className={`mt-1 text-lg font-semibold ${gainPositif ? 'text-emerald-600' : 'text-red-600'}`}>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Depuis achat</p>
+            <p className={`mt-1 text-lg font-semibold ${gainPositif ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
               {formatPct(detail.rendement_depuis_achat_pct)}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Rendement annualisé</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{formatPct(detail.rendement_annualise_pct)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Rendement annualisé</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatPct(detail.rendement_annualise_pct)}</p>
             {detail.rendement_annualise_pct === null && (
-              <p className="text-xs text-slate-500">indisponible : moins de 90 jours de détention, ou pas d'historique exploitable</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                indisponible : moins de 90 jours de détention, ou pas d'historique exploitable
+              </p>
             )}
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Secteur</p>
-            <p className="mt-1 text-sm text-slate-700">{detail.secteur ?? '—'}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Secteur</p>
+            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{detail.secteur ?? '—'}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pays</p>
-            <p className="mt-1 text-sm text-slate-700">{detail.pays ?? '—'}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Pays</p>
+            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{detail.pays ?? '—'}</p>
           </div>
         </div>
       </Card>
@@ -76,22 +81,22 @@ export default function HoldingDetailContent({ detail }: { detail: HoldingDetail
         <div className="space-y-3 text-sm">
           {detail.emetteur && (
             <p>
-              <span className="font-medium text-slate-700">Émetteur : </span>
+              <span className="font-medium text-slate-700 dark:text-slate-300">Émetteur : </span>
               {detail.emetteur}
             </p>
           )}
-          {detail.resume && <p className="text-slate-600">{detail.resume}</p>}
-          {!detail.emetteur && !detail.resume && <p className="text-slate-500">Informations non disponibles.</p>}
-          <div className="flex gap-6 border-t border-slate-100 pt-3">
+          {detail.resume && <p className="text-slate-600 dark:text-slate-300">{detail.resume}</p>}
+          {!detail.emetteur && !detail.resume && <p className="text-slate-500 dark:text-slate-400">Informations non disponibles.</p>}
+          <div className="flex gap-6 border-t border-slate-100 pt-3 dark:border-slate-700">
             <div>
-              <p className="text-xs text-slate-500">Frais de gestion annuels</p>
-              <p className="font-medium text-slate-900">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Frais de gestion annuels</p>
+              <p className="font-medium text-slate-900 dark:text-slate-100">
                 {detail.frais_gestion_pct !== null ? `${detail.frais_gestion_pct}%` : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Frais de transaction payés (cumulés)</p>
-              <p className="font-medium text-slate-900">{formatEuro(detail.frais_transaction_payes)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Frais de transaction payés (cumulés)</p>
+              <p className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(detail.frais_transaction_payes)}</p>
             </div>
           </div>
         </div>
@@ -106,10 +111,21 @@ export default function HoldingDetailContent({ detail }: { detail: HoldingDetail
         <Card title="Composition en actions (10 plus grosses lignes du fonds)">
           <ResponsiveContainer width="100%" height={Math.max(220, detail.composition_actions.length * 36)}>
             <BarChart data={detail.composition_actions} layout="vertical" margin={{ left: 24, right: 24 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" unit="%" tickFormatter={(v) => (v * 100).toFixed(0)} domain={[0, 'dataMax']} />
-              <YAxis type="category" dataKey="symbol" width={70} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`} labelFormatter={(_, p) => p?.[0]?.payload?.nom ?? ''} />
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COULEUR_GRILLE} />
+              <XAxis
+                type="number"
+                unit="%"
+                tickFormatter={(v) => (v * 100).toFixed(0)}
+                domain={[0, 'dataMax']}
+                stroke={COULEUR_AXE}
+                tick={STYLE_TICK_AXE}
+              />
+              <YAxis type="category" dataKey="symbol" width={70} tick={{ fontSize: 12, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+              <Tooltip
+                formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`}
+                labelFormatter={(_, p) => p?.[0]?.payload?.nom ?? ''}
+                {...STYLE_INFOBULLE}
+              />
               <Bar dataKey="poids" fill="#2563eb" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -117,23 +133,23 @@ export default function HoldingDetailContent({ detail }: { detail: HoldingDetail
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500">
+                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   <th className="py-2 pr-4">Action</th>
                   <th className="py-2 pr-4">Proportion</th>
                   <th className="py-2 pr-4">Pays</th>
                   <th className="py-2 pr-4">Secteur</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {detail.composition_actions.map((a) => (
                   <tr key={a.symbol}>
                     <td className="py-2 pr-4">
-                      <span className="font-medium text-slate-900">{a.nom ?? a.symbol}</span>
-                      <span className="ml-1 text-xs text-slate-400">{a.symbol}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{a.nom ?? a.symbol}</span>
+                      <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">{a.symbol}</span>
                     </td>
-                    <td className="py-2 pr-4 text-slate-700">{(a.poids * 100).toFixed(2)}%</td>
-                    <td className="py-2 pr-4 text-slate-600">{a.pays ?? '—'}</td>
-                    <td className="py-2 pr-4 text-slate-600">{a.secteur ?? '—'}</td>
+                    <td className="py-2 pr-4 text-slate-700 dark:text-slate-300">{(a.poids * 100).toFixed(2)}%</td>
+                    <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{a.pays ?? '—'}</td>
+                    <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{a.secteur ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

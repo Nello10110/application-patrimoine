@@ -1,6 +1,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { RepartitionItem } from '../api/types'
 import Card from './Card'
+import { STYLE_INFOBULLE } from '../utils/chartTheme'
 
 const COLORS = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#db2777', '#4b5563', '#0d9488', '#9333ea', '#ea580c']
 
@@ -8,7 +9,7 @@ export default function PieChartCard({ title, items }: { title: string; items: R
   if (items.length === 0) {
     return (
       <Card title={title}>
-        <p className="text-sm text-slate-500">Titre unique, pas de décomposition interne.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Titre unique, pas de décomposition interne.</p>
       </Card>
     )
   }
@@ -24,7 +25,7 @@ export default function PieChartCard({ title, items }: { title: string; items: R
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
+          <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} {...STYLE_INFOBULLE} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
         </PieChart>
       </ResponsiveContainer>

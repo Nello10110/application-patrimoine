@@ -31,11 +31,11 @@ export default function QualiteDonneesCard({ qualite }: { qualite: QualiteDonnee
   if (lignes.length === 0) return null
 
   return (
-    <Card className="border-amber-200 bg-amber-50">
-      <p className="mb-2 text-sm font-semibold text-amber-900">Qualité des données</p>
+    <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
+      <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-300">Qualité des données</p>
       <ul className="space-y-1.5">
         {lignes.map((ligne) => (
-          <li key={ligne} className="text-sm text-amber-800">
+          <li key={ligne} className="text-sm text-amber-800 dark:text-amber-200/90">
             {ligne}
           </li>
         ))}

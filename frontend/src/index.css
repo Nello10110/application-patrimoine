@@ -1,8 +1,55 @@
 @import "tailwindcss";
 
+/* Mode sombre (LOT 5.12) : variante `dark:` pilotée par une classe posée sur
+   `<html>` (cf. `useTheme.ts`), pas seulement par `prefers-color-scheme` — pour que
+   le choix explicite de l'utilisateur prime sur celui du système. Sans cette
+   déclaration, Tailwind v4 utilise par défaut `@media (prefers-color-scheme: dark)`,
+   qui ignore justement ce choix. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Couleurs des graphiques Recharts (LOT 5.12) : Recharts prend ses couleurs en
+   props JS (`stroke`, `contentStyle`...), pas en classes Tailwind — elles ne
+   changent donc pas seules avec le thème. On les pilote via ces variables CSS,
+   lues par chaque graphique (`var(--color-chart-grid)`, etc.) : le navigateur les
+   réévalue seul dès que la classe `.dark` bascule sur `<html>`, sans re-render React. */
+:root {
+  --color-chart-grid: #e2e8f0; /* slate-200 */
+  --color-chart-axis: #64748b; /* slate-500 */
+  --color-tooltip-bg: #ffffff;
+  --color-tooltip-border: #e2e8f0; /* slate-200 */
+  --color-tooltip-text: #0f172a; /* slate-900 */
+}
+
+.dark {
+  --color-chart-grid: #334155; /* slate-700 */
+  --color-chart-axis: #94a3b8; /* slate-400 */
+  --color-tooltip-bg: #1e293b; /* slate-800 */
+  --color-tooltip-border: #334155; /* slate-700 */
+  --color-tooltip-text: #e2e8f0; /* slate-200 */
+}
+
+/* Filet de sécurité pour les éléments Recharts non couverts par les props passées
+   composant par composant (props `tick`/`stroke` de chaque axe, `contentStyle` de
+   l'infobulle) : la légende et les étiquettes internes des camemberts (`Pie`, prop
+   `label`) sont du texte SVG sans prop de couleur dédiée simple, stylées ici via
+   leurs classes générées par Recharts. */
+.recharts-legend-item-text {
+  color: var(--color-chart-axis) !important;
+}
+
+.recharts-pie-label-text {
+  fill: var(--color-chart-axis);
 }

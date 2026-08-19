@@ -16,7 +16,7 @@ from ..schemas import (
     ImportPreviewResponse,
     ImportResult,
 )
-from ..services import csv_import, historical_performance_service, holding_detail_service, performance_service, upload_limits
+from ..services import analysis_service, csv_import, historical_performance_service, holding_detail_service, performance_service, upload_limits
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -136,12 +136,20 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db)):
 def list_holdings(db: Session = Depends(get_db)):
     holdings = db.query(Holding).order_by(Holding.ticker).all()
     rendements = performance_service.compute_holding_returns(db)
+    # `value_holdings` applique déjà la règle « prix de marché, à défaut prix de
+    # revient » ; on la réutilise ici pour ne pas dupliquer ce calcul (LOT 6.7).
+    # Elle retombe sur 0 quand aucun prix n'est connu (pratique pour les sommes des
+    # écrans d'analyse) : on distingue ce cas ici pour renvoyer `None` plutôt que 0,
+    # comme convenu pour l'affichage d'une ligne isolée.
+    valued = analysis_service.value_holdings(holdings)
     result = []
-    for h in holdings:
+    for h, v in zip(holdings, valued):
         out = HoldingOut.model_validate(h)
         r = rendements.get(h.ticker, {})
         out.rendement_depuis_achat_pct = r.get("rendement_depuis_achat_pct")
         out.rendement_annualise_pct = r.get("rendement_annualise_pct")
+        prix_connu = (h.market_data is not None and h.market_data.prix_actuel is not None) or h.prix_revient_moyen is not None
+        out.valeur = v.valeur if prix_connu else None
         result.append(out)
     return result
 

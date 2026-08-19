@@ -69,12 +69,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900">Tableau de bord {annee}</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Tableau de bord {annee}</h2>
         <div className="flex items-center gap-3">
           <select
             value={annee}
             onChange={(e) => setAnnee(Number(e.target.value))}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
             {anneesDisponibles.map((y) => (
               <option key={y} value={y}>
@@ -85,26 +85,26 @@ export default function DashboardPage() {
           <button
             onClick={chargerDonnees}
             disabled={loading}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
           >
             {loading ? 'Actualisation...' : 'Actualiser'}
           </button>
         </div>
       </div>
 
-      {loading && <p className="text-slate-500">Chargement...</p>}
-      {error && <p className="text-red-600">Erreur: {error}</p>}
+      {loading && <p className="text-slate-500 dark:text-slate-400">Chargement...</p>}
+      {error && <p className="text-red-600 dark:text-red-400">Erreur: {error}</p>}
 
       {!loading && !error && analysis && (
         <>
           {analysis.alertes.length > 0 && (
-            <Card className="border-amber-300 bg-amber-50">
-              <p className="mb-2 text-sm font-semibold text-amber-800">
+            <Card className="border-amber-300 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
+              <p className="mb-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
                 {analysis.alertes.length} alerte{analysis.alertes.length > 1 ? 's' : ''} de rééquilibrage
               </p>
               <ul className="space-y-1">
                 {analysis.alertes.map((alerte) => (
-                  <li key={`${alerte.type}-${alerte.categorie}`} className="text-sm text-amber-800">
+                  <li key={`${alerte.type}-${alerte.categorie}`} className="text-sm text-amber-800 dark:text-amber-200/90">
                     <span className="font-medium">{alerte.categorie}</span> ({alerte.type === 'geo' ? 'géographie' : 'secteur'}) :
                     écart de {alerte.ecart_pourcentage > 0 ? '+' : ''}
                     {alerte.ecart_pourcentage}% par rapport à l'objectif
@@ -117,8 +117,8 @@ export default function DashboardPage() {
           <PortfolioHistoryChart />
 
           {hasNoHoldings && (
-            <Card className="border-amber-200 bg-amber-50">
-              <p className="text-sm text-amber-800">
+            <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
+              <p className="text-sm text-amber-800 dark:text-amber-200/90">
                 Aucune position dans le portefeuille. Commence par{' '}
                 <Link to="/import" className="font-medium underline">
                   importer ton portefeuille
@@ -129,8 +129,8 @@ export default function DashboardPage() {
           )}
 
           {hasNoTargets && !hasNoHoldings && (
-            <Card className="border-amber-200 bg-amber-50">
-              <p className="text-sm text-amber-800">
+            <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
+              <p className="text-sm text-amber-800 dark:text-amber-200/90">
                 Aucun objectif défini pour {annee}. Va sur la page{' '}
                 <Link to="/objectifs" className="font-medium underline">
                   Objectifs
@@ -168,9 +168,9 @@ export default function DashboardPage() {
               {analysis.geo.length > 0 ? (
                 <AllocationBarChart items={analysis.geo} onCategoryClick={(categorie) => setModal({ type: 'geo', categorie })} />
               ) : (
-                <p className="text-sm text-slate-500">Aucune donnée</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Aucune donnée</p>
               )}
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
                 Géographie des fonds/ETF issue de leur composition réelle (10 plus grosses lignes, extrapolées à 100% du fonds)
                 quand Yahoo Finance la fournit, sinon estimée à partir de l'indice suivi par le fonds (voir le détail de qualité
                 des données ci-dessous) ; secteur des fonds basé sur leur composition complète. Clique sur une barre pour voir le
@@ -181,7 +181,7 @@ export default function DashboardPage() {
               {analysis.sector.length > 0 ? (
                 <AllocationBarChart items={analysis.sector} onCategoryClick={(categorie) => setModal({ type: 'sector', categorie })} />
               ) : (
-                <p className="text-sm text-slate-500">Aucune donnée</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Aucune donnée</p>
               )}
             </Card>
           </div>
@@ -190,17 +190,17 @@ export default function DashboardPage() {
 
           {comptes && comptes.a_des_comptes_annotes && (
             <Card title="Répartition par compte">
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                 {comptes.items.map((item) => (
                   <li key={item.compte} className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-slate-700">{item.compte}</span>
-                    <span className="font-medium text-slate-900">
+                    <span className="text-slate-700 dark:text-slate-300">{item.compte}</span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">
                       {formatEuro(item.valeur, 0)} · {item.pourcentage}%
                     </span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-slate-400">{comptes.pas_de_rentabilite_par_compte}</p>
+              <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">{comptes.pas_de_rentabilite_par_compte}</p>
             </Card>
           )}
 
@@ -208,24 +208,26 @@ export default function DashboardPage() {
 
           <Card title="Actions de rééquilibrage recommandées">
             {analysis.recommandations.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {hasNoTargets || hasNoHoldings
                   ? 'Renseigne un portefeuille et des objectifs pour voir les recommandations.'
                   : 'Portefeuille bien aligné avec les objectifs, aucune action nécessaire.'}
               </p>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                 {analysis.recommandations.map((action) => (
                   <li key={`${action.type}-${action.categorie}`} className="flex items-center justify-between py-3">
                     <div>
-                      <p className="text-sm font-medium text-slate-900">{action.categorie}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{action.categorie}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {action.type === 'geo' ? 'Géographie' : 'Secteur'} · écart de {action.ecart_pourcentage > 0 ? '+' : ''}
                         {action.ecart_pourcentage}%
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-sm font-semibold ${action.sens === 'reduire' ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      <p
+                        className={`text-sm font-semibold ${action.sens === 'reduire' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}
+                      >
                         {action.sens === 'reduire' ? 'Réduire' : 'Augmenter'} de {formatEuro(action.montant_a_ajuster, 0)}
                       </p>
                     </div>

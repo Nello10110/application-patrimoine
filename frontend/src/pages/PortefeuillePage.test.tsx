@@ -21,8 +21,12 @@ vi.mock('../components/HoldingDetailModal', () => ({
   default: ({ ticker }: { ticker: string }) => <div data-testid="modale-detail">{ticker}</div>,
 }))
 
+// `valeur` est calculée côté backend (LOT 6.7) : par défaut, on reproduit ici la
+// même règle (prix de marché, à défaut prix de revient, `null` sinon) à partir des
+// autres champs de la fixture, pour ne pas avoir à la répéter dans chaque appel de
+// `holding()` — sauf si le test la surcharge explicitement.
 function holding(overrides: Partial<Holding> = {}): Holding {
-  return {
+  const base: Holding = {
     id: 1,
     ticker: 'AAA',
     nom: 'Titre A',
@@ -37,8 +41,14 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     market_data: null,
     rendement_depuis_achat_pct: null,
     rendement_annualise_pct: null,
+    valeur: null,
     ...overrides,
   }
+  if (overrides.valeur === undefined) {
+    const prix = base.market_data?.prix_actuel ?? base.prix_revient_moyen
+    base.valeur = prix !== null && prix !== undefined ? prix * base.quantite : null
+  }
+  return base
 }
 
 function marketData(overrides: Partial<NonNullable<Holding['market_data']>> = {}) {
@@ -248,6 +258,52 @@ describe('PortefeuillePage', () => {
 
       expect(screen.queryByLabelText('Quantité (édition)')).not.toBeInTheDocument()
       expect(api.updateHolding).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('suppression (LOT 6.3 : modale de confirmation, plus de confirm() natif)', () => {
+    function positionUnique() {
+      return [holding({ id: 42, ticker: 'AAA' })]
+    }
+
+    it('le clic sur Supprimer ouvre une modale nommant la ligne, sans appeler deleteHolding', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
+      render(<PortefeuillePage />)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
+
+      const modale = await screen.findByRole('dialog')
+      expect(within(modale).getByText('AAA')).toBeInTheDocument()
+      expect(api.deleteHolding).not.toHaveBeenCalled()
+    })
+
+    it('Annuler ferme la modale sans appeler deleteHolding', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
+      render(<PortefeuillePage />)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
+      await screen.findByRole('dialog')
+      fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(api.deleteHolding).not.toHaveBeenCalled()
+    })
+
+    it('confirmer dans la modale appelle deleteHolding puis recharge la liste', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce(positionUnique())
+      vi.mocked(api.deleteHolding).mockResolvedValue({ ok: true })
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([])
+
+      render(<PortefeuillePage />)
+      fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
+      const modale = await screen.findByRole('dialog')
+      // Deux boutons "Supprimer" à l'écran une fois la modale ouverte (celui de la
+      // ligne, sous la modale, et celui de confirmation) : on cible celui de la modale.
+      fireEvent.click(within(modale).getByRole('button', { name: 'Supprimer' }))
+
+      await waitFor(() => expect(api.deleteHolding).toHaveBeenCalledWith(42))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))
     })
   })
 })

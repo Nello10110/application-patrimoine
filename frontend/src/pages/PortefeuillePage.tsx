@@ -3,13 +3,16 @@ import { api } from '../api/client'
 import type { Holding } from '../api/types'
 import Card from '../components/Card'
 import HoldingDetailModal from '../components/HoldingDetailModal'
+import Modale from '../components/Modale'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure, formatEuro, parseDateApi } from '../utils/format'
 
 function RendementCell({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-slate-400">—</span>
+  if (value === null) return <span className="text-slate-400 dark:text-slate-500">—</span>
   const positif = value >= 0
-  return <span className={positif ? 'text-emerald-600' : 'text-red-600'}>{`${positif ? '+' : ''}${value.toFixed(1)}%`}</span>
+  return (
+    <span className={positif ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>{`${positif ? '+' : ''}${value.toFixed(1)}%`}</span>
+  )
 }
 
 type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'CRYPTO' | 'AUTRES'
@@ -59,14 +62,6 @@ function correspondAuFiltreCompte(h: Holding, filtreCompte: string): boolean {
   return h.compte === filtreCompte
 }
 
-// Valeur affichée/triée/sommée d'une ligne : prix actuel si connu, sinon prix de
-// revient à défaut de cotation (même repli qu'à l'affichage du prix), `null` si ni
-// l'un ni l'autre n'est disponible.
-function valeurDe(h: Holding): number | null {
-  const prix = h.market_data?.prix_actuel ?? h.prix_revient_moyen
-  return prix !== null && prix !== undefined ? prix * h.quantite : null
-}
-
 type CleTri = 'ticker' | 'nom' | 'quantite' | 'prix_actuel' | 'valeur' | 'depuis_achat' | 'annualise'
 type SensTri = 'asc' | 'desc'
 
@@ -84,7 +79,7 @@ const COLONNES_TRIABLES: ColonneTriable[] = [
   { cle: 'nom', label: 'Nom', valeur: (h) => h.market_data?.nom ?? h.nom ?? null },
   { cle: 'quantite', label: 'Quantité', valeur: (h) => h.quantite },
   { cle: 'prix_actuel', label: 'Prix actuel', valeur: (h) => h.market_data?.prix_actuel ?? null },
-  { cle: 'valeur', label: 'Valeur', valeur: valeurDe },
+  { cle: 'valeur', label: 'Valeur', valeur: (h) => h.valeur },
   { cle: 'depuis_achat', label: 'Depuis achat', valeur: (h) => h.rendement_depuis_achat_pct },
   { cle: 'annualise', label: 'Annualisé', valeur: (h) => h.rendement_annualise_pct },
 ]
@@ -141,6 +136,13 @@ export default function PortefeuillePage() {
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
+  // Confirmation de suppression (LOT 6.3) : remplace le `confirm()` natif du
+  // navigateur par une modale de l'application (cohérente visuellement, testable).
+  // Ne mémorise que ce qui est nécessaire à l'affichage du message et à l'appel API,
+  // pas la ligne entière.
+  const [confirmSuppression, setConfirmSuppression] = useState<{ id: number; ticker: string } | null>(null)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
+
   function load() {
     setLoading(true)
     api
@@ -162,11 +164,24 @@ export default function PortefeuillePage() {
     declencher(() => api.refreshMarketData())
   }
 
-  async function handleDelete(e: React.MouseEvent, id: number) {
+  function handleDelete(e: React.MouseEvent, h: Holding) {
     e.stopPropagation()
-    if (!confirm('Supprimer cette ligne ?')) return
-    await api.deleteHolding(id)
-    load()
+    setConfirmSuppression({ id: h.id, ticker: h.ticker })
+  }
+
+  async function confirmerSuppression() {
+    if (!confirmSuppression) return
+    setSuppressionEnCours(true)
+    try {
+      await api.deleteHolding(confirmSuppression.id)
+      setConfirmSuppression(null)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+      setConfirmSuppression(null)
+    } finally {
+      setSuppressionEnCours(false)
+    }
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -257,7 +272,7 @@ export default function PortefeuillePage() {
         return comparerValeurs(colonne.valeur(a), colonne.valeur(b), tri.direction)
       })
     : lignesFiltrees
-  const valeurTotaleAffichee = lignesFiltrees.reduce((somme, h) => somme + (valeurDe(h) ?? 0), 0)
+  const valeurTotaleAffichee = lignesFiltrees.reduce((somme, h) => somme + (h.valeur ?? 0), 0)
 
   const dateCoursLePlusAncien = coursLePlusAncien(holdings)
   const coursPerimes = dateCoursLePlusAncien
@@ -267,72 +282,72 @@ export default function PortefeuillePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900">Portefeuille</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Portefeuille</h2>
         <div className="flex items-center gap-3">
           {dateCoursLePlusAncien && (
-            <span className={`text-xs ${coursPerimes ? 'text-amber-600' : 'text-slate-500'}`}>
+            <span className={`text-xs ${coursPerimes ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
               Cours à jour au {formatDateHeure(dateCoursLePlusAncien)}
             </span>
           )}
           <button
             onClick={handleRefresh}
             disabled={refreshing || holdings.length === 0}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
           >
             {refreshing ? libelleRafraichissement : 'Rafraîchir les cours'}
           </button>
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {erreurRafraichissement && <p className="text-sm text-red-600">{erreurRafraichissement}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {erreurRafraichissement && <p className="text-sm text-red-600 dark:text-red-400">{erreurRafraichissement}</p>}
 
       <Card title="Ajouter une ligne manuellement">
         <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Ticker
             <input
               value={form.ticker}
               onChange={(e) => setForm({ ...form, ticker: e.target.value })}
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               placeholder="AAPL"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Quantité
             <input
               value={form.quantite}
               onChange={(e) => setForm({ ...form, quantite: e.target.value })}
               type="number"
               step="any"
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Prix de revient
             <input
               value={form.prix_revient_moyen}
               onChange={(e) => setForm({ ...form, prix_revient_moyen: e.target.value })}
               type="number"
               step="any"
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Compte
             <input
               value={form.compte}
               onChange={(e) => setForm({ ...form, compte: e.target.value })}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               placeholder="PEA, CTO..."
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Type d'actif
             <select
               value={form.type_actif}
               onChange={(e) => setForm({ ...form, type_actif: e.target.value })}
-              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             >
               {TYPE_ACTIF_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -344,7 +359,7 @@ export default function PortefeuillePage() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
           >
             Ajouter
           </button>
@@ -358,7 +373,9 @@ export default function PortefeuillePage() {
               key={tab.key}
               onClick={() => setCategorie(tab.key)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                categorie === tab.key ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+                categorie === tab.key
+                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
               }`}
             >
               {tab.label}
@@ -367,12 +384,12 @@ export default function PortefeuillePage() {
         </div>
 
         {holdings.length > 0 && (
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             Filtrer par compte
             <select
               value={filtreCompte}
               onChange={(e) => setFiltreCompte(e.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700"
+              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
             >
               <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
               {comptesDisponibles(holdings).map((compte) => (
@@ -388,14 +405,14 @@ export default function PortefeuillePage() {
 
       <Card>
         {loading ? (
-          <p className="text-sm text-slate-500">Chargement...</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
         ) : holdings.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucune position. Ajoute une ligne ou importe un fichier.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Aucune position. Ajoute une ligne ou importe un fichier.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500">
+                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {COLONNES_TRIABLES.map((col) => {
                     const triActif = tri?.cle === col.cle
                     return (
@@ -404,7 +421,7 @@ export default function PortefeuillePage() {
                         scope="col"
                         onClick={() => handleSort(col.cle)}
                         aria-sort={triActif ? (tri.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
-                        className="cursor-pointer select-none py-2 pr-4 hover:text-slate-700"
+                        className="cursor-pointer select-none py-2 pr-4 hover:text-slate-700 dark:hover:text-slate-200"
                       >
                         {col.label}
                         {triActif && <span className="ml-1">{tri.direction === 'asc' ? '▲' : '▼'}</span>}
@@ -416,10 +433,9 @@ export default function PortefeuillePage() {
                   <th className="py-2 pr-4"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {lignesAffichees.map((h) => {
                   const md = h.market_data
-                  const valeur = valeurDe(h)
                   const enEdition = editingId === h.id
                   return (
                     <tr
@@ -428,20 +444,20 @@ export default function PortefeuillePage() {
                         if (enEdition) return
                         setSelectedTicker(h.ticker)
                       }}
-                      className="cursor-pointer hover:bg-slate-50"
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
                     >
-                      <td className="py-2 pr-4 font-medium text-slate-900">
+                      <td className="py-2 pr-4 font-medium text-slate-900 dark:text-slate-100">
                         {h.ticker}
                         {h.origine === 'manuel' && (
                           <span
                             title="Ligne saisie manuellement : non recalculée par un import de transactions"
-                            className="ml-2 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-slate-500"
+                            className="ml-2 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400"
                           >
                             saisie manuelle
                           </span>
                         )}
                       </td>
-                      <td className="py-2 pr-4 text-slate-600">{md?.nom ?? h.nom ?? '—'}</td>
+                      <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{md?.nom ?? h.nom ?? '—'}</td>
                       <td className="py-2 pr-4">
                         {enEdition ? (
                           <input
@@ -451,23 +467,23 @@ export default function PortefeuillePage() {
                             type="number"
                             step="any"
                             aria-label="Quantité (édition)"
-                            className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                            className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                           />
                         ) : (
                           h.quantite
                         )}
                       </td>
                       <td className="py-2 pr-4">{formatEuro(md?.prix_actuel ?? null)}</td>
-                      <td className="py-2 pr-4">{formatEuro(valeur)}</td>
+                      <td className="py-2 pr-4">{formatEuro(h.valeur)}</td>
                       <td className="py-2 pr-4">
                         <RendementCell value={h.rendement_depuis_achat_pct} />
                       </td>
                       <td className="py-2 pr-4">
                         <RendementCell value={h.rendement_annualise_pct} />
                       </td>
-                      <td className="py-2 pr-4 text-slate-600">{md?.secteur ?? '—'}</td>
-                      <td className="py-2 pr-4 text-slate-600">
-                        {md?.erreur ? <span className="text-amber-600">{md.erreur}</span> : md?.pays ?? '—'}
+                      <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{md?.secteur ?? '—'}</td>
+                      <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">
+                        {md?.erreur ? <span className="text-amber-600 dark:text-amber-400">{md.erreur}</span> : (md?.pays ?? '—')}
                       </td>
                       <td className="py-2 pr-4 text-right">
                         {enEdition ? (
@@ -475,20 +491,29 @@ export default function PortefeuillePage() {
                             <button
                               onClick={(e) => saveEdit(e, h.id)}
                               disabled={editSaving}
-                              className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-40"
+                              className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-40 dark:text-emerald-400"
                             >
                               Enregistrer
                             </button>
-                            <button onClick={(e) => cancelEdit(e)} className="text-xs text-slate-500 hover:underline">
+                            <button
+                              onClick={(e) => cancelEdit(e)}
+                              className="text-xs text-slate-500 hover:underline dark:text-slate-400"
+                            >
                               Annuler
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
-                            <button onClick={(e) => startEdit(e, h)} className="text-xs text-slate-600 hover:underline">
+                            <button
+                              onClick={(e) => startEdit(e, h)}
+                              className="text-xs text-slate-600 hover:underline dark:text-slate-300"
+                            >
                               Modifier
                             </button>
-                            <button onClick={(e) => handleDelete(e, h.id)} className="text-xs text-red-600 hover:underline">
+                            <button
+                              onClick={(e) => handleDelete(e, h)}
+                              className="text-xs text-red-600 hover:underline dark:text-red-400"
+                            >
                               Supprimer
                             </button>
                           </div>
@@ -500,9 +525,9 @@ export default function PortefeuillePage() {
                 {editingId !== null &&
                   lignesAffichees.some((h) => h.id === editingId) && (
                     <tr onClick={(e) => e.stopPropagation()}>
-                      <td colSpan={10} className="bg-slate-50 py-3 pr-4">
+                      <td colSpan={10} className="bg-slate-50 py-3 pr-4 dark:bg-slate-700/50">
                         <div className="flex flex-wrap items-end gap-3">
-                          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                             Prix de revient
                             <input
                               value={editForm.prix_revient_moyen}
@@ -511,27 +536,27 @@ export default function PortefeuillePage() {
                               type="number"
                               step="any"
                               aria-label="Prix de revient (édition)"
-                              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                             />
                           </label>
-                          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                             Compte
                             <input
                               value={editForm.compte}
                               onChange={(e) => setEditForm({ ...editForm, compte: e.target.value })}
                               onClick={(e) => e.stopPropagation()}
                               aria-label="Compte (édition)"
-                              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                             />
                           </label>
-                          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                             Type d'actif
                             <select
                               value={editForm.type_actif}
                               onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
                               onClick={(e) => e.stopPropagation()}
                               aria-label="Type d'actif (édition)"
-                              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                             >
                               {TYPE_ACTIF_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
@@ -541,13 +566,13 @@ export default function PortefeuillePage() {
                             </select>
                           </label>
                         </div>
-                        {editError && <p className="mt-2 text-xs text-red-600">{editError}</p>}
+                        {editError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editError}</p>}
                       </td>
                     </tr>
                   )}
               </tbody>
               <tfoot>
-                <tr className="border-t border-slate-200 text-sm font-semibold text-slate-700">
+                <tr className="border-t border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
                   <td colSpan={4} className="py-2 pr-4">
                     {lignesFiltrees.length} position{lignesFiltrees.length > 1 ? 's' : ''}
                   </td>
@@ -561,6 +586,38 @@ export default function PortefeuillePage() {
       </Card>
 
       {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
+
+      {confirmSuppression && (
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+          {({ titleId }) => (
+            <>
+              <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Supprimer cette ligne ?
+              </h2>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                La ligne <span className="font-medium text-slate-900 dark:text-slate-100">{confirmSuppression.ticker}</span> sera
+                définitivement supprimée du portefeuille.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmSuppression(null)}
+                  disabled={suppressionEnCours}
+                  className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmerSuppression}
+                  disabled={suppressionEnCours}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40 dark:bg-red-600 dark:hover:bg-red-500"
+                >
+                  {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+            </>
+          )}
+        </Modale>
+      )}
     </div>
   )
 }

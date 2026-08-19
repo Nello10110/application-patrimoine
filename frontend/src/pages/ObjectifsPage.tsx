@@ -48,16 +48,16 @@ function AllocationEditor({
       <div className="space-y-2">
         {items.map((item) => (
           <div key={item.categorie} className="flex items-center gap-3">
-            <span className="flex-1 text-sm text-slate-700">{item.categorie}</span>
+            <span className="flex-1 text-sm text-slate-700 dark:text-slate-300">{item.categorie}</span>
             <input
               type="number"
               step="any"
               value={item.pourcentage_cible}
               onChange={(e) => updatePct(item.categorie, Number(e.target.value))}
-              className="w-24 rounded-md border border-slate-300 px-2 py-1 text-right text-sm"
+              className="w-24 rounded-md border border-slate-300 px-2 py-1 text-right text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
-            <span className="w-4 text-xs text-slate-400">%</span>
-            <button onClick={() => remove(item.categorie)} className="text-xs text-red-600 hover:underline">
+            <span className="w-4 text-xs text-slate-400 dark:text-slate-500">%</span>
+            <button onClick={() => remove(item.categorie)} className="text-xs text-red-600 hover:underline dark:text-red-400">
               ✕
             </button>
           </div>
@@ -72,15 +72,20 @@ function AllocationEditor({
             if (erreurAjout) setErreurAjout(null)
           }}
           placeholder="Nouvelle catégorie"
-          className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm"
+          className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
         />
-        <button onClick={add} className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700">
+        <button
+          onClick={add}
+          className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-600 dark:text-slate-300"
+        >
           Ajouter
         </button>
       </div>
-      {erreurAjout && <p className="mt-1 text-xs text-red-600">{erreurAjout}</p>}
+      {erreurAjout && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{erreurAjout}</p>}
 
-      <p className={`mt-3 text-sm font-medium ${Math.abs(total - 100) < 0.5 ? 'text-emerald-600' : 'text-amber-600'}`}>
+      <p
+        className={`mt-3 text-sm font-medium ${Math.abs(total - 100) < 0.5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}
+      >
         Total : {total.toFixed(1)}% {Math.abs(total - 100) < 0.5 ? '✓' : '(doit sommer à 100%)'}
       </p>
     </Card>
@@ -172,12 +177,12 @@ export default function ObjectifsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900">Objectifs de répartition</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Objectifs de répartition</h2>
         <div className="flex items-center gap-3">
           <select
             value={annee}
             onChange={(e) => setAnnee(Number(e.target.value))}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
             {anneesDisponibles.map((y) => (
               <option key={y} value={y}>
@@ -195,22 +200,22 @@ export default function ObjectifsPage() {
                 }}
                 placeholder="Ajouter une année"
                 aria-label="Ajouter une année"
-                className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               />
               <button
                 onClick={ajouterAnnee}
                 type="button"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-600 dark:text-slate-300"
               >
                 Ajouter
               </button>
             </div>
-            {erreurNouvelleAnnee && <p className="mt-1 text-xs text-red-600">{erreurNouvelleAnnee}</p>}
+            {erreurNouvelleAnnee && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{erreurNouvelleAnnee}</p>}
           </div>
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
           >
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
@@ -218,11 +223,13 @@ export default function ObjectifsPage() {
       </div>
 
       {message && (
-        <p className={`text-sm ${message.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>{message.text}</p>
+        <p className={`text-sm ${message.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+          {message.text}
+        </p>
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-500">Chargement...</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <AllocationEditor title="Répartition géographique" items={geo} onChange={setGeo} />

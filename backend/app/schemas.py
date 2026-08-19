@@ -121,6 +121,10 @@ class HoldingOut(HoldingBase):
     market_data: MarketDataOut | None = None
     rendement_depuis_achat_pct: float | None = None
     rendement_annualise_pct: float | None = None
+    # Valeur de la ligne (prix de marché, à défaut prix de revient, `None` si aucun des
+    # deux n'est connu), calculée côté serveur avec `analysis_service.value_holdings`
+    # pour éviter que le frontend ne recalcule le même chiffre (LOT 6.7).
+    valeur: float | None = None
 
 
 class ImportPreviewResponse(BaseModel):

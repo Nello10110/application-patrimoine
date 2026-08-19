@@ -41,6 +41,10 @@ export interface Holding {
   market_data: MarketData | null
   rendement_depuis_achat_pct: number | null
   rendement_annualise_pct: number | null
+  // Valeur de la ligne calculée côté serveur (prix de marché, à défaut prix de
+  // revient, `null` si aucun des deux n'est connu) — cf. `analysis_service.value_holdings`
+  // côté backend. Le frontend n'a plus à refaire ce calcul (LOT 6.7).
+  valeur: number | null
 }
 
 export interface HoldingInput {

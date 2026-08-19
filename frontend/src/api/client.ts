@@ -21,20 +21,43 @@ import type {
   TransactionImportResult,
 } from './types'
 
+// Messages génériques (LOT 6.8) : utilisés seulement quand l'API ne fournit aucun
+// `detail` textuel exploitable — sinon on garde toujours celui du backend tel quel,
+// il est déjà rédigé en français métier (cf. les `HTTPException` des routers).
+const MESSAGE_ERREUR_RESEAU = 'Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.'
+
+const MESSAGES_PAR_STATUT: Record<number, string> = {
+  404: 'La ressource demandée est introuvable.',
+  413: 'Le fichier envoyé est trop volumineux.',
+  429: 'Trop de requêtes envoyées en peu de temps. Merci de patienter avant de réessayer.',
+  500: 'Une erreur interne est survenue côté serveur. Réessayez plus tard.',
+}
+
+function messageGenerique(status: number, statusText: string): string {
+  return MESSAGES_PAR_STATUT[status] ?? `Une erreur inattendue est survenue (${status}${statusText ? ` ${statusText}` : ''}).`
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    headers: options?.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
-    ...options,
-  })
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, {
+      headers: options?.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+      ...options,
+    })
+  } catch {
+    // `fetch` a échoué avant toute réponse (connexion au serveur perdue, serveur non
+    // démarré...) : il n'y a aucun `detail` métier possible à afficher.
+    throw new Error(MESSAGE_ERREUR_RESEAU)
+  }
   if (!res.ok) {
-    let detail = res.statusText
+    let detail: string | null = null
     try {
       const body = await res.json()
-      detail = body.detail ?? JSON.stringify(body)
+      if (typeof body?.detail === 'string') detail = body.detail
     } catch {
-      // ignore
+      // Corps de réponse absent ou non-JSON : pas de `detail` à récupérer.
     }
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+    throw new Error(detail ?? messageGenerique(res.status, res.statusText))
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
