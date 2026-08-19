@@ -13,5 +13,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Fixe le fuseau du runner à UTC : plusieurs tests (ex. `formatDateHeure`)
+    // vérifient une conversion UTC → locale et supposaient à tort que l'environnement
+    // de test tournait déjà en UTC, sans jamais l'imposer — dépendant silencieusement
+    // du fuseau système de la machine qui exécute `npm run test`.
+    env: { TZ: 'UTC' },
   },
 })
