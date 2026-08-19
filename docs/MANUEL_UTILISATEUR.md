@@ -47,9 +47,9 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/portefeuille/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. Affiche :
 
 - valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ;
-- émetteur et résumé d'activité — pour une action (Yahoo Finance) comme pour un fonds (description de sa fiche justETF, quand disponible) — frais de gestion annuels et frais de transaction cumulés (pour les fonds) ;
+- émetteur et résumé d'activité — pour une action (Yahoo Finance) comme pour un fonds (description en français de sa fiche justETF, quand disponible) — frais de gestion annuels et frais de transaction cumulés (pour les fonds) ;
 - graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) ;
-- pour un fonds : deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie) et le tableau des ~10 plus grosses lignes sous-jacentes, quand cette donnée est disponible ;
+- pour un fonds : deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie) et le tableau des ~10 plus grosses lignes sous-jacentes (nom et poids, via justETF pour un fonds couvert ou Yahoo Finance sinon), quand cette donnée est disponible ;
 - pour un fonds couvert par justETF : une **répartition détaillée** supplémentaire, avec les intitulés exacts publiés par justETF (ex. « Inde » plutôt que « Marchés émergents ») — en complément des deux camemberts par zone/catégorie, pas à leur place.
 
 Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique).

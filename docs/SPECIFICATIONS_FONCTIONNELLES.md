@@ -102,11 +102,23 @@ Services », vu une fois à un poids négligeable) bascule sur « Autres secteur
 échouer l'extraction.
 
 **Résumé descriptif d'un fonds.** Pour une action, le résumé de la fiche détaillée vient de Yahoo
-Finance (`longBusinessSummary`, récupéré à la demande). Pour un fonds, il vient désormais de la
-description publiée sur sa fiche justETF (`MarketDataCache.description`, alimentée par
-`justetf_refresh`) — disponible même pour un fonds sans composition couverte (réplication
-synthétique, ETC) : la description est extraite indépendamment de la composition, les deux axes
-n'ayant aucune raison technique d'échouer ensemble sur la même fiche justETF.
+Finance (`longBusinessSummary`, récupéré à la demande). Pour un fonds, il vient de la description
+publiée sur sa fiche justETF (`MarketDataCache.description`, alimentée par `justetf_refresh`) —
+disponible même pour un fonds sans composition couverte (réplication synthétique, ETC) : la
+description est extraite indépendamment de la composition, les deux axes n'ayant aucune raison
+technique d'échouer ensemble sur la même fiche justETF. **Récupérée depuis la page justETF en
+français** (`/fr/etf-profile.html`, cf. 2.5), pour correspondre au texte que l'utilisateur voit
+réellement sur le site — la géo/secteur zone-mappée ci-dessus continue, elle, de venir de la page
+anglaise (`/en/...`), dont la taxonomie de libellés (`JUSTETF_SECTOR_LABELS`, correspondance
+pays → zone) a été auditée sur le portefeuille réel et ne doit pas changer de langue source.
+
+**Composition nominative d'un fonds (« 10 plus grosses lignes »).** Affichée sur la fiche détaillée
+(graphique + tableau), alimentée soit par justETF (`fund_top_holdings`, pour un fonds couvert par
+2.4 — nom et poids exacts publiés par justETF, sans pays/secteur par ligne : cette information n'est
+disponible qu'agrégée via `fund_composition`/`fund_composition_brute`), soit en repli par Yahoo
+Finance (`funds_data.top_holdings`, pour un fonds non couvert par justETF — ticker, nom, poids,
+pays et secteur par ligne). Les poids ne sont **jamais renormalisés** : la somme du top 10 est
+légitimement inférieure à 100 % du fonds.
 
 ### 3.5 Rentabilité
 
@@ -166,7 +178,7 @@ L'import d'un relevé de positions est **transactionnel** : une erreur en cours 
 | `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) |
 | `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques/objectifs). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
 | `fund_composition_brute` | Répartition géo/sectorielle **brute** (non zone-mappée) d'un fonds telle que publiée par justETF, affichage seul sur la fiche détaillée (cf. § 3.4) — jamais utilisée dans un calcul agrégé |
-| `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds |
+| `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds — justETF pour un fonds couvert (2.4), Yahoo Finance en repli sinon |
 | `ticker_resolution` | Cache ISIN/symbole → ticker Yahoo Finance |
 | `allocation_targets` | Objectifs de répartition géo/sectorielle par année |
 | `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |

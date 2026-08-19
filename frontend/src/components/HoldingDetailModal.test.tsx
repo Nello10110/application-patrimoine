@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -67,5 +67,38 @@ describe('HoldingDetailModal — lien "Ouvrir en pleine page" (LOT 6.1)', () => 
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(await screen.findByText('Page pleine écran : AAPL')).toBeInTheDocument()
+  })
+})
+
+// LOT 6.12 : composition_actions justETF (2.6) n'a pas de ticker Yahoo distinct — le
+// service pose `symbol === nom` (le nom de l'entreprise dans les deux champs), ce qui
+// ne doit pas afficher un sous-titre redondant comme le fait déjà la composition
+// yfinance existante (`symbol` = ticker, ex. "AAPL", différent de `nom`).
+describe('HoldingDetailModal — sous-titre de la composition en actions (LOT 6.12)', () => {
+  function render_avec(composition_actions: NonNullable<HoldingDetail['composition_actions']>) {
+    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ composition_actions }))
+    return render(
+      <MemoryRouter>
+        <HoldingDetailModal ticker="IWDA" onClose={vi.fn()} />
+      </MemoryRouter>,
+    )
+  }
+
+  it("masque le sous-titre quand symbol et nom sont identiques (justETF, pas de ticker distinct)", async () => {
+    render_avec([{ symbol: 'HDFC Bank Ltd.', nom: 'HDFC Bank Ltd.', poids: 0.0679, pays: null, secteur: null }])
+
+    await screen.findByText('Composition en actions (10 plus grosses lignes du fonds)')
+    // Scopé à la ligne du tableau (le graphique recharts affiche aussi le nom en
+    // étiquette d'axe, donc `screen.getAllByText` compterait aussi cette occurrence).
+    const ligne = within(screen.getByRole('table')).getByText('HDFC Bank Ltd.').closest('tr')!
+    expect(within(ligne).getAllByText('HDFC Bank Ltd.')).toHaveLength(1)
+  })
+
+  it('garde le sous-titre quand symbol et nom diffèrent (yfinance, ticker distinct du nom)', async () => {
+    render_avec([{ symbol: 'AAPL', nom: 'Apple Inc.', poids: 0.05, pays: 'États-Unis', secteur: 'Technologie' }])
+
+    await screen.findByText('Composition en actions (10 plus grosses lignes du fonds)')
+    const ligne = within(screen.getByRole('table')).getByText('Apple Inc.').closest('tr')!
+    expect(within(ligne).getByText('AAPL')).toBeInTheDocument()
   })
 })

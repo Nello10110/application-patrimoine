@@ -13,8 +13,9 @@ volontairement plus prudent que celui déjà en place pour Yahoo Finance
 une ressource sans SLA ni support.
 
 Portée délibérément limitée à la fiche ETF statique (`GET
-/en/etf-profile.html?isin=...`), rendue côté serveur sans JavaScript ni session :
-elle expose ~4-5 plus grosses lignes pays/secteurs + une ligne résiduelle "Other",
+/en/etf-profile.html?isin=...` pour la géo/secteur, `/fr/...` pour la description et
+le top 10, cf. 2.5/2.6), rendue côté serveur sans JavaScript ni session : elle
+expose ~4-5 plus grosses lignes pays/secteurs + une ligne résiduelle "Other",
 repérables via des attributs `data-testid` stables. Le bouton "Show more" de la
 fiche (qui donnerait la liste complète, 9-10 pays au lieu de 4-5) déclenche un
 appel AJAX Apache Wicket à état (session de page générée à la volée) — trop
@@ -35,7 +36,7 @@ import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
-from ..models import SOURCE_JUSTETF, FundComposition, FundCompositionBrute, Holding, MarketDataCache
+from ..models import SOURCE_JUSTETF, FundComposition, FundCompositionBrute, FundTopHolding, Holding, MarketDataCache
 from .reference_indices import JUSTETF_SECTOR_LABELS, SECTEUR_AUTRES, ZONE_AUTRES, region_for_country
 
 logger = logging.getLogger("patrimoine.justetf")
@@ -52,7 +53,16 @@ _USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
-_URL_FICHE_ETF = "https://www.justetf.com/en/etf-profile.html?isin={isin}"
+_URL_FICHE_ETF_EN = "https://www.justetf.com/en/etf-profile.html?isin={isin}"
+# Page en français (2.5/2.6, retour utilisateur du 19/08/2026) : uniquement pour la
+# description et le détail nominatif du top 10 — les noms d'entreprises n'y sont pas
+# traduits, contrairement aux libellés pays/secteurs (ex. "India" -> "Inde", "Finance"
+# -> "Finance" mais "Non-Energy Materials" -> "Matériaux non énergétiques"). Le
+# géo/secteur zone-mappé continue donc de venir de la page anglaise ci-dessus, dont la
+# taxonomie (`JUSTETF_SECTOR_LABELS`, `region_for_country`) a été auditée sur les 26 ETF
+# réels du portefeuille (Increment 9) — un changement de langue y casserait sans bruit
+# la reconnaissance de la ligne résiduelle "Other" et des libellés de secteur.
+_URL_FICHE_ETF_FR = "https://www.justetf.com/fr/etf-profile.html?isin={isin}"
 _URL_COTATION = "https://www.justetf.com/api/etfs/{isin}/quote?locale=en&currency=EUR&isin={isin}"
 
 _LIGNE_RESIDUELLE = "Other"
@@ -78,6 +88,12 @@ class FicheJustETF:
     geo_brut: list[dict] = field(default_factory=list)
     sector_brut: list[dict] = field(default_factory=list)
     description: str | None = None
+    # Les 10 principales positions du fonds (2.6, retour utilisateur du 19/08/2026) :
+    # {"nom": str, "poids": float} — poids en fraction (0-1) du fonds ENTIER, PAS
+    # renormalisé à 1,0 sur le sous-ensemble (contrairement à `geo_rows`/`sector_rows`) :
+    # la somme du top 10 est légitimement < 100% (ex. 34,78% sur FR0010361683), le
+    # renormaliser gonflerait chaque poids à tort.
+    top_holdings: list[dict] = field(default_factory=list)
 
 
 def _fetch_page_html(url: str) -> str | None:
@@ -130,6 +146,21 @@ def _extraire_description(soup: BeautifulSoup) -> str | None:
     return texte or None
 
 
+def _extraire_top_holdings(soup: BeautifulSoup) -> list[dict]:
+    """Extrait les ~10 plus grosses lignes du fonds (`data-testid`
+    `etf-holdings_top-holdings_row`/`..._link_name`/`..._value_percentage`, même
+    structure que les blocs pays/secteurs). Poids gardé tel quel (fraction du fonds
+    entier) — voir la remarque sur `FicheJustETF.top_holdings` : pas de
+    renormalisation ici, contrairement à `_normalise`."""
+    bruts = _extraire_lignes_brutes(
+        soup,
+        "etf-holdings_top-holdings_row",
+        "tl_etf-holdings_top-holdings_link_name",
+        "tl_etf-holdings_top-holdings_value_percentage",
+    )
+    return [{"nom": nom, "poids": pct / 100} for nom, pct in bruts.items()]
+
+
 def _normalise(totaux: dict[str, float]) -> list[dict]:
     """Renormalise pour que la somme des poids affichés vaille exactement 1,0 —
     même raisonnement que `market_data_service.fetch_fund_composition._normalise`
@@ -143,17 +174,24 @@ def _normalise(totaux: dict[str, float]) -> list[dict]:
 
 def fetch_composition(isin: str) -> FicheJustETF | None:
     """Récupère et parse la fiche ETF justETF de `isin`. Renvoie une `FicheJustETF`
-    (zone-mappé + détail brut + description) — sans champ `source` sur les lignes
-    de composition, posé par l'appelant (`refresh_all`) au moment de la persistance.
+    (zone-mappé + détail brut + description + top 10) — sans champ `source` sur les
+    lignes de composition, posé par l'appelant (`refresh_all`) au moment de la
+    persistance.
 
-    Ne lève jamais et ne renvoie `None` que si la page elle-même n'a pas pu être
+    Ne lève jamais et ne renvoie `None` que si la page anglaise (géo/secteur, seule
+    donnée réellement indispensable au reste de l'application) n'a pas pu être
     récupérée/parsée (échec réseau, statut HTTP, HTML totalement inattendu) : la
     description est présente même sur les fiches sans onglet Holdings (ETF à
     réplication synthétique ou ETC), donc l'ABSENCE de données pays/secteurs ne
     doit plus, à elle seule, faire échouer tout l'appel (cf. Increment 9) — sinon
     l'appelant laisserait `description` non renseignée pour ces ETF alors qu'elle
-    est bien disponible."""
-    html = _fetch_page_html(_URL_FICHE_ETF.format(isin=isin))
+    est bien disponible.
+
+    Description et top 10 viennent d'une seconde requête, sur la page en FRANÇAIS
+    (2.5/2.6) — best effort : un échec de cette seconde requête laisse simplement
+    `description`/`top_holdings` vides, sans jamais invalider la composition
+    géo/secteur déjà extraite de la page anglaise ci-dessus."""
+    html = _fetch_page_html(_URL_FICHE_ETF_EN.format(isin=isin))
     if not html:
         return None
 
@@ -187,10 +225,21 @@ def fetch_composition(isin: str) -> FicheJustETF | None:
         sector_rows = _normalise(secteur_totaux)
         geo_brut = _normalise(pays_bruts)
         sector_brut = _normalise(secteurs_bruts)
-
-        description = _extraire_description(soup)
     except Exception:
         return None
+
+    description: str | None = None
+    top_holdings: list[dict] = []
+    if DELAI_ENTRE_APPELS_JUSTETF_SECONDES:
+        time.sleep(DELAI_ENTRE_APPELS_JUSTETF_SECONDES)
+    html_fr = _fetch_page_html(_URL_FICHE_ETF_FR.format(isin=isin))
+    if html_fr:
+        try:
+            soup_fr = BeautifulSoup(html_fr, "html.parser")
+            description = _extraire_description(soup_fr)
+            top_holdings = _extraire_top_holdings(soup_fr)
+        except Exception:
+            pass
 
     return FicheJustETF(
         geo_rows=geo_rows,
@@ -198,6 +247,7 @@ def fetch_composition(isin: str) -> FicheJustETF | None:
         geo_brut=geo_brut,
         sector_brut=sector_brut,
         description=description,
+        top_holdings=top_holdings,
     )
 
 
@@ -240,7 +290,12 @@ def refresh_all(db: Session) -> dict:
     - indépendamment, si `description` est renseignée : upsert dans
       `MarketDataCache.description` — un ETF sans onglet Holdings (réplication
       synthétique/ETC) obtient ainsi sa description sans jamais obtenir de ligne
-      de composition, les deux axes étant délibérément découplés (Increment 9).
+      de composition, les deux axes étant délibérément découplés (Increment 9) ;
+    - indépendamment encore, si `top_holdings` est renseigné : remplace toutes les
+      lignes `FundTopHolding` existantes pour cet ISIN (2.6) — même logique de
+      remplacement complet que la composition, mais découplée d'elle : un échec de
+      la page française (top 10/description) laisse la composition déjà écrite
+      intacte, et réciproquement.
 
     En cas d'échec réseau/parsing pour un ISIN (`fetch_composition` renvoie
     `None`), rien n'est touché pour cet ISIN — aucune régression.
@@ -298,6 +353,23 @@ def refresh_all(db: Session) -> dict:
                 cache_entry = MarketDataCache(ticker=isin)
                 db.add(cache_entry)
             cache_entry.description = fiche.description
+
+        # Top 10 (2.6) : indépendant de `description` et de la composition
+        # ci-dessus — même découplage. `market_data_service.refresh_tickers` ne
+        # touche plus jamais `FundTopHolding` pour un ticker qui a une composition
+        # justETF (cf. sa garde `a_deja_composition_justetf`), donc cette table lui
+        # appartient entièrement ici pour ces ISIN.
+        if fiche.top_holdings:
+            db.query(FundTopHolding).filter(FundTopHolding.ticker == isin).delete()
+            for row in fiche.top_holdings:
+                db.add(
+                    FundTopHolding(
+                        ticker=isin,
+                        holding_symbol=row["nom"],
+                        holding_nom=row["nom"],
+                        poids=row["poids"],
+                    )
+                )
 
     db.commit()
     return {"traites": traites, "reussis": reussis}

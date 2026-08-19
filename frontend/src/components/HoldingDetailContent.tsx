@@ -157,7 +157,14 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
                 stroke={COULEUR_AXE}
                 tick={STYLE_TICK_AXE}
               />
-              <YAxis type="category" dataKey="symbol" width={70} tick={{ fontSize: 12, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+              <YAxis
+                type="category"
+                dataKey="symbol"
+                width={120}
+                tickFormatter={(v: string) => (v.length > 16 ? `${v.slice(0, 15)}…` : v)}
+                tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
+                stroke={COULEUR_AXE}
+              />
               <Tooltip
                 formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`}
                 labelFormatter={(_, p) => p?.[0]?.payload?.nom ?? ''}
@@ -182,7 +189,9 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
                   <tr key={a.symbol}>
                     <td className="py-2 pr-4">
                       <span className="font-medium text-slate-900 dark:text-slate-100">{a.nom ?? a.symbol}</span>
-                      <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">{a.symbol}</span>
+                      {/* Positions justETF (2.6) : pas de ticker Yahoo distinct, `symbol` porte
+                        déjà le nom de l'entreprise — sous-titre redondant, donc masqué. */}
+                      {a.symbol !== a.nom && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">{a.symbol}</span>}
                     </td>
                     <td className="py-2 pr-4 text-slate-700 dark:text-slate-300">{(a.poids * 100).toFixed(2)}%</td>
                     <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{a.pays ?? '—'}</td>

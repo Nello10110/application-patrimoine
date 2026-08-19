@@ -406,10 +406,12 @@ def refresh_tickers(
         # fois par semaine par défaut) — sans cette garde, chaque rafraîchissement
         # de prix effacerait la donnée justETF plus riche pour la remplacer par le
         # repli yfinance, voire par rien du tout. `FundTopHolding` (détail nominatif
-        # des plus grosses lignes, non fourni par justETF) suit la même garde : sans
+        # des plus grosses lignes — désormais alimenté par justETF pour les ETF
+        # couverts, cf. `justetf_service.refresh_all`, 2.6) suit la même garde : sans
         # ça, il serait supprimé à chaque rafraîchissement de prix sans jamais être
-        # réinséré dès qu'un ticker bascule sur justETF, puisque sa reconstruction
-        # est imbriquée dans le même bloc que le calcul de composition ci-dessous.
+        # réinséré par yfinance pour un ticker basculé sur justETF, puisque sa
+        # reconstruction ici est imbriquée dans le même bloc que le calcul de
+        # composition ci-dessous.
         a_deja_composition_justetf = (
             db.query(FundComposition)
             .filter(FundComposition.ticker == identifiant, FundComposition.source == SOURCE_JUSTETF)

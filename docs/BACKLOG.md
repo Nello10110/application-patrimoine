@@ -229,6 +229,34 @@ l'utilisateur sur les 26 ETF réels :
 > `fetch_price`), `backend/app/services/holding_detail_service.py`, `backend/app/schemas.py`,
 > `frontend/src/api/types.ts`, `frontend/src/components/HoldingDetailContent.tsx`.
 
+**Troisième lot de livraison — 19/08/2026**, retour utilisateur sur la fiche FR0010361683 : la
+description était en anglais (justETF l'affiche en français) et le top 10 nominatif, disponible sur
+justETF, n'apparaissait pas pour les ETF couverts par justETF.
+
+- **Description en français** : `fetch_composition` fait désormais une seconde requête, sur la page
+  **française** de la fiche ETF (`/fr/etf-profile.html`), dédiée à la description et au top 10 — la
+  géo/secteur zone-mappée continue de venir de la page anglaise (`/en/...`), dont la taxonomie de
+  libellés a été auditée sur les 26 ETF réels et ne devait pas changer de langue source (les noms de
+  pays/secteurs ne sont pas les mêmes en français, ex. "Non-Energy Materials" vs "Matériaux non
+  énergétiques" — un changement de locale y aurait cassé silencieusement le mapping).
+- **Top 10 nominatif ajouté pour les ETF couverts par justETF** : `fund_top_holdings` était rempli
+  uniquement par le repli Yahoo Finance, qui ne s'exécute plus dès qu'un ticker a une composition
+  justETF (garde déjà en place depuis 2.4) — un ETF couvert par justETF n'avait donc **aucun** top
+  10 affiché. `justetf_service.refresh_all` écrit désormais aussi `fund_top_holdings` (nom + poids,
+  **non renormalisé** — la somme du top 10 est légitimement < 100 % du fonds), en repli uniquement
+  quand la page française échoue le portefeuille garde le dernier top 10 connu (même découplage que
+  la description). Sans ticker Yahoo pour ces lignes, `holding_symbol`/`holding_nom` portent tous
+  deux le nom de l'entreprise ; le frontend masque le sous-titre redondant qui en résulterait.
+- **Vérifié en conditions réelles** sur FR0010361683 (MSCI India) : description désormais identique
+  au texte français de justETF, top 10 (HDFC Bank 6,79 %, Reliance Industries 6,05 %...) conforme à
+  la fiche justETF réelle. Vérifié aussi que la géo/secteur (Increment 9) n'a pas bougé, et que la
+  description d'un ETF sans onglet Holdings (LU1681048630) reste disponible indépendamment du top
+  10 (toujours vide pour ces 5 ETF, cohérent avec l'absence de section Holdings sur leur fiche).
+
+> Fichiers additionnels : `backend/app/services/justetf_service.py` (`_URL_FICHE_ETF_FR`,
+> `_extraire_top_holdings`), `backend/app/services/market_data_service.py` (commentaire mis à jour),
+> `frontend/src/components/HoldingDetailContent.tsx`.
+
 ---
 
 ## 3. Robustesse, validation et exploitation

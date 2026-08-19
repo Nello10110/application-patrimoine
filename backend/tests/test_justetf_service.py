@@ -10,7 +10,7 @@ que `yf.Ticker`/`yf.Search` dans `test_market_data_service.py`)."""
 
 import pytest
 
-from app.models import SOURCE_COMPOSITION, SOURCE_JUSTETF, FundComposition, FundCompositionBrute, MarketDataCache
+from app.models import SOURCE_COMPOSITION, SOURCE_JUSTETF, FundComposition, FundCompositionBrute, FundTopHolding, MarketDataCache
 from app.services import justetf_service
 from app.services.reference_indices import JUSTETF_SECTOR_LABELS, SECTEUR_AUTRES, ZONE_AMERIQUE_DU_NORD, ZONE_AUTRES, ZONE_JAPON
 
@@ -65,6 +65,25 @@ HTML_PAYS_INCONNU = """
 """
 
 HTML_SANS_DONNEES = "<html><body><p>Page inattendue, aucune donnée pays/secteurs.</p></body></html>"
+
+# Fiche en français (2.5/2.6, retour utilisateur du 19/08/2026) : description en
+# français (structure identique à la page anglaise, texte différent) + les 10
+# principales positions (`data-testid` réels repérés sur FR0010361683).
+HTML_FICHE_FR = """
+<html><body>
+<div data-testid="etf-quote-section_description-content-inner">
+  Cet ETF suit l'indice MSCI India.
+</div>
+<div data-testid="etf-holdings_top-holdings_row">
+  <a data-testid="tl_etf-holdings_top-holdings_link_name">HDFC Bank Ltd.</a>
+  <span data-testid="tl_etf-holdings_top-holdings_value_percentage">6,79%</span>
+</div>
+<div data-testid="etf-holdings_top-holdings_row">
+  <a data-testid="tl_etf-holdings_top-holdings_link_name">Reliance Industries Ltd.</a>
+  <span data-testid="tl_etf-holdings_top-holdings_value_percentage">6,05%</span>
+</div>
+</body></html>
+"""
 
 # Fiche justETF d'un ETF à réplication synthétique/ETC (pas d'onglet Holdings,
 # ex. LU1681048630 vérifié en conditions réelles) : la description est présente
@@ -190,6 +209,59 @@ def test_fetch_composition_renvoie_la_description_meme_sans_holdings(monkeypatch
     assert fiche.geo_brut == []
     assert fiche.sector_brut == []
     assert fiche.description == "This ETC provides exposure to gold bullion via a synthetic swap structure."
+
+
+def test_fetch_composition_description_et_top_holdings_viennent_de_la_page_francaise(monkeypatch):
+    """2.5/2.6 (retour utilisateur du 19/08/2026 : description en anglais au lieu du
+    français vu sur justETF, top 10 absent) : la géo/secteur continue de venir de la
+    page anglaise (taxonomie déjà auditée sur les 26 ETF réels, Increment 9), mais la
+    description et le top 10 viennent d'une requête séparée sur la page française."""
+    appels = []
+
+    def fausse_fetch(url):
+        appels.append(url)
+        return HTML_FICHE_FR if "/fr/" in url else HTML_FICHE_VALIDE
+
+    monkeypatch.setattr(justetf_service, "_fetch_page_html", fausse_fetch)
+
+    fiche = justetf_service.fetch_composition("FR0010361683")
+
+    assert fiche is not None
+    # Géo/secteur : toujours ceux de la page anglaise (HTML_FICHE_VALIDE), inchangés.
+    assert {row["categorie"] for row in fiche.geo_rows} != set()
+
+    # Description : celle de la page FRANÇAISE ("Cet ETF..."), pas celle de la page
+    # anglaise ("This ETF...") — c'est précisément le bug signalé par l'utilisateur.
+    assert fiche.description == "Cet ETF suit l'indice MSCI India."
+
+    # Top 10 : poids gardés tels quels, PAS renormalisés à 1,0 (contrairement à
+    # geo_rows/sector_rows) — la somme légitime du top 10 est < 100% du fonds.
+    assert fiche.top_holdings == [
+        {"nom": "HDFC Bank Ltd.", "poids": pytest.approx(0.0679)},
+        {"nom": "Reliance Industries Ltd.", "poids": pytest.approx(0.0605)},
+    ]
+    assert sum(row["poids"] for row in fiche.top_holdings) < 1.0
+
+    # Une requête vers chaque locale, isolées l'une de l'autre.
+    assert any("/en/etf-profile.html?isin=FR0010361683" in u for u in appels)
+    assert any("/fr/etf-profile.html?isin=FR0010361683" in u for u in appels)
+
+
+def test_fetch_composition_echec_page_francaise_garde_la_composition_anglaise(monkeypatch):
+    """Best effort (2.5/2.6) : un échec réseau sur la seule page française ne doit
+    jamais invalider la composition géo/secteur déjà extraite de la page anglaise."""
+
+    def fausse_fetch(url):
+        return None if "/fr/" in url else HTML_FICHE_VALIDE
+
+    monkeypatch.setattr(justetf_service, "_fetch_page_html", fausse_fetch)
+
+    fiche = justetf_service.fetch_composition("IE00B4L5Y983")
+
+    assert fiche is not None
+    assert fiche.geo_rows != []
+    assert fiche.description is None
+    assert fiche.top_holdings == []
 
 
 def test_fetch_page_html_erreur_requests_ne_leve_jamais(monkeypatch):
@@ -342,6 +414,57 @@ def test_refresh_all_ecrit_la_description_meme_sans_composition(db, monkeypatch)
     md = db.get(MarketDataCache, "LU1681048630")
     assert md is not None
     assert md.description == "Réplique le cours de l'or par un swap synthétique."
+
+
+def test_refresh_all_ecrit_les_top_holdings(db, monkeypatch):
+    """2.6 : les 10 principales positions sont écrites dans `FundTopHolding`, sans
+    ticker Yahoo résoluble (justETF ne donne qu'un nom d'entreprise) — `holding_symbol`
+    et `holding_nom` portent donc la même valeur (le nom), `pays`/`secteur` restent
+    `None` (non fournis par le top 10 lui-même, déjà couverts par ailleurs via
+    `FundComposition`/`FundCompositionBrute`)."""
+    make_holding(db, ticker="FR0010361683", type_actif="FUND")
+    db.add(FundTopHolding(ticker="FR0010361683", holding_symbol="Ancienne ligne", holding_nom="Ancienne ligne", poids=1.0))
+    db.commit()
+
+    nouvelle_fiche = justetf_service.FicheJustETF(
+        geo_rows=[{"categorie": ZONE_AMERIQUE_DU_NORD, "poids": 1.0}],
+        top_holdings=[
+            {"nom": "HDFC Bank Ltd.", "poids": 0.0679},
+            {"nom": "Reliance Industries Ltd.", "poids": 0.0605},
+        ],
+    )
+    monkeypatch.setattr(justetf_service, "fetch_composition", lambda isin: nouvelle_fiche)
+
+    justetf_service.refresh_all(db)
+
+    lignes = (
+        db.query(FundTopHolding)
+        .filter(FundTopHolding.ticker == "FR0010361683")
+        .order_by(FundTopHolding.poids.desc())
+        .all()
+    )
+    assert [l.holding_symbol for l in lignes] == ["HDFC Bank Ltd.", "Reliance Industries Ltd."]
+    assert lignes[0].holding_nom == "HDFC Bank Ltd."
+    assert lignes[0].poids == pytest.approx(0.0679)
+    assert lignes[0].pays is None
+    assert lignes[0].secteur is None
+
+
+def test_refresh_all_top_holdings_vide_laisse_les_lignes_existantes_intactes(db, monkeypatch):
+    """Un top 10 vide dans la fiche (échec de la page française, cf. 2.5/2.6) ne
+    doit jamais effacer un top 10 déjà en base — même découplage que `description`."""
+    make_holding(db, ticker="FR0010361683", type_actif="FUND")
+    db.add(FundTopHolding(ticker="FR0010361683", holding_symbol="HDFC Bank Ltd.", holding_nom="HDFC Bank Ltd.", poids=0.0679))
+    db.commit()
+
+    fiche_sans_top_holdings = justetf_service.FicheJustETF(geo_rows=[{"categorie": ZONE_AMERIQUE_DU_NORD, "poids": 1.0}])
+    monkeypatch.setattr(justetf_service, "fetch_composition", lambda isin: fiche_sans_top_holdings)
+
+    justetf_service.refresh_all(db)
+
+    lignes = db.query(FundTopHolding).filter(FundTopHolding.ticker == "FR0010361683").all()
+    assert len(lignes) == 1
+    assert lignes[0].holding_symbol == "HDFC Bank Ltd."
 
 
 def test_refresh_all_echec_laisse_les_lignes_existantes_intactes(db, monkeypatch):
