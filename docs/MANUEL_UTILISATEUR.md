@@ -98,3 +98,13 @@ lente par politesse envers justETF qui n'offre aucun support). Pour chacune :
 ### Exporter
 
 Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule).
+
+## Écran Aide
+
+Pense-bête pour un débutant, sans lien avec les données personnelles du portefeuille (rien n'y dépend d'une position en particulier) :
+
+- **Les 6 zones géographiques** : une carte par zone, avec la liste des pays qu'elle contient (ex. l'Inde ou la Chine dans « Marchés émergents ») — la même classification que celle utilisée partout ailleurs dans l'application (objectifs, tableau de bord). « Autres zones » est une catégorie résiduelle sans liste fixe, expliquée comme telle.
+- **Les 11 secteurs d'activité** : une carte par secteur avec quelques exemples d'entreprises connues, pour se repérer.
+- **Comprendre les chiffres de l'application** : questions/réponses dépliables sur les notions les moins évidentes (look-through des fonds, différence entre « Non catégorisé » et « Autres zones/secteurs », coût moyen pondéré vs FIFO, rendement annualisé (XIRR), score de diversification, répartition géographique parfois « estimée »).
+- **D'où viennent les données ?** : explique l'origine des cours et compositions (yfinance, justETF) et rappelle qu'aucune donnée du portefeuille n'est envoyée ailleurs que pour interroger ces deux sources de cotation.
+- **Glossaire** : définitions courtes des termes courants (ETF, ISIN, PEA/CTO, TER, drawdown, volatilité, plus-value latente/réalisée, rééquilibrage).

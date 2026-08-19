@@ -19,6 +19,7 @@ import type {
   RepartitionComptesResponse,
   ScheduledJob,
   TransactionImportResult,
+  ZoneGeographiqueInfo,
 } from './types'
 
 // Messages génériques (LOT 6.8) : utilisés seulement quand l'API ne fournit aucun
@@ -124,4 +125,7 @@ export const api = {
   getPreferences: () => request<Preferences>('/settings/preferences'),
   updatePreferences: (payload: Preferences) =>
     request<PreferencesUpdateResponse>('/settings/preferences', { method: 'PUT', body: JSON.stringify(payload) }),
+
+  // Aide (FAQ)
+  getZonesGeographiques: () => request<ZoneGeographiqueInfo[]>('/reference/zones-geographiques'),
 }

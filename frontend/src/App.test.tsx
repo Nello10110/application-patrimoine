@@ -12,6 +12,7 @@ vi.mock('./pages/HoldingDetailPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ObjectifsPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ImportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ReglagesPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/AidePage', () => ({ default: () => <div /> }))
 
 describe('App — bouton de bascule du thème (LOT 5.12)', () => {
   it("affiche un bouton de bascule dans l'en-tête, qui fait cycler le thème au clic", () => {

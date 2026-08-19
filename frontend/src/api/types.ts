@@ -302,3 +302,11 @@ export interface ScheduledJob {
   dernier_statut: 'ok' | 'erreur' | null
   dernier_message: string | null
 }
+
+// Écran d'aide (FAQ) : les 6 zones géographiques et leurs pays, en miroir de
+// `services/reference_indices.zones_geographiques` côté backend — jamais une
+// liste dupliquée à la main, pour rester toujours fidèle au classement réel.
+export interface ZoneGeographiqueInfo {
+  zone: string
+  pays: string[]
+}

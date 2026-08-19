@@ -4,6 +4,7 @@ donnée manquante et zone/secteur résiduel connu (2.2)."""
 import pytest
 
 from app.services.reference_indices import (
+    COUNTRY_TO_REGION,
     REPARTITIONS_GEO_PAR_INDICE,
     ZONE_AMERIQUE_DU_NORD,
     ZONE_ASIE_PACIFIQUE,
@@ -14,6 +15,7 @@ from app.services.reference_indices import (
     label_for_sector,
     region_for_country,
     repartition_geo_depuis_le_nom,
+    zones_geographiques,
 )
 
 # Un nom de fonds plausible par famille du tableau de la consigne, et la zone qui
@@ -135,3 +137,46 @@ def test_fonds_thematique_sans_indice_reconnaissable_reste_non_estime():
     """Un fonds thématique mondial (« Global Luxury ») n'a pas de zone déductible de
     son nom : mieux vaut ne rien estimer que d'inventer une répartition."""
     assert repartition_geo_depuis_le_nom("Amundi Index Solutions - Amundi Global Luxury UCITS ETF EUR Acc") is None
+
+
+# ---------------------------------------------------------------------------
+# `zones_geographiques` — écran d'aide (FAQ)
+# ---------------------------------------------------------------------------
+
+
+def test_zones_geographiques_couvre_les_6_zones():
+    zones = zones_geographiques()
+    assert {z["zone"] for z in zones} == {
+        ZONE_AMERIQUE_DU_NORD,
+        ZONE_EUROPE,
+        ZONE_JAPON,
+        ZONE_ASIE_PACIFIQUE,
+        ZONE_MARCHES_EMERGENTS,
+        ZONE_AUTRES,
+    }
+
+
+def test_zones_geographiques_autres_zones_sans_liste_fixe():
+    """"Autres zones" est un résidu (tout pays connu mais non répertorié) : lui
+    donner une liste fixe donnerait à tort l'impression d'être exhaustive."""
+    zones = {z["zone"]: z["pays"] for z in zones_geographiques()}
+    assert zones[ZONE_AUTRES] == []
+
+
+def test_zones_geographiques_derivee_de_country_to_region_pas_une_copie():
+    """Verrouille l'absence de duplication : le nombre total de pays listés doit
+    correspondre au nombre de pays DISTINCTS de `COUNTRY_TO_REGION` (dédupliqué,
+    puisque "Czechia"/"Czech Republic" partagent la même traduction française)."""
+    zones = zones_geographiques()
+    total_pays_affiches = sum(len(z["pays"]) for z in zones)
+    # Nombre de clés de COUNTRY_TO_REGION moins les doublons connus (Czechia/Czech
+    # Republic partagent la même traduction française) : un seul doublon aujourd'hui.
+    doublons_connus = 1
+    assert total_pays_affiches == len(COUNTRY_TO_REGION) - doublons_connus
+
+
+def test_zones_geographiques_france_dans_europe():
+    zones = {z["zone"]: z["pays"] for z in zones_geographiques()}
+    assert "France" in zones[ZONE_EUROPE]
+    assert "Inde" in zones[ZONE_MARCHES_EMERGENTS]
+    assert "Japon" in zones[ZONE_JAPON]

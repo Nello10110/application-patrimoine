@@ -15,6 +15,7 @@ ROUTES_GET = [
     "/api/settings/preferences",
     "/api/market-data",
     "/api/transactions/count",
+    "/api/reference/zones-geographiques",
 ]
 
 

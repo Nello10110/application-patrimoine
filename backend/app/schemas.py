@@ -473,3 +473,11 @@ class PreferencesUpdateResponse(Preferences):
     change réellement, `None` sinon)."""
 
     positions_recalculees: int | None = None
+
+
+class ZoneGeographiqueInfo(BaseModel):
+    """Écran d'aide (FAQ) : une zone géographique et les pays qu'elle contient
+    (`services/reference_indices.zones_geographiques`)."""
+
+    zone: str
+    pays: list[str]

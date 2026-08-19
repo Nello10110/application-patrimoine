@@ -120,6 +120,106 @@ COUNTRY_TO_REGION: dict[str, str] = {
     "Bangladesh": ZONE_MARCHES_EMERGENTS,
 }
 
+# Traduction française des pays de `COUNTRY_TO_REGION` (dont les clés restent en
+# anglais, telles que renvoyées par yfinance) — pour l'écran d'aide uniquement,
+# aucun calcul n'en dépend. "Czechia"/"Czech Republic" traduisent volontairement
+# vers le même libellé (deux variantes yfinance du même pays, cf. commentaire de
+# `COUNTRY_TO_REGION`) : `zones_geographiques` déduplique par le résultat.
+COUNTRY_LABELS_FR: dict[str, str] = {
+    "United States": "États-Unis",
+    "Canada": "Canada",
+    "Japan": "Japon",
+    "United Kingdom": "Royaume-Uni",
+    "France": "France",
+    "Germany": "Allemagne",
+    "Switzerland": "Suisse",
+    "Netherlands": "Pays-Bas",
+    "Spain": "Espagne",
+    "Italy": "Italie",
+    "Sweden": "Suède",
+    "Denmark": "Danemark",
+    "Belgium": "Belgique",
+    "Norway": "Norvège",
+    "Finland": "Finlande",
+    "Ireland": "Irlande",
+    "Austria": "Autriche",
+    "Portugal": "Portugal",
+    "Luxembourg": "Luxembourg",
+    "Israel": "Israël",
+    "Greece": "Grèce",
+    "Cyprus": "Chypre",
+    "Iceland": "Islande",
+    "Liechtenstein": "Liechtenstein",
+    "Monaco": "Monaco",
+    "Czechia": "Tchéquie",
+    "Czech Republic": "Tchéquie",
+    "Hungary": "Hongrie",
+    "Romania": "Roumanie",
+    "Slovenia": "Slovénie",
+    "Slovakia": "Slovaquie",
+    "Estonia": "Estonie",
+    "Latvia": "Lettonie",
+    "Lithuania": "Lituanie",
+    "Croatia": "Croatie",
+    "Bulgaria": "Bulgarie",
+    "Australia": "Australie",
+    "Hong Kong": "Hong Kong",
+    "Singapore": "Singapour",
+    "New Zealand": "Nouvelle-Zélande",
+    "China": "Chine",
+    "India": "Inde",
+    "Brazil": "Brésil",
+    "South Korea": "Corée du Sud",
+    "Taiwan": "Taïwan",
+    "Mexico": "Mexique",
+    "South Africa": "Afrique du Sud",
+    "Indonesia": "Indonésie",
+    "Thailand": "Thaïlande",
+    "Malaysia": "Malaisie",
+    "Poland": "Pologne",
+    "Turkey": "Turquie",
+    "Argentina": "Argentine",
+    "Chile": "Chili",
+    "Colombia": "Colombie",
+    "Peru": "Pérou",
+    "Uruguay": "Uruguay",
+    "Egypt": "Égypte",
+    "Morocco": "Maroc",
+    "Nigeria": "Nigéria",
+    "Kenya": "Kenya",
+    "Qatar": "Qatar",
+    "United Arab Emirates": "Émirats arabes unis",
+    "Saudi Arabia": "Arabie saoudite",
+    "Kuwait": "Koweït",
+    "Philippines": "Philippines",
+    "Vietnam": "Vietnam",
+    "Pakistan": "Pakistan",
+    "Bangladesh": "Bangladesh",
+}
+
+
+def zones_geographiques() -> list[dict]:
+    """Pour l'écran d'aide (FAQ) : la liste, triée alphabétiquement en français,
+    des pays connus de chacune des 6 zones géographiques. Dérivée directement de
+    `COUNTRY_TO_REGION` (la même table qui classe réellement chaque position) —
+    jamais une copie à maintenir à part, pour qu'un pays ajouté un jour à
+    `COUNTRY_TO_REGION` apparaisse automatiquement ici sans y penser.
+
+    "Autres zones" n'a pas de liste fixe (c'est un résidu : tout pays connu mais
+    non encore répertorié, cf. `region_for_country`) — y afficher une énumération
+    donnerait à tort l'impression d'être exhaustif, elle est donc renvoyée à part
+    avec une liste de pays vide."""
+    par_zone: dict[str, set[str]] = {
+        zone: set() for zone in (ZONE_AMERIQUE_DU_NORD, ZONE_EUROPE, ZONE_JAPON, ZONE_ASIE_PACIFIQUE, ZONE_MARCHES_EMERGENTS)
+    }
+    for pays_en, zone in COUNTRY_TO_REGION.items():
+        par_zone[zone].add(COUNTRY_LABELS_FR.get(pays_en, pays_en))
+
+    zones = [{"zone": zone, "pays": sorted(pays, key=lambda p: p)} for zone, pays in par_zone.items()]
+    zones.append({"zone": ZONE_AUTRES, "pays": []})
+    return zones
+
+
 # Secteur yfinance (GICS) -> libellé utilisé dans les objectifs sectoriels
 SECTOR_LABELS: dict[str, str] = {
     "Technology": "Technologies de l'information",

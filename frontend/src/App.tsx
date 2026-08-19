@@ -8,6 +8,7 @@ import { useTheme, type Theme } from './hooks/useTheme'
 // (Portefeuille, Objectifs, Import, Réglages). `React.lazy` fait charger le code de
 // chaque page à la demande (au moment de la navigation) plutôt que tout d'un bloc
 // au premier chargement de l'application.
+const AidePage = lazy(() => import('./pages/AidePage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('./pages/ImportPage'))
@@ -21,6 +22,7 @@ const navItems = [
   { to: '/objectifs', label: 'Objectifs' },
   { to: '/import', label: 'Import' },
   { to: '/reglages', label: 'Réglages' },
+  { to: '/aide', label: 'Aide' },
 ]
 
 // Bascule discrète du thème (LOT 5.12) : un clic fait cycler clair → sombre →
@@ -83,6 +85,7 @@ function App() {
             <Route path="/objectifs" element={<ObjectifsPage />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/reglages" element={<ReglagesPage />} />
+            <Route path="/aide" element={<AidePage />} />
           </Routes>
         </Suspense>
       </main>
