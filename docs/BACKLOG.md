@@ -632,7 +632,7 @@ rencontrée en conditions réelles (`run_startup_migrations` puis `migrate_isola
 
 ### J. Fiabilité du calcul de rentabilité
 
-#### J.1 — `majeur` · `M` · `P1` · `non traité` — Coût de revient « orphelin » sur une position fermée sans vente (env. 76 € actuellement)
+#### J.1 — `majeur` · `M` · `P1` · `traité` — Coût de revient « orphelin » sur une position fermée sans vente (env. 76 € actuellement)
 
 Découvert le 20/08/2026 en corrigeant l'écart entre le graphique d'évolution du tableau de bord et
 la carte Rentabilité globale (cf. increment 13) : `gain_perte_total`
@@ -664,17 +664,39 @@ Trouvé en comparant algébriquement `cout_total_investi` (somme brute directe d
 par construction du suivi de coût de revient, mais qui casse exactement du montant du coût orphelin) —
 verrouillable par un test dédié reproduisant les deux scénarios ci-dessus une fois corrigé.
 
-**Non traité** : corriger change le `gain_perte_total` affiché (le ferait baisser d'environ 76 € sur
-le vrai portefeuille, de 1596 € vers ~1520 €) — un changement de chiffre visible à soumettre
-explicitement à l'utilisateur avant de l'appliquer, pas à corriger en marge d'un autre lot. Piste de
-correctif pour le point 1 : trier par `(datetime_utc, id)` plutôt que `datetime_utc` seul ne suffit
-probablement pas (l'ordre d'insertion CSV n'est pas garanti être le bon ordre logique) — nécessite
-plutôt de traiter la vente qui ne trouve aucun coût comme « en attente » et de la résoudre rétroactivement
-si un achat au même instant arrive juste après, ou d'ajuster l'import pour réordonner les lignes à
-`datetime_utc` strictement égal (achats avant ventes). Piste pour le point 2 : dans la branche
-« opérations sur titres », si la quantité devient `<= EPSILON` après une opération qui RETIRE des
-titres (pas qui en ajoute), réaliser une perte égale au `cost_basis` restant avant de le remettre à
-zéro.
+**Traité le 20/08/2026**, sur validation explicite de l'utilisateur (changement de `gain_perte_total`
+affiché soumis avant d'être appliqué, cf. increment 14) :
+
+- **Point 1** : nouvelle `portfolio_reconstruction._trier_pour_reconstruction()` — trie le grand livre
+  par date CALENDAIRE, puis (au sein d'une même journée seulement) les mouvements qui n'ENLÈVENT pas de
+  titres avant ceux qui en RETIRENT (ventes et opérations sur titres à quantité négative, unifiées par
+  le même test de signe puisqu'une vente stocke déjà `shares` négatif), puis par horodatage exact comme
+  départage final. Tri Python stable, jamais entre deux journées différentes : le risque reste confiné
+  au cas déjà documenté et testé (vente à 16h12, achat à 16h20 le même jour). Effet de bord nécessaire :
+  réordonner le TRAITEMENT sans y prendre garde aurait cassé le tri croissant de `shares_history` (sur
+  lequel `historical_performance_service._value_at` compte) — corrigé en consolidant `shares_history`
+  par jour calendaire (le dernier point d'une journée reflète toujours son état réellement final, quel
+  que soit l'ordre de traitement interne), sans effet pour l'immense majorité des positions (au plus une
+  transaction par jour).
+- **Point 2** : la branche « opérations sur titres » de `_apply_transaction` distingue désormais une
+  ADDITION (coût nul, comportement inchangé) d'un RETRAIT sans contrepartie (perte réalisée égale au
+  coût retiré, même mécanique qu'une vente à 0€ — moyenne pondérée ou consommation FIFO réelle des
+  lots selon la méthode active). Élimine au passage la limitation FIFO documentée en tête de module
+  (lots non consommés par un retrait) : ils le sont désormais correctement aussi dans ce cas.
+
+Verrouillé par 6 nouveaux tests (`test_portfolio_reconstruction.py` : scénario Tesla étendu avec
+assertions sur `cost_basis`/`realized_gain`, variante FIFO, opération de retrait totale en coût moyen
+pondéré et en FIFO ; `test_historical_performance_service.py` : la réconciliation increment 13 continue
+de tenir avec une position fermée sans vente). 442 tests backend au vert.
+
+**Vérifié en conditions réelles** sur la vraie base (`portfolio.db`, sauvegarde prise avant
+intervention) : `POST /api/transactions/reconstruct` (49 positions recalculées, 0 anomalie) puis cache
+d'historique invalidé. `gain_perte_total` passe de 1595.86 € à **1519.70 €** — et coïncide désormais à
+l'euro près avec le dernier point du graphique (`valeur_portefeuille + valeur_realisee_cumulee -
+valeur_investie` = 1519.70 € également), sans aucun changement supplémentaire nécessaire côté
+increment 13 (confirmé algébriquement avant d'implémenter : les deux termes de perte réalisée
+s'annulent exactement entre `gains_realises` et `cout_base_ouvert`, sans jamais toucher à la formule du
+graphique). Contrôle visuel dans le navigateur : carte Rentabilité globale affiche +1 520 €.
 
 ---
 

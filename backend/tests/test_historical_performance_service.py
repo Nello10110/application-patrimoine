@@ -398,6 +398,72 @@ def test_le_gain_du_graphique_coincide_exactement_avec_gain_perte_total(db):
     assert performance["gain_perte_total"] == pytest.approx(525.0)
 
 
+def test_la_reconciliation_tient_meme_avec_une_position_fermee_sans_vente(db):
+    """Backlog 2.J.1 : la réconciliation increment 13 doit continuer de tenir une
+    fois le Fix 2 en place (perte réalisée sur une opération sur titres qui retire
+    des titres sans contrepartie), pas seulement dans l'abstrait algébrique du plan
+    — même scénario que le test ci-dessus, plus une position BBB entièrement perdue
+    (`WORTHLESS`)."""
+    make_transaction(
+        db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1)
+    )
+    make_transaction(
+        db,
+        transaction_id="t2",
+        symbol="AAA",
+        category="TRADING",
+        type="SELL",
+        shares=-4.0,
+        amount=600.0,
+        datetime_utc=datetime(2024, 6, 1),
+    )
+    make_transaction(
+        db,
+        transaction_id="t3",
+        symbol="AAA",
+        category="CASH",
+        type="DIVIDEND",
+        shares=6.0,
+        amount=20.0,
+        datetime_utc=datetime(2024, 7, 1),
+    )
+    make_transaction(
+        db,
+        transaction_id="t4",
+        symbol=None,
+        category="CASH",
+        type="INTEREST_PAYMENT",
+        shares=None,
+        amount=5.0,
+        datetime_utc=datetime(2024, 8, 1),
+    )
+    make_transaction(db, transaction_id="t5", symbol="BBB", shares=5.0, amount=-50.0, datetime_utc=datetime(2025, 1, 1))
+    make_transaction(
+        db,
+        transaction_id="t6",
+        symbol="BBB",
+        category="CORPORATE_ACTION",
+        type="WORTHLESS",
+        shares=-5.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 2, 1),
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=150.0))
+    db.commit()
+
+    positions = compute_positions(db, ID_UTILISATEUR_TEST)
+    performance = performance_service.compute_performance(db, ID_UTILISATEUR_TEST, positions=positions)
+
+    resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST, positions=positions)
+    dernier_point = resultat[-1]
+
+    gain_graphique = dernier_point["valeur_portefeuille"] + dernier_point["valeur_realisee_cumulee"] - dernier_point["valeur_investie"]
+    assert gain_graphique == pytest.approx(performance["gain_perte_total"], abs=0.01)
+    # 525 (scénario AAA seul, cf. test précédent) - 50 (coût de BBB entièrement perdu) = 475.
+    assert performance["gain_perte_total"] == pytest.approx(475.0)
+
+
 def test_le_dernier_point_utilise_la_valorisation_live_pas_le_prix_hebdomadaire(db, monkeypatch):
     """Le dernier point de la grille (aujourd'hui) doit utiliser la même valorisation
     « live » que la carte Rentabilité globale, pas le dernier prix hebdomadaire simulé

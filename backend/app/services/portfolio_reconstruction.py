@@ -20,22 +20,28 @@ ouverts (chaque achat/vente modifie `cost_basis` et `lots` du même montant, cf.
 des lots restants (coût restant / quantité restante) — la définition correcte du
 prix de revient moyen d'une position FIFO, pas une simplification approximative.
 
-Les opérations sur titres (splits, actions gratuites, migrations, fusions...)
-n'ajustent que la quantité (coût nul), car elles s'équilibrent historiquement à
-~0 par titre chez ce type de courtier — dans les deux méthodes. En FIFO, une
-quantité AJOUTÉE par ce type d'opération (split, action gratuite reçue) empile
-un lot à coût unitaire NUL : une vente ultérieure qui consomme ce lot n'y trouve
-donc aucun coût à retirer, et la totalité du produit de la vente qui lui
-correspond devient un gain réalisé — cohérent avec le fait que ces titres n'ont
-rien coûté. Une quantité RETIRÉE par ce type d'opération (rare : fusion, titre
-devenu sans valeur...) ne consomme volontairement, elle, aucun lot : ni
-`cost_basis` ni `lots` n'y sont touchés, symétriquement au coût moyen pondéré où
-seule la quantité varie dans ce cas. Conséquence assumée : `lots` peut alors
-rester momentanément plus fourni en quantité totale que la position réelle —
-sans effet sur le coût de revient affiché (toujours `cost_basis / shares`), mais
-qui retarderait la consommation d'un lot plus ancien si une vente survenait
-ensuite ; un cas jugé assez rare pour ne pas justifier une logique de
-consommation dédiée, faute d'exemple réel observé à ce jour (cf. mission).
+Les opérations sur titres (splits, actions gratuites, migrations, fusions...) sont
+traitées différemment selon qu'elles AJOUTENT ou RETIRENT des titres (backlog
+2.J.1) : une ADDITION (split, action gratuite reçue) reste à coût nul — ces titres
+n'ont rien coûté, une vente ultérieure en réalise donc un gain sur toute leur
+valeur ; en FIFO, un lot à coût unitaire NUL est empilé pour ces titres, consommé
+comme n'importe quel autre lot. Un RETRAIT sans contrepartie (fusion sans
+compensation, titre devenu sans valeur) réalise en revanche une PERTE égale au
+coût retiré — même mécanique qu'une vente à 0€ de produit (moyenne pondérée ou
+consommation FIFO réelle des lots selon la méthode active) : sans ce traitement,
+le coût de revient restant d'une position fermée par ce biais restait « orphelin »,
+jamais recyclé ni dans `realized_gain` ni dans `cost_basis`, faussant à la hausse
+le gain/perte total du portefeuille (cas réels trouvés le 20/08/2026 : ~76 € au
+total sur trois positions).
+
+Rejouer le grand livre dans l'ordre chronologique strict (`datetime_utc`) ne
+suffit pas non plus à lui seul : ce courtier peut enregistrer la confirmation
+d'une vente avant celle de l'achat correspondant, même le même jour (titre offert
+aussitôt revendu). `compute_positions`/`compute_position` trient donc d'abord le
+grand livre via `_trier_pour_reconstruction` — par jour calendaire, puis
+mouvements qui ajoutent avant ceux qui retirent au sein d'une même journée — avant
+de le rejouer, pour que l'achat soit toujours traité avant la vente qui le
+liquide, quel que soit l'ordre d'horodatage exact au sein de cette journée.
 
 Les investissements en fonds non cotés (Private Markets) n'ont pas de champ
 `shares` : par convention on les traite comme 1 part = 1€ BRUT investi
@@ -203,17 +209,82 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
         # doit surtout pas être additionné à la quantité détenue.
         pass
 
-    elif tx.shares is not None:
-        # Opérations sur titres (splits, actions gratuites, migrations, fusions, WORTHLESS...) : coût nul.
+    elif tx.shares is not None and tx.shares >= -EPSILON:
+        # Opération sur titres qui AJOUTE des titres (split, action gratuite reçue,
+        # migration...) : coût nul, cf. docstring de module — ces titres n'ont rien
+        # coûté, une vente ultérieure de ceux-ci réalise donc un gain sur toute leur
+        # valeur.
         state.shares += tx.shares
         if en_fifo and tx.shares > EPSILON:
-            # Quantité ajoutée à coût nul (cf. docstring de ce module) : un lot dédié,
-            # pour qu'une vente ultérieure de ces titres n'y retire aucun coût.
             state.lots.append(Lot(quantite=tx.shares, cout_unitaire=0.0))
         shares_changed = True
 
+    elif tx.shares is not None:
+        # Opération sur titres qui RETIRE des titres SANS contrepartie (fusion sans
+        # compensation, titre devenu sans valeur...) : contrairement à une addition,
+        # le coût déjà engagé sur ces titres ne s'annule pas tout seul — il devient
+        # une PERTE réalisée à cet instant, symétriquement à une vente à 0€ de
+        # produit (même mécanique de retrait de coût que la branche SELL ci-dessus,
+        # cf. backlog 2.J.1 : avant ce traitement, ce coût restait "orphelin", jamais
+        # recyclé ni dans `realized_gain` ni dans `cost_basis` une fois la position
+        # fermée).
+        titres_retires = -tx.shares
+        if en_fifo:
+            cout_retire = min(_consommer_lots_fifo(state.lots, titres_retires), max(state.cost_basis, 0.0))
+        else:
+            avg_cost = (state.cost_basis / state.shares) if state.shares > EPSILON else 0.0
+            cout_retire = min(avg_cost * titres_retires, max(state.cost_basis, 0.0))
+        state.realized_gain -= cout_retire
+        state.cost_basis -= cout_retire
+        state.shares += tx.shares
+        shares_changed = True
+
     if shares_changed:
-        state.shares_history.append((tx.datetime_utc, state.shares))
+        # Consolidation par jour calendaire (backlog 2.J.1, Fix 3) : `compute_positions`/
+        # `compute_position` trient désormais le grand livre pour que les mouvements qui
+        # RETIRENT des titres soient traités après ceux qui en ajoutent au sein d'une même
+        # journée (cf. `_trier_pour_reconstruction`) — ce qui peut faire que l'horodatage
+        # RÉEL de la transaction traitée EN DERNIER pour ce jour-là soit chronologiquement
+        # antérieur à celui d'une transaction déjà traitée plus tôt le même jour (cas réel :
+        # vente à 16h12, achat à 16h20, la vente traitée en second). Ajouter un nouveau point
+        # dans ce cas casserait l'ordre croissant de `shares_history`, sur lequel
+        # `historical_performance_service._value_at` compte pour ses recherches
+        # dichotomiques. En remplaçant plutôt le dernier point de la même journée, ce dernier
+        # reflète toujours l'état réellement final de cette journée, quel que soit l'ordre de
+        # traitement interne — sans effet pour l'immense majorité des positions (au plus une
+        # transaction par jour), qui n'ont jamais qu'un seul mouvement par jour ici.
+        if state.shares_history and state.shares_history[-1][0].date() == tx.datetime_utc.date():
+            state.shares_history[-1] = (tx.datetime_utc, state.shares)
+        else:
+            state.shares_history.append((tx.datetime_utc, state.shares))
+
+
+def _trier_pour_reconstruction(transactions: list[Transaction]) -> list[Transaction]:
+    """Trie le grand livre pour la reconstruction séquentielle des positions
+    (backlog 2.J.1, Fix 1) : par date CALENDAIRE, puis — au sein d'une même
+    journée seulement — les mouvements qui n'ENLÈVENT pas de titres avant ceux qui
+    en RETIRENT (ventes et opérations sur titres à quantité négative, unifiées par
+    le même test de signe puisqu'une vente stocke déjà `shares` négatif — cf.
+    `_apply_transaction`), puis par horodatage exact comme départage final.
+
+    Nécessaire car ce courtier peut enregistrer la confirmation d'une vente avant
+    celle de l'achat correspondant, même le même jour (cas réel constaté et déjà
+    testé : une action offerte vendue à 16h12, sa ligne d'achat horodatée à 16h20
+    — cf. `test_vente_horodatee_avant_son_achat_ne_cree_pas_de_position_fantome`).
+    Sans ce tri, la vente ne trouve aucun coût à retirer et le coût de l'achat qui
+    arrive ensuite reste orphelin, jamais recyclé nulle part une fois la position
+    retombée à zéro.
+
+    Ne modifie JAMAIS l'ordre entre deux journées différentes : le tri Python est
+    stable, donc à date et priorité égales, l'ordre déjà posé par la requête SQL
+    (`datetime_utc` croissant) est préservé — ce réordonnancement reste strictement
+    confiné au cas déjà documenté et testé, sans risque d'inverser deux
+    transactions authentiquement séparées dans le temps."""
+
+    def priorite(tx: Transaction) -> int:
+        return 1 if tx.shares is not None and tx.shares < -EPSILON else 0
+
+    return sorted(transactions, key=lambda tx: (tx.datetime_utc.date(), priorite(tx), tx.datetime_utc))
 
 
 def compute_positions(db: Session, user_id: int, methode: str | None = None) -> dict[str, PositionState]:
@@ -235,6 +306,7 @@ def compute_positions(db: Session, user_id: int, methode: str | None = None) -> 
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
+    transactions = _trier_pour_reconstruction(transactions)
 
     positions: dict[str, PositionState] = {}
     for tx in transactions:
@@ -272,6 +344,7 @@ def compute_position(db: Session, ticker: str, user_id: int, methode: str | None
     )
     if not transactions:
         return None
+    transactions = _trier_pour_reconstruction(transactions)
 
     state = PositionState(symbol=ticker)
     for tx in transactions:

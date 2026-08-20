@@ -212,7 +212,15 @@ def test_vente_horodatee_avant_son_achat_ne_cree_pas_de_position_fantome(db, cap
     ligne d'achat correspondante n'est horodatée qu'à 16h20 le même jour. Borner la
     quantité à zéro dès la vente ferait apparaître, après l'achat tardif, une position
     que l'utilisateur ne détient pas. Le solde doit revenir exactement à zéro et aucune
-    anomalie ne doit être signalée : le grand livre est complet, seul l'ordre diffère."""
+    anomalie ne doit être signalée : le grand livre est complet, seul l'ordre diffère.
+
+    Backlog 2.J.1 : verrouille aussi que le COÛT ne reste plus orphelin — avant le
+    correctif, la vente (traitée avant l'achat par simple ordre chronologique) ne
+    trouvait aucun coût à retirer et comptait la totalité du produit comme gain
+    réalisé (24.17€), laissant le coût de l'achat (25.16€) bloqué sur une position
+    déjà retombée à zéro, jamais recyclé nulle part. `_trier_pour_reconstruction`
+    traite désormais l'achat avant la vente qui le liquide, quel que soit l'ordre
+    d'horodatage exact au sein de la même journée."""
     make_transaction(
         db,
         transaction_id="tx-vente",
@@ -240,8 +248,99 @@ def test_vente_horodatee_avant_son_achat_ne_cree_pas_de_position_fantome(db, cap
     assert etat.anomalies == []
     assert not [r for r in caplog.records if r.levelname == "WARNING"]
 
+    # Coût correctement retiré à la vente (achat traité en premier) : produit net
+    # (25.17 - 1.0 = 24.17) moins le coût réellement retiré (25.16, tout le lot
+    # acheté) = -0.99, pas 24.17 brut. `cost_basis` retombe à ~0, pas orphelin.
+    assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)
+    assert etat.realized_gain == pytest.approx(24.17 - 25.16, abs=1e-6)
+
+    # Fix 3 : une seule entrée `shares_history` pour cette journée, avec l'état
+    # final réellement correct (0) — pas deux points dont un stale (0.1111) qui
+    # ferait croire au graphique que la position est restée détenue indéfiniment.
+    dates_du_jour = [d for d, _ in etat.shares_history if d.date() == datetime(2024, 3, 1).date()]
+    assert len(dates_du_jour) == 1
+
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
     assert db.query(Holding).filter(Holding.ticker == "KKK").count() == 0
+
+
+def test_vente_avant_achat_meme_jour_fonctionne_aussi_en_fifo(db):
+    """Même scénario que ci-dessus, en méthode FIFO : le lot du même jour doit être
+    consommé par `_consommer_lots_fifo`, pas seulement le coût moyen pondéré."""
+    make_transaction(
+        db,
+        transaction_id="tx-vente",
+        symbol="LLL",
+        type="SELL",
+        shares=-0.1111,
+        amount=25.17,
+        fee=-1.0,
+        datetime_utc=datetime(2024, 3, 1, 16, 12),
+    )
+    make_transaction(
+        db,
+        transaction_id="tx-achat",
+        symbol="LLL",
+        type="BUY",
+        shares=0.1111,
+        amount=-25.16,
+        datetime_utc=datetime(2024, 3, 1, 16, 20),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["LLL"]
+
+    assert etat.shares == pytest.approx(0.0, abs=1e-9)
+    assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)
+    assert etat.realized_gain == pytest.approx(24.17 - 25.16, abs=1e-6)
+    assert etat.lots == []  # le lot du jour a bien été consommé, rien ne traîne
+
+
+def test_operation_sur_titre_qui_retire_toute_la_position_realise_une_perte(db):
+    """Backlog 2.J.1, Fix 2 : une opération sur titres qui RETIRE des titres sans
+    contrepartie (fusion sans compensation, `WORTHLESS`...) doit réaliser une perte
+    égale au coût de revient restant, pas le laisser orphelin — cas réel : Carmat
+    (`CORPORATE_ACTION WORTHLESS`), coût jamais retrouvé nulle part avant ce correctif."""
+    make_transaction(db, transaction_id="tx-achat", symbol="MMM", shares=24.0, amount=-20.0, datetime_utc=datetime(2025, 5, 17))
+    make_transaction(
+        db,
+        transaction_id="tx-worthless",
+        symbol="MMM",
+        category="CORPORATE_ACTION",
+        type="WORTHLESS",
+        shares=-24.0,
+        amount=0.0,
+        datetime_utc=datetime(2026, 6, 15),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["MMM"]
+
+    assert etat.shares == pytest.approx(0.0, abs=1e-9)
+    assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)  # plus orphelin
+    assert etat.realized_gain == pytest.approx(-20.0)  # perte réalisée = tout le coût investi
+
+
+def test_operation_sur_titre_qui_retire_toute_la_position_realise_une_perte_en_fifo(db):
+    """Même scénario, méthode FIFO : le(s) lot(s) doivent être consommés par
+    `_consommer_lots_fifo`, la perte reflète leur coût réel (pas une moyenne)."""
+    make_transaction(db, transaction_id="tx-achat-1", symbol="NNN", shares=10.0, amount=-100.0, datetime_utc=datetime(2025, 1, 1))
+    make_transaction(db, transaction_id="tx-achat-2", symbol="NNN", shares=10.0, amount=-300.0, datetime_utc=datetime(2025, 2, 1))
+    make_transaction(
+        db,
+        transaction_id="tx-merger",
+        symbol="NNN",
+        category="CORPORATE_ACTION",
+        type="MERGER",
+        shares=-20.0,
+        amount=0.0,
+        datetime_utc=datetime(2025, 3, 1),
+    )
+
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["NNN"]
+
+    assert etat.shares == pytest.approx(0.0, abs=1e-9)
+    assert etat.cost_basis == pytest.approx(0.0, abs=1e-9)
+    assert etat.realized_gain == pytest.approx(-400.0)  # les deux lots (100 + 300) entièrement perdus
+    assert etat.lots == []
 
 
 def test_rebuild_holdings_remonte_le_nombre_d_anomalies(db):
