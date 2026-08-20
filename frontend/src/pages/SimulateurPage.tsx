@@ -10,6 +10,23 @@ import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTr
 const DUREES = [5, 10, 20, 30] as const
 type Vue = 'annuelle' | 'mensuelle'
 
+/** Année calendaire projetée, `offset` années après aujourd'hui (0 = cette année). */
+function libelleAnnee(offset: number): string {
+  return String(new Date().getFullYear() + offset)
+}
+
+/** Mois calendaire projeté, `offset` mois après aujourd'hui — calé sur le 1er du
+ * mois pour éviter les débordements de `Date` en fin de mois (le 31 janvier + 1
+ * mois ne doit jamais silencieusement retomber en mars). */
+function libelleMoisAnnee(offset: number): string {
+  const maintenant = new Date()
+  const totalMois = maintenant.getMonth() + offset
+  const annee = maintenant.getFullYear() + Math.floor(totalMois / 12)
+  const mois = ((totalMois % 12) + 12) % 12
+  const libelle = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  return libelle.charAt(0).toUpperCase() + libelle.slice(1)
+}
+
 /** Simulateur de patrimoine, indépendance financière (FIRE) et calculateur
  * d'intérêts composés générique — une seule page plutôt que deux (Simulateur et
  * Outils, fusionnées) : les deux ne différaient que par la source du capital de
@@ -26,6 +43,7 @@ export default function SimulateurPage() {
 
   const [taux, setTaux] = useState('5')
   const [versement, setVersement] = useState('0')
+  const [interetsDejaObtenus, setInteretsDejaObtenus] = useState('')
   const [duree, setDuree] = useState<number>(20)
   const [vue, setVue] = useState<Vue>('annuelle')
 
@@ -44,6 +62,18 @@ export default function SimulateurPage() {
         // un capital de départ à la main si le patrimoine net échoue à charger.
       })
       .finally(() => setChargementPatrimoine(false))
+
+    // Préremplit « Intérêts déjà obtenus » avec le gain/perte déjà réalisé sur le
+    // portefeuille financier (`GET /api/performance`, déjà utilisé par la carte
+    // Rentabilité du Tableau de bord) — reste un champ facultatif et modifiable,
+    // une moins-value éventuelle (négative) n'a pas de sens ici et devient 0.
+    api
+      .getPerformance()
+      .then((perf) => setInteretsDejaObtenus(String(Math.max(0, perf.gain_perte_total))))
+      .catch(() => {
+        // Dégradé : le champ reste vide (0 par défaut au calcul) si la rentabilité
+        // échoue à charger — jamais bloquant pour le reste du calculateur.
+      })
   }, [])
 
   const capitalNum = Number(capital)
@@ -59,16 +89,21 @@ export default function SimulateurPage() {
     capitalNum >= 0 &&
     versementNum >= 0
 
+  // Facultatif : `''` (jamais saisi/effacé) équivaut à 0, une valeur non numérique
+  // saisie par erreur aussi — ce champ ne doit jamais bloquer le reste du
+  // calculateur comme le font `capital`/`taux`/`versement` (cf. `valide`).
+  const interetsDejaObtenusNum = interetsDejaObtenus === '' ? 0 : Number(interetsDejaObtenus) || 0
+
   const points = useMemo(
-    () => (valide ? calculerTrajectoire(capitalNum, tauxNum, versementNum, duree) : []),
-    [valide, capitalNum, tauxNum, versementNum, duree],
+    () => (valide ? calculerTrajectoire(capitalNum, tauxNum, versementNum, duree, interetsDejaObtenusNum) : []),
+    [valide, capitalNum, tauxNum, versementNum, duree, interetsDejaObtenusNum],
   )
   // Le tableau de détail (mensuel/annuel) part de la même trajectoire mensuelle que
   // le graphique — dérivée une seule fois ici, agrégée par année à la demande —
   // pour ne jamais afficher des chiffres qui pourraient diverger entre les deux vues.
   const pointsMensuels: PointMensuel[] = useMemo(
-    () => (valide ? calculerTrajectoireMensuelle(capitalNum, tauxNum, versementNum, duree) : []),
-    [valide, capitalNum, tauxNum, versementNum, duree],
+    () => (valide ? calculerTrajectoireMensuelle(capitalNum, tauxNum, versementNum, duree, interetsDejaObtenusNum) : []),
+    [valide, capitalNum, tauxNum, versementNum, duree, interetsDejaObtenusNum],
   )
   const pointsAnnuels: PointAnnuel[] = useMemo(() => agregerParAnnee(pointsMensuels), [pointsMensuels])
 
@@ -142,6 +177,18 @@ export default function SimulateurPage() {
               className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+            Intérêts déjà obtenus (€, facultatif)
+            <input
+              value={interetsDejaObtenus}
+              onChange={(e) => setInteretsDejaObtenus(e.target.value)}
+              type="number"
+              step="any"
+              min={0}
+              placeholder="0"
+              className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            />
+          </label>
           <div className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Durée
             <div className="flex gap-1">
@@ -161,6 +208,11 @@ export default function SimulateurPage() {
             </div>
           </div>
         </div>
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+          « Intérêts déjà obtenus » : la part du capital de départ déjà constituée de gains plutôt que de versements — pour
+          un tableau de détail qui distingue les vrais intérêts déjà gagnés des futurs. Préempli avec le gain/perte de ton
+          portefeuille financier, librement modifiable ou effaçable.
+        </p>
 
         {chargementPatrimoine && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Chargement du patrimoine net...</p>}
         {!chargementPatrimoine && !valide && (
@@ -243,7 +295,7 @@ export default function SimulateurPage() {
                     ? pointsAnnuels.map((p) => (
                         <tr key={p.annee}>
                           <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
-                            {p.annee === 0 ? 'Départ' : `An ${p.annee}`}
+                            {p.annee === 0 ? 'Départ' : libelleAnnee(p.annee)}
                           </td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versements)}</td>
                           <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets)}</td>
@@ -255,7 +307,7 @@ export default function SimulateurPage() {
                     : pointsMensuels.map((p) => (
                         <tr key={p.moisIndex}>
                           <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
-                            {p.annee === 0 ? 'Départ' : `An ${p.annee} · mois ${p.moisDeLAnnee}`}
+                            {p.annee === 0 ? 'Départ' : libelleMoisAnnee(p.moisIndex)}
                           </td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versement)}</td>
                           <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets)}</td>

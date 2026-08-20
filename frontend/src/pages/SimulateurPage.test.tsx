@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { PatrimoineNet } from '../api/types'
+import type { PatrimoineNet, PerformanceSummary } from '../api/types'
 import { formatEuro } from '../utils/format'
 import { agregerParAnnee, calculerTrajectoire, calculerTrajectoireMensuelle } from '../utils/interetsComposes'
 import SimulateurPage from './SimulateurPage'
@@ -9,11 +9,47 @@ import SimulateurPage from './SimulateurPage'
 vi.mock('../api/client', () => ({
   api: {
     getPatrimoineNet: vi.fn(),
+    getPerformance: vi.fn(),
   },
 }))
 
 function patrimoineNet(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
   return { actifs_totaux: 10000, passifs_totaux: 0, patrimoine_net: 10000, repartition_par_classe: [], ...overrides }
+}
+
+function performance(overrides: Partial<PerformanceSummary> = {}): PerformanceSummary {
+  return {
+    valeur_positions: 10000,
+    valeur_totale: 10000,
+    cout_total_investi: 10000,
+    gain_perte_total: 0,
+    rendement_simple_pct: 0,
+    rendement_annualise_pct: 0,
+    dividendes_percus: 0,
+    interets_percus: 0,
+    autres_revenus: 0,
+    frais_payes: 0,
+    impots_preleves: 0,
+    gains_realises: 0,
+    gains_latents: 0,
+    nombre_transactions: 0,
+    premiere_transaction: null,
+    ...overrides,
+  }
+}
+
+// Mêmes calculs que les helpers privés `libelleAnnee`/`libelleMoisAnnee` de la
+// page, pour vérifier le texte affiché sans dupliquer leur implémentation.
+function anneeAttendue(offset: number): string {
+  return String(new Date().getFullYear() + offset)
+}
+function moisAnneeAttendu(offset: number): string {
+  const maintenant = new Date()
+  const totalMois = maintenant.getMonth() + offset
+  const annee = maintenant.getFullYear() + Math.floor(totalMois / 12)
+  const mois = ((totalMois % 12) + 12) % 12
+  const libelle = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  return libelle.charAt(0).toUpperCase() + libelle.slice(1)
 }
 
 // Intl.NumberFormat insère une espace insécable fine entre le nombre et « € » :
@@ -28,6 +64,7 @@ describe('SimulateurPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoineNet())
+    vi.mocked(api.getPerformance).mockResolvedValue(performance())
   })
 
   it('préremplit le capital de départ avec le patrimoine net actuel', async () => {
@@ -123,7 +160,7 @@ describe('SimulateurPage', () => {
   })
 
   describe('Détail par période', () => {
-    it('affiche le tableau annuel par défaut, avec une ligne par année (dont le départ)', async () => {
+    it('affiche le tableau annuel par défaut, avec une ligne par année (dont le départ) et les vraies années calendaires', async () => {
       render(<SimulateurPage />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
@@ -133,13 +170,14 @@ describe('SimulateurPage', () => {
       const table = await screen.findByRole('table')
       const lignes = within(table).getAllByRole('row')
       expect(lignes).toHaveLength(1 + (1 + 5)) // en-tête + (départ + 5 années)
+      expect(within(table).getByText('Départ')).toBeInTheDocument()
 
       const annuel = agregerParAnnee(calculerTrajectoireMensuelle(10000, 5, 100, 5))
-      const ligneAn3 = within(table).getByText('An 3').closest('tr')!
+      const ligneAn3 = within(table).getByText(anneeAttendue(3)).closest('tr')!
       expect(within(ligneAn3).getByText(motifEuro(annuel[3].capital))).toBeInTheDocument()
     })
 
-    it('bascule vers le détail mensuel', async () => {
+    it('bascule vers le détail mensuel, avec le mois et l\'année calendaires réels', async () => {
       render(<SimulateurPage />)
       await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
 
@@ -149,6 +187,34 @@ describe('SimulateurPage', () => {
       const table = await screen.findByRole('table')
       const lignes = within(table).getAllByRole('row')
       expect(lignes).toHaveLength(1 + (1 + 5 * 12)) // en-tête + (départ + 60 mois)
+      expect(within(table).getByText(moisAnneeAttendu(6))).toBeInTheDocument()
+    })
+  })
+
+  describe('Intérêts déjà obtenus', () => {
+    it('préremplit le champ avec le gain/perte de la rentabilité, plafonné à 0 si négatif', async () => {
+      vi.mocked(api.getPerformance).mockResolvedValue(performance({ gain_perte_total: 1500 }))
+      render(<SimulateurPage />)
+
+      await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(1500))
+    })
+
+    it('une moins-value (gain négatif) préremplit le champ à 0, jamais un nombre négatif', async () => {
+      vi.mocked(api.getPerformance).mockResolvedValue(performance({ gain_perte_total: -300 }))
+      render(<SimulateurPage />)
+
+      await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(0))
+    })
+
+    it("répartit le capital de départ entre versé et intérêts cumulés dès l'état initial du tableau", async () => {
+      vi.mocked(api.getPerformance).mockResolvedValue(performance({ gain_perte_total: 1500 }))
+      render(<SimulateurPage />)
+      await waitFor(() => expect(screen.getByLabelText(/Intérêts déjà obtenus/)).toHaveValue(1500))
+
+      const table = await screen.findByRole('table')
+      const ligneDepart = within(table).getByText('Départ').closest('tr')!
+      expect(within(ligneDepart).getByText(motifEuro(8500))).toBeInTheDocument() // 10000 - 1500 versé
+      expect(within(ligneDepart).getByText(motifEuro(1500))).toBeInTheDocument() // 1500 d'intérêts déjà cumulés
     })
   })
 })

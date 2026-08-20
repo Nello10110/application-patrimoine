@@ -45,17 +45,37 @@ export interface PointAnnuel {
   interetsCumules: number
 }
 
+/** `interetsDejaObtenus` (optionnel, 0 par défaut) : part du capital de départ déjà
+ * constituée d'intérêts/gains plutôt que de versements — typique d'un patrimoine
+ * réel déjà investi depuis un moment (ex. le `gain_perte_total` de la carte
+ * Rentabilité). Ne change rien à la capitalisation elle-même (les intérêts futurs
+ * se calculent toujours sur le capital total), seulement la répartition affichée
+ * entre « versé » et « intérêts cumulés » — pour ne pas remettre les gains déjà
+ * acquis à zéro et fausser la lecture du tableau de détail. Bornée à
+ * `[0, capitalInitial]` : plus d'intérêts déjà obtenus que de capital de départ
+ * n'aurait pas de sens (verseCumule ne peut pas devenir négatif). */
 export function calculerTrajectoireMensuelle(
   capitalInitial: number,
   tauxAnnuelPct: number,
   versementMensuel: number,
   annees: number,
+  interetsDejaObtenus = 0,
 ): PointMensuel[] {
+  const dejaObtenus = Math.max(0, Math.min(interetsDejaObtenus, capitalInitial))
   const tauxMensuel = tauxAnnuelPct / 100 / 12
   let valeur = capitalInitial
-  let verseCumule = capitalInitial
+  let verseCumule = capitalInitial - dejaObtenus
   const points: PointMensuel[] = [
-    { moisIndex: 0, annee: 0, moisDeLAnnee: 0, versement: capitalInitial, interets: 0, capital: arrondi(valeur), verseCumule: arrondi(verseCumule), interetsCumules: 0 },
+    {
+      moisIndex: 0,
+      annee: 0,
+      moisDeLAnnee: 0,
+      versement: capitalInitial,
+      interets: 0,
+      capital: arrondi(valeur),
+      verseCumule: arrondi(verseCumule),
+      interetsCumules: arrondi(dejaObtenus),
+    },
   ]
 
   let moisIndex = 0
@@ -83,8 +103,14 @@ export function calculerTrajectoireMensuelle(
 /** Un point par ANNÉE (fin d'année), dérivé de la trajectoire mensuelle pour
  * n'avoir qu'une seule formule de capitalisation à maintenir — le graphique et le
  * tableau annuel restent ainsi rigoureusement cohérents entre eux. */
-export function calculerTrajectoire(capitalInitial: number, tauxAnnuelPct: number, versementMensuel: number, annees: number): PointTrajectoire[] {
-  const mensuel = calculerTrajectoireMensuelle(capitalInitial, tauxAnnuelPct, versementMensuel, annees)
+export function calculerTrajectoire(
+  capitalInitial: number,
+  tauxAnnuelPct: number,
+  versementMensuel: number,
+  annees: number,
+  interetsDejaObtenus = 0,
+): PointTrajectoire[] {
+  const mensuel = calculerTrajectoireMensuelle(capitalInitial, tauxAnnuelPct, versementMensuel, annees, interetsDejaObtenus)
   return mensuel.filter((p) => p.moisDeLAnnee === 12 || p.annee === 0).map((p) => ({ annee: p.annee, valeur: p.capital, investi: p.verseCumule }))
 }
 
@@ -97,7 +123,7 @@ export function agregerParAnnee(pointsMensuels: PointMensuel[]): PointAnnuel[] {
   const parAnnee = new Map<number, PointAnnuel>()
   for (const p of pointsMensuels) {
     if (p.annee === 0) {
-      parAnnee.set(0, { annee: 0, versements: p.versement, interets: 0, capital: p.capital, verseCumule: p.verseCumule, interetsCumules: 0 })
+      parAnnee.set(0, { annee: 0, versements: p.versement, interets: 0, capital: p.capital, verseCumule: p.verseCumule, interetsCumules: p.interetsCumules })
       continue
     }
     const existant = parAnnee.get(p.annee) ?? { annee: p.annee, versements: 0, interets: 0, capital: 0, verseCumule: 0, interetsCumules: 0 }

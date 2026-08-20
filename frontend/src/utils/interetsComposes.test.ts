@@ -119,3 +119,36 @@ describe('calculerFire', () => {
     expect(resultat3.patrimoineNecessaire).toBeGreaterThan(resultat4.patrimoineNecessaire)
   })
 })
+
+describe('calculerTrajectoireMensuelle — intérêts déjà obtenus', () => {
+  it("répartit le capital de départ entre versé et intérêts cumulés dès l'état initial", () => {
+    const points = calculerTrajectoireMensuelle(10000, 5, 0, 1, 1500)
+    expect(points[0].verseCumule).toBe(8500) // 10000 - 1500
+    expect(points[0].interetsCumules).toBe(1500)
+    expect(points[0].capital).toBe(10000) // le total, lui, ne change pas
+  })
+
+  it("n'affecte jamais la capitalisation elle-même (mêmes intérêts futurs, à répartition différente)", () => {
+    const avec = calculerTrajectoireMensuelle(10000, 5, 0, 2, 1500)
+    const sans = calculerTrajectoireMensuelle(10000, 5, 0, 2, 0)
+    expect(avec[24].capital).toBe(sans[24].capital)
+    // La différence se reporte intégralement sur la répartition versé/intérêts.
+    expect(avec[24].verseCumule).toBeCloseTo(sans[24].verseCumule - 1500, 6)
+    expect(avec[24].interetsCumules).toBeCloseTo(sans[24].interetsCumules + 1500, 6)
+  })
+
+  it('borne à 0 si négatif, et au capital de départ si excessif', () => {
+    const negatif = calculerTrajectoireMensuelle(10000, 5, 0, 1, -500)
+    expect(negatif[0].interetsCumules).toBe(0)
+    expect(negatif[0].verseCumule).toBe(10000)
+
+    const excessif = calculerTrajectoireMensuelle(10000, 5, 0, 1, 50000)
+    expect(excessif[0].interetsCumules).toBe(10000)
+    expect(excessif[0].verseCumule).toBe(0)
+  })
+
+  it('calculerTrajectoire (vue annuelle) transmet bien le paramètre', () => {
+    const points = calculerTrajectoire(10000, 5, 0, 1, 1500)
+    expect(points[0].investi).toBe(8500)
+  })
+})
