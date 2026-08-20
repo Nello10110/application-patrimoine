@@ -7,7 +7,13 @@ from sqlalchemy import event
 
 from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, FundComposition, Holding, MarketDataCache
 from app.services import analysis_service
-from app.services.analysis_service import breakdown_with_lookthrough, compute_data_quality, compute_risk_indicators, value_holdings
+from app.services.analysis_service import (
+    breakdown_with_lookthrough,
+    compute_cout_gestion_consolide,
+    compute_data_quality,
+    compute_risk_indicators,
+    value_holdings,
+)
 from app.services.reference_indices import NON_CATEGORISE
 
 
@@ -239,3 +245,51 @@ def test_une_action_reste_classee_sur_son_pays(db):
 
     valued = analysis_service.value_holdings(db.query(Holding).all())
     assert analysis_service.breakdown_with_lookthrough(db, valued, "geo") == {"Amérique du Nord": 1000.0}
+
+
+# ---------------------------------------------------------------------------
+# Roadmap Phase 3, § E.3 — coût de gestion annuel consolidé des fonds/ETF
+# ---------------------------------------------------------------------------
+
+
+def test_cout_gestion_consolide_ignore_les_lignes_non_fonds(db):
+    db.add(Holding(ticker="AAPL", quantite=10.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(MarketDataCache(ticker="AAPL", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+
+    valued = value_holdings(db.query(Holding).all())
+    resultat = compute_cout_gestion_consolide(valued)
+
+    assert resultat == {
+        "valeur_fonds": 0.0,
+        "valeur_fonds_avec_ter_connu": 0.0,
+        "couverture_pct": 0.0,
+        "cout_annuel_estime": 0.0,
+    }
+
+
+def test_cout_gestion_consolide_calcule_le_cout_annuel_et_la_couverture(db):
+    # ETF avec TER connu : 1000€ * 0,2% = 2€/an.
+    db.add(Holding(ticker="ETF1", quantite=10.0, prix_revient_moyen=90.0, type_actif="FUND"))
+    db.add(MarketDataCache(ticker="ETF1", prix_actuel=100.0, frais_gestion_pct=0.2, derniere_maj=datetime.now(timezone.utc)))
+    # ETF sans TER connu (pas encore rafraîchi depuis la livraison de la fonctionnalité).
+    db.add(Holding(ticker="ETF2", quantite=5.0, prix_revient_moyen=190.0, type_actif="FUND"))
+    db.add(MarketDataCache(ticker="ETF2", prix_actuel=200.0, frais_gestion_pct=None, derniere_maj=datetime.now(timezone.utc)))
+    db.commit()
+
+    valued = value_holdings(db.query(Holding).all())
+    resultat = compute_cout_gestion_consolide(valued)
+
+    assert resultat["valeur_fonds"] == 2000.0  # 1000 (ETF1) + 1000 (ETF2)
+    assert resultat["valeur_fonds_avec_ter_connu"] == 1000.0  # ETF1 seul
+    assert resultat["couverture_pct"] == 50.0
+    assert resultat["cout_annuel_estime"] == 2.0  # 1000 * 0.2 / 100
+
+
+def test_cout_gestion_consolide_portefeuille_sans_fonds(db):
+    assert compute_cout_gestion_consolide([]) == {
+        "valeur_fonds": 0.0,
+        "valeur_fonds_avec_ter_connu": 0.0,
+        "couverture_pct": 0.0,
+        "cout_annuel_estime": 0.0,
+    }

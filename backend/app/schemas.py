@@ -319,6 +319,15 @@ class RepartitionComptesResponse(BaseModel):
     )
 
 
+class CoutGestionConsolide(BaseModel):
+    """Réponse de `GET /api/analysis/cout-gestion` (roadmap Phase 3, § E.3)."""
+
+    valeur_fonds: float
+    valeur_fonds_avec_ter_connu: float
+    couverture_pct: float
+    cout_annuel_estime: float
+
+
 class TransactionImportResult(BaseModel):
     lignes_lues: int
     importees: int
@@ -376,6 +385,40 @@ class PortfolioHistoryPoint(BaseModel):
 
 class PortfolioHistoryResponse(BaseModel):
     points: list[PortfolioHistoryPoint]
+
+
+class DividendeLigne(BaseModel):
+    date: str
+    symbol: str | None
+    nom: str | None
+    montant: float
+
+
+class DividendeMois(BaseModel):
+    mois: str  # "AAAA-MM"
+    montant_total: float
+    lignes: list[DividendeLigne]
+
+
+class MouvementRapport(BaseModel):
+    date: str
+    type: str
+    symbol: str | None
+    nom: str | None
+    montant: float
+
+
+class RapportMensuel(BaseModel):
+    """Réponse de `GET /api/performance/rapport` (roadmap Phase 4, § D.2)."""
+
+    annee: int
+    mois: int
+    valeur_debut_mois: float | None
+    valeur_fin_mois: float | None
+    evolution_pct: float | None
+    dividendes_percus: float
+    nombre_transactions: int
+    plus_gros_mouvements: list[MouvementRapport]
 
 
 class HoldingPricePoint(BaseModel):

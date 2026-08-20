@@ -315,6 +315,17 @@ export default function ReglagesPage() {
             Rentabilité
           </a>
         </div>
+
+        <p className="mb-4 mt-6 text-sm text-slate-600 dark:text-slate-300">
+          Relevé de patrimoine PDF : une photographie mise en forme, prête à imprimer ou archiver — patrimoine net,
+          répartition et rentabilité globale.
+        </p>
+        <a
+          href="/api/export/patrimoine.pdf"
+          className="inline-block rounded-md border border-slate-900 px-4 py-2 text-sm font-medium text-slate-900 dark:border-slate-100 dark:text-slate-100"
+        >
+          Relevé de patrimoine (PDF)
+        </a>
       </Card>
     </div>
   )

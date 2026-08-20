@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Holding, Transaction
-from ..services import analysis_service, performance_service
+from ..services import analysis_service, pdf_export_service, performance_service
 from ..services.csv_export import construire_csv, formater_horodatage, formater_nombre
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -167,3 +167,13 @@ def export_performance(db: Session = Depends(get_db)):
         lignes.append([libelle, texte])
 
     return _reponse_csv(construire_csv(["Libellé", "Valeur"], lignes), _nom_fichier("performance"))
+
+
+@router.get("/patrimoine.pdf")
+def export_patrimoine_pdf(db: Session = Depends(get_db)):
+    """Relevé de patrimoine PDF (roadmap Phase 3, § D.1) — au-delà des trois CSV
+    ci-dessus, une photographie mise en forme du patrimoine net, de sa répartition
+    et de la rentabilité globale, cf. `services/pdf_export_service.py`."""
+    contenu = pdf_export_service.generer_pdf_patrimoine(db)
+    nom_fichier = f"patrimoine-{date_.today().isoformat()}.pdf"
+    return Response(content=contenu, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nom_fichier}"'})

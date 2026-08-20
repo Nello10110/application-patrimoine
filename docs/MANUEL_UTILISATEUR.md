@@ -16,6 +16,8 @@ Parcours type conseillé :
 
 Un bouton en haut à droite de chaque écran bascule l'apparence entre thème clair, thème sombre et suivi automatique du système (un clic fait passer de l'un à l'autre) ; le choix est mémorisé d'une visite à l'autre.
 
+**Installer l'application** : depuis un navigateur compatible (Chrome, Edge, ou Safari via « Ajouter à l'écran d'accueil » sur iPhone/iPad), l'icône d'installation dans la barre d'adresse (ou le menu du navigateur) ajoute l'application comme une icône dédiée, ouverte en plein écran — pas de store, pas d'installation à maintenir, juste le navigateur qui la sert comme une application native.
+
 ## Écran Import
 
 ### Historique de transactions
@@ -69,6 +71,14 @@ Projette le patrimoine net actuel dans le temps — une **hypothèse**, pas une 
 - **Hypothèses** : rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), épargne mensuelle ajoutée (€), horizon (boutons 5/10/20/30 ans). Le graphique se met à jour automatiquement après un court délai à chaque changement.
 - **Indépendance financière (FIRE)** : renseigner une dépense annuelle cible et un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique parmi d'autres, pas une vérité universelle, librement modifiable) affiche le patrimoine nécessaire pour vivre de ce patrimoine, et le délai estimé pour l'atteindre avec les mêmes hypothèses de rendement/épargne que ci-dessus. Au-delà de 60 ans de projection, le résultat affiche « Non atteinte » plutôt qu'un nombre d'années trop lointain pour être fiable.
 
+## Écran Dividendes
+
+Calendrier des dividendes déjà perçus : un total en tête, un graphique en barres par mois, puis la liste des mois (les plus récents en premier) — cliquer sur un mois déplie le détail des lignes qui l'ont composé (date, titre, montant net). Ne montre que des montants déjà perçus, jamais une projection future.
+
+## Écran Rapport
+
+Rapport récapitulatif d'un mois choisi via le sélecteur en haut à droite (par défaut, le mois en cours) : valeur du portefeuille en fin de mois, évolution sur le mois (en vert si positive, en rouge sinon), dividendes perçus, et les cinq mouvements les plus importants du mois (achats, ventes...). Généré à la demande à chaque changement de mois — rien n'est envoyé par courriel, l'application n'a pas de serveur mail.
+
 ## Tableau de bord
 
 - **Patrimoine net** : en tout premier sur l'écran, distinct du reste (indépendant de l'année sélectionnée) — actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER), passifs (somme des emprunts), patrimoine net, et une répartition par grande classe d'actif. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
@@ -78,6 +88,7 @@ Projette le patrimoine net actuel dans le temps — une **hypothèse**, pas une 
 - **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net), autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits une seconde fois.
 - **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer sur une barre ouvre le détail des lignes qui composent cette catégorie.
 - **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une partie du portefeuille n'est pas mesurée avec certitude — répartition géographique estimée à partir de l'indice suivi par un fonds (faute de composition détaillée), donnée totalement manquante, ou position valorisée à son coût de revient faute de cotation. N'apparaît pas si tout le portefeuille est couvert par une donnée réelle et coté.
+- **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est récupéré qu'une fois par fonds, au fil des rafraîchissements, donc la couverture peut rester partielle un moment après l'ajout d'un nouveau fonds ; le message le rappelle explicitement tant qu'elle n'atteint pas 100 %.
 - **Répartition par compte** : n'apparaît que si au moins une ligne porte une annotation de compte. Rappelle explicitement qu'aucune rentabilité par compte n'est calculable, seule la valeur actuelle l'est (le grand livre importé ne porte aucune information de compte).
 - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne, concentration géographique.
 - **Actions de rééquilibrage recommandées** : liste des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster. Un sous-ensemble de ces écarts, ceux qui dépassent le seuil d'alerte, est repris dans le bandeau d'alertes en haut de l'écran.
@@ -109,7 +120,7 @@ lente par politesse envers justETF qui n'offre aucun support). Pour chacune :
 
 ### Exporter
 
-Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule).
+Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule). Un quatrième bouton télécharge un **relevé de patrimoine au format PDF** : une photographie mise en forme (patrimoine net, répartition par classe d'actif, rentabilité globale, répartition par compte), prête à imprimer ou archiver.
 
 ## Écran Aide
 

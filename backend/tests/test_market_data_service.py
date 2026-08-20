@@ -385,3 +385,68 @@ def test_refresh_tickers_temporise_aussi_entre_deux_appels_justetf(db, monkeypat
     market_data_service.refresh_tickers(db, [("AAA", "FUND"), ("BBB", "FUND"), ("CCC", "FUND")])
 
     assert appels_sleep == [3.0, 3.0]
+
+
+# ---------------------------------------------------------------------------
+# Roadmap Phase 3, § E.3 — coût de gestion consolidé : TER mis en cache une
+# seule fois par ticker FUND, jamais recalculé aux rafraîchissements suivants.
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_frais_gestion_lit_net_expense_ratio(monkeypatch):
+    class FauxTickerAvecTer:
+        def __init__(self, symbole, *args, **kwargs):
+            self.info = {"netExpenseRatio": 0.2}
+
+    monkeypatch.setattr(yf, "Ticker", FauxTickerAvecTer)
+
+    assert market_data_service.fetch_frais_gestion("FAKE.ETF") == 0.2
+
+
+def test_fetch_frais_gestion_none_si_absent_ou_erreur(monkeypatch):
+    class FauxTickerSansInfo:
+        def __init__(self, symbole, *args, **kwargs):
+            self.info = {}
+
+    monkeypatch.setattr(yf, "Ticker", FauxTickerSansInfo)
+    assert market_data_service.fetch_frais_gestion("FAKE.ETF") is None
+
+    def _leve(*args, **kwargs):
+        raise ConnectionError("réseau indisponible")
+
+    monkeypatch.setattr(yf, "Ticker", _leve)
+    assert market_data_service.fetch_frais_gestion("FAKE.ETF") is None
+
+
+def test_refresh_tickers_fund_met_en_cache_le_ter_au_premier_rafraichissement(db, monkeypatch):
+    make_holding(db, ticker="IE00TER", type_actif="FUND")
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db, identifiant, asset_class: "FAKE.ETF")
+    monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", lambda isin: {"prix_actuel": 100.0})
+    monkeypatch.setattr(market_data_service, "fetch_frais_gestion", lambda ticker_resolu: 0.22)
+
+    market_data_service.refresh_tickers(db, [("IE00TER", "FUND")])
+
+    cache = db.get(MarketDataCache, "IE00TER")
+    assert cache.frais_gestion_pct == 0.22
+
+
+def test_refresh_tickers_fund_ne_recalcule_plus_le_ter_une_fois_connu(db, monkeypatch):
+    """Une fois `frais_gestion_pct` renseigné, les rafraîchissements suivants ne
+    doivent plus jamais rappeler `fetch_frais_gestion` — c'est tout le sens du
+    cache « une seule fois par ticker » (§ E.3)."""
+    make_holding(db, ticker="IE00TER", type_actif="FUND")
+    db.add(MarketDataCache(ticker="IE00TER", frais_gestion_pct=0.10))
+    db.commit()
+
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db, identifiant, asset_class: "FAKE.ETF")
+    monkeypatch.setattr(market_data_service.justetf_service, "fetch_price", lambda isin: {"prix_actuel": 100.0})
+
+    def _interdit(*args, **kwargs):
+        raise AssertionError("fetch_frais_gestion ne doit plus être appelé une fois le TER déjà connu")
+
+    monkeypatch.setattr(market_data_service, "fetch_frais_gestion", _interdit)
+
+    market_data_service.refresh_tickers(db, [("IE00TER", "FUND")])
+
+    cache = db.get(MarketDataCache, "IE00TER")
+    assert cache.frais_gestion_pct == 0.10  # inchangé

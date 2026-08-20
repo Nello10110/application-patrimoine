@@ -28,8 +28,8 @@ de positionnement, pas seulement des cases à cocher.
 flowchart LR
     P1["Phase 1 ✓ livrée 19/08/2026\nPatrimoine net complet\nimmobilier · SCPI/AV/PER · dettes"]
     P2["Phase 2 ✓ livrée 20/08/2026\nProjections\nsimulateur · FIRE"]
-    P3["Phase 3\nConfort quotidien\ndividendes · PDF · PWA"]
-    P4["Phase 4\nDécisions à trancher\nbudget · partage · agrégation bancaire"]
+    P3["Phase 3 ✓ livrée 20/08/2026\nConfort quotidien\ndividendes · PDF · coût consolidé · PWA"]
+    P4["Phase 4 — partielle\nD.2 ✓ livré 20/08/2026\nreste : budget · partage · agrégation bancaire"]
     P1 --> P2 --> P3 --> P4
 ```
 
@@ -125,7 +125,7 @@ tests backend (+17) + 101 tests frontend (+8). Détail complet dans [`docs/BACKL
 
 ---
 
-## Phase 3 — Confort et transparence au quotidien
+## Phase 3 — Confort et transparence au quotidien — livrée le 20/08/2026
 
 **Backlog** : C.1 (calendrier dividendes), D.1 (relevé PDF), E.1 (formats de courtier), E.3 (coût
 consolidé), H.1 (PWA). **Effort total** : `M`. **Pourquoi ici** : ce sont des améliorations
@@ -145,28 +145,47 @@ Points notables :
 - **H.1** (PWA) est purement frontend, sans impact backend — candidat à traiter en parallèle du
   reste si besoin de varier.
 
+### Ce qui a été livré (20/08/2026) — écart avec le plan ci-dessus
+
+- **C.1, D.1, E.3, H.1 : livrés et vérifiés en conditions réelles** — détail complet dans
+  [`docs/BACKLOG.md`](BACKLOG.md) § 2 (C.1, D.1, E.3, H.1).
+- **E.1 seul non livré**, et volontairement : au moment d'écrire le code de détection de format, aucun
+  fichier d'export réel d'un autre courtier (Boursorama, Degiro, IBKR) n'était disponible. Deviner un
+  schéma de parsing pour une donnée financière personnelle sans référence réelle aurait risqué de mal
+  interpréter silencieusement les transactions d'un futur utilisateur — écarté plutôt que livré à
+  l'aveugle. Reste dans le backlog (§ 2.E.1), à reprendre dès qu'un export réel est disponible.
+- **D.2 (Phase 4) livré en même temps** que ce lot : sa spécification était suffisamment claire et ne
+  dépendait d'aucune décision préalable, contrairement aux quatre autres points de la Phase 4 — voir
+  ci-dessous.
+
+387 backend / 107 frontend avant ce lot → 415 backend / 107 frontend après (C.1/D.1/E.3/D.2 ont
+chacun leurs tests dédiés ; H.1 est vérifié par un contrôle en conditions réelles, pas par des tests
+unitaires — un service worker généré par Workbox n'a pas de logique métier propre à verrouiller).
+`tsc`/`oxlint`/`vite build` propres.
+
 ---
 
 ## Phase 4 — Décisions à trancher avant d'aller plus loin
 
-**Backlog** : F.1 (budget), E.2 (agrégation bancaire), C.2 (projection des dividendes), D.2
-(rapport périodique), G.1 (partage). **Pas d'effort agrégé** : cette phase n'est pas un chantier de
-développement à proprement parler, c'est une liste de **décisions produit ou de vérifications
-externes** à faire avant que le développement ait un sens.
+**Backlog** : F.1 (budget), E.2 (agrégation bancaire), C.2 (projection des dividendes), ~~D.2
+(rapport périodique)~~ **livré le 20/08/2026, voir Phase 3**, G.1 (partage). **Pas d'effort agrégé**
+pour les quatre points restants : cette phase n'est pas un chantier de développement à proprement
+parler, c'est une liste de **décisions produit ou de vérifications externes** à faire avant que le
+développement ait un sens.
 
 - **F.1 (budget)** : demande une décision explicite de l'utilisateur — réintroduire les mouvements
   bancaires (exclus volontairement à l'increment 5) est un changement de philosophie du produit, pas
-  un simple ajout d'écran. À rediscuter en fin de Phase 3, une fois qu'on voit concrètement ce que
-  l'app est devenue.
+  un simple ajout d'écran. À rediscuter maintenant que les Phases 1-3 sont livrées, une fois qu'on
+  voit concrètement ce que l'app est devenue.
 - **E.2 (agrégation bancaire)** : demande une réponse écrite d'Enable Banking sur le statut
   réglementaire d'un usage personnel avant tout code — GoCardless (l'alternative gratuite historique)
   est fermée depuis juillet 2025, ne pas repartir sur cette piste.
 - **G.1 (partage)** : n'a de sens que si l'usage dépasse un seul foyer/personne — à ne considérer que
   si ce besoin apparaît réellement, plutôt qu'en anticipation.
-- **C.2 et D.2** sont des extensions naturelles de C.1/D.1 (Phase 3) mais avec une précision ou une
-  utilité plus incertaine (projection de dividendes approximative, rapport périodique sans mécanisme
-  d'envoi puisque l'app n'a pas de serveur mail) — à réévaluer une fois C.1/D.1 livrés et leur usage
-  réel observé.
+- **C.2** est une extension naturelle de C.1 (Phase 3, livré) mais avec une fiabilité de données trop
+  incertaine (`yfinance` `dividendRate` pas fiable pour les ETF) pour être livrée sans cadrage
+  préalable avec l'utilisateur sur la marge d'erreur acceptable — écartée le 20/08/2026 pour cette
+  raison, pas par manque de temps.
 
 ---
 

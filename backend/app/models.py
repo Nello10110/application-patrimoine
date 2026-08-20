@@ -150,6 +150,12 @@ class MarketDataCache(Base):
     # sans onglet Holdings (réplication synthétique/ETC). Colonne additive, couverte
     # automatiquement par `database.run_startup_migrations`.
     description: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Frais de gestion annuels (TER) d'un fonds/ETF (roadmap Phase 3, § E.3), mis en
+    # cache UNE SEULE FOIS par ticker (jamais recalculé ensuite, contrairement au
+    # prix) — cf. `market_data_service.refresh_tickers`, qui ne l'interroge que tant
+    # que cette colonne est `None` pour ne pas ralentir le rafraîchissement en masse.
+    # Colonne additive, couverte automatiquement par `database.run_startup_migrations`.
+    frais_gestion_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 

@@ -309,6 +309,13 @@ export interface PerformanceSummary {
   premiere_transaction: string | null
 }
 
+export interface CoutGestionConsolide {
+  valeur_fonds: number
+  valeur_fonds_avec_ter_connu: number
+  couverture_pct: number
+  cout_annuel_estime: number
+}
+
 export interface RepartitionItem {
   categorie: string
   poids: number
@@ -357,6 +364,38 @@ export interface CategoryCompositionResponse {
   categorie: string
   valeur_totale: number
   lignes: CategoryCompositionItem[]
+}
+
+export interface MouvementRapport {
+  date: string
+  type: string
+  symbol: string | null
+  nom: string | null
+  montant: number
+}
+
+export interface RapportMensuel {
+  annee: number
+  mois: number
+  valeur_debut_mois: number | null
+  valeur_fin_mois: number | null
+  evolution_pct: number | null
+  dividendes_percus: number
+  nombre_transactions: number
+  plus_gros_mouvements: MouvementRapport[]
+}
+
+export interface DividendeLigne {
+  date: string
+  symbol: string | null
+  nom: string | null
+  montant: number
+}
+
+export interface DividendeMois {
+  mois: string // "AAAA-MM"
+  montant_total: number
+  lignes: DividendeLigne[]
 }
 
 export interface PortfolioHistoryPoint {

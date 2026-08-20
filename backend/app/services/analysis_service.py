@@ -246,6 +246,38 @@ def compute_data_quality(db: Session, valued: list[ValuedHolding]) -> dict:
     }
 
 
+def compute_cout_gestion_consolide(valued: list[ValuedHolding]) -> dict:
+    """Coût de gestion annuel consolidé des fonds/ETF détenus (roadmap Phase 3, § E.3) —
+    somme, pour chaque ligne `type_actif == "FUND"`, de sa valeur actuelle × son TER
+    (`MarketDataCache.frais_gestion_pct`, mis en cache par
+    `market_data_service.fetch_frais_gestion`). `couverture_pct` indique la part de la
+    valeur des fonds pour laquelle un TER est effectivement connu — même logique de
+    transparence que `compute_data_quality` ci-dessus : ne jamais présenter une
+    estimation partielle comme un chiffre complet sans le dire."""
+    valeur_fonds = 0.0
+    valeur_fonds_avec_ter_connu = 0.0
+    cout_annuel_estime = 0.0
+
+    for v in valued:
+        if v.holding.type_actif != "FUND":
+            continue
+        valeur_fonds += v.valeur
+        md = v.holding.market_data
+        ter = md.frais_gestion_pct if md else None
+        if ter is not None:
+            valeur_fonds_avec_ter_connu += v.valeur
+            cout_annuel_estime += v.valeur * ter / 100
+
+    couverture_pct = round(valeur_fonds_avec_ter_connu / valeur_fonds * 100, 1) if valeur_fonds > 0 else 0.0
+
+    return {
+        "valeur_fonds": round(valeur_fonds, 2),
+        "valeur_fonds_avec_ter_connu": round(valeur_fonds_avec_ter_connu, 2),
+        "couverture_pct": couverture_pct,
+        "cout_annuel_estime": round(cout_annuel_estime, 2),
+    }
+
+
 def repartition_par_compte(valued: list[ValuedHolding]) -> list[dict]:
     """Répartition de la VALEUR ACTUELLE du portefeuille par compte (LOT 5.1).
 

@@ -7,6 +7,8 @@ import App from './App'
 // toutes l'API au montage : ce fichier ne teste que l'en-tête (navigation, bouton de
 // thème), donc chaque page est remplacée par un composant vide.
 vi.mock('./pages/DashboardPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/DividendesPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/RapportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/PortefeuillePage', () => ({ default: () => <div /> }))
 vi.mock('./pages/HoldingDetailPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ObjectifsPage', () => ({ default: () => <div /> }))

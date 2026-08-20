@@ -10,6 +10,7 @@ from ..schemas import (
     AllocationBreakdownItem,
     AnalysisResponse,
     CategoryCompositionResponse,
+    CoutGestionConsolide,
     QualiteDonnees,
     RebalancingAction,
     RepartitionComptesResponse,
@@ -53,6 +54,16 @@ def get_repartition_comptes(db: Session = Depends(get_db)):
     a_des_comptes_annotes = any(v.holding.compte for v in valued)
 
     return RepartitionComptesResponse(valeur_totale=round(valeur_totale, 2), items=items, a_des_comptes_annotes=a_des_comptes_annotes)
+
+
+@router.get("/cout-gestion", response_model=CoutGestionConsolide)
+def get_cout_gestion_consolide(db: Session = Depends(get_db)):
+    """Coût de gestion annuel consolidé des fonds/ETF détenus (roadmap Phase 3, § E.3) :
+    cf. docstring de `analysis_service.compute_cout_gestion_consolide`. Déclarée AVANT
+    `/{annee}` pour la même raison que `/comptes` ci-dessus."""
+    holdings = analysis_service.holdings_financiers(db)
+    valued = analysis_service.value_holdings(holdings)
+    return CoutGestionConsolide(**analysis_service.compute_cout_gestion_consolide(valued))
 
 
 @router.get("/{annee}", response_model=AnalysisResponse)

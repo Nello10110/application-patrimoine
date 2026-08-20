@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { AnalysisResponse, PerformanceSummary, RepartitionComptesResponse } from '../api/types'
+import type { AnalysisResponse, CoutGestionConsolide, PerformanceSummary, RepartitionComptesResponse } from '../api/types'
 import AllocationChartCard from '../components/AllocationChartCard'
 import Card from '../components/Card'
 import CompositionModal from '../components/CompositionModal'
+import CoutGestionCard from '../components/CoutGestionCard'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
 import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [performance, setPerformance] = useState<PerformanceSummary | null>(null)
   const [comptes, setComptes] = useState<RepartitionComptesResponse | null>(null)
+  const [coutGestion, setCoutGestion] = useState<CoutGestionConsolide | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<{ type: 'geo' | 'sector'; categorie: string } | null>(null)
@@ -55,6 +57,9 @@ export default function DashboardPage() {
     // Répartition par compte (LOT 5.1) : indépendante de l'année sélectionnée, comme
     // la rentabilité ci-dessus — pas de blocage de la page si elle échoue.
     api.getRepartitionComptes().then(setComptes).catch(() => setComptes(null))
+    // Coût de gestion consolidé (§ E.3) : indépendant de l'année sélectionnée, même
+    // philosophie que la répartition par compte ci-dessus.
+    api.getCoutGestionConsolide().then(setCoutGestion).catch(() => setCoutGestion(null))
   }
 
   useEffect(chargerDonnees, [annee])
@@ -171,6 +176,8 @@ export default function DashboardPage() {
           </div>
 
           <QualiteDonneesCard qualite={analysis.qualite_donnees} />
+
+          {coutGestion && <CoutGestionCard cout={coutGestion} />}
 
           {comptes && comptes.a_des_comptes_annotes && (
             <Card title="Répartition par compte">

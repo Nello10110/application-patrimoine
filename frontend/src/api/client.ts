@@ -4,6 +4,9 @@ import type {
   AnalysisResponse,
   CategoryCompositionResponse,
   ColumnMapping,
+  CoutGestionConsolide,
+  DividendeMois,
+  RapportMensuel,
   PortfolioHistoryResponse,
   EtatRafraichissement,
   Holding,
@@ -111,6 +114,7 @@ export const api = {
   getCategoryComposition: (type: 'geo' | 'sector', categorie: string) =>
     request<CategoryCompositionResponse>(`/analysis/composition?type=${type}&categorie=${encodeURIComponent(categorie)}`),
   getRepartitionComptes: () => request<RepartitionComptesResponse>('/analysis/comptes'),
+  getCoutGestionConsolide: () => request<CoutGestionConsolide>('/analysis/cout-gestion'),
 
   // Transactions & performance
   importTransactions: (file: File) => {
@@ -120,6 +124,8 @@ export const api = {
   },
   getPerformance: () => request<PerformanceSummary>('/performance'),
   getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
+  getDividendCalendar: () => request<DividendeMois[]>('/performance/dividendes'),
+  getRapportMensuel: (annee: number, mois: number) => request<RapportMensuel>(`/performance/rapport?annee=${annee}&mois=${mois}`),
 
   // Réglages (tâches planifiées)
   listJobs: () => request<ScheduledJob[]>('/settings/jobs'),

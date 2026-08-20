@@ -160,11 +160,19 @@ implémentée (référence externe, pas juste "le code confirme le code"). 395 t
 
 ### C. Dividendes et revenus
 
-#### C.1 — `mineur` · `S` · `P2` · `non traité` — Calendrier des dividendes perçus
+#### C.1 — `mineur` · `S` · `P2` · `traité` — Calendrier des dividendes perçus
 
 Vue chronologique des dividendes déjà perçus (donnée déjà en base via les transactions
 `CASH/DIVIDEND`), groupée par mois — aucune nouvelle donnée à récupérer, juste une nouvelle vue sur
-l'existant.
+l'existant. Nouveau `performance_service.compute_dividend_calendar` (regroupement par
+`Transaction.date[:7]`, montant net `amount + fee + tax`, même convention algébrique que
+`compute_performance`), exposé via `GET /api/performance/dividendes`. Nouvel écran `/dividendes`
+(barre chronologique + détail dépliable par mois).
+
+**Vérifié en conditions réelles** (20/08/2026) sur le vrai historique de transactions : total perçu
+21,71 € sur 29 mois (mars 2024 → août 2026), détail d'un mois déplié montrant les vraies lignes
+(Visa, Johnson & Johnson, Microsoft, Qualcomm, Nintendo pour juin 2025). Tests dans
+`test_performance_service.py`, build frontend propre.
 
 #### C.2 — `mineur` · `M` · `P2` · `non traité` — Projection des dividendes à 12 mois
 
@@ -174,19 +182,44 @@ chaque ligne (annuel, trimestriel...) et le montant par part, que `yfinance` exp
 cadrer avant de s'engager : projection **approximative**, affichée comme telle (même philosophie que
 la qualité des données géographiques déjà en place), pas une promesse de montant exact.
 
+**Non traité le 20/08/2026** (volontairement, pas oublié) : en implémentant C.1/D.1/D.2/E.3/H.1 dans
+la même session, ce point a été délibérément écarté — la fiabilité insuffisante de `dividendRate`
+pour les ETF (déjà signalée ci-dessus) entre en tension directe avec l'exigence de l'application de
+ne jamais afficher un chiffre financier dont la fiabilité n'est pas établie. Reste à cadrer avec
+l'utilisateur avant tout développement (quelle marge d'erreur est acceptable, comment l'afficher).
+
 ### D. Rapports et exports
 
-#### D.1 — `mineur` · `M` · `P2` · `non traité` — Relevé de patrimoine PDF
+#### D.1 — `mineur` · `M` · `P2` · `traité` — Relevé de patrimoine PDF
 
 Export d'une photographie du patrimoine à une date donnée (répartition par classe d'actif, par
 compte, gains/pertes) en PDF mis en forme — au-delà des trois CSV déjà exportables. Génération
-côté backend (`reportlab`, déjà utilisé dans l'écosystème Python, aucune dépendance lourde).
+côté backend (`reportlab`, ajouté à `requirements.txt`), nouveau `services/pdf_export_service.py` :
+ne calcule rien lui-même, réutilise telles quelles `patrimoine_service.compute_patrimoine_net`,
+`performance_service.compute_performance` et `analysis_service.{holdings_financiers,
+value_holdings, repartition_par_compte}` — pure mise en forme. Nouvel endpoint
+`GET /api/export/patrimoine.pdf`, bouton dédié sur `/reglages` à côté des exports CSV existants.
 
-#### D.2 — `mineur` · `S` · `P3` · `non traité` — Rapport périodique consultable
+**Vérifié** : 6 tests (`test_pdf_export_service.py`, extraction du texte réel du PDF via `pypdf`
+plutôt qu'un simple "ne plante pas" — présence/absence des sections selon les données, montants en
+euros avec séparateur de milliers). `pypdf` ajouté à `requirements-dev.txt` (vérification seulement,
+jamais utilisé en production).
+
+#### D.2 — `mineur` · `S` · `P3` · `traité` — Rapport périodique consultable
 
 Équivalent du « rapport mensuel » Finary, mais sans envoi (l'application n'a pas de serveur mail) :
 une page récapitulative du mois écoulé (évolution, plus gros mouvements, dividendes perçus),
-générée à la demande plutôt que poussée automatiquement.
+générée à la demande plutôt que poussée automatiquement. Nouveau `services/rapport_service.py`
+(`compute_rapport_mensuel`) : réutilise `historical_performance_service.compute_portfolio_history`
+(déjà mis en cache 24h) pour l'évolution, interroge directement `Transaction` pour les mouvements et
+les dividendes du mois — aucun nouveau calcul de fond. `GET /api/performance/rapport?annee=&mois=`,
+nouvel écran `/rapport` avec sélecteur de mois (`<input type="month">`).
+
+**Vérifié en conditions réelles** (20/08/2026) : août 2026 → 10 961 € en fin de mois, +5,8 % sur le
+mois, 0,14 € de dividendes, 5 plus gros mouvements affichés avec les vrais libellés (MSCI Emerging
+Asia, S&P 500, Private Equity...) ; changement de mois vers mars 2026 dans le sélecteur → nouvel
+appel réseau confirmé, nouvelles données affichées (7 662 €, -0,1 %, 1,93 €). 5 tests backend
+(`test_rapport_service.py`) + 3 tests frontend (`RapportPage.test.tsx`).
 
 ### E. Agrégation, import et frais
 
@@ -197,6 +230,12 @@ Interactive Brokers...) devraient passer par le mapping manuel déjà existant p
 positions, mais pas par la reconstruction depuis un grand livre de transactions (réservée au format
 Trade Republic). Ajouter la détection automatique d'un second ou troisième format d'export courant
 élargirait qui peut utiliser l'application sans y toucher.
+
+**Bloqué (20/08/2026)** : aucun fichier d'export réel d'un autre courtier n'est disponible pour ce
+travail. Écrire un détecteur de format et un mapping de colonnes sans un vrai fichier de référence
+reviendrait à deviner un schéma pour une donnée financière personnelle — risque de mal interpréter
+silencieusement de vraies transactions d'un futur utilisateur. À reprendre dès qu'un export réel
+(Boursorama, Degiro ou IBKR) est disponible pour servir de référence.
 
 #### E.2 — `mineur` · `L` · `P3` · `non traité` — Explorer une agrégation bancaire gratuite (à valider, non engagé)
 
@@ -211,12 +250,27 @@ clair de leur part sur le statut réglementaire d'un usage personnel non commerc
 une piste à instruire, pas un engagement — cohérent avec la prudence déjà appliquée pour justETF
 (§ 2.4 de l'audit archivé).
 
-#### E.3 — `mineur` · `S` · `P2` · `non traité` — Coût total annualisé consolidé
+#### E.3 — `mineur` · `S` · `P2` · `traité` — Coût total annualisé consolidé
 
 Le TER de chaque fonds est déjà récupéré (`fetch_holding_extra_info`, pas mis en cache) ; un
 indicateur consolidé (coût de gestion annuel total en euros, pondéré par la valeur de chaque ligne)
 donnerait une vue immédiate du "combien ça coûte de détenir ce portefeuille" — sur le modèle du
 scanner de frais Finary, mais sans les frais bancaires (que nous n'avons pas).
+
+Nouvelle colonne `MarketDataCache.frais_gestion_pct` (additive, couverte par
+`run_startup_migrations`), peuplée **une seule fois par ticker FUND** par
+`market_data_service.fetch_frais_gestion` — appelée depuis `refresh_tickers` uniquement tant que la
+colonne vaut `None` pour ce ticker, donc sans jamais ralentir les rafraîchissements suivants (même
+principe que le reste du cache de marché). Nouvelle fonction
+`analysis_service.compute_cout_gestion_consolide` (coût annuel estimé + `couverture_pct`, honnête
+sur la part de la valeur des fonds pour laquelle un TER est réellement connu — même philosophie que
+`compute_data_quality`). `GET /api/analysis/cout-gestion`, nouvelle carte sur le tableau de bord.
+
+**Vérifié en conditions réelles** (20/08/2026) : carte affichée sur le vrai portefeuille avec l'état
+honnête « 0 % de couverture » (aucun rafraîchissement n'a encore mis en cache les TER depuis la
+livraison de cette fonctionnalité) — comportement attendu, la couverture montera au fil des
+rafraîchissements. 7 tests backend (`test_market_data_service.py`, `test_analysis_service.py`) + 2
+tests frontend (`CoutGestionCard.test.tsx`).
 
 ### F. Budget (décision de scope, pas juste une fonctionnalité)
 
@@ -240,12 +294,27 @@ considérer que si l'usage de l'application dépasse un seul foyer/personne.
 
 ### H. Qualité de vie et accès mobile
 
-#### H.1 — `mineur` · `M` · `P2` · `non traité` — Application installable (PWA)
+#### H.1 — `mineur` · `M` · `P2` · `traité` — Application installable (PWA)
 
 Rendre le frontend installable comme une application (icône, plein écran, fonctionne hors ligne
 pour les données déjà chargées) via un manifest + service worker — gratuit, pas de store, pas de
 build natif à maintenir. Se rapproche de l'usage mobile de Finary sans le coût d'une vraie
 application native.
+
+`vite-plugin-pwa` (Workbox) plutôt qu'un service worker écrit à la main — la mise en cache maison est
+un piège classique (versions périmées servies indéfiniment) que Workbox gère correctement de série.
+`/api/*` explicitement exclu du cache (`navigateFallbackDenylist`) : les données financières
+affichées doivent toujours venir du backend en direct, jamais d'une réponse figée hors-ligne — seuls
+les fichiers statiques du build (JS/CSS/icônes) sont mis en cache. Icônes (192/512/maskable/
+apple-touch-icon) générées depuis le logo SVG existant (`public/favicon.svg`, rendu en PNG via un
+canvas navigateur) plutôt qu'ajoutées à la main. Nouvelle config `frontend-preview`
+(`.claude/launch.json`, `vite preview` sur le port 4173) pour vérifier le service worker généré
+contre un vrai build de production.
+
+**Vérifié en conditions réelles** (20/08/2026) : build de production servi via `vite preview`,
+`navigator.serviceWorker.getRegistrations()` confirme l'enregistrement, manifeste chargé avec les 3
+icônes et les bons champs (`theme_color`, `display: standalone`...), page fonctionnelle contre le
+vrai backend à travers le service worker actif.
 
 ---
 
@@ -279,11 +348,18 @@ lot débloque) est dans [`docs/ROADMAP.md`](ROADMAP.md) :
    de ce qu'un ménage possède réellement — c'est désormais le cas.
 2. **P1 — Ce que le patrimoine permet** : B.1 (simulateur), B.2 (FIRE), A.4 (catégorie libre).
    **Livré et vérifié le 19-20/08/2026** (cf. le détail dans chaque point ci-dessus).
-3. **P2 — Confort et transparence** : C.1 (calendrier dividendes), D.1 (PDF), E.1 (formats
-   courtier), E.3 (coût consolidé), H.1 (PWA).
-4. **P3 — Chantiers plus lourds ou à trancher d'abord** : C.2 (projection dividendes, précision
-   incertaine), D.2 (rapport périodique), E.2 (agrégation bancaire, à instruire avant tout code),
-   F.1 (budget, décision de scope préalable), G.1 (partage, dépend de l'authentification).
+3. **P2 — Confort et transparence** : C.1 (calendrier dividendes), D.1 (PDF), E.3 (coût consolidé),
+   H.1 (PWA). **Livré et vérifié le 20/08/2026** (cf. le détail dans chaque point ci-dessus). E.1
+   (formats courtier) reste seul non traité dans ce lot, bloqué faute d'un fichier d'export réel
+   d'un autre courtier — pas une question de temps ou de priorité.
+4. **P3 — Chantiers plus lourds ou à trancher d'abord** : D.2 (rapport périodique) a été **livré et
+   vérifié le 20/08/2026** en même temps que le lot P2 ci-dessus (spécification suffisamment claire,
+   aucune décision préalable requise). Restent non traités : C.2 (projection dividendes, écartée le
+   20/08/2026 pour cause de fiabilité insuffisante des données sources), E.2 (agrégation bancaire, à
+   instruire avant tout code), F.1 (budget, décision de scope préalable), G.1 (partage, dépend de
+   l'authentification) — les quatre pour la même raison structurelle : chacun nécessite une décision
+   ou une confirmation externe qu'aucune session de développement ne peut prendre à la place de
+   l'utilisateur.
 
 ---
 

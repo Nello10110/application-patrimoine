@@ -9,3 +9,4 @@ python-multipart>=0.0.20
 apscheduler>=3.10
 requests>=2.32
 beautifulsoup4>=4.12
+reportlab>=4.2

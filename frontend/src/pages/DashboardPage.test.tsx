@@ -11,6 +11,7 @@ vi.mock('../api/client', () => ({
     getAnalysis: vi.fn(),
     getPerformance: vi.fn(),
     getRepartitionComptes: vi.fn(),
+    getCoutGestionConsolide: vi.fn(),
   },
 }))
 
@@ -21,6 +22,7 @@ vi.mock('../components/AllocationBarChart', () => ({ default: () => <div /> }))
 vi.mock('../components/CompositionModal', () => ({ default: () => <div /> }))
 vi.mock('../components/PerformanceCard', () => ({ default: () => <div /> }))
 vi.mock('../components/QualiteDonneesCard', () => ({ default: () => <div /> }))
+vi.mock('../components/CoutGestionCard', () => ({ default: () => <div /> }))
 // Patrimoine net (roadmap Phase 1) : carte autonome avec son propre appel API, hors
 // de l'objet de ce fichier — testée séparément dans PatrimoineNetCard.test.tsx.
 vi.mock('../components/PatrimoineNetCard', () => ({ default: () => <div /> }))
@@ -81,6 +83,12 @@ describe('DashboardPage — sélecteur d\'année', () => {
       a_des_comptes_annotes: false,
       pas_de_rentabilite_par_compte: '',
     })
+    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
+      valeur_fonds: 0,
+      valeur_fonds_avec_ter_connu: 0,
+      couverture_pct: 0,
+      cout_annuel_estime: 0,
+    })
   })
 
   it("charge l'analyse de l'année courante au montage, et propose les années enregistrées plus l'année courante", async () => {
@@ -140,6 +148,12 @@ describe('DashboardPage — bandeau d\'alerte (LOT 5.5)', () => {
       items: [],
       a_des_comptes_annotes: false,
       pas_de_rentabilite_par_compte: '',
+    })
+    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
+      valeur_fonds: 0,
+      valeur_fonds_avec_ter_connu: 0,
+      couverture_pct: 0,
+      cout_annuel_estime: 0,
     })
   })
 

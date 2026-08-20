@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- iOS ne lit jamais les icônes du manifeste PWA (§ H.1) : sans ce lien dédié,
+         "Ajouter à l'écran d'accueil" utiliserait une capture d'écran de la page. -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
     <meta
       name="description"
       content="Application Patrimoine : suivi et gestion de portefeuille boursier, analyse de patrimoine et suivi d'objectifs financiers."

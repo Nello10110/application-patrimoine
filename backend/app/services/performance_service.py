@@ -216,6 +216,34 @@ def compute_performance(db: Session, positions: dict[str, PositionState] | None 
     }
 
 
+def compute_dividend_calendar(db: Session) -> list[dict]:
+    """Dividendes perçus regroupés par mois calendaire (roadmap Phase 3, § C.1) —
+    même source et même convention algébrique que `dividendes_percus` ci-dessus
+    (`amount + fee + tax`, jamais d'`abs()`), simplement ventilée par mois et par
+    ligne plutôt qu'en un seul total."""
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.category == "CASH", Transaction.type == "DIVIDEND")
+        .order_by(Transaction.datetime_utc.asc())
+        .all()
+    )
+
+    par_mois: dict[str, dict] = {}
+    for tx in transactions:
+        mois = tx.date[:7]  # "AAAA-MM" (`Transaction.date` est "AAAA-MM-JJ")
+        entree = par_mois.setdefault(mois, {"mois": mois, "montant_total": 0.0, "lignes": []})
+        montant = tx.amount + tx.fee + tx.tax
+        entree["montant_total"] += montant
+        entree["lignes"].append({"date": tx.date, "symbol": tx.symbol, "nom": tx.name, "montant": round(montant, 2)})
+
+    resultat = []
+    for mois in sorted(par_mois):
+        entree = par_mois[mois]
+        entree["montant_total"] = round(entree["montant_total"], 2)
+        resultat.append(entree)
+    return resultat
+
+
 def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionState | None, now: datetime) -> dict:
     """Calcul commun à `compute_holding_returns` (toutes les lignes) et
     `compute_holding_return` (une seule, cf. LOT 4.2) — factorisé pour que les deux

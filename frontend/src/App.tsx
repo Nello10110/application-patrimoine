@@ -10,10 +10,12 @@ import { useTheme, type Theme } from './hooks/useTheme'
 // au premier chargement de l'application.
 const AidePage = lazy(() => import('./pages/AidePage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const DividendesPage = lazy(() => import('./pages/DividendesPage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('./pages/ImportPage'))
 const ObjectifsPage = lazy(() => import('./pages/ObjectifsPage'))
 const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
+const RapportPage = lazy(() => import('./pages/RapportPage'))
 const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
 const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
 
@@ -22,6 +24,8 @@ const navItems = [
   { to: '/portefeuille', label: 'Portefeuille' },
   { to: '/objectifs', label: 'Objectifs' },
   { to: '/simulateur', label: 'Simulateur' },
+  { to: '/dividendes', label: 'Dividendes' },
+  { to: '/rapport', label: 'Rapport' },
   { to: '/import', label: 'Import' },
   { to: '/reglages', label: 'Réglages' },
   { to: '/aide', label: 'Aide' },
@@ -86,6 +90,8 @@ function App() {
             <Route path="/portefeuille/:ticker" element={<HoldingDetailPage />} />
             <Route path="/objectifs" element={<ObjectifsPage />} />
             <Route path="/simulateur" element={<SimulateurPage />} />
+            <Route path="/dividendes" element={<DividendesPage />} />
+            <Route path="/rapport" element={<RapportPage />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/reglages" element={<ReglagesPage />} />
             <Route path="/aide" element={<AidePage />} />

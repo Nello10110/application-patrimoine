@@ -184,6 +184,19 @@ def fetch_holding_extra_info(ticker_resolu: str | None, asset_class: str | None)
     }
 
 
+def fetch_frais_gestion(ticker_resolu: str) -> float | None:
+    """Frais de gestion annuels (TER) d'un fonds, appelés au plus UNE FOIS par ticker
+    (roadmap Phase 3, § E.3) — `refresh_tickers` ne rappelle cette fonction que tant
+    que `MarketDataCache.frais_gestion_pct` vaut `None` pour ce ticker, donc seulement
+    lors du tout premier rafraîchissement après la livraison de cette fonctionnalité,
+    jamais ensuite : ne ralentit pas les rafraîchissements suivants."""
+    try:
+        info = yf.Ticker(ticker_resolu).info
+    except Exception:
+        return None
+    return (info or {}).get("netExpenseRatio")
+
+
 def get_fx_rate_to_eur(devise: str | None, cache: dict[str, float | None]) -> float | None:
     """Taux de conversion vers l'EUR pour 1 unité de `devise`. `GBp`/`GBX` (pence)
     sont un cas particulier : cotées en 1/100e de GBP chez Yahoo Finance."""
@@ -412,6 +425,11 @@ def refresh_tickers(
         cache_entry.region = data.get("region")
         cache_entry.erreur = data.get("erreur")
         cache_entry.derniere_maj = now
+
+        # § E.3 — TER mis en cache une seule fois par ticker (jamais recalculé
+        # ensuite), donc sans coût sur les rafraîchissements suivants.
+        if asset_class == "FUND" and ticker_resolu is not None and cache_entry.frais_gestion_pct is None:
+            cache_entry.frais_gestion_pct = fetch_frais_gestion(ticker_resolu)
 
         # Une composition justETF déjà en base (2.4) ne doit jamais être écrasée par
         # ce recalcul yfinance : les deux jobs tournent à des cadences différentes

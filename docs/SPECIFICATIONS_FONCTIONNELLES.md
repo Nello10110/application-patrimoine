@@ -13,7 +13,12 @@ Application web locale et mono-utilisateur de suivi de portefeuille boursier. El
 7. exporter positions, transactions et synthèse de rentabilité en CSV compatible Excel français ;
 8. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface ;
 9. suivre le **patrimoine net global** (roadmap Phase 1, `docs/ROADMAP.md`) : au-delà du seul portefeuille financier, immobilier/SCPI/assurance-vie/PER/autres actifs valorisés manuellement et emprunts (passifs), avec une répartition par grande classe d'actif ;
-10. **projeter** ce patrimoine net à horizon réglable et estimer une **indépendance financière** (roadmap Phase 2) à partir d'hypothèses de rendement, d'épargne et de dépense cible — présenté explicitement comme une hypothèse, jamais une promesse.
+10. **projeter** ce patrimoine net à horizon réglable et estimer une **indépendance financière** (roadmap Phase 2) à partir d'hypothèses de rendement, d'épargne et de dépense cible — présenté explicitement comme une hypothèse, jamais une promesse ;
+11. consulter un **calendrier des dividendes perçus**, mois par mois, avec le détail des lignes (roadmap Phase 3) ;
+12. exporter un **relevé de patrimoine en PDF** mis en forme, au-delà des exports CSV (roadmap Phase 3) ;
+13. voir le **coût de gestion annuel consolidé** des fonds/ETF détenus, avec un indicateur honnête de la part du portefeuille pour laquelle ce coût est réellement connu (roadmap Phase 3) ;
+14. consulter, à la demande, un **rapport mensuel récapitulatif** (évolution, plus gros mouvements, dividendes perçus) pour un mois donné (roadmap Phase 4) ;
+15. **installer l'application** comme une application (icône, plein écran) depuis un navigateur compatible (roadmap Phase 3).
 
 L'application ne fournit **aucun conseil en investissement personnalisé** : les objectifs de répartition sont définis par l'utilisateur lui-même, les recommandations ne portent que sur des catégories (zone géographique, secteur), jamais sur un titre à acheter ou vendre. Elle ne simule aucune fiscalité (cf. § 5, non-objectif assumé).
 
@@ -26,8 +31,10 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Fiche détaillée | `/portefeuille/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | Détail d'une position : valorisation, rendements, émetteur/résumé, look-through géo/secteur, historique de prix |
 | Objectifs | `/objectifs` | Définition des cibles de répartition géo/sectorielle par année, année sélectionnable parmi celles réellement enregistrées |
 | Simulateur | `/simulateur` | Projection du patrimoine net à horizon réglable (5/10/20/30 ans) selon des hypothèses de rendement et d'épargne mensuelle ; calcul d'indépendance financière (FIRE) à partir d'une dépense annuelle cible et d'un taux de retrait |
+| Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
+| Rapport | `/rapport` | Rapport récapitulatif d'un mois choisi (sélecteur), généré à la demande : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements du mois |
 | Import | `/import` | Import de l'historique de transactions ou d'un relevé de positions |
-| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV |
+| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV et relevé de patrimoine PDF |
 
 Un bouton dans l'en-tête bascule le thème clair/sombre (ou suit le système), sur tous les écrans.
 
@@ -157,6 +164,8 @@ Trois exports CSV indépendants, disponibles depuis l'écran Réglages, au forma
 
 Trois granularités différentes plutôt qu'un fichier unique : les mélanger obligerait à aplatir artificiellement des données qui n'ont pas le même niveau de détail.
 
+**Relevé de patrimoine PDF** (`GET /api/export/patrimoine.pdf`, roadmap Phase 3) : photographie mise en forme (reportlab), au format A4 — patrimoine net (actifs/passifs/net), répartition par classe d'actif, rentabilité globale (si des transactions existent), répartition par compte (si au moins une ligne est annotée). Ne recalcule rien : réutilise telles quelles `patrimoine_service.compute_patrimoine_net`, `performance_service.compute_performance` et `analysis_service.{holdings_financiers, value_holdings, repartition_par_compte}` — c'est une couche de mise en forme, pas une nouvelle source de vérité.
+
 ### 3.9 Rafraîchissement des données de marché
 
 Deux tâches planifiées indépendantes (APScheduler), chacune configurable (activation, intervalle) depuis l'écran Réglages :
@@ -165,6 +174,8 @@ Deux tâches planifiées indépendantes (APScheduler), chacune configurable (act
 - **`justetf_refresh`** (2.4) : look-through géo/secteur complet via justETF, cadence bien plus lente par défaut (une semaine) — la composition d'un fonds évolue lentement, et justETF n'offre aucun support en cas de blocage. Ne recalcule jamais la composition d'un ticker déjà couvert par `market_data_refresh` pour un même ticker sans raison : c'est l'inverse — une fois qu'un ticker a une composition justETF en base, `market_data_refresh` cesse de la recalculer pour lui (cadences différentes, la donnée la plus riche ne doit pas être écrasée par la moins riche). Déclenchement manuel synchrone (la requête HTTP attend la fin, contrairement à `market_data_refresh`) : le nombre de fonds à traiter reste faible et déjà throttlé, ce qui garde ce choix simple.
 
 Les historiques de prix (série d'une ligne pour la fiche détaillée, historique de valeur du portefeuille pour le Tableau de bord), coûteux à recalculer, sont mis en cache **24 heures** — cohérent avec la fréquence hebdomadaire des séries elles-mêmes. Le cache est invalidé automatiquement après un rafraîchissement des cours ou une reconstruction du portefeuille, pour ne jamais afficher un historique devenu incohérent avec les valeurs affichées à côté.
+
+**Frais de gestion (TER) des fonds** (`MarketDataCache.frais_gestion_pct`, roadmap Phase 3, § E.3) : contrairement au prix, mis en cache **une seule fois par ticker**, jamais recalculé ensuite — `market_data_refresh` n'appelle `fetch_frais_gestion` (Yahoo Finance) que tant que cette colonne vaut `None` pour le ticker concerné. Ce choix évite de ralentir chaque rafraîchissement de prix par un appel réseau supplémentaire par fonds ; la contrepartie assumée est que la couverture (part de la valeur des fonds pour laquelle un TER est connu, affichée sur le Tableau de bord) démarre à 0 % et augmente progressivement au fil des rafraîchissements, jamais instantanément.
 
 ### 3.10 Validation des saisies et robustesse des imports
 
@@ -188,6 +199,24 @@ Calcul **pur** (`services/simulation_service.py`), sans dépendance externe ni a
 
 **Indépendance financière / FIRE** (`GET /api/patrimoine/fire`) : à partir d'une dépense annuelle cible et d'un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique documenté et non une vérité universelle, présenté comme tel à l'écran), calcule le patrimoine nécessaire (`dépense / taux`) et le délai estimé pour l'atteindre avec les mêmes hypothèses de rendement/épargne que la projection. `None` (affiché « non atteinte ») si l'horizon de recherche (60 ans) est dépassé — jamais un nombre d'années au-delà, qui laisserait croire à une précision que le calcul n'a pas sur un horizon aussi lointain.
 
+### 3.13 Calendrier des dividendes perçus (roadmap Phase 3, § C.1)
+
+`GET /api/performance/dividendes` (`performance_service.compute_dividend_calendar`) regroupe les transactions `CASH/DIVIDEND` par mois calendaire (`Transaction.date[:7]`), avec le même flux net algébrique que la carte Rentabilité (`amount + fee + tax`, jamais un `abs()`). Aucune nouvelle donnée récupérée : c'est une vue sur des transactions déjà en base. Ne projette rien vers l'avenir (cf. § 5, C.2 non traité) — uniquement des dividendes déjà perçus.
+
+### 3.14 Rapport mensuel récapitulatif (roadmap Phase 4, § D.2)
+
+`GET /api/performance/rapport?annee=&mois=` (`services/rapport_service.compute_rapport_mensuel`), généré **à la demande** — l'application n'a pas de serveur mail, ce n'est donc jamais poussé automatiquement. Trois éléments pour le mois demandé :
+
+- **évolution de la valeur du portefeuille** : dernière valeur connue à/avant le 1er et le dernier jour du mois, lues dans la série déjà calculée par `historical_performance_service.compute_portfolio_history` (§ 3.9) — si le portefeuille n'existait pas encore au début du mois demandé, repli sur le tout premier point disponible plutôt qu'une case vide ;
+- **dividendes perçus** sur le mois seul (même calcul que § 3.13, restreint au mois) ;
+- **cinq plus gros mouvements** du mois, triés par montant absolu (achats, ventes, dividendes, tout type de transaction confondu).
+
+Aucun nouveau calcul de fond : uniquement une agrégation par mois de données déjà exposées ailleurs.
+
+### 3.15 Application installable (PWA, roadmap Phase 3, § H.1)
+
+Le frontend est installable comme une application (icône, plein écran) via un manifeste web et un service worker générés par `vite-plugin-pwa` (Workbox) au moment du build — jamais écrits à la main, pour éviter le piège classique d'un service worker maison qui sert indéfiniment une version périmée. L'API (`/api/*`) est explicitement exclue du cache du service worker (`navigateFallbackDenylist`) : les données financières affichées viennent toujours du backend en direct, jamais d'une réponse mise en cache hors-ligne — seuls les fichiers statiques du build (JS, CSS, icônes) bénéficient du cache.
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
@@ -195,7 +224,7 @@ Calcul **pur** (`services/simulation_service.py`), sans dépendance externe ni a
 | `transactions` | Grand livre importé (source de vérité), dédoublonné par `transaction_id` |
 | `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de l'immobilier/SCPI/assurance-vie/PER (cf. § 3.11) |
 | `loans` | Emprunts (patrimoine net, cf. § 3.11) : capital initial, taux, mensualité, date de début, durée, recalage manuel optionnel du capital restant dû |
-| `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) |
+| `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) ; `frais_gestion_pct` (fonds uniquement, mis en cache une seule fois par ticker, cf. § 3.9) |
 | `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques/objectifs). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
 | `fund_composition_brute` | Répartition géo/sectorielle **brute** (non zone-mappée) d'un fonds telle que publiée par justETF, affichage seul sur la fiche détaillée (cf. § 3.4) — jamais utilisée dans un calcul agrégé |
 | `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds — justETF pour un fonds couvert (2.4), Yahoo Finance en repli sinon |
@@ -217,3 +246,5 @@ Voir `BACKLOG.md` pour la liste complète des points relevés à l'audit et leur
 - **Aucune simulation fiscale.** L'application suit la performance d'un portefeuille, elle ne modélise ni le régime PEA (durée de détention, plafond de versement), ni aucune autre fiscalité. Non-objectif produit assumé (point 5.7 du backlog).
 - **Application 100 % locale, sans authentification.** Non prévue pour être exposée hors `localhost` ; l'authentification serait un préalable bloquant, pas une évolution de confort, si cela devait changer (point 7.7 du backlog).
 - **Dépendance à Yahoo Finance (`yfinance`), sans SLA officiel.** Les garde-fous de fréquence (§ 3.9) réduisent le risque de blocage mais ne l'éliminent pas ; une indisponibilité ou une limitation côté Yahoo Finance dégrade la fraîcheur des données sans faire échouer l'application (chaque position est traitée indépendamment, une erreur reste locale à la ligne concernée).
+- **Un seul format de courtier reconnu automatiquement (Trade Republic).** D'autres exports (Boursorama, Degiro, Interactive Brokers...) passent par le mapping manuel de colonnes (relevé de positions), jamais par la reconstruction depuis un grand livre — élargir cette reconnaissance suppose un vrai fichier d'export d'un autre courtier comme référence, indisponible à ce jour (roadmap Phase 3, § E.1, backlog).
+- **Pas de projection des dividendes futurs.** Le calendrier (§ 3.13) et le rapport mensuel (§ 3.14) ne montrent que des dividendes déjà perçus : `yfinance` n'expose pas de façon fiable la régularité de versement par ligne, en particulier pour les ETF — extrapoler sans cette fiabilité risquerait d'afficher un montant qui n'est pas garanti (roadmap Phase 4, § C.2, backlog).

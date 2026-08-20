@@ -7,7 +7,13 @@ import pytest
 
 from app.models import Holding, MarketDataCache
 from app.services import performance_service, portfolio_reconstruction
-from app.services.performance_service import compute_holding_return, compute_holding_returns, compute_performance, xirr
+from app.services.performance_service import (
+    compute_dividend_calendar,
+    compute_holding_return,
+    compute_holding_returns,
+    compute_performance,
+    xirr,
+)
 from app.services.portfolio_reconstruction import rebuild_holdings
 
 from .conftest import make_transaction
@@ -404,3 +410,39 @@ def test_positions_partagees_evite_un_recalcul_quand_plusieurs_fonctions_sont_en
     assert compute_performance(db) == resultat_perf
     assert compute_holding_returns(db) == resultat_holdings
     assert compteur["n"] == 2
+
+
+def test_calendrier_dividendes_vide_sans_dividende(db):
+    assert compute_dividend_calendar(db) == []
+
+
+def test_calendrier_dividendes_regroupe_par_mois_et_somme_net(db):
+    # Deux dividendes le même mois (symboles différents), un troisième le mois suivant.
+    make_transaction(
+        db, transaction_id="d1", category="CASH", type="DIVIDEND", asset_class=None,
+        symbol="AAA", name="Titre AAA", shares=None, price=None, amount=10.0, fee=0.0, tax=-1.5,
+        datetime_utc=datetime(2024, 3, 5), date="2024-03-05",
+    )
+    make_transaction(
+        db, transaction_id="d2", category="CASH", type="DIVIDEND", asset_class=None,
+        symbol="BBB", name="Titre BBB", shares=None, price=None, amount=5.0, fee=0.0, tax=0.0,
+        datetime_utc=datetime(2024, 3, 20), date="2024-03-20",
+    )
+    make_transaction(
+        db, transaction_id="d3", category="CASH", type="DIVIDEND", asset_class=None,
+        symbol="AAA", name="Titre AAA", shares=None, price=None, amount=8.0, fee=0.0, tax=0.0,
+        datetime_utc=datetime(2024, 4, 1), date="2024-04-01",
+    )
+    # Bruit : une transaction non-dividende ne doit apparaître nulle part.
+    make_transaction(db, transaction_id="t1", symbol="AAA", shares=1.0, amount=-100.0, datetime_utc=datetime(2024, 3, 10), date="2024-03-10")
+
+    calendrier = compute_dividend_calendar(db)
+
+    assert [m["mois"] for m in calendrier] == ["2024-03", "2024-04"]
+    mars = calendrier[0]
+    assert mars["montant_total"] == pytest.approx(10.0 - 1.5 + 5.0)
+    assert len(mars["lignes"]) == 2
+    assert mars["lignes"][0] == {"date": "2024-03-05", "symbol": "AAA", "nom": "Titre AAA", "montant": 8.5}
+
+    avril = calendrier[1]
+    assert avril["montant_total"] == pytest.approx(8.0)

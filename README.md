@@ -1,6 +1,6 @@
 # Application Patrimoine
 
-Application web locale de suivi de portefeuille boursier : reconstruction automatique du portefeuille depuis un historique de transactions, enrichissement des positions via Yahoo Finance, comparaison de la répartition réelle à des objectifs géo/sectoriels, calcul de rentabilité (XIRR), et rafraîchissement planifiable.
+Application web locale de suivi patrimonial complet, gratuite et open source, dans l'esprit de Finary : reconstruction automatique du portefeuille boursier depuis un historique de transactions, enrichissement des positions via Yahoo Finance/justETF, patrimoine net (immobilier, SCPI, assurance-vie, PER, dettes), projections et indépendance financière, calendrier des dividendes, relevé PDF, rapport mensuel, comparaison de la répartition réelle à des objectifs géo/sectoriels, calcul de rentabilité (XIRR), application installable (PWA), et rafraîchissement planifiable.
 
 ## Démarrage rapide
 
