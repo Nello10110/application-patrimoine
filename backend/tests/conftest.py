@@ -11,6 +11,7 @@
 - `no_network_justetf` (autouse) : même principe, côté `requests.get` — seul point
   d'entrée réseau de `justetf_service` (`_fetch_page_html`/`fetch_price`, 2.4).
   Sans cette neutralisation, tout test exerçant `market_data_service.refresh_tickers`
+  (ou `market_data_refresh.demarrer_rafraichissement`, cf. ci-dessous)
   ou `justetf_service.refresh_all` sur un ticker `FUND` sans monkeypatch explicite
   ferait un vrai appel réseau vers justetf.com.
 - `reinitialiser_limite_rafraichissement_manuel` (autouse) : remet à zéro l'état
@@ -18,7 +19,7 @@
   test, pour qu'un test n'hérite pas d'un rafraîchissement déclenché par un test
   précédent dans le même process.
 - `reinitialiser_rafraichissement_arriere_plan` (autouse) : attend la fin du fil de
-  fond du rafraîchissement (LOT 4B, `market_data_service.demarrer_rafraichissement`)
+  fond du rafraîchissement (LOT 4B, `market_data_refresh.demarrer_rafraichissement`)
   et remet à zéro son état module-level entre chaque test. `attendre_fin_rafraichissement_arriere_plan`
   (fonction, pas fixture) rend ce fil déterministe dans les tests qui veulent
   observer son état final sans sonder à intervalles réels.
@@ -38,7 +39,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.main import app
 from app.models import Holding, Transaction
-from app.services import justetf_service, market_data_service
+from app.services import justetf_service, market_data_refresh
 
 _compteur_transaction_id = itertools.count(1)
 
@@ -112,7 +113,7 @@ def no_network_justetf(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def reinitialiser_limite_rafraichissement_manuel(monkeypatch):
-    monkeypatch.setattr(market_data_service, "_dernier_rafraichissement_manuel", None)
+    monkeypatch.setattr(market_data_refresh, "_dernier_rafraichissement_manuel", None)
 
 
 @pytest.fixture(autouse=True)
@@ -126,19 +127,19 @@ def reinitialiser_rafraichissement_arriere_plan():
     tourner plus de quelques millisecondes) avant de remettre l'état à zéro."""
     yield
     attendre_fin_rafraichissement_arriere_plan()
-    market_data_service._etat = market_data_service.EtatRafraichissement()
-    market_data_service._thread_courant = None
+    market_data_refresh._etat = market_data_refresh.EtatRafraichissement()
+    market_data_refresh._thread_courant = None
 
 
 def attendre_fin_rafraichissement_arriere_plan(timeout: float = 5.0) -> None:
-    """Rend le fil de fond de `market_data_service.demarrer_rafraichissement`
+    """Rend le fil de fond de `market_data_refresh.demarrer_rafraichissement`
     déterministe pour les tests : plutôt que de sonder l'état à intervalles réels
     (ce que fait le frontend, cf. LOT 4B), on attend simplement que le fil ait
     terminé, avec un délai maximal généreux pour ne jamais bloquer indéfiniment si
     un test est mal formé. `no_network_yfinance` garantit qu'aucun test n'appelle
     réellement Yahoo Finance, donc ce fil se termine en pratique quasi
     instantanément."""
-    thread = market_data_service._thread_courant
+    thread = market_data_refresh._thread_courant
     if thread is not None:
         thread.join(timeout=timeout)
 

@@ -1,11 +1,11 @@
 """Verrouille le rafraîchissement des cours en tâche de fond (LOT 4B) :
-`market_data_service.demarrer_rafraichissement`/`etat_rafraichissement`.
+`market_data_refresh.demarrer_rafraichissement`/`etat_rafraichissement`.
 
 Comme `test_scheduler_service.py`, ce module lit/écrit directement via
 `app.database.SessionLocal` (la base de test partagée par tout le process, cf.
 `backend/conftest.py`) plutôt que via les fixtures `db`/`client` : c'est aussi la
 session qu'ouvre le fil de fond du rafraîchissement (`SessionLocal` importée dans
-`market_data_service`), qui n'a aucun moyen de connaître la base jetable propre à
+`market_data_refresh`), qui n'a aucun moyen de connaître la base jetable propre à
 un test HTTP particulier.
 
 Déterminisme du fil de fond : la fixture autouse `reinitialiser_rafraichissement_arriere_plan`
@@ -21,7 +21,7 @@ import pytest
 
 from app.database import SessionLocal
 from app.models import FundComposition, HistoriqueCache, MarketDataCache, TickerResolution
-from app.services import historique_cache, market_data_service
+from app.services import historique_cache, market_data_refresh, market_data_service
 
 from .conftest import attendre_fin_rafraichissement_arriere_plan
 
@@ -46,7 +46,7 @@ def _base_partagee_isolee():
 
 
 def test_demarrer_rafraichissement_renvoie_immediatement_letat_de_depart():
-    etat = market_data_service.demarrer_rafraichissement([("AAA", "STOCK"), ("BBB", "STOCK")])
+    etat = market_data_refresh.demarrer_rafraichissement([("AAA", "STOCK"), ("BBB", "STOCK")])
 
     assert etat.en_cours is True
     assert etat.positions_total == 2
@@ -69,15 +69,15 @@ def test_second_demarrage_immediat_refuse_tant_que_le_premier_tourne(monkeypatch
 
     monkeypatch.setattr(market_data_service, "refresh_tickers", refresh_tickers_bloquant)
 
-    market_data_service.demarrer_rafraichissement([("AAA", "STOCK")])
+    market_data_refresh.demarrer_rafraichissement([("AAA", "STOCK")])
     assert demarre.wait(timeout=5), "le fil de fond n'a pas démarré à temps"
 
-    with pytest.raises(market_data_service.RafraichissementDejaEnCoursError):
-        market_data_service.demarrer_rafraichissement([("BBB", "STOCK")])
+    with pytest.raises(market_data_refresh.RafraichissementDejaEnCoursError):
+        market_data_refresh.demarrer_rafraichissement([("BBB", "STOCK")])
 
     liberer.set()
     attendre_fin_rafraichissement_arriere_plan()
-    assert market_data_service.etat_rafraichissement().en_cours is False
+    assert market_data_refresh.etat_rafraichissement().en_cours is False
 
 
 def test_progression_reportee_au_fil_du_rafraichissement(monkeypatch):
@@ -96,10 +96,10 @@ def test_progression_reportee_au_fil_du_rafraichissement(monkeypatch):
 
     monkeypatch.setattr(market_data_service, "refresh_tickers", refresh_tickers_pas_a_pas)
 
-    market_data_service.demarrer_rafraichissement([("AAA", "STOCK"), ("BBB", "STOCK")])
+    market_data_refresh.demarrer_rafraichissement([("AAA", "STOCK"), ("BBB", "STOCK")])
     assert etape_vue.wait(timeout=5)
 
-    etat_intermediaire = market_data_service.etat_rafraichissement()
+    etat_intermediaire = market_data_refresh.etat_rafraichissement()
     assert etat_intermediaire.en_cours is True
     assert etat_intermediaire.positions_traitees == 1
     assert etat_intermediaire.positions_total == 2
@@ -107,7 +107,7 @@ def test_progression_reportee_au_fil_du_rafraichissement(monkeypatch):
     continuer.set()
     attendre_fin_rafraichissement_arriere_plan()
 
-    etat_final = market_data_service.etat_rafraichissement()
+    etat_final = market_data_refresh.etat_rafraichissement()
     assert etat_final.en_cours is False
     assert etat_final.positions_traitees == 2
     assert etat_final.statut == "ok"
@@ -121,10 +121,10 @@ def test_erreur_dans_le_fil_reflechie_en_statut_erreur_sans_faire_planter_le_pro
 
     # Ne doit lever aucune exception ici : `demarrer_rafraichissement` ne fait que
     # lancer le fil, l'exception se produit *dans* le fil et y reste capturée.
-    market_data_service.demarrer_rafraichissement([("AAA", "STOCK")])
+    market_data_refresh.demarrer_rafraichissement([("AAA", "STOCK")])
     attendre_fin_rafraichissement_arriere_plan()
 
-    etat = market_data_service.etat_rafraichissement()
+    etat = market_data_refresh.etat_rafraichissement()
     assert etat.en_cours is False
     assert etat.statut == "erreur"
     assert "panne simulée" in etat.message
@@ -143,7 +143,7 @@ def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(m
 
     monkeypatch.setattr(market_data_service, "refresh_tickers", lambda db, items, on_progression=None: [])
 
-    market_data_service.demarrer_rafraichissement([("AAA", "STOCK")])
+    market_data_refresh.demarrer_rafraichissement([("AAA", "STOCK")])
     attendre_fin_rafraichissement_arriere_plan()
 
     db = SessionLocal()
@@ -163,7 +163,7 @@ def test_route_refresh_202_puis_status_puis_409_si_deja_en_cours(client, db, mon
     # Ce test cible spécifiquement le garde-fou "déjà en cours" (409), pas celui de
     # fréquence (429, déjà couvert par `test_market_data_service.py`) : sans ce
     # contournement, le second `POST` immédiat tomberait sur le 429 en premier.
-    monkeypatch.setattr(market_data_service, "verifier_et_enregistrer_rafraichissement_manuel", lambda: None)
+    monkeypatch.setattr(market_data_refresh, "verifier_et_enregistrer_rafraichissement_manuel", lambda: None)
 
     demarre = threading.Event()
     liberer = threading.Event()

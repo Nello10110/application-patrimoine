@@ -5,7 +5,7 @@ dans `ScheduledJobConfig`, éditable depuis l'écran Réglages (`routers/setting
 
 Le déclenchement manuel (`run_job_now`, bouton "Lancer maintenant") est non
 bloquant depuis le LOT 4B : voir la docstring de `run_job_now` pour le détail —
-il réutilise l'exécuteur en tâche de fond de `market_data_service`.
+il réutilise l'exécuteur en tâche de fond de `market_data_refresh`.
 """
 
 import logging
@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
-from . import justetf_service, market_data_service
+from . import justetf_service, market_data_refresh, market_data_service
 
 logger = logging.getLogger("patrimoine.scheduler")
 
@@ -173,7 +173,7 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
 
     `MARKET_DATA_REFRESH` est *littéralement* un rafraîchissement des cours : son
     déclenchement manuel réutilise donc directement l'exécuteur partagé de
-    `market_data_service` (même fil, même état consultable via
+    `market_data_refresh` (même fil, même état consultable via
     `GET /api/market-data/refresh/status`) plutôt que de dupliquer toute une
     infrastructure de suivi de progression. Deux bénéfices : un seul
     rafraîchissement de cours à la fois quel que soit l'écran d'où il est déclenché
@@ -191,13 +191,13 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
     long qu'`JUSTETF_REFRESH` mais qui ne serait pas non plus `MARKET_DATA_REFRESH`
     justifierait alors de généraliser le court-circuit (par exemple : chaque job
     expose son propre couple `demarrer`/`etat`, sur le modèle de
-    `market_data_service`).
+    `market_data_refresh`).
 
     Renvoie immédiatement la config *actuelle*, pas encore mise à jour par cette
     exécution : le frontend doit re-solliciter `GET /api/settings/jobs` une fois le
     rafraîchissement terminé (`GET /api/market-data/refresh/status` ne redevient
     `en_cours=False` qu'à ce moment-là) pour voir `derniere_execution`/`dernier_statut`
-    évoluer. Lève `market_data_service.RafraichissementDejaEnCoursError` si un
+    évoluer. Lève `market_data_refresh.RafraichissementDejaEnCoursError` si un
     rafraîchissement est déjà en cours ; dans ce cas rien n'est démarré ni modifié."""
     if job_key not in JOBS:
         raise KeyError(job_key)
@@ -215,7 +215,7 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
             finally:
                 db_statut.close()
 
-        market_data_service.demarrer_rafraichissement(items, on_termine=_sur_fin)
+        market_data_refresh.demarrer_rafraichissement(items, on_termine=_sur_fin)
     else:  # branche générique (ex. JUSTETF_REFRESH), cf. docstring ci-dessus
         JOBS[job_key]()
 

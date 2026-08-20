@@ -414,23 +414,46 @@ mono-utilisateur) — mais désormais documenté avec le détail exact de ce qui
 décision future (si le multi-utilisateur est un jour retenu) parte d'un état des lieux complet
 plutôt que de redécouvrir ces points un par un.
 
-#### I.2 — `mineur` · `M` · `P3` · `non traité` — `market_data_service.py` devenu un fichier fourre-tout
+#### I.2 — `mineur` · `M` · `P3` · `traité` — `market_data_service.py` devenu un fichier fourre-tout
 
 632 lignes (le plus gros fichier du backend) : résolution de ticker, récupération de prix
 (`yfinance`), repli de composition ETF, TER, et l'état de rafraîchissement asynchrone (thread +
-verrou) cohabitent dans un seul module. Pas urgent — le fichier reste lisible et intégralement
-testé — mais candidat à scinder en au moins deux modules (ex. la logique de cotation/composition
-d'un côté, l'orchestration du rafraîchissement asynchrone de l'autre) la prochaine fois qu'une
-nouvelle source de données y est ajoutée : il a déjà grossi à chaque increment (yfinance, puis
-justETF) et continuera si le rythme se maintient.
+verrou) cohabitaient dans un seul module.
 
-#### I.3 — `mineur` · `S` · `P3` · `non traité` — `PortefeuillePage.tsx` (680 lignes) concentre trop de responsabilités
+Scindé en deux : `market_data_service.py` (449 lignes) garde tout ce qui concerne *comment* obtenir
+un prix/une composition (résolution de ticker, `fetch_one`, `fetch_fund_composition`,
+`refresh_tickers`...) ; le nouveau `market_data_refresh.py` (210 lignes) prend tout ce qui concerne
+*quand*/*combien de fois* on a le droit de le faire tourner (garde-fou de fréquence manuel, état de
+rafraîchissement en tâche de fond, `EtatRafraichissement`, `demarrer_rafraichissement`). Point
+d'attention traité correctement : `market_data_refresh` appelle `market_data_service.refresh_tickers`
+via l'attribut du module (pas un `from ... import refresh_tickers` direct), pour que les tests qui
+monkeypatchent `market_data_service.refresh_tickers` continuent à intercepter l'appel réel — sans
+cette précaution le split aurait cassé une dizaine de tests silencieusement à l'exécution plutôt
+qu'à la relecture. Les routers (`market_data.py`, `settings.py`) et `scheduler_service.py` ont été
+mis à jour en conséquence.
 
-Le plus gros fichier du frontend : tableau des positions, filtres par catégorie, tri, et navigation
-vers la fiche détail dans un seul composant. Aucune duplication détectée (contrairement à l'ancien
-souci `formatEuro`/`formatPct`, déjà corrigé lors de l'Increment 7 via `utils/format.ts`) — juste
-une taille qui commence à gêner la lecture. Un découpage en sous-composants (ex. `PositionsTable`,
-`CategoryTabs`) serait raisonnable au prochain ajout notable sur cet écran.
+**Vérifié** : suite backend complète relancée après le split (400/400, aucune régression).
+
+#### I.3 — `mineur` · `S` · `P3` · `traité` — `PortefeuillePage.tsx` (680 lignes) concentrait trop de responsabilités
+
+Tableau des positions, filtres par catégorie, tri, édition en ligne et navigation vers la fiche
+détail dans un seul composant. Aucune duplication détectée (contrairement à l'ancien souci
+`formatEuro`/`formatPct`, déjà corrigé lors de l'Increment 7 via `utils/format.ts`) — juste une
+taille qui gênait la lecture.
+
+Scindé en trois : `utils/holdingCategories.ts` (84 lignes, pur — catégorisation, filtre par compte,
+fraîcheur des cours) ; `components/PositionsTable.tsx` (323 lignes — le tableau trié, l'édition en
+ligne, et leur état local) ; `pages/PortefeuillePage.tsx` (306 lignes — orchestration : chargement,
+formulaire d'ajout, onglets, modale de suppression). Aucun changement de balisage HTML ni de
+comportement : chaque bloc de JSX a été déplacé tel quel, avec des callbacks (`onSelectTicker`,
+`onRequestDelete`, `onSaved`) pour les besoins qui restent au niveau de la page (modale de
+suppression, ouverture de la fiche détail).
+
+**Vérifié** : `tsc -b --noEmit` et `oxlint` propres, suite frontend complète au vert (140/140,
+dont les 13 tests de `PortefeuillePage.test.tsx` inchangés), `vite build` propre, et contrôle visuel
+dans le navigateur sur le vrai portefeuille (49 positions) : filtre par catégorie (Crypto → 2
+positions, 305,23 €), tri par colonne (Valeur ↑), édition en ligne (Modifier/Annuler) et modale de
+suppression (BTC, annulée) tous fonctionnels sans régression.
 
 #### I.4 — `mineur` · `S` · — Migration de schéma limitée à l'ajout de colonnes
 

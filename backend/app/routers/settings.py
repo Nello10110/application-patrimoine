@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..schemas import Preferences, PreferencesUpdate, PreferencesUpdateResponse, ScheduledJobOut, ScheduledJobUpdate
-from ..services import market_data_service, portfolio_reconstruction, preferences_service, scheduler_service
+from ..services import market_data_refresh, portfolio_reconstruction, preferences_service, scheduler_service
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -68,5 +68,5 @@ def run_job_now(job_key: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Tâche inconnue")
     try:
         return scheduler_service.run_job_now(db, job_key)
-    except market_data_service.RafraichissementDejaEnCoursError as exc:
+    except market_data_refresh.RafraichissementDejaEnCoursError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

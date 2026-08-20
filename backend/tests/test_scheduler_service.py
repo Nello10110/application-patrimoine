@@ -17,7 +17,7 @@ import pytest
 
 from app.database import SessionLocal
 from app.models import ScheduledJobConfig
-from app.services import justetf_service, market_data_service, scheduler_service
+from app.services import justetf_service, market_data_refresh, market_data_service, scheduler_service
 
 from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
 
@@ -121,7 +121,7 @@ def test_run_job_now_ne_bloque_pas_et_renvoie_la_config_actuelle(db, monkeypatch
     assert demarre.wait(timeout=5), "le fil de fond n'a pas démarré à temps"
     # Toujours en cours au moment où `run_job_now` a déjà rendu la main : preuve que
     # l'appel n'a pas attendu la fin du travail.
-    assert market_data_service.etat_rafraichissement().en_cours is True
+    assert market_data_refresh.etat_rafraichissement().en_cours is True
 
     liberer.set()
     attendre_fin_rafraichissement_arriere_plan()
@@ -158,7 +158,7 @@ def test_run_job_now_refuse_si_un_rafraichissement_est_deja_en_cours(db, monkeyp
     scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH)
     assert demarre.wait(timeout=5)
 
-    with pytest.raises(market_data_service.RafraichissementDejaEnCoursError):
+    with pytest.raises(market_data_refresh.RafraichissementDejaEnCoursError):
         scheduler_service.run_job_now(db, scheduler_service.MARKET_DATA_REFRESH)
 
     liberer.set()

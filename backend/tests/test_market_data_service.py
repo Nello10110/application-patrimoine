@@ -9,7 +9,7 @@ import pytest
 import yfinance as yf
 
 from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, SOURCE_JUSTETF, FundComposition, FundTopHolding, MarketDataCache
-from app.services import market_data_service
+from app.services import market_data_refresh, market_data_service
 from app.services.market_data_service import fetch_fund_composition
 
 from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
@@ -230,10 +230,10 @@ def test_refresh_manuel_delai_ecoule_de_nouveau_accepte(client, db, monkeypatch)
     # Fait "avancer le temps" en reculant artificiellement la référence enregistrée,
     # plutôt que d'attendre réellement `DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES`.
     monkeypatch.setattr(
-        market_data_service,
+        market_data_refresh,
         "_dernier_rafraichissement_manuel",
-        market_data_service._dernier_rafraichissement_manuel
-        - timedelta(seconds=market_data_service.DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES + 1),
+        market_data_refresh._dernier_rafraichissement_manuel
+        - timedelta(seconds=market_data_refresh.DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES + 1),
     )
 
     second = client.post("/api/market-data/refresh")

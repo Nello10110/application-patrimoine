@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Holding, MarketDataCache
 from ..schemas import EtatRafraichissement, MarketDataOut
-from ..services import market_data_service
+from ..services import market_data_refresh
 
 router = APIRouter(prefix="/api/market-data", tags=["market-data"])
 
@@ -29,20 +29,20 @@ def refresh(db: Session = Depends(get_db)):
     pouvant encore tourner plus de `DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES`
     après son déclenchement."""
     try:
-        market_data_service.verifier_et_enregistrer_rafraichissement_manuel()
-    except market_data_service.RafraichissementTropFrequentError as exc:
+        market_data_refresh.verifier_et_enregistrer_rafraichissement_manuel()
+    except market_data_refresh.RafraichissementTropFrequentError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
 
     items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
     try:
-        return market_data_service.demarrer_rafraichissement(items)
-    except market_data_service.RafraichissementDejaEnCoursError as exc:
+        return market_data_refresh.demarrer_rafraichissement(items)
+    except market_data_refresh.RafraichissementDejaEnCoursError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/refresh/status", response_model=EtatRafraichissement)
 def refresh_status():
-    return market_data_service.etat_rafraichissement()
+    return market_data_refresh.etat_rafraichissement()
 
 
 @router.get("", response_model=list[MarketDataOut])
