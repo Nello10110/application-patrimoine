@@ -5,26 +5,24 @@ import { useTheme, type Theme } from './hooks/useTheme'
 // Découpage par route (LOT 4.8) : `recharts` (utilisé par le Tableau de bord et la
 // fiche détaillée d'une position) pesait à lui seul une bonne part du bundle unique
 // d'origine (~690 ko), chargé même sur les pages qui n'affichent aucun graphique
-// (Portefeuille, Objectifs, Import, Réglages). `React.lazy` fait charger le code de
-// chaque page à la demande (au moment de la navigation) plutôt que tout d'un bloc
-// au premier chargement de l'application.
+// (Portefeuille, Import, Réglages). `React.lazy` fait charger le code de chaque
+// page à la demande (au moment de la navigation) plutôt que tout d'un bloc au
+// premier chargement de l'application.
 const AidePage = lazy(() => import('./pages/AidePage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const DividendesPage = lazy(() => import('./pages/DividendesPage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('./pages/ImportPage'))
-const ObjectifsPage = lazy(() => import('./pages/ObjectifsPage'))
 const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
 const RapportPage = lazy(() => import('./pages/RapportPage'))
-const RecommandationsPage = lazy(() => import('./pages/RecommandationsPage'))
+const RepartitionPage = lazy(() => import('./pages/RepartitionPage'))
 const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
 const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', end: true },
   { to: '/portefeuille', label: 'Portefeuille' },
-  { to: '/objectifs', label: 'Objectifs' },
-  { to: '/recommandations', label: 'Rééquilibrage' },
+  { to: '/repartition', label: 'Répartition' },
   { to: '/simulateur', label: 'Simulateur' },
   { to: '/dividendes', label: 'Dividendes' },
   { to: '/rapport', label: 'Rapport' },
@@ -92,8 +90,7 @@ function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/portefeuille" element={<PortefeuillePage />} />
             <Route path="/portefeuille/:ticker" element={<HoldingDetailPage />} />
-            <Route path="/objectifs" element={<ObjectifsPage />} />
-            <Route path="/recommandations" element={<RecommandationsPage />} />
+            <Route path="/repartition" element={<RepartitionPage />} />
             <Route path="/simulateur" element={<SimulateurPage />} />
             <Route path="/dividendes" element={<DividendesPage />} />
             <Route path="/rapport" element={<RapportPage />} />

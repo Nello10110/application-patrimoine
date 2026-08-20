@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { AllocationTargetInput } from '../api/types'
+import type { AllocationTargetInput, AnalysisResponse } from '../api/types'
 import Card from '../components/Card'
+import { formatEuro } from '../utils/format'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const ANNEE_MIN = 1990
@@ -92,17 +93,27 @@ function AllocationEditor({
   )
 }
 
-export default function ObjectifsPage() {
+/** Objectifs de répartition et rééquilibrage réunis dans un seul écran (fusion
+ * Objectifs/Rééquilibrage) : ce sont deux vues d'un même concept pour une année
+ * donnée — les cibles saisies ici, et les écarts/actions qu'elles impliquent une
+ * fois comparées au portefeuille réel — plutôt que deux onglets séparés partageant
+ * déjà le même sélecteur d'année. Après un enregistrement réussi, la partie
+ * rééquilibrage se recharge automatiquement pour refléter les nouvelles cibles. */
+export default function RepartitionPage() {
   const [annee, setAnnee] = useState(CURRENT_YEAR)
   const [anneesDisponibles, setAnneesDisponibles] = useState<number[]>([CURRENT_YEAR, CURRENT_YEAR + 1])
   const [nouvelleAnnee, setNouvelleAnnee] = useState('')
   const [erreurNouvelleAnnee, setErreurNouvelleAnnee] = useState<string | null>(null)
   const [geo, setGeo] = useState<AllocationTargetInput[]>([])
   const [sector, setSector] = useState<AllocationTargetInput[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingTargets, setLoadingTargets] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [echecChargement, setEchecChargement] = useState<string | null>(null)
+
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
+  const [loadingAnalysis, setLoadingAnalysis] = useState(true)
+  const [erreurAnalysis, setErreurAnalysis] = useState<string | null>(null)
 
   // Le sélecteur d'année s'alimente des années réellement enregistrées
   // (`GET /api/targets/`, cf. LOT 5.4) plutôt que de la fenêtre glissante
@@ -148,7 +159,7 @@ export default function ObjectifsPage() {
 
   useEffect(() => {
     let annule = false
-    setLoading(true)
+    setLoadingTargets(true)
     setMessage(null)
     setEchecChargement(null)
     api
@@ -181,7 +192,7 @@ export default function ObjectifsPage() {
         setSector([])
       })
       .finally(() => {
-        if (!annule) setLoading(false)
+        if (!annule) setLoadingTargets(false)
       })
 
     return () => {
@@ -189,12 +200,25 @@ export default function ObjectifsPage() {
     }
   }, [annee, compteurRechargement])
 
+  function chargerAnalysis() {
+    setLoadingAnalysis(true)
+    setErreurAnalysis(null)
+    api
+      .getAnalysis(annee)
+      .then(setAnalysis)
+      .catch((err) => setErreurAnalysis(err.message))
+      .finally(() => setLoadingAnalysis(false))
+  }
+
+  useEffect(chargerAnalysis, [annee])
+
   async function handleSave() {
     setSaving(true)
     setMessage(null)
     try {
       await api.setTargets(annee, { annee, geo, sector })
       setMessage({ type: 'success', text: 'Objectifs enregistrés.' })
+      chargerAnalysis() // le rééquilibrage ci-dessous doit refléter les nouvelles cibles
     } catch (err) {
       setMessage({ type: 'error', text: (err as Error).message })
     } finally {
@@ -202,10 +226,15 @@ export default function ObjectifsPage() {
     }
   }
 
+  const hasNoHoldings = analysis ? analysis.risques.nombre_lignes === 0 : false
+  const hasNoTargets = analysis
+    ? analysis.geo.every((g) => g.pourcentage_cible === null) && analysis.sector.every((s) => s.pourcentage_cible === null)
+    : false
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Objectifs de répartition</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Répartition {annee}</h2>
         <div className="flex items-center gap-3">
           <select
             value={annee}
@@ -242,7 +271,7 @@ export default function ObjectifsPage() {
           </div>
           <button
             onClick={handleSave}
-            disabled={saving || loading || echecChargement !== null}
+            disabled={saving || loadingTargets || echecChargement !== null}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
           >
             {saving ? 'Enregistrement...' : 'Enregistrer'}
@@ -275,7 +304,7 @@ export default function ObjectifsPage() {
         </Card>
       )}
 
-      {echecChargement ? null : loading ? (
+      {echecChargement ? null : loadingTargets ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -283,6 +312,65 @@ export default function ObjectifsPage() {
           <AllocationEditor title="Répartition sectorielle" items={sector} onChange={setSector} />
         </div>
       )}
+
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Rééquilibrage</h3>
+
+        {loadingAnalysis && <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>}
+        {erreurAnalysis && <p className="text-sm text-red-600 dark:text-red-400">Erreur: {erreurAnalysis}</p>}
+
+        {!loadingAnalysis && !erreurAnalysis && analysis && (
+          <div className="space-y-4">
+            {analysis.alertes.length > 0 && (
+              <Card className="border-amber-300 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
+                <p className="mb-3 text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {analysis.alertes.length} alerte{analysis.alertes.length > 1 ? 's' : ''} de rééquilibrage
+                </p>
+                <ul className="space-y-1 pl-4">
+                  {analysis.alertes.map((alerte) => (
+                    <li key={`${alerte.type}-${alerte.categorie}`} className="text-sm text-amber-800 dark:text-amber-200/90">
+                      <span className="font-medium">{alerte.categorie}</span> ({alerte.type === 'geo' ? 'géographie' : 'secteur'}) :
+                      écart de {alerte.ecart_pourcentage > 0 ? '+' : ''}
+                      {alerte.ecart_pourcentage}% par rapport à l'objectif
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            <Card title="Actions de rééquilibrage recommandées">
+              {analysis.recommandations.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {hasNoTargets || hasNoHoldings
+                    ? 'Renseigne un portefeuille et des objectifs pour voir les recommandations.'
+                    : 'Portefeuille bien aligné avec les objectifs, aucune action nécessaire.'}
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {analysis.recommandations.map((action) => (
+                    <li key={`${action.type}-${action.categorie}`} className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{action.categorie}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {action.type === 'geo' ? 'Géographie' : 'Secteur'} · écart de {action.ecart_pourcentage > 0 ? '+' : ''}
+                          {action.ecart_pourcentage}%
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`text-sm font-semibold ${action.sens === 'reduire' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}
+                        >
+                          {action.sens === 'reduire' ? 'Réduire' : 'Augmenter'} de {formatEuro(action.montant_a_ajuster, 0)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

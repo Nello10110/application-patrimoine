@@ -11,7 +11,7 @@ Parcours type conseillé :
 
 1. Importer son historique de transactions (écran **Import**).
 2. Rafraîchir les cours (bouton sur l'écran **Portefeuille**, ou automatiquement via **Réglages**).
-3. Définir ses objectifs de répartition pour l'année (écran **Objectifs**).
+3. Définir ses objectifs de répartition pour l'année (écran **Répartition**).
 4. Consulter le **Tableau de bord** pour voir l'écart réel/cible, les alertes et les recommandations.
 
 Un bouton en haut à droite de chaque écran bascule l'apparence entre thème clair, thème sombre et suivi automatique du système (un clic fait passer de l'un à l'autre) ; le choix est mémorisé d'une visite à l'autre.
@@ -60,16 +60,14 @@ Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tablea
 
 Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique).
 
-## Écran Objectifs
+## Écran Répartition
 
-Sélectionner une année dans la liste (alimentée par les années réellement enregistrées), ou en ajouter une nouvelle par le champ dédié, puis ajuster les pourcentages cibles de répartition géographique et sectorielle (pré-remplis avec une répartition de référence à la première utilisation d'une année). Chaque catégorie peut être modifiée, supprimée, ou une nouvelle ajoutée. Le total doit sommer à 100 % (indiqué en vert quand c'est le cas). **Enregistrer** sauvegarde les objectifs de l'année sélectionnée.
+Objectifs et rééquilibrage réunis pour une même année sélectionnable — deux vues d'un même sujet plutôt que deux écrans séparés.
 
-## Écran Rééquilibrage
-
-Détail complet des alertes et des actions de rééquilibrage recommandées pour l'année sélectionnée (sélecteur propre à cet écran) — sorti du Tableau de bord, qui n'en garde qu'un indicateur résumé avec un lien vers cet écran.
-
-- **Alertes** : sous-ensemble des recommandations dont l'écart dépasse le seuil réglé dans Réglages, mises en avant en haut de l'écran.
-- **Actions de rééquilibrage recommandées** : liste complète des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster (réduire ou augmenter) pour chaque catégorie.
+- **Objectifs** : sélectionner une année dans la liste (alimentée par les années réellement enregistrées), ou en ajouter une nouvelle par le champ dédié, puis ajuster les pourcentages cibles de répartition géographique et sectorielle (pré-remplis avec une répartition de référence à la première utilisation d'une année). Chaque catégorie peut être modifiée, supprimée, ou une nouvelle ajoutée. Le total doit sommer à 100 % (indiqué en vert quand c'est le cas). **Enregistrer** sauvegarde les objectifs de l'année sélectionnée et recharge aussitôt le rééquilibrage ci-dessous.
+- **Rééquilibrage** (sous les objectifs) : détail complet des alertes et des actions de rééquilibrage recommandées pour la même année.
+  - **Alertes** : sous-ensemble des recommandations dont l'écart dépasse le seuil réglé dans Réglages, mises en avant en haut de la section.
+  - **Actions de rééquilibrage recommandées** : liste complète des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster (réduire ou augmenter) pour chaque catégorie.
 
 ## Écran Simulateur
 
@@ -107,7 +105,7 @@ Rapport récapitulatif d'un mois choisi via le sélecteur en haut à droite (par
 ### Préférences
 
 - **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
-- **Alertes** : seuil d'écart, en points de pourcentage, au-delà duquel une recommandation de rééquilibrage devient une alerte mise en avant sur l'écran Rééquilibrage.
+- **Alertes** : seuil d'écart, en points de pourcentage, au-delà duquel une recommandation de rééquilibrage devient une alerte mise en avant sur l'écran Répartition.
 
 ### Rafraîchissement automatique des données de marché
 

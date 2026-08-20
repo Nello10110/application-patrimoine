@@ -11,12 +11,11 @@ vi.mock('./pages/DividendesPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/RapportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/PortefeuillePage', () => ({ default: () => <div /> }))
 vi.mock('./pages/HoldingDetailPage', () => ({ default: () => <div /> }))
-vi.mock('./pages/ObjectifsPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/RepartitionPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ImportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ReglagesPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/AidePage', () => ({ default: () => <div /> }))
 vi.mock('./pages/SimulateurPage', () => ({ default: () => <div /> }))
-vi.mock('./pages/RecommandationsPage', () => ({ default: () => <div /> }))
 
 describe('App — en-tête', () => {
   it('le titre "Application Patrimoine" est un lien vers le tableau de bord', () => {

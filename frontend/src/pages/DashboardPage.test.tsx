@@ -168,7 +168,7 @@ describe('DashboardPage — indicateur de rééquilibrage', () => {
 
     await screen.findByText(/1 action recommandée/)
     expect(screen.getByText(/dont 1 alerte/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Voir le détail' })).toHaveAttribute('href', '/recommandations')
+    expect(screen.getByRole('link', { name: 'Voir le détail' })).toHaveAttribute('href', '/repartition')
     // Le détail (catégorie, montant) ne s'affiche plus sur le tableau de bord.
     expect(screen.queryByText('Europe')).not.toBeInTheDocument()
   })
