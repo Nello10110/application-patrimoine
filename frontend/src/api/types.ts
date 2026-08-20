@@ -1,3 +1,15 @@
+// Multi-utilisateur (Milestone 1) — `AuthResponse` est la réponse commune de
+// `/auth/register` et `/auth/login`.
+export interface AuthUser {
+  id: number
+  email: string
+}
+
+export interface AuthResponse {
+  token: string
+  user: AuthUser
+}
+
 export interface MarketData {
   ticker: string
   nom: string | null

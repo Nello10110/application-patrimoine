@@ -703,3 +703,43 @@ class ZoneGeographiqueInfo(BaseModel):
 
     zone: str
     pays: list[str]
+
+
+MESSAGE_MOT_DE_PASSE_TROP_COURT = "Le mot de passe doit contenir au moins 8 caractères"
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def _valider_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if "@" not in v or v.startswith("@") or v.endswith("@"):
+            raise ValueError("Adresse email invalide")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def _valider_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError(MESSAGE_MOT_DE_PASSE_TROP_COURT)
+        return v
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserOut

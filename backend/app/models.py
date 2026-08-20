@@ -8,7 +8,7 @@ par `database.run_startup_migrations` — voir ce module pour le détail.
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -302,3 +302,37 @@ class Parametre(Base):
 
     cle: Mapped[str] = mapped_column(String, primary_key=True)
     valeur: Mapped[str] = mapped_column(String)
+
+
+class User(Base):
+    """Compte utilisateur (multi-utilisateur, Milestone 1 — cf. `docs/BACKLOG.md` § 2.I.1).
+    Aucune table métier (Holding, Loan, Transaction...) n'est encore scopée par
+    `user_id` à ce stade : ce milestone pose uniquement l'authentification elle-même
+    (se créer un compte, se connecter, protéger les routes existantes). L'isolation
+    des données par utilisateur est un milestone séparé, volontairement pas fait en
+    même temps que la connexion elle-même sur de vraies données financières."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    # Format `pbkdf2_sha256$<iterations>$<sel>$<hash>` (cf. `services/auth_service.py`) :
+    # le nombre d'itérations est stocké dans le hash lui-même, pour pouvoir l'augmenter
+    # plus tard sans invalider les mots de passe déjà enregistrés.
+    password_hash: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class AuthToken(Base):
+    """Jeton de session opaque (pas de JWT : un simple `DELETE` suffit à le révoquer,
+    pas de secret de signature à gérer). Vraie `ForeignKey` ici, contrairement au
+    reste de ce fichier qui évite les FK à cause de la reconstruction du portefeuille
+    depuis les transactions (cf. docstring de module) — sans rapport avec ce
+    mécanisme, une FK classique est le choix naturel pour lier un jeton à son compte."""
+
+    __tablename__ = "auth_tokens"
+
+    token: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)

@@ -1,14 +1,16 @@
 """Point d'entrée de l'API FastAPI : création du schéma, migrations, routeurs.
-Application 100% locale (pas d'authentification) — CORS restreint au frontend Vite
-tournant sur localhost."""
+Application locale, multi-utilisateur depuis le Milestone 1 (cf. `docs/BACKLOG.md`
+§ 2.I.1) : toutes les routes hormis `/api/auth/{register,login}` et `/api/health`
+exigent d'être connecté — CORS restreint au frontend Vite tournant sur localhost."""
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .auth import get_current_user
 from .database import (
     Base,
     SessionLocal,
@@ -18,7 +20,7 @@ from .database import (
     run_startup_migrations,
 )
 from .logging_config import configure_logging
-from .routers import analysis, export, loans, market_data, patrimoine, performance, portfolio, reference, settings, targets, transactions
+from .routers import analysis, auth, export, loans, market_data, patrimoine, performance, portfolio, reference, settings, targets, transactions
 from .services import scheduler_service, startup_maintenance
 
 configure_logging()
@@ -47,17 +49,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Application Patrimoine API", lifespan=lifespan)
 
-# Application 100% locale, prévue pour tourner uniquement contre le frontend Vite en
-# développement local (`localhost`/`127.0.0.1:5173`) : aucun cookie/session n'est
-# utilisé (pas d'authentification), donc pas de `allow_credentials`. Méthodes et
-# en-têtes restreints à ce que le frontend utilise réellement plutôt que `"*"`
-# (LOT 7.3) — `Content-Type` est le seul en-tête personnalisé envoyé par `client.ts`.
+# Application locale, prévue pour tourner uniquement contre le frontend Vite en
+# développement local (`localhost`/`127.0.0.1:5173`) : le jeton de session (Milestone
+# 1) est transporté en en-tête `Authorization: Bearer ...`, jamais en cookie, donc
+# `allow_credentials` reste `False`. Méthodes et en-têtes restreints à ce que le
+# frontend utilise réellement plutôt que `"*"` (LOT 7.3) — `Content-Type` et
+# `Authorization` sont les deux seuls en-têtes personnalisés envoyés par `client.ts`.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -78,17 +81,24 @@ async def gestion_erreurs_validation(request: Request, exc: RequestValidationErr
     return JSONResponse(status_code=400, content={"detail": message})
 
 
-app.include_router(portfolio.router)
-app.include_router(market_data.router)
-app.include_router(targets.router)
-app.include_router(analysis.router)
-app.include_router(transactions.router)
-app.include_router(performance.router)
-app.include_router(settings.router)
-app.include_router(export.router)
-app.include_router(reference.router)
-app.include_router(loans.router)
-app.include_router(patrimoine.router)
+app.include_router(auth.router)
+
+# Protégées : toutes exigent un jeton valide. Passé au niveau de `include_router`
+# plutôt que sur chaque endpoint individuellement (LOT Milestone 1) — aucun de ces
+# routeurs n'a encore besoin de savoir QUI est connecté tant qu'aucune donnée n'est
+# scopée par utilisateur (cf. `docs/BACKLOG.md` § 2.I.1, Milestone 2).
+_protegee = [Depends(get_current_user)]
+app.include_router(portfolio.router, dependencies=_protegee)
+app.include_router(market_data.router, dependencies=_protegee)
+app.include_router(targets.router, dependencies=_protegee)
+app.include_router(analysis.router, dependencies=_protegee)
+app.include_router(transactions.router, dependencies=_protegee)
+app.include_router(performance.router, dependencies=_protegee)
+app.include_router(settings.router, dependencies=_protegee)
+app.include_router(export.router, dependencies=_protegee)
+app.include_router(reference.router, dependencies=_protegee)
+app.include_router(loans.router, dependencies=_protegee)
+app.include_router(patrimoine.router, dependencies=_protegee)
 
 
 @app.get("/api/health")

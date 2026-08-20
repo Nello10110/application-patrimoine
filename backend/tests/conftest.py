@@ -4,7 +4,9 @@
   distinct à chaque test, jamais la vraie `patrimoine.db`), schéma posé via
   `Base.metadata.create_all`.
 - `client` : `TestClient` FastAPI dont la dépendance `get_db` est basculée vers
-  cette même base jetable.
+  cette même base jetable, et `get_current_user` (Milestone 1, multi-utilisateur)
+  vers un utilisateur de test fixe — toutes les routes exigent désormais d'être
+  connecté, cf. `main.py`.
 - `no_network_yfinance` (autouse) : neutralise `yf.Ticker` et `yf.Search`, les
   deux seuls points d'entrée yfinance utilisés par le projet, pour qu'aucun test
   ne dépende du réseau ni de la disponibilité de Yahoo Finance.
@@ -36,9 +38,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.auth import get_current_user
 from app.database import Base, get_db
 from app.main import app
-from app.models import Holding, Transaction
+from app.models import Holding, Transaction, User
 from app.services import justetf_service, market_data_refresh
 
 _compteur_transaction_id = itertools.count(1)
@@ -62,15 +65,28 @@ def db():
 
 @pytest.fixture
 def client(db):
+    """`get_current_user` est aussi basculée (Milestone 1, multi-utilisateur) vers un
+    utilisateur de test fixe : la quasi-totalité de la suite ne teste pas
+    l'authentification elle-même, seulement le comportement des routes UNE FOIS
+    connecté — sans cet override, les ~400 tests existants échoueraient tous en 401.
+    `tests/test_auth_router.py` retire volontairement cet override pour exercer le
+    vrai comportement (401 sans jeton, jeton invalide/expiré)."""
+
     def _override_get_db():
         yield db
 
+    utilisateur_test = User(email="test@example.com", password_hash="inutilisé")
+    db.add(utilisateur_test)
+    db.commit()
+
     app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_current_user] = lambda: utilisateur_test
     try:
         with TestClient(app) as test_client:
             yield test_client
     finally:
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 class FauxTicker:

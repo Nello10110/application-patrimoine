@@ -351,7 +351,7 @@ côté backend — revue manuelle des imports des services les plus volumineux, 
 au-delà de ce qui a déjà été nettoyé (l'import `ForeignKey` inutilisé de `models.py` et
 `analysis_service.breakdown_by`, tous deux déjà retirés, cf. audit archivé).
 
-#### I.1 — `majeur` · `L` · — Ce qu'impliquerait un vrai multi-utilisateur (détail de G.1)
+#### I.1 — `majeur` · `L` · `en cours (Milestone 1 traité)` — Ce qu'impliquerait un vrai multi-utilisateur (détail de G.1)
 
 L'application est explicitement conçue comme « 100 % locale, sans authentification »
 (`backend/app/main.py`, docstring de module) — ce n'est pas un oubli, c'est un choix assumé et
@@ -390,8 +390,9 @@ que `Holding`/`Loan`/`Transaction`/`AllocationTarget`/`Parametre` deviennent sco
 Ce qu'il faudrait construire, dans l'ordre logique de dépendance (aucun de ces points n'a de sens
 isolément) :
 
-1. Une table `User` + une vraie couche d'authentification (mot de passe hashé ou OAuth) — c'est le
-   préalable bloquant déjà identifié en § 3, confirmé ici comme le point de départ obligé.
+1. ✓ **Traité le 20/08/2026 (Milestone 1)** — Une table `User` + une vraie couche d'authentification
+   (mot de passe hashé ou OAuth) — c'était le préalable bloquant déjà identifié en § 3, confirmé ici
+   comme le point de départ obligé.
 2. `user_id` (FK) sur `Holding`, `Loan`, `AllocationTarget`, `Transaction`, `Parametre` (et une
    déclinaison par utilisateur de `ScheduledJobConfig`), avec une revue systématique de chaque
    requête de chaque router/service pour y appliquer le filtre — pas un simple ajout de colonne.
@@ -409,10 +410,30 @@ isolément) :
 6. Côté frontend : `api/client.ts` fait aujourd'hui un simple `fetch('/api...')` sans en-tête
    d'authentification — un écran de connexion et un garde de route seraient à ajouter.
 
-Reste `non traité`, cohérent avec § 3 (authentification hors périmètre tant que l'usage reste
-mono-utilisateur) — mais désormais documenté avec le détail exact de ce qui bloquerait, pour que la
-décision future (si le multi-utilisateur est un jour retenu) parte d'un état des lieux complet
-plutôt que de redécouvrir ces points un par un.
+**Milestone 1 livré et vérifié le 20/08/2026** : point 1 ci-dessus traité — table `User` +
+`AuthToken` (jeton opaque, `secrets.token_hex(32)`, 30 jours, révocable par simple `DELETE` — pas de
+JWT, pas de secret de signature à gérer), mot de passe haché via `hashlib.pbkdf2_hmac` de la
+bibliothèque standard (pas de nouvelle dépendance, cohérent avec `html.parser`/`bisect` déjà choisis
+ailleurs dans ce projet plutôt que `lxml`/une lib de recherche). Nouveau module `backend/app/auth.py`
+(`get_current_user`), routeur `backend/app/routers/auth.py` (`register`/`login`/`logout`/`me`,
+inscription ouverte — application encore strictement locale). Toutes les routes existantes protégées
+d'un coup via `app.include_router(..., dependencies=[Depends(get_current_user)])` dans `main.py`
+plutôt qu'en touchant chaque endpoint (aucun n'a encore besoin de savoir *qui* est connecté tant que
+rien n'est scopé — cf. point 2, toujours à faire). Frontend : `contexts/AuthContext.tsx` +
+`hooks/useAuth.ts`, jeton en `localStorage` transporté en en-tête `Authorization: Bearer` (pas de
+cookie, CORS `allow_credentials` reste `False`), `pages/LoginPage.tsx` (connexion/inscription dans un
+seul écran), `App.tsx` gate tout le contenu tant que non connecté. 22 nouveaux tests backend
+(`test_auth_service.py`, `test_auth_router.py`, dont la vérification explicite qu'une route
+existante quelconque exige désormais un jeton) + 4 nouveaux tests frontend, **les ~400 tests
+existants n'ont nécessité AUCUNE modification** grâce à un `dependency_overrides[get_current_user]`
+posé dans la fixture `client` de `conftest.py`. Vérifié en conditions réelles : compte créé depuis
+l'écran de connexion, patrimoine net réel (10 999 €) et les 49 positions réelles toujours visibles
+une fois connecté (aucune perte de données), déconnexion → jeton effacé → tout appel API renvoie 401
+→ reconnexion fonctionnelle.
+
+Points 2 à 6 restent `non traités` : c'est là qu'est le vrai risque (isolation des données par
+utilisateur, sur de vraies données financières) — délibérément un Milestone séparé, à planifier une
+fois ce socle d'authentification éprouvé dans le temps, pas dans la foulée.
 
 #### I.2 — `mineur` · `M` · `P3` · `traité` — `market_data_service.py` devenu un fichier fourre-tout
 

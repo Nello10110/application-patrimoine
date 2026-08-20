@@ -1,6 +1,9 @@
 import { Suspense, lazy } from 'react'
 import { Link, NavLink, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
+import { useAuth } from './hooks/useAuth'
 import { useTheme, type Theme } from './hooks/useTheme'
+import LoginPage from './pages/LoginPage'
 
 // Découpage par route (LOT 4.8) : `recharts` (utilisé par le Tableau de bord et la
 // fiche détaillée d'une position) pesait à lui seul une bonne part du bundle unique
@@ -54,7 +57,35 @@ function BasculeTheme() {
   )
 }
 
-function App() {
+function BoutonDeconnexion() {
+  const { logout } = useAuth()
+  return (
+    <button
+      type="button"
+      onClick={logout}
+      className="rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+    >
+      Déconnexion
+    </button>
+  )
+}
+
+// Multi-utilisateur (Milestone 1) : tant que la connexion n'est pas vérifiée
+// (`loading`), ou pas établie, seul l'écran de connexion est affiché — pas de route
+// dédiée `/login`, l'état de connexion décide seul ce qui est rendu (plus simple
+// qu'une redirection React Router pour un gate qui couvre TOUTE l'application).
+function AppAuthentifiee() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+      </div>
+    )
+  }
+  if (!user) return <LoginPage />
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <header className="border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -81,6 +112,7 @@ function App() {
             ))}
           </nav>
           <BasculeTheme />
+          <BoutonDeconnexion />
         </div>
       </header>
 
@@ -101,6 +133,14 @@ function App() {
         </Suspense>
       </main>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppAuthentifiee />
+    </AuthProvider>
   )
 }
 

@@ -1,7 +1,10 @@
+import { clearToken, getToken, notifyUnauthorized } from '../auth/tokenStorage'
 import type {
   AllocationTargetOut,
   AllocationTargetsSet,
   AnalysisResponse,
+  AuthResponse,
+  AuthUser,
   CategoryCompositionResponse,
   ColumnMapping,
   CoutGestionConsolide,
@@ -45,19 +48,32 @@ function messageGenerique(status: number, statusText: string): string {
   return MESSAGES_PAR_STATUT[status] ?? `Une erreur inattendue est survenue (${status}${statusText ? ` ${statusText}` : ''}).`
 }
 
+// Routes publiques (Milestone 1, multi-utilisateur) : un 401 y est une erreur de
+// connexion normale (mauvais mot de passe), affichée inline par `LoginPage` — pas
+// une session expirée. Partout ailleurs, un 401 signifie que le jeton stocké n'est
+// plus valide (expiré, ou compte déconnecté d'un autre onglet) : `notifyUnauthorized`
+// prévient `AuthProvider`, qui efface l'état et renvoie vers `/login`.
+function estRoutePublique(path: string): boolean {
+  return path.startsWith('/auth/')
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response
+  const token = getToken()
+  const headers: Record<string, string> = options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
   try {
-    res = await fetch(`/api${path}`, {
-      headers: options?.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
-      ...options,
-    })
+    res = await fetch(`/api${path}`, { headers, ...options })
   } catch {
     // `fetch` a échoué avant toute réponse (connexion au serveur perdue, serveur non
     // démarré...) : il n'y a aucun `detail` métier possible à afficher.
     throw new Error(MESSAGE_ERREUR_RESEAU)
   }
   if (!res.ok) {
+    if (res.status === 401 && !estRoutePublique(path)) {
+      clearToken()
+      notifyUnauthorized()
+    }
     let detail: string | null = null
     try {
       const body = await res.json()
@@ -72,6 +88,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Authentification (Milestone 1, multi-utilisateur)
+  login: (email: string, password: string) =>
+    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  register: (email: string, password: string) =>
+    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  getMe: () => request<AuthUser>('/auth/me'),
+
   // Portfolio
   listHoldings: () => request<Holding[]>('/portfolio/holdings'),
   createHolding: (payload: HoldingInput) =>
