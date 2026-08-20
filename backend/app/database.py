@@ -404,3 +404,54 @@ def migrate_isolation_utilisateur() -> None:
                     )
                 conn.execute(text("DROP TABLE allocation_targets_avant_migration"))
             logger.info("migration: allocation_targets reconstruite avec user_id et sa nouvelle contrainte unique")
+
+
+def migrate_preferences_par_utilisateur() -> None:
+    """Multi-utilisateur (Milestone 2b, `docs/BACKLOG.md` § 2.I.1) : les deux
+    réglages qui vivaient dans `parametres` (`methode_cout`, `seuil_alerte_ecart_pct`)
+    deviennent par utilisateur, dans la nouvelle table `user_parametres`
+    (`models.UserParametre`, créée automatiquement par `Base.metadata.create_all`
+    — table neuve, aucun `ALTER TABLE`). `parametres` ne garde que
+    `version_calcul_portefeuille`, un marqueur de version du CODE et non une
+    préférence, qui doit rester unique pour toute l'installation.
+
+    Rattachement au compte `demo` : mêmes réglages globaux qu'avant cette
+    migration, désormais associés au seul compte qui avait de vraies données au
+    moment du Milestone 2a (même choix que `migrate_isolation_utilisateur`).
+    Idempotent : ne fait rien si les deux clés ont déjà été retirées de
+    `parametres` (deuxième exécution, ou base neuve n'ayant jamais eu ces
+    réglages)."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "parametres" not in tables or "user_parametres" not in tables or "users" not in tables:
+        return  # base neuve, ou run_startup_migrations pas encore passé (ordre d'appel)
+
+    cles_par_utilisateur = ("methode_cout", "seuil_alerte_ecart_pct")
+
+    with engine.begin() as conn:
+        lignes = conn.execute(
+            text(f"SELECT cle, valeur FROM parametres WHERE cle IN ({','.join(':c' + str(i) for i in range(len(cles_par_utilisateur)))})"),
+            {f"c{i}": cle for i, cle in enumerate(cles_par_utilisateur)},
+        ).fetchall()
+        if not lignes:
+            return  # déjà migré (ou jamais réglé) : rien à faire
+
+        demo_id = conn.execute(text("SELECT id FROM users WHERE username = 'demo'")).scalar()
+        if demo_id is None:
+            return  # pas de compte demo (base de test, ou renommé) : rien de sûr à rattacher
+
+        for cle, valeur in lignes:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO user_parametres (cle, user_id, valeur) VALUES (:cle, :user_id, :valeur)
+                    ON CONFLICT (cle, user_id) DO UPDATE SET valeur = excluded.valeur
+                    """
+                ),
+                {"cle": cle, "user_id": demo_id, "valeur": valeur},
+            )
+        conn.execute(
+            text(f"DELETE FROM parametres WHERE cle IN ({','.join(':c' + str(i) for i in range(len(cles_par_utilisateur)))})"),
+            {f"c{i}": cle for i, cle in enumerate(cles_par_utilisateur)},
+        )
+    logger.info("migration: %d préférence(s) rattachée(s) au compte demo dans user_parametres", len(lignes))

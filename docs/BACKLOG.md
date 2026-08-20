@@ -351,7 +351,7 @@ côté backend — revue manuelle des imports des services les plus volumineux, 
 au-delà de ce qui a déjà été nettoyé (l'import `ForeignKey` inutilisé de `models.py` et
 `analysis_service.breakdown_by`, tous deux déjà retirés, cf. audit archivé).
 
-#### I.1 — `majeur` · `L` · `en cours (Milestones 1 et 2a traités)` — Ce qu'impliquerait un vrai multi-utilisateur (détail de G.1)
+#### I.1 — `majeur` · `L` · `traité (Milestones 1, 2a et 2b)` — Ce qu'impliquerait un vrai multi-utilisateur (détail de G.1)
 
 L'application est explicitement conçue comme « 100 % locale, sans authentification »
 (`backend/app/main.py`, docstring de module) — ce n'est pas un oubli, c'est un choix assumé et
@@ -497,13 +497,43 @@ transactions, 17 objectifs) après migration ; un second compte de test créé d
 portefeuille strictement vide ; une position créée sur ce second compte n'apparaît jamais côté `demo`
 et réciproquement.
 
-Points 2 (partiel, cf. ci-dessus), 5 et 6 restent `non traités` — Milestone 2b, à planifier séparément :
-`Parametre` (préférences) par utilisateur (nécessite une clé composite `(cle, user_id)`, aujourd'hui
-accédée par PK simple), `startup_maintenance.reconstruire_si_regles_de_calcul_modifiees` et
-`scheduler_service.py` (aujourd'hui contournés pragmatiquement par une boucle sur tous les
-utilisateurs plutôt qu'une vraie redéfinition de leur portée), et le garde frontend (point 6) —
-`api/client.ts` gère déjà le jeton, mais aucune redirection dédiée n'a encore été revue pour un
-contexte réellement multi-compte au-delà de `demo`.
+**Milestone 2b livré et vérifié le 20/08/2026** : point 2 complété pour les deux réglages qui
+restaient globaux (`methode_cout`, `seuil_alerte_ecart_pct`). Nouvelle table dédiée
+`UserParametre`/`user_parametres` (clé composite `(cle, user_id)`) plutôt qu'un `user_id` nullable
+ajouté à `Parametre` : `Parametre` ne garde qu'un seul réglage réellement global
+(`version_calcul_portefeuille`, un marqueur de version du CODE de calcul et non une préférence —
+mélanger les deux dans une même table aurait exigé une clé primaire avec `user_id` NULL pour les
+lignes globales, plus confus qu'une seconde table pour un coût de migration identique : table neuve,
+créée par `Base.metadata.create_all`, sans `ALTER TABLE`). `services/preferences_service.py` prend
+désormais un `user_id` sur chaque accesseur ; `routers/settings.py` (`update_preferences`) et
+`routers/analysis.py` (seuil d'alerte) le lisent depuis `current_user.id`. Effet de bord positif :
+`update_preferences` ne boucle plus sur tous les comptes pour reconstruire le portefeuille au
+changement de méthode de coût de revient — un changement ne touche plus que le compte qui l'a fait,
+la boucle multi-compte du Milestone 2a n'était qu'un pis-aller le temps que ce point soit traité.
+
+Audit du point 5 pendant ce Milestone : ni `startup_maintenance.reconstruire_si_regles_de_calcul_modifiees`
+ni `scheduler_service.py` n'avaient en réalité besoin d'une redéfinition de leur portée.
+`VERSION_CALCUL_PORTEFEUILLE` reste à raison un marqueur global (une évolution du CODE de calcul doit
+recalculer TOUS les comptes, pas seulement un) — sa boucle sur tous les utilisateurs (posée au
+Milestone 2a) est le comportement définitif, pas un compromis. Le scheduler
+(`market_data_refresh`/`justetf_refresh`) opère sur le cache de marché, volontairement global (point
+3) — il n'a jamais eu de portée par utilisateur à redéfinir. Le point 5 est donc considéré `traité`
+sans changement de code supplémentaire.
+
+Migration de contenu (`database.migrate_preferences_par_utilisateur`) : rattache les deux réglages
+globaux existants (`fifo`/coût moyen pondéré, seuil d'alerte) au compte `demo`, même choix que
+`migrate_isolation_utilisateur` au Milestone 2a. 5 nouveaux tests (3 de migration dans
+`test_migrations.py`, 2 d'isolation croisée entre deux comptes dans
+`test_isolation_utilisateurs.py`, dont un qui verrouille explicitement qu'un changement de méthode
+ne reconstruit plus que le portefeuille de son auteur). 448 tests backend au vert. Vérifié en
+conditions réelles : préférences du compte `demo` inchangées après migration (coût moyen pondéré,
+seuil 5,0 — les valeurs déjà en place) ; un second compte réglé sur FIFO/12,0 n'affecte ni ne lit les
+préférences de `demo`, dans les deux sens.
+
+Point 6 (garde frontend) reste `non traité`, de portée mineure : `api/client.ts` gère déjà le jeton
+et les 401, mais aucune redirection dédiée n'a été revue pour un contexte réellement multi-compte
+au-delà de `demo`/un compte de test — à reprendre si l'usage dépasse effectivement un seul compte
+actif à la fois.
 
 #### I.2 — `mineur` · `M` · `P3` · `traité` — `market_data_service.py` devenu un fichier fourre-tout
 

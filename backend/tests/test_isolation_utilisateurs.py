@@ -9,7 +9,7 @@ découverte en production."""
 
 from datetime import datetime
 
-from app.models import AllocationTarget, Holding, Loan
+from app.models import ORIGINE_MANUEL, AllocationTarget, Holding, Loan
 
 from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur, make_holding, make_transaction
 
@@ -253,3 +253,35 @@ def test_performance_dun_utilisateur_ignore_les_transactions_dun_autre(client, d
 
     assert reponse.status_code == 200
     assert reponse.json()["nombre_transactions"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Préférences (Milestone 2b) : méthode de coût de revient et seuil d'alerte
+# ---------------------------------------------------------------------------
+
+
+def test_preferences_dun_utilisateur_invisibles_pour_un_autre(client, db):
+    client.put("/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": 8.0})
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    reponse = client.get("/api/settings/preferences")
+
+    assert reponse.status_code == 200
+    assert reponse.json() == {"methode_cout": "cout_moyen_pondere", "seuil_alerte_ecart_pct": 5.0}
+
+
+def test_changer_ses_preferences_ne_reconstruit_que_son_propre_portefeuille(client, db):
+    """Verrou central du Milestone 2b : avant la migration, un changement de
+    méthode de coût de revient reconstruisait le portefeuille de TOUS les
+    comptes — désormais seul celui de l'auteur du changement est touché."""
+    make_holding(db, ticker="AAA", user_id=ID_UTILISATEUR_TEST, prix_revient_moyen=100.0, origine=ORIGINE_MANUEL)
+    make_holding(db, ticker="BBB", user_id=ID_UTILISATEUR_B, prix_revient_moyen=200.0, origine=ORIGINE_MANUEL)
+
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": 5.0})
+
+    assert reponse.status_code == 200
+    # Ligne saisie à la main, aucune transaction pour ce compte : rien à recalculer.
+    assert reponse.json()["positions_recalculees"] == 0
+
+    ligne_b = db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_B, Holding.ticker == "BBB").one()
+    assert ligne_b.prix_revient_moyen == 200.0  # jamais touchée par le changement de A

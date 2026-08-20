@@ -6,6 +6,7 @@ ci-dessous), consommés par la page Réglages du frontend."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
 from ..schemas import Preferences, PreferencesUpdate, PreferencesUpdateResponse, ScheduledJobOut, ScheduledJobUpdate
@@ -15,34 +16,32 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 @router.get("/preferences", response_model=Preferences)
-def get_preferences(db: Session = Depends(get_db)):
-    return Preferences(**preferences_service.lire_preferences(db))
+def get_preferences(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return Preferences(**preferences_service.lire_preferences(db, current_user.id))
 
 
 @router.put("/preferences", response_model=PreferencesUpdateResponse)
-def update_preferences(payload: PreferencesUpdate, db: Session = Depends(get_db)):
+def update_preferences(payload: PreferencesUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Changer la méthode de calcul du coût de revient change les gains réalisés et
-    les prix de revient de TOUT le portefeuille (LOT 5.6) : quand `methode_cout`
-    change réellement, on déclenche donc une reconstruction complète
-    (`rebuild_holdings`, qui invalide déjà lui-même le cache d'historique — cf.
+    les prix de revient du portefeuille (LOT 5.6) : quand `methode_cout` change
+    réellement, on déclenche donc une reconstruction complète (`rebuild_holdings`,
+    qui invalide déjà lui-même le cache d'historique — cf.
     `services/historique_cache.invalider`) et on renvoie le nombre de positions
     recalculées. Un simple changement du seuil d'alerte n'a, lui, aucun effet sur
     les positions : pas de reconstruction dans ce cas (`positions_recalculees`
     reste `None`).
 
-    Préférences encore globales à ce stade (Milestone 2a, `Parametre` par
-    utilisateur reste un Milestone 2b séparé — cf. `docs/BACKLOG.md` § 2.I.1) : un
-    changement de méthode reconstruit donc le portefeuille de TOUS les comptes, pas
-    seulement celui de qui a modifié le réglage."""
-    ancienne_methode = preferences_service.lire_methode_cout(db)
-    preferences_service.enregistrer_preferences(db, payload.methode_cout, payload.seuil_alerte_ecart_pct)
+    Préférences par utilisateur depuis le Milestone 2b (`docs/BACKLOG.md` § 2.I.1) :
+    un changement de méthode ne reconstruit désormais QUE le portefeuille de
+    l'utilisateur qui l'a modifié, plus les autres comptes en boucle comme avant
+    2b."""
+    ancienne_methode = preferences_service.lire_methode_cout(db, current_user.id)
+    preferences_service.enregistrer_preferences(db, current_user.id, payload.methode_cout, payload.seuil_alerte_ecart_pct)
 
     positions_recalculees = None
     if payload.methode_cout != ancienne_methode:
-        positions_recalculees = 0
-        for (uid,) in db.query(User.id).all():
-            resultat = portfolio_reconstruction.rebuild_holdings(db, uid)
-            positions_recalculees += resultat.positions_recalculees
+        resultat = portfolio_reconstruction.rebuild_holdings(db, current_user.id)
+        positions_recalculees = resultat.positions_recalculees
 
     return PreferencesUpdateResponse(
         methode_cout=payload.methode_cout,

@@ -67,15 +67,16 @@ def reconstruire_si_regles_de_calcul_modifiees(db: Session) -> int | None:
     positions recalculées (tous comptes confondus), ou `None` s'il n'y avait rien à
     faire.
 
-    Multi-utilisateur (Milestone 2a) : `VERSION_CALCUL_PORTEFEUILLE` reste une
-    version GLOBALE (`Parametre` n'est pas encore par utilisateur, cf.
-    `docs/BACKLOG.md` § 2.I.1, Milestone 2b) — un changement de règle de calcul
-    reconstruit donc le portefeuille de chaque compte existant, en boucle, plutôt
-    que de choisir un utilisateur particulier. Tourne toujours au démarrage du
-    process, avec une session unique partagée par tous les comptes (pas de
-    `current_user` disponible ici, contrairement aux endpoints HTTP) : un futur
-    déplacement de ce déclenchement vers la connexion (plutôt que le démarrage)
-    reste une piste pour le Milestone 2b, pas nécessaire pour que ceci reste correct.
+    Multi-utilisateur (Milestone 2a/2b, `docs/BACKLOG.md` § 2.I.1) :
+    `VERSION_CALCUL_PORTEFEUILLE` reste volontairement une version GLOBALE dans
+    `Parametre` (contrairement à `methode_cout`/`seuil_alerte_ecart_pct`, devenues
+    par utilisateur au Milestone 2b dans `UserParametre`) — c'est un marqueur de
+    version du CODE de calcul, pas une préférence, il n'a donc pas de sens par
+    compte. Un changement de règle de calcul doit reconstruire le portefeuille de
+    CHAQUE compte existant : la boucle ci-dessous est le comportement définitif,
+    pas un compromis en attendant un futur milestone. Tourne toujours au démarrage
+    du process, avec une session unique partagée par tous les comptes (pas de
+    `current_user` disponible ici, contrairement aux endpoints HTTP).
 
     Une exception n'est jamais laissée remonter : une remise à niveau qui échoue ne doit
     pas empêcher l'application de démarrer — l'utilisateur peut toujours relancer une

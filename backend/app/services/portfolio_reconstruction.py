@@ -223,10 +223,11 @@ def compute_positions(db: Session, user_id: int, methode: str | None = None) -> 
     `preferences_service.METHODE_COUT_MOYEN_PONDERE` ou `METHODE_FIFO`. Explicite
     plutôt qu'implicite pour rester testable sans base (les tests unitaires de ce
     module passent la méthode qu'ils veulent vérifier) ; si omis (cas normal des
-    appelants applicatifs), lu depuis les préférences persistées (LOT 5B) — comportement
-    par défaut : coût moyen pondéré, comme avant l'introduction de ce réglage."""
+    appelants applicatifs), lu depuis les préférences persistées DE CE COMPTE
+    (Milestone 2b, LOT 5B) — comportement par défaut : coût moyen pondéré, comme
+    avant l'introduction de ce réglage."""
     if methode is None:
-        methode = preferences_service.lire_methode_cout(db)
+        methode = preferences_service.lire_methode_cout(db, user_id)
 
     transactions = (
         db.query(Transaction)
@@ -259,9 +260,9 @@ def compute_position(db: Session, ticker: str, user_id: int, methode: str | None
 
     `user_id` : deux utilisateurs peuvent détenir le même ticker — filtré en plus du
     ticker, jamais l'un sans l'autre (Milestone 2a). `methode` : cf. `compute_positions`,
-    même défaut (lu depuis les préférences)."""
+    même défaut (lu depuis les préférences de ce compte)."""
     if methode is None:
-        methode = preferences_service.lire_methode_cout(db)
+        methode = preferences_service.lire_methode_cout(db, user_id)
 
     transactions = (
         db.query(Transaction)

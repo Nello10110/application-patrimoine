@@ -100,7 +100,7 @@ def get_analysis(annee: int, db: Session = Depends(get_db), current_user: User =
     # `rebalancing.SEUIL_ECART_PCT` (2 points, fixe) qui décide, lui, si une
     # recommandation existe tout court : une recommandation informe, une alerte
     # réclame une action de l'utilisateur.
-    seuil_alerte = preferences_service.lire_seuil_alerte_ecart_pct(db)
+    seuil_alerte = preferences_service.lire_seuil_alerte_ecart_pct(db, current_user.id)
     alertes = [a for a in actions if abs(a["ecart_pourcentage"]) > seuil_alerte]
 
     return AnalysisResponse(

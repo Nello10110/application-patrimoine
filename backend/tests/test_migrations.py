@@ -486,6 +486,94 @@ def test_migrate_isolation_utilisateur_autorise_deux_utilisateurs_sur_le_meme_ob
     test_engine.dispose()
 
 
+def _creer_ancienne_base_pre_milestone_2b(chemin) -> None:
+    """Simule le schéma tel qu'il existait juste après le Milestone 2a : `parametres`
+    porte encore les réglages globaux `methode_cout`/`seuil_alerte_ecart_pct` (en
+    plus du marqueur de version, déjà global avant et après), et la table
+    `user_parametres` n'existe pas encore."""
+    conn = sqlite3.connect(chemin)
+    conn.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR UNIQUE, password_hash VARCHAR, created_at DATETIME)")
+    conn.execute("INSERT INTO users (id, username, password_hash, created_at) VALUES (1, 'demo', 'x', '2026-01-01')")
+    conn.execute("CREATE TABLE parametres (cle VARCHAR PRIMARY KEY, valeur VARCHAR)")
+    conn.execute("INSERT INTO parametres (cle, valeur) VALUES ('version_calcul_portefeuille', '2')")
+    conn.execute("INSERT INTO parametres (cle, valeur) VALUES ('methode_cout', 'fifo')")
+    conn.execute("INSERT INTO parametres (cle, valeur) VALUES ('seuil_alerte_ecart_pct', '8.0')")
+    conn.commit()
+    conn.close()
+
+
+def test_migrate_preferences_par_utilisateur_rattache_les_reglages_au_compte_demo(tmp_path, monkeypatch):
+    chemin = tmp_path / "base_pre_2b.db"
+    _creer_ancienne_base_pre_milestone_2b(chemin)
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.Base.metadata.create_all(bind=test_engine)  # crée `user_parametres`, neuve
+    database_module.run_startup_migrations()
+    database_module.migrate_preferences_par_utilisateur()
+
+    with test_engine.connect() as conn:
+        lignes_globales = dict(conn.execute(text("SELECT cle, valeur FROM parametres")).fetchall())
+        lignes_utilisateur = conn.execute(
+            text("SELECT cle, user_id, valeur FROM user_parametres ORDER BY cle")
+        ).fetchall()
+
+    # Le marqueur de version reste global, seul survivant dans `parametres`.
+    assert lignes_globales == {"version_calcul_portefeuille": "2"}
+    assert lignes_utilisateur == [("methode_cout", 1, "fifo"), ("seuil_alerte_ecart_pct", 1, "8.0")]
+
+    test_engine.dispose()
+
+
+def test_migrate_preferences_par_utilisateur_idempotent(tmp_path, monkeypatch):
+    chemin = tmp_path / "base_pre_2b_idempotent.db"
+    _creer_ancienne_base_pre_milestone_2b(chemin)
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.Base.metadata.create_all(bind=test_engine)
+    database_module.run_startup_migrations()
+    database_module.migrate_preferences_par_utilisateur()
+    database_module.migrate_preferences_par_utilisateur()  # ne doit rien casser ni dupliquer
+
+    with test_engine.connect() as conn:
+        compte = conn.execute(text("SELECT COUNT(*) FROM user_parametres")).scalar()
+    assert compte == 2
+
+    test_engine.dispose()
+
+
+def test_migrate_preferences_par_utilisateur_autorise_deux_comptes_avec_des_reglages_differents(tmp_path, monkeypatch):
+    """Verrou du vrai objectif du Milestone 2b : une fois la migration passée, un
+    second compte doit pouvoir avoir SES PROPRES réglages sans toucher à ceux du
+    compte demo."""
+    chemin = tmp_path / "base_pre_2b_deux_comptes.db"
+    _creer_ancienne_base_pre_milestone_2b(chemin)
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.Base.metadata.create_all(bind=test_engine)
+    database_module.run_startup_migrations()
+    database_module.migrate_preferences_par_utilisateur()
+
+    with test_engine.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, username, password_hash, created_at) VALUES (2, 'autre', 'x', '2026-01-01')"))
+        conn.execute(
+            text("INSERT INTO user_parametres (cle, user_id, valeur) VALUES ('methode_cout', 2, 'cout_moyen_pondere')")
+        )
+
+    with test_engine.connect() as conn:
+        lignes = conn.execute(text("SELECT cle, user_id, valeur FROM user_parametres ORDER BY user_id")).fetchall()
+
+    assert lignes == [
+        ("methode_cout", 1, "fifo"),
+        ("seuil_alerte_ecart_pct", 1, "8.0"),
+        ("methode_cout", 2, "cout_moyen_pondere"),
+    ]
+
+    test_engine.dispose()
+
+
 def test_migrate_isolation_utilisateur_autorise_meme_transaction_id_pour_deux_utilisateurs(tmp_path, monkeypatch):
     chemin = tmp_path / "base_pre_2a_transactions.db"
     _creer_ancienne_base_pre_milestone_2a(chemin)

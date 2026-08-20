@@ -304,21 +304,38 @@ class ScheduledJobConfig(Base):
 
 class Parametre(Base):
     """Table de configuration générique clé/valeur (LOT 5B), pour les réglages
-    applicatifs qui ne concernent pas une tâche planifiée (cf. `ScheduledJobConfig`,
-    dédié à celles-ci et à leur suivi d'exécution). `valeur` est volontairement un
-    simple texte : la conversion (booléen, nombre, énumération contrainte...) et la
-    valeur par défaut d'un réglage absent sont la responsabilité de
-    `services/preferences_service.py`, seul module qui expose des accesseurs typés
-    et nommés par réglage — jamais un `get(cle)` générique laissé aux appelants.
-    Une application locale mono-utilisateur n'a pas besoin d'un schéma de
-    configuration typé en base (une colonne dédiée par réglage) : ce choix évite
-    surtout une migration (`database.run_startup_migrations`) à chaque nouveau
-    réglage — l'ajout d'un réglage n'ajoute qu'une ligne de données, jamais une
-    colonne de schéma."""
+    GLOBAUX qui ne concernent ni un utilisateur particulier ni une tâche planifiée
+    (cf. `ScheduledJobConfig`, dédié à celles-ci). Depuis le Milestone 2b
+    (multi-utilisateur, `docs/BACKLOG.md` § 2.I.1), les réglages propres à un
+    utilisateur (méthode de coût de revient, seuil d'alerte) vivent dans
+    `UserParametre` — cette table ne sert plus qu'à `startup_maintenance`
+    (`version_calcul_portefeuille`, un marqueur de version du CODE, pas une
+    préférence : il doit rester unique pour toute l'installation, jamais par
+    compte). `valeur` est volontairement un simple texte : la conversion (booléen,
+    nombre, énumération contrainte...) est la responsabilité de l'appelant."""
 
     __tablename__ = "parametres"
 
     cle: Mapped[str] = mapped_column(String, primary_key=True)
+    valeur: Mapped[str] = mapped_column(String)
+
+
+class UserParametre(Base):
+    """Réglages applicatifs propres à un utilisateur (LOT 5B, devenu par-utilisateur
+    au Milestone 2b — `docs/BACKLOG.md` § 2.I.1) : méthode de calcul du coût de
+    revient, seuil d'alerte de rééquilibrage. Table dédiée plutôt qu'un `user_id`
+    nullable ajouté à `Parametre` : `Parametre` garde un seul réglage réellement
+    global (`version_calcul_portefeuille`), mélanger les deux dans une même table
+    aurait exigé une clé primaire composite avec `user_id` NULL pour les lignes
+    globales — plus confus qu'une seconde table, pour un coût de migration
+    identique (table neuve, créée par `Base.metadata.create_all`, sans `ALTER
+    TABLE`). Mêmes accesseurs typés que `Parametre` (`services/preferences_service.py`,
+    seul point d'accès) — jamais un `get(cle)` générique laissé aux appelants."""
+
+    __tablename__ = "user_parametres"
+
+    cle: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     valeur: Mapped[str] = mapped_column(String)
 
 
