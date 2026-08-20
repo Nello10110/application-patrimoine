@@ -1,11 +1,15 @@
 """Rentabilité globale du portefeuille (snapshot actuel) et son évolution dans le temps."""
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..schemas import DividendeMois, PerformanceSummary, PortfolioHistoryResponse, RapportMensuel
+from ..schemas import DividendeMois, PerformanceSummary, PortfolioHistoryResponse, RapportPeriode
 from ..services import historical_performance_service, performance_service, rapport_service
+
+_MOTIF_DATE_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
 
@@ -27,10 +31,16 @@ def get_dividend_calendar(db: Session = Depends(get_db)):
     return performance_service.compute_dividend_calendar(db)
 
 
-@router.get("/rapport", response_model=RapportMensuel)
-def get_rapport_mensuel(annee: int, mois: int, db: Session = Depends(get_db)):
-    """Rapport récapitulatif d'un mois donné (roadmap Phase 4, § D.2), généré à la
-    demande — cf. docstring de `rapport_service.compute_rapport_mensuel`."""
-    if not 1 <= mois <= 12:
-        raise HTTPException(status_code=400, detail="mois doit être entre 1 et 12")
-    return rapport_service.compute_rapport_mensuel(db, annee, mois)
+@router.get("/rapport", response_model=RapportPeriode)
+def get_rapport_periode(date_debut: str, date_fin: str, db: Session = Depends(get_db)):
+    """Rapport récapitulatif sur une période arbitraire (roadmap Phase 4, § D.2 —
+    étendu à l'annuel et aux périodes personnalisées), généré à la demande — cf.
+    docstring de `rapport_service.compute_rapport_periode`. `date_debut`/`date_fin`
+    au format `AAAA-MM-JJ` (bornes inclusives) : le mensuel et l'annuel de l'écran
+    ne sont que des raccourcis qui calculent ces bornes côté client avant d'appeler
+    ce même endpoint générique."""
+    if not _MOTIF_DATE_ISO.match(date_debut) or not _MOTIF_DATE_ISO.match(date_fin):
+        raise HTTPException(status_code=400, detail="date_debut et date_fin doivent être au format AAAA-MM-JJ")
+    if date_fin < date_debut:
+        raise HTTPException(status_code=400, detail="date_fin doit être postérieure ou égale à date_debut")
+    return rapport_service.compute_rapport_periode(db, date_debut, date_fin)

@@ -85,7 +85,13 @@ Calendrier des dividendes déjà perçus : un total en tête, un graphique en ba
 
 ## Écran Rapport
 
-Rapport récapitulatif d'un mois choisi via le sélecteur en haut à droite (par défaut, le mois en cours) : valeur du portefeuille en fin de mois, évolution sur le mois (en vert si positive, en rouge sinon), dividendes perçus, et les cinq mouvements les plus importants du mois (achats, ventes...). Généré à la demande à chaque changement de mois — rien n'est envoyé par courriel, l'application n'a pas de serveur mail.
+Rapport récapitulatif généré à la demande — rien n'est envoyé par courriel, l'application n'a pas de serveur mail — sur trois modes possibles (boutons en haut à droite) :
+
+- **Mensuel** (par défaut) : un sélecteur de mois, du 1er au dernier jour du mois choisi.
+- **Annuel** : un sélecteur d'année, du 1er janvier au 31 décembre.
+- **Personnalisé** : deux sélecteurs de date libres (« du » / « au »), pour n'importe quelle période — un message s'affiche si la date de fin précède la date de début.
+
+Quel que soit le mode : valeur du portefeuille en fin de période, évolution sur la période (en vert si positive, en rouge sinon), dividendes perçus, et les cinq mouvements les plus importants (achats, ventes...). Généré à la demande à chaque changement de mode ou de dates.
 
 ## Tableau de bord
 

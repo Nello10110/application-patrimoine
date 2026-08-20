@@ -360,11 +360,11 @@ export interface MouvementRapport {
   montant: number
 }
 
-export interface RapportMensuel {
-  annee: number
-  mois: number
-  valeur_debut_mois: number | null
-  valeur_fin_mois: number | null
+export interface RapportPeriode {
+  date_debut: string
+  date_fin: string
+  valeur_debut_periode: number | null
+  valeur_fin_periode: number | null
   evolution_pct: number | null
   dividendes_percus: number
   nombre_transactions: number

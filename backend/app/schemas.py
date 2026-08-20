@@ -408,13 +408,16 @@ class MouvementRapport(BaseModel):
     montant: float
 
 
-class RapportMensuel(BaseModel):
-    """Réponse de `GET /api/performance/rapport` (roadmap Phase 4, § D.2)."""
+class RapportPeriode(BaseModel):
+    """Réponse de `GET /api/performance/rapport` (roadmap Phase 4, § D.2 — étendu à
+    l'annuel et aux périodes personnalisées) : `date_debut`/`date_fin` sont les
+    bornes réellement utilisées (celles envoyées par l'appelant), en écho pour que
+    l'écran puisse afficher la période exacte sans la recalculer lui-même."""
 
-    annee: int
-    mois: int
-    valeur_debut_mois: float | None
-    valeur_fin_mois: float | None
+    date_debut: str
+    date_fin: str
+    valeur_debut_periode: float | None
+    valeur_fin_periode: float | None
     evolution_pct: float | None
     dividendes_percus: float
     nombre_transactions: int

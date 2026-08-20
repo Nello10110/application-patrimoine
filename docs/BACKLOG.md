@@ -221,18 +221,26 @@ jamais utilisé en production).
 #### D.2 — `mineur` · `S` · `P3` · `traité` — Rapport périodique consultable
 
 Équivalent du « rapport mensuel » Finary, mais sans envoi (l'application n'a pas de serveur mail) :
-une page récapitulative du mois écoulé (évolution, plus gros mouvements, dividendes perçus),
+une page récapitulative d'une période écoulée (évolution, plus gros mouvements, dividendes perçus),
 générée à la demande plutôt que poussée automatiquement. Nouveau `services/rapport_service.py`
-(`compute_rapport_mensuel`) : réutilise `historical_performance_service.compute_portfolio_history`
+(`compute_rapport_periode`) : réutilise `historical_performance_service.compute_portfolio_history`
 (déjà mis en cache 24h) pour l'évolution, interroge directement `Transaction` pour les mouvements et
-les dividendes du mois — aucun nouveau calcul de fond. `GET /api/performance/rapport?annee=&mois=`,
-nouvel écran `/rapport` avec sélecteur de mois (`<input type="month">`).
+les dividendes de la période — aucun nouveau calcul de fond.
 
-**Vérifié en conditions réelles** (20/08/2026) : août 2026 → 10 961 € en fin de mois, +5,8 % sur le
-mois, 0,14 € de dividendes, 5 plus gros mouvements affichés avec les vrais libellés (MSCI Emerging
-Asia, S&P 500, Private Equity...) ; changement de mois vers mars 2026 dans le sélecteur → nouvel
-appel réseau confirmé, nouvelles données affichées (7 662 €, -0,1 %, 1,93 €). 5 tests backend
-(`test_rapport_service.py`) + 3 tests frontend (`RapportPage.test.tsx`).
+**Mise à jour du 20/08/2026 (rapport annuel + période personnalisée)** : à la demande de
+l'utilisateur, étendu au-delà du seul mensuel. Plutôt qu'une fonction par granularité, un seul moteur
+générique sur une période arbitraire (`compute_rapport_periode(db, date_debut, date_fin)`,
+bornes `AAAA-MM-JJ` inclusives) : `GET /api/performance/rapport?date_debut=&date_fin=` remplace
+l'ancien `?annee=&mois=`. L'écran `/rapport` gagne un sélecteur de mode (Mensuel/Annuel/Personnalisé)
+qui calcule les bornes correspondantes côté client avant d'appeler ce même endpoint — le mensuel et
+l'annuel ne sont donc que des raccourcis, sans code dupliqué. Validation (date de fin ≥ date de
+début) à la fois côté serveur (400) et côté écran (avant même d'émettre la requête).
+
+**Vérifié en conditions réelles** (20/08/2026) : mensuel (août 2026) → 10 961 € en fin de mois,
++5,8 %, 0,14 € de dividendes ; annuel (2026) → +65,2 % depuis le 1er janvier, 12,49 € de dividendes ;
+personnalisé (01/01/2026 au 20/08/2026, période quasi identique à l'annuel) → mêmes chiffres,
+confirmant la cohérence entre les trois modes. 7 tests backend (`test_rapport_service.py`) + 8 tests
+frontend (`RapportPage.test.tsx`).
 
 ### E. Agrégation, import et frais
 

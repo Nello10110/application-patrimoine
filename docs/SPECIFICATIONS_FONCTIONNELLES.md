@@ -17,7 +17,7 @@ Application web locale et mono-utilisateur de suivi de portefeuille boursier. El
 11. consulter un **calendrier des dividendes perçus**, mois par mois, avec le détail des lignes (roadmap Phase 3) ;
 12. exporter un **relevé de patrimoine en PDF** mis en forme, au-delà des exports CSV (roadmap Phase 3) ;
 13. voir le **coût de gestion annuel consolidé** des fonds/ETF détenus, avec un indicateur honnête de la part du portefeuille pour laquelle ce coût est réellement connu (roadmap Phase 3) ;
-14. consulter, à la demande, un **rapport mensuel récapitulatif** (évolution, plus gros mouvements, dividendes perçus) pour un mois donné (roadmap Phase 4) ;
+14. consulter, à la demande, un **rapport récapitulatif** (évolution, plus gros mouvements, dividendes perçus) sur un mois, une année, ou une période personnalisée (roadmap Phase 4) ;
 15. **installer l'application** comme une application (icône, plein écran) depuis un navigateur compatible (roadmap Phase 3).
 
 L'application ne fournit **aucun conseil en investissement personnalisé** : les objectifs de répartition sont définis par l'utilisateur lui-même, les recommandations ne portent que sur des catégories (zone géographique, secteur), jamais sur un titre à acheter ou vendre. Elle ne simule aucune fiscalité (cf. § 5, non-objectif assumé).
@@ -32,7 +32,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Répartition | `/repartition` | Objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable : définition des cibles de répartition géo/sectorielle, puis en dessous le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent — sorti du Tableau de bord pour ne pas y encombrer la vue d'ensemble. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
 | Simulateur | `/simulateur` | Projection d'un capital dans le temps (préempli avec le patrimoine net actuel, librement modifiable) à horizon réglable (5/10/20/30 ans) selon un rendement et un versement mensuel ; tableau de détail annuel/mensuel (versements, intérêts, capital, cumuls) ; calcul d'indépendance financière (FIRE) à partir d'une dépense annuelle cible et d'un taux de retrait. Tout est calculé côté client hormis le patrimoine net initial |
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
-| Rapport | `/rapport` | Rapport récapitulatif d'un mois choisi (sélecteur), généré à la demande : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements du mois |
+| Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements de la période |
 | Import | `/import` | Import de l'historique de transactions ou d'un relevé de positions |
 | Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV et relevé de patrimoine PDF |
 
@@ -208,13 +208,13 @@ Toute la suite (projection, tableau de détail, FIRE) est calculée **entièreme
 
 `GET /api/performance/dividendes` (`performance_service.compute_dividend_calendar`) regroupe les transactions `CASH/DIVIDEND` par mois calendaire (`Transaction.date[:7]`), avec le même flux net algébrique que la carte Rentabilité (`amount + fee + tax`, jamais un `abs()`). Aucune nouvelle donnée récupérée : c'est une vue sur des transactions déjà en base. Ne projette rien vers l'avenir (cf. § 5, C.2 non traité) — uniquement des dividendes déjà perçus.
 
-### 3.14 Rapport mensuel récapitulatif (roadmap Phase 4, § D.2)
+### 3.14 Rapport récapitulatif (roadmap Phase 4, § D.2 — étendu à l'annuel et aux périodes personnalisées)
 
-`GET /api/performance/rapport?annee=&mois=` (`services/rapport_service.compute_rapport_mensuel`), généré **à la demande** — l'application n'a pas de serveur mail, ce n'est donc jamais poussé automatiquement. Trois éléments pour le mois demandé :
+`GET /api/performance/rapport?date_debut=AAAA-MM-JJ&date_fin=AAAA-MM-JJ` (`services/rapport_service.compute_rapport_periode`), généré **à la demande** — l'application n'a pas de serveur mail, ce n'est donc jamais poussé automatiquement. Un seul endpoint générique sur une période arbitraire (bornes inclusives), pas une fonction par granularité : l'écran propose trois modes qui ne sont que des raccourcis calculant ces bornes côté client avant d'appeler ce même endpoint — **Mensuel** (1er au dernier jour du mois choisi), **Annuel** (1er janvier au 31 décembre de l'année choisie), **Personnalisé** (deux sélecteurs de date libres, avec validation que la fin ne précède pas le début — **400** sinon, côté serveur comme côté écran avant même d'émettre la requête). Trois éléments pour la période demandée :
 
-- **évolution de la valeur du portefeuille** : dernière valeur connue à/avant le 1er et le dernier jour du mois, lues dans la série déjà calculée par `historical_performance_service.compute_portfolio_history` (§ 3.9) — si le portefeuille n'existait pas encore au début du mois demandé, repli sur le tout premier point disponible plutôt qu'une case vide ;
-- **dividendes perçus** sur le mois seul (même calcul que § 3.13, restreint au mois) ;
-- **cinq plus gros mouvements** du mois, triés par montant absolu (achats, ventes, dividendes, tout type de transaction confondu).
+- **évolution de la valeur du portefeuille** : dernière valeur connue à/avant le début et la fin de la période, lues dans la série déjà calculée par `historical_performance_service.compute_portfolio_history` (§ 3.9) — si le portefeuille n'existait pas encore au début de la période demandée, repli sur le tout premier point disponible plutôt qu'une case vide ;
+- **dividendes perçus** sur la période seule (même calcul que § 3.13, restreint à l'intervalle) ;
+- **cinq plus gros mouvements** de la période, triés par montant absolu (achats, ventes, dividendes, tout type de transaction confondu).
 
 Aucun nouveau calcul de fond : uniquement une agrégation par mois de données déjà exposées ailleurs.
 
@@ -254,4 +254,4 @@ Voir `BACKLOG.md` pour la liste complète des points relevés à l'audit et leur
 - **Application 100 % locale, sans authentification.** Non prévue pour être exposée hors `localhost` ; l'authentification serait un préalable bloquant, pas une évolution de confort, si cela devait changer (point 7.7 du backlog).
 - **Dépendance à Yahoo Finance (`yfinance`), sans SLA officiel.** Les garde-fous de fréquence (§ 3.9) réduisent le risque de blocage mais ne l'éliminent pas ; une indisponibilité ou une limitation côté Yahoo Finance dégrade la fraîcheur des données sans faire échouer l'application (chaque position est traitée indépendamment, une erreur reste locale à la ligne concernée).
 - **Un seul format de courtier reconnu automatiquement (Trade Republic).** D'autres exports (Boursorama, Degiro, Interactive Brokers...) passent par le mapping manuel de colonnes (relevé de positions), jamais par la reconstruction depuis un grand livre — élargir cette reconnaissance suppose un vrai fichier d'export d'un autre courtier comme référence, indisponible à ce jour (roadmap Phase 3, § E.1, backlog).
-- **Pas de projection des dividendes futurs.** Le calendrier (§ 3.13) et le rapport mensuel (§ 3.14) ne montrent que des dividendes déjà perçus : `yfinance` n'expose pas de façon fiable la régularité de versement par ligne, en particulier pour les ETF — extrapoler sans cette fiabilité risquerait d'afficher un montant qui n'est pas garanti (roadmap Phase 4, § C.2, backlog).
+- **Pas de projection des dividendes futurs.** Le calendrier (§ 3.13) et le rapport récapitulatif (§ 3.14) ne montrent que des dividendes déjà perçus : `yfinance` n'expose pas de façon fiable la régularité de versement par ligne, en particulier pour les ETF — extrapoler sans cette fiabilité risquerait d'afficher un montant qui n'est pas garanti (roadmap Phase 4, § C.2, backlog).

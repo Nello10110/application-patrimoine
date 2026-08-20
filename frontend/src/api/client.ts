@@ -6,7 +6,7 @@ import type {
   ColumnMapping,
   CoutGestionConsolide,
   DividendeMois,
-  RapportMensuel,
+  RapportPeriode,
   PortfolioHistoryResponse,
   EtatRafraichissement,
   Holding,
@@ -123,7 +123,8 @@ export const api = {
   getPerformance: () => request<PerformanceSummary>('/performance'),
   getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
   getDividendCalendar: () => request<DividendeMois[]>('/performance/dividendes'),
-  getRapportMensuel: (annee: number, mois: number) => request<RapportMensuel>(`/performance/rapport?annee=${annee}&mois=${mois}`),
+  getRapportPeriode: (dateDebut: string, dateFin: string) =>
+    request<RapportPeriode>(`/performance/rapport?date_debut=${dateDebut}&date_fin=${dateFin}`),
 
   // Réglages (tâches planifiées)
   listJobs: () => request<ScheduledJob[]>('/settings/jobs'),
