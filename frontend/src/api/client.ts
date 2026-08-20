@@ -11,12 +11,14 @@ import type {
   HoldingInput,
   HoldingPriceHistoryResponse,
   HoldingUpdateInput,
+  FireResult,
   ImportPreview,
   ImportResult,
   Loan,
   LoanInput,
   LoanUpdateInput,
   PatrimoineNet,
+  Simulation,
   PerformanceSummary,
   Preferences,
   PreferencesUpdateResponse,
@@ -142,4 +144,14 @@ export const api = {
 
   // Patrimoine net global (roadmap Phase 1)
   getPatrimoineNet: () => request<PatrimoineNet>('/patrimoine/net'),
+
+  // Simulateur de patrimoine et indépendance financière (roadmap Phase 2)
+  getSimulation: (params: { rendement_annuel_pct: number; epargne_mensuelle: number; annees: number }) =>
+    request<Simulation>(`/patrimoine/simulation?${new URLSearchParams(params as unknown as Record<string, string>)}`),
+  getFire: (params: {
+    rendement_annuel_pct: number
+    epargne_mensuelle: number
+    depense_annuelle_cible: number
+    taux_retrait_pct: number
+  }) => request<FireResult>(`/patrimoine/fire?${new URLSearchParams(params as unknown as Record<string, string>)}`),
 }

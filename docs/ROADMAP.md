@@ -27,7 +27,7 @@ de positionnement, pas seulement des cases à cocher.
 ```mermaid
 flowchart LR
     P1["Phase 1 ✓ livrée 19/08/2026\nPatrimoine net complet\nimmobilier · SCPI/AV/PER · dettes"]
-    P2["Phase 2\nProjections\nsimulateur · FIRE"]
+    P2["Phase 2 ✓ livrée 20/08/2026\nProjections\nsimulateur · FIRE"]
     P3["Phase 3\nConfort quotidien\ndividendes · PDF · PWA"]
     P4["Phase 4\nDécisions à trancher\nbudget · partage · agrégation bancaire"]
     P1 --> P2 --> P3 --> P4
@@ -89,7 +89,7 @@ près (actifs − passifs), non-régression confirmée sur `/api/analysis/{annee
 
 ---
 
-## Phase 2 — Ce que le patrimoine permet (projections)
+## Phase 2 — Ce que le patrimoine permet (projections) — livrée le 20/08/2026
 
 **Backlog** : B.1 (simulateur de patrimoine), B.2 (indépendance financière), A.4 (catégorie libre).
 **Effort total** : `M`. **Pourquoi ensuite** : ces fonctionnalités n'ont de sens qu'une fois le
@@ -113,9 +113,15 @@ calcul pur, sans aucune dépendance externe ni coût.
 4. **Catégorie libre** (A.4) : petit complément à la Phase 1, glissé ici car sans urgence propre —
    réutilise le patron déjà construit en Phase 1, aucun nouveau mécanisme.
 
-**Vérification prévue** : recoupement manuel du calcul d'intérêts composés sur un cas simple
-(feuille de calcul de contrôle), test que la date FIRE recule bien quand le taux de retrait
-augmente et avance quand l'épargne mensuelle augmente (invariants de sens, pas seulement de valeur).
+**Vérification faite** : chaque formule du moteur de projection verrouillée par un test comparant
+son résultat à une formule fermée indépendante (capitalisation composée, valeur future d'une suite
+de versements — mêmes mathématiques que l'amortissement d'emprunt de la Phase 1, appliquées en sens
+inverse), pas seulement par une relecture du code. Testé en direct dans le navigateur sur le
+patrimoine net réel de l'utilisateur (10 998,93 €) : projection et FIRE réactifs aux changements
+d'hypothèses (le patrimoine nécessaire augmente avec un taux de retrait plus prudent, le délai
+diminue avec plus d'épargne mensuelle — invariants de sens vérifiés, pas seulement de valeur). 395
+tests backend (+17) + 101 tests frontend (+8). Détail complet dans [`docs/BACKLOG.md`](BACKLOG.md)
+§ 2.B.2.
 
 ---
 

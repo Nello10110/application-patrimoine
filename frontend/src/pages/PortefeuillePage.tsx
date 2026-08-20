@@ -29,10 +29,10 @@ const CATEGORY_TABS: { key: Categorie; label: string }[] = [
   { key: 'AUTRES', label: 'Autres' },
 ]
 
-// Immobilier/SCPI/assurance-vie/PER (roadmap Phase 1, patrimoine net) : aucune
-// cotation automatique, valorisés via `Holding.valeur_estimee`. Cf.
+// Immobilier/SCPI/assurance-vie/PER/autre actif (roadmap Phase 1 et 2, patrimoine
+// net) : aucune cotation automatique, valorisés via `Holding.valeur_estimee`. Cf.
 // `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
-const TYPES_PATRIMOINE = new Set(['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'PENSION'])
+const TYPES_PATRIMOINE = new Set(['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'PENSION', 'OTHER_ASSET'])
 
 // Valeurs acceptées par le backend (cf. `Holding.type_actif` dans `models.py`) : une
 // ligne saisie à la main sans type explicite finit en "Autres" côté filtrage et
@@ -49,6 +49,7 @@ const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
   { value: 'SCPI', label: 'SCPI' },
   { value: 'LIFE_INSURANCE', label: 'Assurance-vie' },
   { value: 'PENSION', label: 'PER / Épargne retraite' },
+  { value: 'OTHER_ASSET', label: 'Autre actif' },
 ]
 
 function categorieDe(h: Holding): Categorie {

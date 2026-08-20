@@ -15,11 +15,13 @@ const ImportPage = lazy(() => import('./pages/ImportPage'))
 const ObjectifsPage = lazy(() => import('./pages/ObjectifsPage'))
 const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
 const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
+const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', end: true },
   { to: '/portefeuille', label: 'Portefeuille' },
   { to: '/objectifs', label: 'Objectifs' },
+  { to: '/simulateur', label: 'Simulateur' },
   { to: '/import', label: 'Import' },
   { to: '/reglages', label: 'Réglages' },
   { to: '/aide', label: 'Aide' },
@@ -83,6 +85,7 @@ function App() {
             <Route path="/portefeuille" element={<PortefeuillePage />} />
             <Route path="/portefeuille/:ticker" element={<HoldingDetailPage />} />
             <Route path="/objectifs" element={<ObjectifsPage />} />
+            <Route path="/simulateur" element={<SimulateurPage />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/reglages" element={<ReglagesPage />} />
             <Route path="/aide" element={<AidePage />} />

@@ -54,7 +54,18 @@ TYPE_ACTIF_REAL_ESTATE = "REAL_ESTATE"
 TYPE_ACTIF_SCPI = "SCPI"
 TYPE_ACTIF_LIFE_INSURANCE = "LIFE_INSURANCE"
 TYPE_ACTIF_PENSION = "PENSION"
-TYPES_ACTIF_PATRIMOINE_MANUEL = {TYPE_ACTIF_REAL_ESTATE, TYPE_ACTIF_SCPI, TYPE_ACTIF_LIFE_INSURANCE, TYPE_ACTIF_PENSION}
+# Catégorie résiduelle (roadmap Phase 2, § A.4) : objets de valeur, métaux précieux
+# physiques, parts d'entreprise non cotée hors Private Equity déjà suivi — même
+# mécanisme de valorisation manuelle que les quatre types ci-dessus, aucune nouvelle
+# logique, juste une catégorie de plus pour ce qui ne rentre dans aucune case.
+TYPE_ACTIF_OTHER_ASSET = "OTHER_ASSET"
+TYPES_ACTIF_PATRIMOINE_MANUEL = {
+    TYPE_ACTIF_REAL_ESTATE,
+    TYPE_ACTIF_SCPI,
+    TYPE_ACTIF_LIFE_INSURANCE,
+    TYPE_ACTIF_PENSION,
+    TYPE_ACTIF_OTHER_ASSET,
+}
 
 
 class Holding(Base):

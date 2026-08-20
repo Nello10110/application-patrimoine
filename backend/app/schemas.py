@@ -644,6 +644,30 @@ class PatrimoineNetResponse(BaseModel):
     repartition_par_classe: list[RepartitionParClasseItem]
 
 
+class SimulationPoint(BaseModel):
+    annee: int
+    valeur: float
+
+
+class SimulationResponse(BaseModel):
+    """`GET /api/patrimoine/simulation` (roadmap Phase 2) — cf.
+    `services/simulation_service.compute_projection`."""
+
+    valeur_depart: float
+    points: list[SimulationPoint]
+
+
+class FireResponse(BaseModel):
+    """`GET /api/patrimoine/fire` (roadmap Phase 2, indépendance financière) — cf.
+    `services/simulation_service.compute_fire`. `annees_avant_independance` vaut
+    `None` si le patrimoine nécessaire n'est pas atteint dans l'horizon de calcul
+    (60 ans) avec les hypothèses fournies."""
+
+    valeur_depart: float
+    patrimoine_necessaire: float
+    annees_avant_independance: float | None
+
+
 class ZoneGeographiqueInfo(BaseModel):
     """Écran d'aide (FAQ) : une zone géographique et les pays qu'elle contient
     (`services/reference_indices.zones_geographiques`)."""

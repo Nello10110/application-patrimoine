@@ -38,13 +38,13 @@ une assurance-vie coéditée avec BlackRock et Generali).
 | Immobilier | Oui, valorisation automatique estimée | Valorisation manuelle (`valeur_estimee`), livré le 19/08/2026 | Traité (§ 2.A.1) — pas de valorisation automatique (aucune source gratuite fiable) |
 | SCPI, assurance-vie, PER | Oui, synchronisé | Valorisation manuelle, livré le 19/08/2026 | Traité (§ 2.A.2) |
 | Métaux précieux | Oui | Partiel (via ETF/ETC or, ex. `IE00B4ND3602`) | Cas générique manquant (§ 2.A) |
-| Actifs alternatifs (art, montres, voitures, private equity) | Oui | Private Equity suivi (coût de revient) ; objets de valeur/métaux physiques via la même mécanique que A.1/A.2 depuis le 19/08/2026 en choisissant un type existant, catégorie dédiée encore manquante | Catégorie « autre actif » manuelle manquante (§ 2.A.4) |
+| Actifs alternatifs (art, montres, voitures, private equity) | Oui | Private Equity suivi (coût de revient) ; catégorie « Autre actif » livrée le 19/08/2026 pour le reste (objets de valeur, métaux physiques, parts non cotées) | Traité (§ 2.A.4) |
 | Dettes / emprunts | Oui | Livré le 19/08/2026 : capital restant dû calculé (amortissement à taux fixe) ou recalé manuellement | Traité (§ 2.A.3) — patrimoine net = actifs − passifs |
 | Synchronisation bancaire automatique | Oui, 10 000-20 000 établissements (Powens/Budget Insight, Plaid) | Non — import CSV du grand livre de transactions | Écart structurel, coût commercial (§ 2.E, § 3) |
 | Répartition géo/sectorielle | Oui, par pays/secteur/segment | Oui — look-through justETF + yfinance, déjà audité (Increment 8/9) | Équivalent, voire plus transparent (qualité des données affichée explicitement) |
 | Score de diversification | Oui (plan payant) | Oui, déjà gratuit chez nous | Déjà en avance |
 | Calendrier des dividendes | Oui (reçus/confirmés/projetés, plan payant) | Dividendes perçus déjà suivis, pas de vue calendrier/projection | Nouveau (§ 2.C) |
-| Projection patrimoniale (« Predict »expr) / indépendance financière | Oui, jusqu'à 30 ans (plan Plus) | Absent | Nouveau (§ 2.B) |
+| Projection patrimoniale (« Predict »expr) / indépendance financière | Oui, jusqu'à 30 ans (plan Plus) | Livré le 19/08/2026, gratuit : horizon jusqu'à 60 ans, calcul FIRE avec taux de retrait réglable | Traité (§ 2.B) — déjà en avance sur l'horizon |
 | Scanner de frais | Oui (frais de gestion, transaction, change) | TER des fonds déjà suivi, pas de vue consolidée | Nouveau (§ 2.E) |
 | Budget / catégorisation des dépenses | Oui, IA (plan Plus) | Exclu par design (increment 5 : hors suivi boursier) | Décision de scope à trancher (§ 2.F) |
 | Rapport mensuel / export PDF patrimoine | Oui (plan Plus) | Export CSV seul (positions, transactions, rentabilité) | Nouveau (§ 2.D) |
@@ -120,28 +120,43 @@ transactions réelles de `portfolio.db`. Corrigé pour comparer le CONTENU des d
 seulement leur présence (`_base_semble_vide`, cf. `docs/MANUEL_EXPLOITATION.md` § 4) ; verrouillé
 par deux nouveaux tests. Aucune perte de données réelle (la vraie base n'a jamais été modifiée).
 
-#### A.4 — `mineur` · `S` · `P1` · `non traité` — Catégorie « autre actif » générique
+#### A.4 — `mineur` · `S` · `P1` · `traité` — Catégorie « autre actif » générique
 
 Pour ce qui ne rentre dans aucune case (objets de valeur, métaux précieux physiques hors ETC, parts
-d'entreprise non cotée hors Private Equity déjà suivi). Un `type_actif = "OTHER_ASSET"` avec libellé
-libre et valorisation manuelle, sur le même modèle que A.1/A.2 — pas une nouvelle mécanique, juste
-une catégorie de plus qui réutilise ce qui vient d'être construit en A.1-A.3.
+d'entreprise non cotée hors Private Equity déjà suivi). `type_actif = "OTHER_ASSET"` avec libellé
+libre et valorisation manuelle, exactement le même mécanisme que A.1/A.2 (`Holding.valeur_estimee`,
+`TYPES_ACTIF_PATRIMOINE_MANUEL`) — aucune nouvelle mécanique, une seule constante ajoutée côté
+backend a suffi à le brancher partout (exclusion du rafraîchissement des cours, du look-through
+financier, patrimoine net). Regroupé dans le même onglet Portefeuille que A.1/A.2 (« Immobilier &
+Épargne »), option « Autre actif » dans le formulaire.
 
 ### B. Projections et indépendance financière
 
-#### B.1 — `majeur` · `M` · `P1` · `non traité` — Simulateur de patrimoine (équivalent « Predict »)
+#### B.1 — `majeur` · `M` · `P1` · `traité` — Simulateur de patrimoine (équivalent « Predict »)
 
 Projection de la valeur du patrimoine à 5/10/20/30 ans, à partir d'hypothèses réglables (rendement
-annuel moyen, épargne mensuelle ajoutée). Calcul pur (intérêts composés + apports réguliers), aucune
-dépendance externe, aucun nouvel appel réseau — un simple écran de calcul sur les données déjà en
-base (valeur actuelle du patrimoine net, une fois A.1-A.3 livrés).
+annuel moyen, épargne mensuelle ajoutée). Calcul pur (intérêts composés mensuels + apports réguliers,
+`services/simulation_service.py`), aucune dépendance externe, aucun nouvel appel réseau — projeté
+depuis le patrimoine net actuel (`patrimoine_service.compute_patrimoine_net`). Nouvel écran
+Simulateur (`/simulateur`), graphique mis à jour automatiquement (léger différé, 300 ms) à chaque
+changement d'hypothèse.
 
-#### B.2 — `majeur` · `S` · `P1` · `non traité` — Indépendance financière (FIRE)
+#### B.2 — `majeur` · `S` · `P1` · `traité` — Indépendance financière (FIRE)
 
 À partir d'une dépense annuelle cible saisie par l'utilisateur et d'un taux de retrait (4 % par
 défaut, modifiable — le taux « règle des 4 % » est un choix méthodologique documenté, pas une vérité
-universelle, à présenter comme tel), calcule le patrimoine nécessaire et, combiné à B.1, une date
-d'atteinte estimée. Réutilise directement le moteur de B.1.
+universelle, présenté comme tel à l'écran), calcule le patrimoine nécessaire et, avec le même moteur
+que B.1, le délai estimé pour l'atteindre. `Non atteinte` au-delà de 60 ans de projection plutôt
+qu'un nombre trompeur.
+
+**Vérifié en conditions réelles** (19/08-20/08/2026) sur le vrai patrimoine net de l'utilisateur
+(10 998,93 €) : projection à 5 ans/5 %/200 €-mois → 27 716,79 € (formule fermée de capitalisation
+avec versements recoupée à la main, écart < 1 centime) ; FIRE à 30 000 €/an, taux 4 % → patrimoine
+nécessaire 750 000 € (= 30000 / 0.04, exact), délai estimé 52,2 ans à épargne nulle, 22 ans à
+1 500 €/mois — cohérent, testé en direct dans le navigateur. 12 tests unitaires sur
+`simulation_service.py` verrouillent chaque formule par un calcul fermé indépendant de la boucle
+implémentée (référence externe, pas juste "le code confirme le code"). 395 tests backend (+17) +
+101 tests frontend (+8), `tsc`/`oxlint`/`vite build` propres.
 
 ### C. Dividendes et revenus
 
@@ -263,7 +278,7 @@ lot débloque) est dans [`docs/ROADMAP.md`](ROADMAP.md) :
    (projections, rapports) n'avait de sens tant que le patrimoine affiché n'incluait pas l'essentiel
    de ce qu'un ménage possède réellement — c'est désormais le cas.
 2. **P1 — Ce que le patrimoine permet** : B.1 (simulateur), B.2 (FIRE), A.4 (catégorie libre).
-   Se construit directement sur P0.
+   **Livré et vérifié le 19-20/08/2026** (cf. le détail dans chaque point ci-dessus).
 3. **P2 — Confort et transparence** : C.1 (calendrier dividendes), D.1 (PDF), E.1 (formats
    courtier), E.3 (coût consolidé), H.1 (PWA).
 4. **P3 — Chantiers plus lourds ou à trancher d'abord** : C.2 (projection dividendes, précision

@@ -136,6 +136,26 @@ export interface PatrimoineNet {
   repartition_par_classe: RepartitionParClasseItem[]
 }
 
+// Simulateur de patrimoine et indépendance financière (roadmap Phase 2) — calcul
+// pur côté serveur, projeté depuis le patrimoine net actuel.
+export interface SimulationPoint {
+  annee: number
+  valeur: number
+}
+
+export interface Simulation {
+  valeur_depart: number
+  points: SimulationPoint[]
+}
+
+export interface FireResult {
+  valeur_depart: number
+  patrimoine_necessaire: number
+  // `null` si le patrimoine nécessaire n'est pas atteint dans l'horizon de calcul
+  // (60 ans) avec les hypothèses fournies.
+  annees_avant_independance: number | null
+}
+
 export interface ImportPreview {
   file_token: string
   columns: string[]
