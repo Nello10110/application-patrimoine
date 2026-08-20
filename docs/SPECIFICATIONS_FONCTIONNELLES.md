@@ -225,6 +225,8 @@ Le frontend est installable comme une application (icône, plein écran) via un 
 
 L'écran Outils (`/outils`) regroupe des calculs indépendants du patrimoine suivi par l'application — aucune donnée personnelle en jeu, aucun appel réseau. Le **calculateur d'intérêts composés** (`frontend/src/utils/interetsComposes.ts`) applique la même formule que le Simulateur (§ 3.12, intérêts composés **mensuels** + versement mensuel constant), mais calculée entièrement côté client plutôt que via le backend : contrairement au Simulateur, ce calculateur ne part pas du patrimoine net réel de l'utilisateur, un aller-retour serveur n'aurait donc rien apporté pour un calcul aussi simple.
 
+Au-delà du graphique, un **tableau de détail** (bascule Annuelle/Mensuelle) liste, pour chaque période, les versements de la période, les intérêts gagnés sur la période, le capital de fin de période, le versé cumulé et les intérêts cumulés à date. La vue annuelle et la vue mensuelle partagent la même trajectoire mensuelle sous-jacente (`calculerTrajectoireMensuelle`, agrégée par année via `agregerParAnnee` pour la vue annuelle) : les deux vues, ainsi que le graphique et `calculerTrajectoire` lui-même, ne peuvent donc jamais diverger entre elles. Convention de capitalisation : l'intérêt d'un mois se calcule sur le capital **avant** le versement de ce mois — un versement ne produit son premier intérêt qu'au mois suivant.
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |

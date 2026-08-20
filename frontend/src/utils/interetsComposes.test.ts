@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculerTrajectoire } from './interetsComposes'
+import { agregerParAnnee, calculerTrajectoire, calculerTrajectoireMensuelle } from './interetsComposes'
 
 describe('calculerTrajectoire — intérêts composés mensuels + versement mensuel', () => {
   it('taux nul, sans versement : la valeur ne bouge jamais', () => {
@@ -19,5 +19,71 @@ describe('calculerTrajectoire — intérêts composés mensuels + versement mens
     expect(points[1].valeur).toBe(1200) // 12 × 100
     expect(points[2].valeur).toBe(2400) // 24 × 100
     expect(points[2].investi).toBe(2400)
+  })
+})
+
+describe('calculerTrajectoireMensuelle', () => {
+  it("l'état initial (mois 0) porte le capital de départ, sans intérêt", () => {
+    const points = calculerTrajectoireMensuelle(1000, 5, 100, 1)
+    expect(points[0]).toEqual({
+      moisIndex: 0,
+      annee: 0,
+      moisDeLAnnee: 0,
+      versement: 1000,
+      interets: 0,
+      capital: 1000,
+      verseCumule: 1000,
+      interetsCumules: 0,
+    })
+  })
+
+  it("un versement ne produit son premier intérêt qu'au mois suivant (pas le mois même)", () => {
+    // 1200€ à 12%/an (1%/mois), versement de 100€/mois.
+    const points = calculerTrajectoireMensuelle(1200, 12, 100, 1)
+    // Mois 1 : intérêt = 1200 × 1% = 12 (calculé AVANT l'ajout des 100€ de versement).
+    expect(points[1].interets).toBeCloseTo(12, 6)
+    expect(points[1].capital).toBeCloseTo(1200 + 12 + 100, 6)
+    expect(points[1].versement).toBe(100)
+    // Mois 2 : intérêt calculé sur le capital de fin de mois 1 (1312), pas sur 1200 + 200.
+    expect(points[2].interets).toBeCloseTo(1312 * 0.01, 6)
+  })
+
+  it('produit bien 12 × annees lignes, plus la ligne initiale', () => {
+    const points = calculerTrajectoireMensuelle(0, 5, 0, 3)
+    expect(points).toHaveLength(3 * 12 + 1)
+    expect(points[points.length - 1].annee).toBe(3)
+    expect(points[points.length - 1].moisDeLAnnee).toBe(12)
+  })
+
+  it('le dernier mois de chaque année correspond exactement à calculerTrajectoire', () => {
+    const mensuel = calculerTrajectoireMensuelle(5000, 7, 150, 4)
+    const annuel = calculerTrajectoire(5000, 7, 150, 4)
+    for (const point of annuel) {
+      const ligneMensuelle = point.annee === 0 ? mensuel[0] : mensuel.find((p) => p.annee === point.annee && p.moisDeLAnnee === 12)
+      expect(ligneMensuelle?.capital).toBe(point.valeur)
+      expect(ligneMensuelle?.verseCumule).toBe(point.investi)
+    }
+  })
+})
+
+describe('agregerParAnnee', () => {
+  it('somme les versements et les intérêts mois par mois sur chaque année', () => {
+    const mensuel = calculerTrajectoireMensuelle(1000, 6, 50, 2)
+    const annuel = agregerParAnnee(mensuel)
+
+    expect(annuel).toHaveLength(3) // année 0 (initial) + 2 années
+    expect(annuel[0]).toEqual({ annee: 0, versements: 1000, interets: 0, capital: 1000, verseCumule: 1000, interetsCumules: 0 })
+
+    // Versements de l'année 1 = 12 × 50 = 600.
+    expect(annuel[1].versements).toBe(600)
+    expect(annuel[1].annee).toBe(1)
+    // Capital et cumuls de fin d'année cohérents avec la vue mensuelle.
+    const finAnnee1 = mensuel.find((p) => p.annee === 1 && p.moisDeLAnnee === 12)!
+    expect(annuel[1].capital).toBe(finAnnee1.capital)
+    expect(annuel[1].interetsCumules).toBe(finAnnee1.interetsCumules)
+
+    // La somme des intérêts mensuels de l'année 2 doit égaler l'intérêt annuel agrégé.
+    const sommeInteretsAnnee2 = mensuel.filter((p) => p.annee === 2).reduce((acc, p) => acc + p.interets, 0)
+    expect(annuel[2].interets).toBeCloseTo(sommeInteretsAnnee2, 6)
   })
 })

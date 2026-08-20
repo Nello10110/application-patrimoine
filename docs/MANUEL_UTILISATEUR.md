@@ -83,6 +83,7 @@ Projette le patrimoine net actuel dans le temps — une **hypothèse**, pas une 
 Calculs génériques, indépendants du patrimoine suivi par l'application — rien n'est envoyé au serveur, tout se calcule dans le navigateur.
 
 - **Calculateur d'intérêts composés** : capital de départ, taux annuel moyen, versement mensuel et durée (boutons 5/10/20/30 ans) donnent la valeur finale, le total versé et les intérêts gagnés, avec un graphique étagé (capital versé + gains). Utile pour tester un scénario sans qu'il soit rattaché au patrimoine réellement suivi.
+  - Un **tableau de détail** sous le graphique liste, période par période (bascule **Annuelle** / **Mensuelle**) : les versements, les intérêts gagnés, le capital, le versé cumulé et les intérêts cumulés à date. La vue mensuelle défile (jusqu'à 360 lignes sur 30 ans) dans un cadre à hauteur fixe, en-tête toujours visible.
 
 ## Écran Dividendes
 
