@@ -576,21 +576,46 @@ dans le navigateur sur le vrai portefeuille (49 positions) : filtre par catégor
 positions, 305,23 €), tri par colonne (Valeur ↑), édition en ligne (Modifier/Annuler) et modale de
 suppression (BTC, annulée) tous fonctionnels sans régression.
 
-#### I.4 — `mineur` · `S` · `P2` · `non traité` — Migration de schéma limitée à l'ajout de colonnes
+#### I.4 — `mineur` · `S` · `P2` · `traité` — Migration de schéma limitée à l'ajout de colonnes
 
-`database.run_startup_migrations` ajoute des colonnes nullable de façon idempotente
-(`ALTER TABLE ... ADD COLUMN`), mais ne sait ni renommer une colonne, ni changer un type, ni
-exécuter une migration de données complexe — ce qui a déjà nécessité des scripts one-off manuels
+`database.run_startup_migrations` ajoutait des colonnes nullable de façon idempotente
+(`ALTER TABLE ... ADD COLUMN`), mais ne savait ni renommer une colonne, ni changer un type, ni
+exécuter une migration de données complexe — ce qui avait déjà nécessité des scripts one-off manuels
 par le passé (ex. `migrate_rename_categorie_autres`). Ce point notait que ce serait « un vrai
 risque » si le multi-utilisateur (§ 2.I.1) imposait un jour une migration de données par utilisateur
 existant — c'est exactement ce qui s'est produit au Milestone 2a : `migrate_isolation_utilisateur`
-a dû reconstruire `allocation_targets` à la main (renommer/recréer/recopier/supprimer, cf. détail
-Milestone 2a ci-dessus) et un bug de détection a fait planter le démarrage sur la vraie base avant
-d'être corrigé. Le risque prédit ici s'est donc concrètement matérialisé, pas juste en théorie.
-Reste `non traité` : adopter un vrai outil de migration (Alembic) est une décision d'architecture à
-part entière (nouvelle dépendance, nouveau paradigme de migration versionnée) — à proposer
-explicitement plutôt qu'à engager en marge d'un autre lot, mais désormais avec un incident réel à
-l'appui plutôt qu'une hypothèse.
+a dû reconstruire `allocation_targets` à la main (renommer/recréer/recopier/supprimer) et un bug de
+détection a fait planter le démarrage sur la vraie base avant d'être corrigé. Le risque prédit ici
+s'est donc concrètement matérialisé, pas juste en théorie.
+
+**Traité le 20/08/2026** : adoption d'Alembic, sur décision explicite de l'utilisateur (suppression
+immédiate des 5 fonctions de migration maison plutôt que de les garder en filet de sécurité — elles
+étaient déjà toutes appliquées, no-op, sur l'unique vraie base de l'application). Une seule révision
+« baseline » (`backend/alembic/versions/fe74a8877ec0_baseline_milestone_2b.py`) capture fidèlement le
+schéma actuel de `models.py` (vérifié : appliquée seule sur une base vide, elle correspond exactement
+à `Base.metadata.create_all()`, sans diff résiduel — verrou de `tests/test_alembic_migrations.py`) ;
+toute installation future en repart et remonte l'historique via `alembic upgrade head`. Mode batch
+(`render_as_batch=True`, `alembic/env.py`) : automatise pour SQLite la danse renommer/recréer/
+recopier/supprimer qu'il avait fallu écrire à la main pour `allocation_targets` — plus jamais de code
+one-off pour ce genre de changement.
+
+**Découverte pendant la bascule** : comparer la baseline à la VRAIE base (`alembic check`, sur une
+copie, avant de la stamper) a révélé que `run_startup_migrations` n'avait jamais posé les index
+simples (`index=True`, hors `UniqueConstraint`) sur les colonnes `user_id` ajoutées au Milestone 2a
+(`holdings`/`loans`/`transactions`) ni sur `allocation_targets.annee` — un vrai manque de performance
+sur des requêtes filtrées par utilisateur (littéralement le cœur du Milestone 2a), resté invisible
+jusqu'ici. `ALTER TABLE ADD COLUMN` ne posant non plus jamais `NOT NULL` ni de vraie contrainte
+`FOREIGN KEY` sous SQLite, ces colonnes restaient aussi plus permissives que ce que `models.py`
+déclare (sans risque réel : toutes les lignes existantes étaient déjà rétro-remplies). Réparé par une
+opération ponctuelle (mode batch, hors historique Alembic rejouable — n'a de sens que pour cette base
+précise, jamais pour une installation neuve qui part directement d'un schéma déjà correct) : les 5
+index manquants créés, les colonnes concernées passées `NOT NULL` avec une vraie contrainte `FOREIGN
+KEY`, et la contrainte d'unicité de `fund_top_holdings` (posée après coup via `CREATE UNIQUE INDEX`,
+même mécanisme qui avait piégé `allocation_targets`) normalisée en contrainte de table. Vérifié
+avant/après sur une copie de sauvegarde : `alembic check` ne détecte plus aucun écart, 49
+positions/4059 transactions/17 objectifs/4 préférences toujours tous là. Sauvegarde prise
+(`scripts/sauvegarde.py`) avant d'appliquer sur la vraie base ; 435 tests backend au vert (16 tests
+des anciennes fonctions retirés avec elles, 3 nouveaux verrouillant Alembic).
 
 #### I.5 — `mineur` · `S` · `P3` · `traité` — Tests sur l'isolation des données entre utilisateurs
 

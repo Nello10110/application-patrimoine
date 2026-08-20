@@ -1,4 +1,4 @@
-"""Point d'entrée de l'API FastAPI : création du schéma, migrations, routeurs.
+"""Point d'entrée de l'API FastAPI : mise à jour du schéma, routeurs.
 Application locale, multi-utilisateur depuis le Milestone 1 (cf. `docs/BACKLOG.md`
 § 2.I.1) : toutes les routes hormis `/api/auth/{register,login}` et `/api/health`
 exigent d'être connecté — CORS restreint au frontend Vite tournant sur localhost."""
@@ -11,27 +11,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .auth import get_current_user
-from .database import (
-    Base,
-    SessionLocal,
-    engine,
-    migrate_isolation_utilisateur,
-    migrate_preferences_par_utilisateur,
-    migrate_recalculer_regions_en_cache,
-    migrate_rename_categorie_autres,
-    run_startup_migrations,
-)
+from .database import SessionLocal, upgrade_schema
 from .logging_config import configure_logging
 from .routers import analysis, auth, export, loans, market_data, patrimoine, performance, portfolio, reference, settings, targets, transactions
 from .services import scheduler_service, startup_maintenance
 
 configure_logging()
-Base.metadata.create_all(bind=engine)
-run_startup_migrations()
-migrate_rename_categorie_autres()
-migrate_recalculer_regions_en_cache()
-migrate_isolation_utilisateur()
-migrate_preferences_par_utilisateur()
+# Alembic (backlog 2.I.4) : crée le schéma sur une base neuve, ou l'amène à jour sur
+# une base existante — un seul appel remplace l'ancien duo `Base.metadata.create_all()`
+# + fonctions de migration maison (cf. docstring de `upgrade_schema`).
+upgrade_schema()
 
 # Après les migrations de schéma et de contenu : remise à niveau du portefeuille
 # reconstruit si les règles de calcul ont changé depuis la dernière reconstruction

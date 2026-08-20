@@ -23,7 +23,8 @@ ZONE_AUTRES = "Autres zones"
 # pour la distinguer de "Non catégorisé" (donnée manquante, cf. `region_for_country`)
 # — un objectif enregistré sur "Autres" désigne toujours une vraie zone géographique
 # résiduelle, jamais une absence de donnée. Les objectifs existants en base sont
-# migrés vers ce nouveau libellé par `database.migrate_rename_categorie_autres`.
+# migrés vers ce nouveau libellé par une migration ponctuelle (LOT 2.2, historique
+# dans `backend/alembic/versions/`), appliquée une fois.
 DEFAULT_GEO_TARGETS: dict[str, float] = {
     ZONE_AMERIQUE_DU_NORD: 16.67,
     ZONE_EUROPE: 16.67,

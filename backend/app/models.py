@@ -2,8 +2,9 @@
 les relations se font par correspondance de `ticker` (l'identifiant ISIN/symbole),
 car les positions sont entièrement reconstruites depuis `Transaction` à chaque
 import (cf. `services/portfolio_reconstruction.py`) plutôt que gérées par CRUD
-classique. Toute évolution de schéma est appliquée automatiquement au démarrage
-par `database.run_startup_migrations` — voir ce module pour le détail.
+classique. Toute évolution de schéma est appliquée automatiquement au démarrage par
+`database.upgrade_schema()` (Alembic, backlog 2.I.4) — voir `backend/alembic/versions/`
+pour l'historique des révisions.
 """
 
 from datetime import datetime, timezone
@@ -32,7 +33,7 @@ SOURCE_JUSTETF = "justetf"  # composition pays/secteurs réelle scrapée sur jus
 # à un `rebuild_holdings` ; une ligne "reconstruit" en est le résultat et peut donc
 # en être librement supprimée/recréée. Valeur par défaut : ORIGINE_RECONSTRUIT, posée
 # aussi bien côté Python (nouvelles lignes créées par le code) que côté base
-# (`server_default`, cf. `database.run_startup_migrations`) — les lignes d'une base
+# (`server_default`, appliqué à l'ajout de cette colonne) — les lignes d'une base
 # existante, créées avant l'ajout de cette colonne, sont donc traitées comme
 # reconstruites : c'est la réalité de l'immense majorité des utilisateurs, dont le
 # portefeuille est entièrement issu d'un import de transactions.
@@ -72,11 +73,12 @@ class Holding(Base):
     __tablename__ = "holdings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Multi-utilisateur (Milestone 2a, cf. docs/BACKLOG.md § 2.I.1) : colonne ajoutée
-    # nullable en base par `database.run_startup_migrations` (ADD COLUMN ne pose
-    # jamais de NOT NULL), puis rétro-remplie par `database.migrate_backfill_user_id`
-    # — le code applicatif la traite comme toujours renseignée dès qu'une ligne est
-    # créée ou lue via l'API (jamais `None` en pratique après la migration).
+    # Multi-utilisateur (Milestone 2a, cf. docs/BACKLOG.md § 2.I.1) : les lignes
+    # existantes au moment de l'introduction de cette colonne ont été rétro-remplies
+    # au compte demo (migration ponctuelle, appliquée une fois — l'historique
+    # complet vit désormais dans `backend/alembic/versions/`) — le code applicatif
+    # la traite comme toujours renseignée dès qu'une ligne est créée ou lue via
+    # l'API (jamais `None` en pratique).
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     ticker: Mapped[str] = mapped_column(String, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -156,13 +158,13 @@ class MarketDataCache(Base):
     # `justetf_service.refresh_all` (2.4, Increment 9) — indépendant du succès de la
     # composition (cf. `FundCompositionBrute` ci-dessous) : présent même pour un ETF
     # sans onglet Holdings (réplication synthétique/ETC). Colonne additive, couverte
-    # automatiquement par `database.run_startup_migrations`.
+    # automatiquement à l'ajout de cette colonne.
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     # Frais de gestion annuels (TER) d'un fonds/ETF (roadmap Phase 3, § E.3), mis en
     # cache UNE SEULE FOIS par ticker (jamais recalculé ensuite, contrairement au
     # prix) — cf. `market_data_service.refresh_tickers`, qui ne l'interroge que tant
     # que cette colonne est `None` pour ne pas ralentir le rafraîchissement en masse.
-    # Colonne additive, couverte automatiquement par `database.run_startup_migrations`.
+    # Colonne additive, couverte automatiquement à l'ajout de cette colonne.
     frais_gestion_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -186,7 +188,7 @@ class Transaction(Base):
     # émis par le courtier) devient relative à un utilisateur — deux utilisateurs
     # avec des comptes courtier différents peuvent avoir des `transaction_id` qui se
     # recoupent par coïncidence sans que ce soit un doublon. Remplace l'ancien
-    # `unique=True` sur la seule colonne `transaction_id`, cf. `database.migrate_isolation_utilisateur`.
+    # `unique=True` sur la seule colonne `transaction_id` (Milestone 2a, backlog 2.I.1).
     __table_args__ = (UniqueConstraint("transaction_id", "user_id", name="uq_transaction_user_transaction_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

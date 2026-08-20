@@ -12,8 +12,8 @@ plutôt que par des chaînes en dur dispersées dans les appelants, pour n'avoir
 seul endroit à faire évoluer si le format de clé change.
 
 Persistant en base (et non en mémoire process) pour survivre aux redémarrages de
-l'API en développement, et pour rester cohérent avec `run_startup_migrations` qui
-crée déjà toutes les tables au démarrage.
+l'API en développement, et pour rester cohérent avec `database.upgrade_schema()`
+(Alembic, backlog 2.I.4) qui crée déjà toutes les tables au démarrage.
 """
 
 import json

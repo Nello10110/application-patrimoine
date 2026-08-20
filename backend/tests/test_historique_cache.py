@@ -12,8 +12,9 @@ from app.services import historique_cache
 
 def test_table_historique_cache_creee_par_create_all(db):
     """La table est créée par la migration automatique au démarrage (LOT 4.4/4.5),
-    comme toutes les autres : `Base.metadata.create_all`, sans étape manuelle
-    supplémentaire — cf. `app.main`/`app.database.run_startup_migrations`."""
+    comme toutes les autres — ici via `Base.metadata.create_all` (fixture `db`,
+    cohérent avec `app.database.upgrade_schema()`/Alembic pour l'application réelle),
+    sans étape manuelle supplémentaire."""
     inspecteur = inspect(db.get_bind())
     assert "historique_cache" in inspecteur.get_table_names()
     colonnes = {c["name"] for c in inspecteur.get_columns("historique_cache")}
