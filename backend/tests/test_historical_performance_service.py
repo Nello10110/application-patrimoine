@@ -5,7 +5,11 @@
 - LOT 4.4/4.5 : `compute_holding_price_history`/`compute_portfolio_history` passent
   par le cache persistant `historique_cache` — lecture à froid (calcul, un appel
   yfinance), lecture à chaud (aucun appel yfinance), expiration au-delà de
-  `DUREE_VALIDITE_HEURES`, invalidation après reconstruction du portefeuille.
+  `DUREE_VALIDITE_HEURES`, invalidation après reconstruction du portefeuille ;
+- Increment 13 : le « Gains » du graphique du tableau de bord (`valeur_portefeuille +
+  valeur_realisee_cumulee - valeur_investie`) coïncide exactement avec `gain_perte_total`
+  de `performance_service.compute_performance` — écart signalé le 20/08/2026 entre le
+  graphique (omettait ventes/dividendes/intérêts) et la carte Rentabilité globale.
 """
 
 import random
@@ -16,14 +20,14 @@ import pytest
 import yfinance as yf
 
 from app.models import HistoriqueCache, Holding, MarketDataCache
-from app.services import historical_performance_service, historique_cache, portfolio_reconstruction
+from app.services import historical_performance_service, historique_cache, performance_service, portfolio_reconstruction
 from app.services.historical_performance_service import (
     _devise_historique_yfinance,
     _value_at,
     compute_holding_price_history,
     compute_portfolio_history,
 )
-from app.services.portfolio_reconstruction import rebuild_holdings
+from app.services.portfolio_reconstruction import compute_positions, rebuild_holdings
 
 from .conftest import ID_UTILISATEUR_TEST, make_transaction
 
@@ -241,11 +245,16 @@ def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(d
 
     resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
 
+    # `resultat[-2]`, pas `resultat[-1]` : le tout dernier point de la grille est
+    # "aujourd'hui", dont `valeur_portefeuille` est désormais recalculée avec la
+    # valorisation live (`_valeur_positions_live`, increment 13) plutôt qu'avec la
+    # série hebdomadaire ici testée — `resultat[-2]` reste, lui, un point
+    # hebdomadaire ordinaire, non affecté par ce remplacement.
     # Dernier prix connu de la série simulée (110.0, en USD) x 10 parts x taux
     # simulé (0.5) = 550 €. Sans la conversion (bug reproduit), la valeur
     # afficherait 1100 (110 x 10, jamais convertie).
-    dernier_point = resultat[-1]
-    assert dernier_point["valeur_portefeuille"] == pytest.approx(550.0)
+    avant_dernier_point = resultat[-2]
+    assert avant_dernier_point["valeur_portefeuille"] == pytest.approx(550.0)
 
 
 def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_eur(db, monkeypatch):
@@ -282,3 +291,129 @@ def test_portfolio_history_invalide_apres_reconstruction_du_portefeuille(db, mon
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST)) is None
+
+
+# ---------------------------------------------------------------------------
+# Increment 13 — réconciliation avec `performance_service.compute_performance` :
+# le graphique du tableau de bord omettait entièrement le produit des ventes,
+# les dividendes et les intérêts (cf. `docs/BACKLOG.md`, écart signalé le
+# 20/08/2026 entre le graphique et la carte Rentabilité globale).
+# ---------------------------------------------------------------------------
+
+
+def test_valeur_realisee_cumulee_saute_au_bon_montant_apres_une_vente_et_un_dividende(db):
+    make_transaction(
+        db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1)
+    )
+    make_transaction(
+        db,
+        transaction_id="t2",
+        symbol="AAA",
+        category="TRADING",
+        type="SELL",
+        shares=-4.0,
+        amount=600.0,
+        datetime_utc=datetime(2024, 6, 1),
+    )
+    make_transaction(
+        db,
+        transaction_id="t3",
+        symbol="AAA",
+        category="CASH",
+        type="DIVIDEND",
+        shares=6.0,
+        amount=20.0,
+        datetime_utc=datetime(2024, 7, 1),
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
+
+    # Avant la vente (mai 2024) : rien encore réalisé.
+    avant_vente = next(p for p in resultat if p["date"] <= "2024-05-25")
+    assert avant_vente["valeur_realisee_cumulee"] == pytest.approx(0.0)
+
+    # Entre la vente et le dividende : seul le produit de la vente (600) est cumulé.
+    entre_vente_et_dividende = next(p for p in resultat if "2024-06-08" <= p["date"] <= "2024-06-29")
+    assert entre_vente_et_dividende["valeur_realisee_cumulee"] == pytest.approx(600.0)
+
+    # Après le dividende : vente (600) + dividende (20) = 620.
+    apres_dividende = next(p for p in resultat if p["date"] >= "2024-07-06")
+    assert apres_dividende["valeur_realisee_cumulee"] == pytest.approx(620.0)
+
+
+def test_le_gain_du_graphique_coincide_exactement_avec_gain_perte_total(db):
+    """Verrou central de l'increment 13 : `valeur_portefeuille + valeur_realisee_cumulee
+    - valeur_investie`, sur le DERNIER point du graphique, doit reconstituer exactement
+    `performance_service.compute_performance(...)["gain_perte_total"]` — vente partielle
+    (gain réalisé), dividende et intérêt inclus, pour couvrir toutes les composantes que
+    l'ancien calcul du graphique omettait."""
+    make_transaction(
+        db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1)
+    )
+    make_transaction(
+        db,
+        transaction_id="t2",
+        symbol="AAA",
+        category="TRADING",
+        type="SELL",
+        shares=-4.0,
+        amount=600.0,
+        datetime_utc=datetime(2024, 6, 1),
+    )
+    make_transaction(
+        db,
+        transaction_id="t3",
+        symbol="AAA",
+        category="CASH",
+        type="DIVIDEND",
+        shares=6.0,
+        amount=20.0,
+        datetime_utc=datetime(2024, 7, 1),
+    )
+    make_transaction(
+        db,
+        transaction_id="t4",
+        symbol=None,
+        category="CASH",
+        type="INTEREST_PAYMENT",
+        shares=None,
+        amount=5.0,
+        datetime_utc=datetime(2024, 8, 1),
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=150.0))
+    db.commit()
+
+    positions = compute_positions(db, ID_UTILISATEUR_TEST)
+    performance = performance_service.compute_performance(db, ID_UTILISATEUR_TEST, positions=positions)
+
+    resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST, positions=positions)
+    dernier_point = resultat[-1]
+
+    gain_graphique = dernier_point["valeur_portefeuille"] + dernier_point["valeur_realisee_cumulee"] - dernier_point["valeur_investie"]
+    assert gain_graphique == pytest.approx(performance["gain_perte_total"], abs=0.01)
+    # Non-régression du scénario chiffré lui-même (cf. calcul détaillé dans le plan) :
+    # gains_latents 300 + gains_realises 200 + dividende 20 + intérêt 5 = 525.
+    assert performance["gain_perte_total"] == pytest.approx(525.0)
+
+
+def test_le_dernier_point_utilise_la_valorisation_live_pas_le_prix_hebdomadaire(db, monkeypatch):
+    """Le dernier point de la grille (aujourd'hui) doit utiliser la même valorisation
+    « live » que la carte Rentabilité globale, pas le dernier prix hebdomadaire simulé
+    — même si les deux sources donnent des valeurs différentes, comme ici."""
+    make_transaction(
+        db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1)
+    )
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=999.0))  # valeur "live" volontairement très différente
+    db.commit()
+
+    monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)  # dernier prix hebdomadaire simulé : 110.0
+
+    resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
+    dernier_point = resultat[-1]
+
+    # 10 parts x 999.0 (live) = 9990, pas 10 x 110.0 (hebdomadaire) = 1100.
+    assert dernier_point["valeur_portefeuille"] == pytest.approx(9990.0)

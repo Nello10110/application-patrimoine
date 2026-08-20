@@ -39,7 +39,10 @@ export default function PortfolioHistoryChart() {
         date: p.date,
         Portefeuille: p.valeur_portefeuille,
         Investi: p.valeur_investie,
-        Gains: p.valeur_portefeuille - p.valeur_investie,
+        // Inclut le produit des ventes réalisées + dividendes + intérêts perçus, pas
+        // seulement la valeur de marché actuelle — sans quoi ce total ne recoupait pas
+        // celui de la carte Rentabilité globale (cf. `valeur_realisee_cumulee`, backend).
+        Gains: p.valeur_portefeuille + p.valeur_realisee_cumulee - p.valeur_investie,
       })),
     [filtered],
   )
@@ -70,6 +73,13 @@ export default function PortfolioHistoryChart() {
           </label>
         </div>
       </div>
+
+      {stacked && (
+        <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+          « Gains » inclut les ventes réalisées, dividendes et intérêts perçus — même chiffre que le
+          Gain/Perte total de la carte Rentabilité globale.
+        </p>
+      )}
 
       {loading && (
         <p className="text-sm text-slate-500 dark:text-slate-400">

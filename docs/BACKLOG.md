@@ -630,6 +630,54 @@ rencontrée en conditions réelles (`run_startup_migrations` puis `migrate_isola
 
 ---
 
+### J. Fiabilité du calcul de rentabilité
+
+#### J.1 — `majeur` · `M` · `P1` · `non traité` — Coût de revient « orphelin » sur une position fermée sans vente (env. 76 € actuellement)
+
+Découvert le 20/08/2026 en corrigeant l'écart entre le graphique d'évolution du tableau de bord et
+la carte Rentabilité globale (cf. increment 13) : `gain_perte_total`
+(`services/performance_service.compute_performance`) est aujourd'hui **surestimé d'environ 76 €** sur
+le vrai portefeuille, à cause de deux angles morts de `services/portfolio_reconstruction._apply_transaction` :
+
+1. **Vente horodatée avant son achat, même instant** (`transaction_id` réels : vente Tesla à
+   `2023-12-08`, cf. docstring déjà existante de `_apply_transaction` qui anticipait ce cas — « vente
+   d'un titre offert horodatée avant la ligne d'acquisition correspondante ») : quand deux transactions
+   partagent exactement le même `datetime_utc`, l'ordre de traitement (`ORDER BY datetime_utc ASC`,
+   sans tri secondaire déterministe) peut placer la VENTE avant l'ACHAT du même lot. La vente ne trouve
+   alors aucun coût à retirer (`cost_basis` encore à 0), et l'achat qui arrive juste après reste
+   « orphelin » : son coût est ajouté à `cost_basis` mais la position vient d'être vendue (quantité
+   déjà retombée à ~0) — ce coût n'est donc plus jamais recyclé nulle part (ni dans `gains_realises`,
+   déjà figé au moment de la vente, ni dans `gains_latents`, qui exclut les positions à `shares <=
+   EPSILON`). Cas réel identifié : ~25 € (Tesla, `STOCKPERK` + `BUY` + `SELL` au même instant).
+2. **Opération sur titres qui ferme une position sans vente** (`CORPORATE_ACTION MERGER`/`WORTHLESS`
+   avec `shares` négatif) : la branche « opérations sur titres » de `_apply_transaction` ajuste
+   uniquement `state.shares`, jamais `cost_basis` ni `realized_gain` (comportement correct pour un
+   split ou une action gratuite REÇUE, où le coût doit rester nul) — mais pour une opération qui
+   RETIRE des titres sans contrepartie (fusion sans compensation, titre devenu sans valeur), le coût
+   de revient restant devrait être comptabilisé comme une PERTE réalisée à ce moment-là, pas
+   silencieusement abandonné. Deux cas réels identifiés : BlackRock (plan d'investissement
+   programmé, `MERGER` le 2024-10-02, ~30 € de coût orphelin) et Carmat (`WORTHLESS` le 2026-06-15,
+   ~21 € de coût orphelin, titre effectivement tombé à zéro).
+
+Trouvé en comparant algébriquement `cout_total_investi` (somme brute directe de tous les achats,
+`performance_service.py`) à `cout_base_ouvert + coût retiré par les ventes` (identité qui devrait tenir
+par construction du suivi de coût de revient, mais qui casse exactement du montant du coût orphelin) —
+verrouillable par un test dédié reproduisant les deux scénarios ci-dessus une fois corrigé.
+
+**Non traité** : corriger change le `gain_perte_total` affiché (le ferait baisser d'environ 76 € sur
+le vrai portefeuille, de 1596 € vers ~1520 €) — un changement de chiffre visible à soumettre
+explicitement à l'utilisateur avant de l'appliquer, pas à corriger en marge d'un autre lot. Piste de
+correctif pour le point 1 : trier par `(datetime_utc, id)` plutôt que `datetime_utc` seul ne suffit
+probablement pas (l'ordre d'insertion CSV n'est pas garanti être le bon ordre logique) — nécessite
+plutôt de traiter la vente qui ne trouve aucun coût comme « en attente » et de la résoudre rétroactivement
+si un achat au même instant arrive juste après, ou d'ajuster l'import pour réordonner les lignes à
+`datetime_utc` strictement égal (achats avant ventes). Piste pour le point 2 : dans la branche
+« opérations sur titres », si la quantité devient `<= EPSILON` après une opération qui RETIRE des
+titres (pas qui en ajoute), réaliser une perte égale au `cost_basis` restant avant de le remettre à
+zéro.
+
+---
+
 ## 3. Hors périmètre (assumé)
 
 - **Fiscalité PEA** (ex-§ 5.7 de l'audit archivé) : inchangé, l'application reste un outil de suivi

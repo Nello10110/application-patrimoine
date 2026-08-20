@@ -400,6 +400,7 @@ export interface PortfolioHistoryPoint {
   date: string
   valeur_portefeuille: number
   valeur_investie: number
+  valeur_realisee_cumulee: number
 }
 
 export interface PortfolioHistoryResponse {

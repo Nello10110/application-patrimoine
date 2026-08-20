@@ -17,8 +17,8 @@ import pandas as pd
 import yfinance as yf
 from sqlalchemy.orm import Session
 
-from ..models import Holding
-from . import historique_cache, market_data_service, portfolio_reconstruction
+from ..models import Holding, Transaction
+from . import analysis_service, historique_cache, market_data_service, performance_service, portfolio_reconstruction
 from .portfolio_reconstruction import PositionState
 
 EPSILON = portfolio_reconstruction.EPSILON
@@ -100,6 +100,58 @@ def _fetch_fx_history(devise: str, start: datetime) -> TimeSeries:
     return series
 
 
+def _serie_cumulee_ventes_et_revenus(db: Session, user_id: int) -> TimeSeries:
+    """Somme cumulée, dans le temps, de tout ce que le graphique d'historique
+    omettait jusqu'ici : le produit net de chaque vente (`TRADING/SELL`) et les
+    revenus perçus (dividendes, intérêts, autres revenus). Même périmètre exact
+    que `performance_service.compute_performance` (`gains_realises` — composante
+    "produit de vente" — + `dividendes_percus` + `interets_percus` +
+    `autres_revenus`), réutilisant `AUTRES_REVENUS_TYPES` de ce module pour ne
+    jamais diverger silencieusement de sa définition. Construite directement
+    depuis `Transaction` plutôt que via `PositionState` : les intérêts n'ont
+    généralement pas de `symbol` et ne passent donc jamais par
+    `portfolio_reconstruction` (dont la requête filtre `symbol IS NOT NULL`).
+
+    `valeur_portefeuille - valeur_investie` (les deux champs historiques) ne
+    couvrait donc que la valeur de marché des positions encore ouvertes moins le
+    capital brut jamais décrémenté à la vente — en omettant entièrement ces
+    montants. Ce cumul comble l'écart : `valeur_portefeuille +
+    valeur_realisee_cumulee - valeur_investie` reconstitue exactement la même
+    formule que `gain_perte_total`, terme à terme."""
+    transactions = db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.datetime_utc.asc()).all()
+
+    series: TimeSeries = []
+    cumule = 0.0
+    for tx in transactions:
+        if tx.category == "TRADING" and tx.type == "SELL" and tx.shares is not None:
+            montant = tx.amount + tx.fee + tx.tax
+        elif tx.category == "CASH" and tx.type == "DIVIDEND":
+            montant = tx.amount + tx.fee + tx.tax
+        elif tx.category == "CASH" and tx.type == "INTEREST_PAYMENT":
+            montant = tx.amount + tx.fee + tx.tax
+        elif tx.type in performance_service.AUTRES_REVENUS_TYPES:
+            montant = tx.amount + tx.fee + tx.tax
+        else:
+            continue
+        cumule += montant
+        series.append((tx.datetime_utc, cumule))
+    return series
+
+
+def _valeur_positions_live(db: Session, user_id: int) -> float:
+    """Valorisation « live » des positions financières ouvertes — exactement le
+    même calcul que `valeur_positions` dans `performance_service.compute_performance`
+    (`analysis_service.holdings_financiers` + `value_holdings`). Utilisée
+    uniquement pour le DERNIER point de la grille hebdomadaire (aujourd'hui) : les
+    points passés restent nécessairement valorisés au dernier cours hebdomadaire
+    `yfinance` connu (pas d'historique de cours instantané disponible), mais le
+    point d'aujourd'hui peut — et doit — coïncider exactement avec la carte
+    Rentabilité globale plutôt que de rester approximatif de quelques euros."""
+    holdings = analysis_service.holdings_financiers(db, user_id)
+    valued = analysis_service.value_holdings(holdings)
+    return sum(v.valeur for v in valued)
+
+
 def compute_portfolio_history(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> list[dict]:
     """Historique de valeur du portefeuille d'UN utilisateur (Milestone 2a, cf. LOT 4.5).
 
@@ -159,6 +211,8 @@ def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, P
 
         price_series[symbol] = _history_to_series(hist, fx_series)
 
+    revenus_series = _serie_cumulee_ventes_et_revenus(db, user_id)
+
     points = []
     for date in grid:
         valeur_portefeuille = 0.0
@@ -176,11 +230,19 @@ def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, P
                 prix_at = holding.prix_revient_moyen if holding else 0.0
             valeur_portefeuille += shares_at * (prix_at or 0.0)
 
+        # Dernier point de la grille (toujours "aujourd'hui", cf. `_weekly_grid`) :
+        # remplace le prix hebdomadaire — potentiellement vieux de quelques jours —
+        # par la même valorisation « live » que la carte Rentabilité globale, pour
+        # une coïncidence exacte plutôt qu'une approximation à quelques euros près.
+        if date == grid[-1]:
+            valeur_portefeuille = _valeur_positions_live(db, user_id)
+
         points.append(
             {
                 "date": date.date().isoformat(),
                 "valeur_portefeuille": round(valeur_portefeuille, 2),
                 "valeur_investie": round(valeur_investie, 2),
+                "valeur_realisee_cumulee": round(_value_at(revenus_series, date) or 0.0, 2),
             }
         )
 

@@ -381,6 +381,12 @@ class PortfolioHistoryPoint(BaseModel):
     date: str
     valeur_portefeuille: float
     valeur_investie: float
+    # Cumul, à cette date, du produit des ventes + dividendes + intérêts + autres
+    # revenus (cf. `historical_performance_service._serie_cumulee_ventes_et_revenus`) :
+    # `valeur_portefeuille + valeur_realisee_cumulee - valeur_investie` reconstitue
+    # exactement `gain_perte_total` de `GET /api/performance` — sans ce champ, ces
+    # montants restaient absents du graphique du tableau de bord.
+    valeur_realisee_cumulee: float
 
 
 class PortfolioHistoryResponse(BaseModel):
