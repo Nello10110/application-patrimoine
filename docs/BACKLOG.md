@@ -311,7 +311,9 @@ risque est de rouvrir une frontière posée délibérément lors de l'increment 
 
 Nécessite de rouvrir l'authentification (§ 3, actuellement hors périmètre tant que l'app reste
 mono-utilisateur locale). Pas de valeur sans décision préalable sur le multi-utilisateur — à ne
-considérer que si l'usage de l'application dépasse un seul foyer/personne.
+considérer que si l'usage de l'application dépasse un seul foyer/personne. Le détail technique de ce
+que ça impliquerait (quelles tables, quels modules, dans quel ordre) est posé en § 2.I.1, suite à
+l'audit structurel du 20/08/2026.
 
 ### H. Qualité de vie et accès mobile
 
@@ -337,6 +339,115 @@ contre un vrai build de production.
 icônes et les bons champs (`theme_color`, `display: standalone`...), page fonctionnelle contre le
 vrai backend à travers le service worker actif.
 
+### I. Structure du code et dette technique (audit du 20/08/2026)
+
+Audit demandé par l'utilisateur le 20/08/2026, motivé explicitement par une envie de faire du
+multi-utilisateur *plus tard* : « auditer tout le code et voir ce qui est améliorable au niveau de
+la structure ». Méthode : lecture complète de `models.py`, `database.py`, `main.py`,
+`scheduler_service.py`, `market_data_service.py`, `preferences_service.py`, revue des tailles de
+fichiers (`wc -l` sur tout `backend/app` et `frontend/src`), `oxlint` (frontend, propre). Pas de
+`pyflakes`/`ruff` disponible dans cet environnement pour une détection automatisée du code mort
+côté backend — revue manuelle des imports des services les plus volumineux, rien d'évident trouvé
+au-delà de ce qui a déjà été nettoyé (l'import `ForeignKey` inutilisé de `models.py` et
+`analysis_service.breakdown_by`, tous deux déjà retirés, cf. audit archivé).
+
+#### I.1 — `majeur` · `L` · — Ce qu'impliquerait un vrai multi-utilisateur (détail de G.1)
+
+L'application est explicitement conçue comme « 100 % locale, sans authentification »
+(`backend/app/main.py`, docstring de module) — ce n'est pas un oubli, c'est un choix assumé et
+documenté (§ 3). L'audit confirme que cette hypothèse est câblée à quatre niveaux différents, pas
+un seul :
+
+- **Schéma de données** : aucune des 12 tables (`Holding`, `Loan`, `MarketDataCache`,
+  `AllocationTarget`, `Transaction`, `TickerResolution`, `FundComposition`,
+  `FundCompositionBrute`, `FundTopHolding`, `HistoriqueCache`, `ScheduledJobConfig`, `Parametre`)
+  ne porte de colonne `user_id`/tenant. Toutes les requêtes de tous les routers/services supposent
+  un unique jeu de données global — ajouter la colonne ne suffit pas, chaque `db.query(...)` de
+  chaque service devrait être revu pour filtrer par utilisateur courant.
+- **Connexion base de données** (`database.py`) : `engine`/`SessionLocal` sont calculés une seule
+  fois au chargement du module, contre un unique fichier SQLite (`patrimoine.db`, ou son
+  prédécesseur `portfolio.db` — cf. l'incident de sélection de base couvert en § 2.A.3). Aucune
+  notion de connexion par utilisateur.
+- **Authentification** : totalement absente — pas de session, pas de JWT, pas d'écran de connexion,
+  nulle part dans `main.py` ou les routers. Le CORS est verrouillé sur `localhost:5173`/
+  `127.0.0.1:5173` avec `allow_credentials=False` : même le mécanisme de cookie de session
+  qu'exigerait une authentification n'est pas activable tel quel aujourd'hui.
+- **Réglages et état d'exécution** : `preferences_service.py`/`Parametre` stocke des réglages
+  globaux (méthode de coût de revient, seuil d'alerte) — un seul jeu de réglages pour toute
+  l'application. `scheduler_service.py`/`market_data_service.py` vont plus loin : l'état
+  d'avancement d'un rafraîchissement (`market_data_service._etat`, `_thread_courant`,
+  `_dernier_rafraichissement_manuel`) est un singleton au niveau module — un seul rafraîchissement
+  peut être en cours à la fois, pour tout le monde, sur toutes les positions confondues. Le job
+  planifié (`ScheduledJobConfig`, clé `job_key`) n'a aucune notion d'itération par utilisateur non
+  plus.
+
+Point notable, plutôt favorable : le cache de marché (`MarketDataCache`, `TickerResolution`,
+`FundComposition`/`FundCompositionBrute`/`FundTopHolding`) est déjà keyé par ticker et non par
+position — c'est un atout pour un futur multi-utilisateur bien conçu (deux utilisateurs détenant le
+même ETF n'auraient pas besoin de deux rafraîchissements) *à condition* qu'il reste global pendant
+que `Holding`/`Loan`/`Transaction`/`AllocationTarget`/`Parametre` deviennent scopés par utilisateur.
+
+Ce qu'il faudrait construire, dans l'ordre logique de dépendance (aucun de ces points n'a de sens
+isolément) :
+
+1. Une table `User` + une vraie couche d'authentification (mot de passe hashé ou OAuth) — c'est le
+   préalable bloquant déjà identifié en § 3, confirmé ici comme le point de départ obligé.
+2. `user_id` (FK) sur `Holding`, `Loan`, `AllocationTarget`, `Transaction`, `Parametre` (et une
+   déclinaison par utilisateur de `ScheduledJobConfig`), avec une revue systématique de chaque
+   requête de chaque router/service pour y appliquer le filtre — pas un simple ajout de colonne.
+3. Garder `MarketDataCache`/`TickerResolution`/`FundComposition*`/`FundTopHolding`/
+   `HistoriqueCache` globaux et partagés (cf. point notable ci-dessus).
+4. Une décision d'architecture explicite : SQLite unique partagé avec filtrage applicatif
+   systématique (risque : une requête oubliée fait fuiter les données d'un autre utilisateur) vs un
+   fichier SQLite par utilisateur (le mécanisme de sélection de fichier existe déjà dans
+   `database.py` via `_chemin_base_par_defaut`, mais devrait passer d'un choix pris une fois au
+   démarrage du process à un choix pris par requête HTTP — changement structurel de `database.py`,
+   pas cosmétique).
+5. Refonte de `scheduler_service.py`/`market_data_service.py` : itérer sur tous les utilisateurs à
+   chaque exécution du job, ou un job par utilisateur — dans les deux cas l'état singleton actuel
+   doit devenir par-utilisateur.
+6. Côté frontend : `api/client.ts` fait aujourd'hui un simple `fetch('/api...')` sans en-tête
+   d'authentification — un écran de connexion et un garde de route seraient à ajouter.
+
+Reste `non traité`, cohérent avec § 3 (authentification hors périmètre tant que l'usage reste
+mono-utilisateur) — mais désormais documenté avec le détail exact de ce qui bloquerait, pour que la
+décision future (si le multi-utilisateur est un jour retenu) parte d'un état des lieux complet
+plutôt que de redécouvrir ces points un par un.
+
+#### I.2 — `mineur` · `M` · `P3` · `non traité` — `market_data_service.py` devenu un fichier fourre-tout
+
+632 lignes (le plus gros fichier du backend) : résolution de ticker, récupération de prix
+(`yfinance`), repli de composition ETF, TER, et l'état de rafraîchissement asynchrone (thread +
+verrou) cohabitent dans un seul module. Pas urgent — le fichier reste lisible et intégralement
+testé — mais candidat à scinder en au moins deux modules (ex. la logique de cotation/composition
+d'un côté, l'orchestration du rafraîchissement asynchrone de l'autre) la prochaine fois qu'une
+nouvelle source de données y est ajoutée : il a déjà grossi à chaque increment (yfinance, puis
+justETF) et continuera si le rythme se maintient.
+
+#### I.3 — `mineur` · `S` · `P3` · `non traité` — `PortefeuillePage.tsx` (680 lignes) concentre trop de responsabilités
+
+Le plus gros fichier du frontend : tableau des positions, filtres par catégorie, tri, et navigation
+vers la fiche détail dans un seul composant. Aucune duplication détectée (contrairement à l'ancien
+souci `formatEuro`/`formatPct`, déjà corrigé lors de l'Increment 7 via `utils/format.ts`) — juste
+une taille qui commence à gêner la lecture. Un découpage en sous-composants (ex. `PositionsTable`,
+`CategoryTabs`) serait raisonnable au prochain ajout notable sur cet écran.
+
+#### I.4 — `mineur` · `S` · — Migration de schéma limitée à l'ajout de colonnes
+
+`database.run_startup_migrations` ajoute des colonnes nullable de façon idempotente
+(`ALTER TABLE ... ADD COLUMN`), mais ne sait ni renommer une colonne, ni changer un type, ni
+exécuter une migration de données complexe — ce qui a déjà nécessité des scripts one-off manuels
+par le passé (ex. `migrate_rename_categorie_autres`). Suffisant pour une base mono-utilisateur,
+mais deviendrait un vrai risque si le multi-utilisateur (§ 2.I.1) impose un jour une migration de
+données par utilisateur existant. À réévaluer (par exemple un vrai outil comme Alembic) seulement
+si I.1 est engagé — pas avant, ce serait de la complexité sans bénéfice actuel.
+
+#### I.5 — `mineur` · `S` · `P3` · `non traité` — Pas de test sur l'isolation des données entre utilisateurs
+
+Conséquence directe de I.1 : comme il n'existe aujourd'hui qu'un seul jeu de données, aucun test ne
+peut (ni ne devrait) vérifier une isolation qui n'existe pas encore. À poser en même temps que I.1
+si celui-ci est un jour engagé — pas un point à traiter isolément.
+
 ---
 
 ## 3. Hors périmètre (assumé)
@@ -345,7 +456,8 @@ vrai backend à travers le service worker actif.
   de performance, pas un simulateur fiscal.
 - **Authentification** (ex-§ 7.7) : reste hors périmètre tant que l'usage est mono-utilisateur et
   local. Redeviendrait un **préalable bloquant** (pas un point de confort) si le multi-utilisateur
-  (§ 2.G) est un jour retenu — à rouvrir explicitement à ce moment-là, pas avant.
+  (§ 2.G) est un jour retenu — à rouvrir explicitement à ce moment-là, pas avant. Détail technique
+  de ce que ça impliquerait dans le code actuel : § 2.I.1 (audit structurel du 20/08/2026).
 - **Agrégation bancaire automatique façon Finary** (Powens/Budget Insight, Plaid) : hors de portée
   d'un projet gratuit et open source — ce sont des contrats commerciaux B2B avec coût par compte
   connecté, incompatibles avec l'objectif « gratuit ». L'alternative gratuite potentielle (Enable
