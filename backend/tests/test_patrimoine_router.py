@@ -1,5 +1,10 @@
-"""Verrouille `GET /api/patrimoine/net`, `/simulation` et `/fire` (roadmap Phase 1
-et 2, `docs/ROADMAP.md`)."""
+"""Verrouille `GET /api/patrimoine/net` (roadmap Phase 1, `docs/ROADMAP.md`).
+
+`/simulation` et `/fire` (roadmap Phase 2) ont été retirés lors de la fusion des
+pages Simulateur et Outils côté frontend : la projection, le tableau de détail et
+le calcul FIRE sont désormais calculés côté client
+(`frontend/src/utils/interetsComposes.ts`, verrouillé par
+`interetsComposes.test.ts`), à partir du seul `patrimoine_net` renvoyé ici."""
 
 from datetime import datetime
 
@@ -43,65 +48,3 @@ def test_patrimoine_net_actifs_moins_passifs(client, db):
     assert corps["passifs_totaux"] == 120000.0
     assert corps["patrimoine_net"] == 180000.0
     assert corps["repartition_par_classe"] == [{"categorie": "Immobilier", "valeur": 300000.0}]
-
-
-def test_simulation_part_du_patrimoine_net_actuel(client, db):
-    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0)
-
-    reponse = client.get("/api/patrimoine/simulation", params={"rendement_annuel_pct": 0, "epargne_mensuelle": 0, "annees": 3})
-
-    assert reponse.status_code == 200
-    corps = reponse.json()
-    assert corps["valeur_depart"] == 1000.0
-    # Sans rendement ni épargne, la valeur reste constante sur toute la trajectoire.
-    assert [p["valeur"] for p in corps["points"]] == [1000.0, 1000.0, 1000.0, 1000.0]
-    assert [p["annee"] for p in corps["points"]] == [0, 1, 2, 3]
-
-
-def test_simulation_bornes_rejetees_en_400(client):
-    assert client.get("/api/patrimoine/simulation", params={"rendement_annuel_pct": 999, "epargne_mensuelle": 0, "annees": 3}).status_code == 400
-    assert client.get("/api/patrimoine/simulation", params={"rendement_annuel_pct": 5, "epargne_mensuelle": -1, "annees": 3}).status_code == 400
-    assert client.get("/api/patrimoine/simulation", params={"rendement_annuel_pct": 5, "epargne_mensuelle": 0, "annees": 0}).status_code == 400
-    assert client.get("/api/patrimoine/simulation", params={"rendement_annuel_pct": 5, "epargne_mensuelle": 0, "annees": 61}).status_code == 400
-
-
-def test_fire_part_du_patrimoine_net_actuel_et_taux_par_defaut(client, db):
-    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=1_500_000.0)
-
-    reponse = client.get(
-        "/api/patrimoine/fire", params={"rendement_annuel_pct": 5, "epargne_mensuelle": 0, "depense_annuelle_cible": 40000}
-    )
-
-    assert reponse.status_code == 200
-    corps = reponse.json()
-    assert corps["valeur_depart"] == 1_500_000.0
-    assert corps["patrimoine_necessaire"] == 1_000_000.0  # taux de retrait par défaut : 4 %
-    assert corps["annees_avant_independance"] == 0.0  # déjà indépendant
-
-
-def test_fire_taux_de_retrait_personnalise(client, db):
-    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=0.0)
-
-    reponse = client.get(
-        "/api/patrimoine/fire",
-        params={"rendement_annuel_pct": 0, "epargne_mensuelle": 0, "depense_annuelle_cible": 40000, "taux_retrait_pct": 8},
-    )
-
-    assert reponse.status_code == 200
-    assert reponse.json()["patrimoine_necessaire"] == 500000.0
-
-
-def test_fire_bornes_rejetees_en_400(client):
-    assert (
-        client.get(
-            "/api/patrimoine/fire", params={"rendement_annuel_pct": 5, "epargne_mensuelle": 0, "depense_annuelle_cible": 0}
-        ).status_code
-        == 400
-    )
-    assert (
-        client.get(
-            "/api/patrimoine/fire",
-            params={"rendement_annuel_pct": 5, "epargne_mensuelle": 0, "depense_annuelle_cible": 40000, "taux_retrait_pct": 0},
-        ).status_code
-        == 400
-    )

@@ -16,7 +16,6 @@ vi.mock('./pages/ImportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ReglagesPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/AidePage', () => ({ default: () => <div /> }))
 vi.mock('./pages/SimulateurPage', () => ({ default: () => <div /> }))
-vi.mock('./pages/OutilsPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/RecommandationsPage', () => ({ default: () => <div /> }))
 
 describe('App — en-tête', () => {

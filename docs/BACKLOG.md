@@ -135,11 +135,22 @@ financier, patrimoine net). Regroupé dans le même onglet Portefeuille que A.1/
 #### B.1 — `majeur` · `M` · `P1` · `traité` — Simulateur de patrimoine (équivalent « Predict »)
 
 Projection de la valeur du patrimoine à 5/10/20/30 ans, à partir d'hypothèses réglables (rendement
-annuel moyen, épargne mensuelle ajoutée). Calcul pur (intérêts composés mensuels + apports réguliers,
-`services/simulation_service.py`), aucune dépendance externe, aucun nouvel appel réseau — projeté
-depuis le patrimoine net actuel (`patrimoine_service.compute_patrimoine_net`). Nouvel écran
-Simulateur (`/simulateur`), graphique mis à jour automatiquement (léger différé, 300 ms) à chaque
-changement d'hypothèse.
+annuel moyen, épargne mensuelle ajoutée). Calcul pur (intérêts composés mensuels + apports réguliers),
+aucune dépendance externe, projeté depuis le patrimoine net actuel
+(`patrimoine_service.compute_patrimoine_net`). Nouvel écran Simulateur (`/simulateur`).
+
+**Mise à jour du 20/08/2026 (fusion Simulateur/Outils)** : ce calcul, initialement côté backend
+(`services/simulation_service.py`, endpoints `GET /api/patrimoine/{simulation,fire}`, recalcul
+après un différé de 300 ms), a été déplacé côté client
+(`frontend/src/utils/interetsComposes.ts`) au moment de fusionner l'écran Simulateur avec la page
+Outils (calculateur d'intérêts composés à capital libre, ajoutée hors backlog à la demande de
+l'utilisateur) : les deux ne différaient que par la source du capital de départ, jamais par le
+calcul. Le patrimoine net actuel
+reste lu une fois pour préremplir le capital de départ (seul appel réseau restant), mais reste
+librement modifiable ; le backend `services/simulation_service.py` et ses endpoints, devenus
+inutilisés, ont été retirés. Mise à jour instantanée à chaque changement d'hypothèse (plus de
+différé réseau). Un **tableau de détail** (bascule Annuelle/Mensuelle : versements, intérêts,
+capital, cumuls) a été ajouté à cette occasion.
 
 #### B.2 — `majeur` · `S` · `P1` · `traité` — Indépendance financière (FIRE)
 
@@ -154,9 +165,11 @@ qu'un nombre trompeur.
 avec versements recoupée à la main, écart < 1 centime) ; FIRE à 30 000 €/an, taux 4 % → patrimoine
 nécessaire 750 000 € (= 30000 / 0.04, exact), délai estimé 52,2 ans à épargne nulle, 22 ans à
 1 500 €/mois — cohérent, testé en direct dans le navigateur. 12 tests unitaires sur
-`simulation_service.py` verrouillent chaque formule par un calcul fermé indépendant de la boucle
-implémentée (référence externe, pas juste "le code confirme le code"). 395 tests backend (+17) +
-101 tests frontend (+8), `tsc`/`oxlint`/`vite build` propres.
+`simulation_service.py` (backend, à l'origine) verrouillaient chaque formule par un calcul fermé
+indépendant de la boucle implémentée (référence externe, pas juste "le code confirme le code") ;
+depuis la fusion du 20/08/2026, ces mêmes scénarios de référence sont repris à l'identique côté
+client dans `interetsComposes.test.ts`. 395 tests backend (+17) + 101 tests frontend (+8),
+`tsc`/`oxlint`/`vite build` propres au moment de la livraison initiale.
 
 ### C. Dividendes et revenus
 

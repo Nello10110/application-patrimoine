@@ -1,16 +1,19 @@
-/** Intérêts composés MENSUELS + versement mensuel constant — même formule que
- * `simulation_service.compute_projection` côté backend (Phase 2), mais calculée ici
- * côté client : le calculateur de la page Outils est un outil générique, indépendant
- * du patrimoine suivi par l'application (pas de patrimoine de départ imposé), donc
- * sans raison de passer par le backend pour un calcul aussi simple et sans donnée
- * personnelle.
+/** Intérêts composés MENSUELS + versement mensuel constant, moteur commun à la page
+ * Simulateur (projection, tableau de détail, indépendance financière). Calculé
+ * entièrement côté client — jusqu'à l'increment qui a fusionné Simulateur et
+ * Outils, cette même formule vivait aussi côté backend
+ * (`simulation_service.compute_projection`/`compute_fire`, roadmap Phase 2) : elle
+ * n'y était utilisée que pour projeter le patrimoine net réel de l'utilisateur,
+ * jamais un capital de départ personnalisé (endpoints non paramétrables sur ce
+ * point). Plutôt que maintenir deux moteurs identiques en parallèle, le patrimoine
+ * net réel est désormais simplement lu une fois (`GET /api/patrimoine/net`, déjà
+ * utilisé ailleurs) pour préremplir le capital de départ, et tout le calcul qui en
+ * découle (projection, tableau, FIRE) passe par ce module, testé indépendamment des
+ * mêmes références fermées que l'ancien module backend.
  *
  * Convention de capitalisation : les intérêts d'un mois se calculent sur le capital
  * AVANT le versement de ce mois-là (`capital × taux mensuel`), puis le versement
- * s'ajoute — un versement ne produit donc son premier intérêt qu'au mois suivant.
- * C'est la même convention que la boucle `compute_projection` côté backend
- * (`valeur = valeur * (1 + taux) + épargne`), reproduite ici à la maille du mois
- * plutôt que seulement à la maille de l'année. */
+ * s'ajoute — un versement ne produit donc son premier intérêt qu'au mois suivant. */
 
 export interface PointTrajectoire {
   annee: number
@@ -108,6 +111,45 @@ export function agregerParAnnee(pointsMensuels: PointMensuel[]): PointAnnuel[] {
     })
   }
   return Array.from(parAnnee.values())
+}
+
+export interface ResultatFire {
+  patrimoineNecessaire: number
+  // Délai estimé en années (1 décimale), 0 si déjà atteint, `null` si non atteint
+  // dans l'horizon de recherche (60 ans) — jamais un nombre au-delà, qui laisserait
+  // croire à une précision que le calcul n'a pas sur un horizon aussi lointain.
+  anneesAvantIndependance: number | null
+}
+
+const HORIZON_MAX_ANNEES = 60
+
+/** Indépendance financière (FIRE) : patrimoine nécessaire (`dépense annuelle
+ * cible / taux de retrait`) et délai estimé pour l'atteindre avec les mêmes
+ * hypothèses de rendement/versement que la projection — même moteur mensuel que
+ * `calculerTrajectoireMensuelle`, juste arrêté dès que le seuil est franchi plutôt
+ * que poursuivi jusqu'à l'horizon demandé. */
+export function calculerFire(
+  capitalInitial: number,
+  tauxAnnuelPct: number,
+  versementMensuel: number,
+  depenseAnnuelleCible: number,
+  tauxRetraitPct: number,
+): ResultatFire {
+  const patrimoineNecessaire = arrondi(depenseAnnuelleCible / (tauxRetraitPct / 100))
+
+  if (capitalInitial >= patrimoineNecessaire) {
+    return { patrimoineNecessaire, anneesAvantIndependance: 0 }
+  }
+
+  const tauxMensuel = tauxAnnuelPct / 100 / 12
+  let valeur = capitalInitial
+  for (let mois = 1; mois <= HORIZON_MAX_ANNEES * 12; mois++) {
+    valeur = valeur * (1 + tauxMensuel) + versementMensuel
+    if (valeur >= patrimoineNecessaire) {
+      return { patrimoineNecessaire, anneesAvantIndependance: Math.round((mois / 12) * 10) / 10 }
+    }
+  }
+  return { patrimoineNecessaire, anneesAvantIndependance: null }
 }
 
 export function arrondi(n: number): number {

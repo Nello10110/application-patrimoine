@@ -679,36 +679,19 @@ class PatrimoineNetResponse(BaseModel):
     """Patrimoine net global (Phase 1 de `docs/ROADMAP.md`) — `services/patrimoine_service.py`.
     Distinct de `AnalysisResponse.valeur_totale` (scopé au seul portefeuille financier,
     cf. `analysis_service.holdings_financiers`) : `actifs_totaux` ici couvre en plus
-    l'immobilier/SCPI/assurance-vie/PER, et `patrimoine_net` en retranche les emprunts."""
+    l'immobilier/SCPI/assurance-vie/PER, et `patrimoine_net` en retranche les emprunts.
+
+    `patrimoine_net` sert aussi de capital de départ par défaut à l'écran Simulateur
+    (fusion Simulateur/Outils) : depuis cet increment, la projection, le tableau de
+    détail et le calcul FIRE sont calculés côté client
+    (`frontend/src/utils/interetsComposes.ts`), il n'existe donc plus d'endpoint
+    `/api/patrimoine/simulation`/`/fire` dédié — ce module reste la seule source de
+    vérité pour le patrimoine net lui-même."""
 
     actifs_totaux: float
     passifs_totaux: float
     patrimoine_net: float
     repartition_par_classe: list[RepartitionParClasseItem]
-
-
-class SimulationPoint(BaseModel):
-    annee: int
-    valeur: float
-
-
-class SimulationResponse(BaseModel):
-    """`GET /api/patrimoine/simulation` (roadmap Phase 2) — cf.
-    `services/simulation_service.compute_projection`."""
-
-    valeur_depart: float
-    points: list[SimulationPoint]
-
-
-class FireResponse(BaseModel):
-    """`GET /api/patrimoine/fire` (roadmap Phase 2, indépendance financière) — cf.
-    `services/simulation_service.compute_fire`. `annees_avant_independance` vaut
-    `None` si le patrimoine nécessaire n'est pas atteint dans l'horizon de calcul
-    (60 ans) avec les hypothèses fournies."""
-
-    valeur_depart: float
-    patrimoine_necessaire: float
-    annees_avant_independance: float | None
 
 
 class ZoneGeographiqueInfo(BaseModel):

@@ -123,6 +123,12 @@ diminue avec plus d'épargne mensuelle — invariants de sens vérifiés, pas se
 tests backend (+17) + 101 tests frontend (+8). Détail complet dans [`docs/BACKLOG.md`](BACKLOG.md)
 § 2.B.2.
 
+**Mise à jour du 20/08/2026** : le moteur de projection a depuis été déplacé côté client et fusionné
+avec la page Outils (calculateur d'intérêts composés générique, ajoutée hors backlog à la demande de
+l'utilisateur) — même calcul, capital de départ désormais librement modifiable en plus du patrimoine
+net réel. Voir le détail dans [`docs/BACKLOG.md`](BACKLOG.md) § 2.B.1. Le backend
+`services/simulation_service.py` et ses endpoints ont été retirés, devenus inutilisés.
+
 ---
 
 ## Phase 3 — Confort et transparence au quotidien — livrée le 20/08/2026

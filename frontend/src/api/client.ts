@@ -14,14 +14,12 @@ import type {
   HoldingInput,
   HoldingPriceHistoryResponse,
   HoldingUpdateInput,
-  FireResult,
   ImportPreview,
   ImportResult,
   Loan,
   LoanInput,
   LoanUpdateInput,
   PatrimoineNet,
-  Simulation,
   PerformanceSummary,
   Preferences,
   PreferencesUpdateResponse,
@@ -148,16 +146,10 @@ export const api = {
     request<Loan>(`/loans/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteLoan: (id: number) => request<{ ok: boolean }>(`/loans/${id}`, { method: 'DELETE' }),
 
-  // Patrimoine net global (roadmap Phase 1)
+  // Patrimoine net global (roadmap Phase 1) — aussi la base du Simulateur (roadmap
+  // Phase 2/3, fusionné avec Outils) : la projection, le tableau de détail et le
+  // calcul FIRE sont calculés côté client (`utils/interetsComposes.ts`), ce
+  // patrimoine net actuel n'est plus utilisé que pour préremplir le capital de
+  // départ.
   getPatrimoineNet: () => request<PatrimoineNet>('/patrimoine/net'),
-
-  // Simulateur de patrimoine et indépendance financière (roadmap Phase 2)
-  getSimulation: (params: { rendement_annuel_pct: number; epargne_mensuelle: number; annees: number }) =>
-    request<Simulation>(`/patrimoine/simulation?${new URLSearchParams(params as unknown as Record<string, string>)}`),
-  getFire: (params: {
-    rendement_annuel_pct: number
-    epargne_mensuelle: number
-    depense_annuelle_cible: number
-    taux_retrait_pct: number
-  }) => request<FireResult>(`/patrimoine/fire?${new URLSearchParams(params as unknown as Record<string, string>)}`),
 }

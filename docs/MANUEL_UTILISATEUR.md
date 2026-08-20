@@ -73,17 +73,12 @@ Détail complet des alertes et des actions de rééquilibrage recommandées pour
 
 ## Écran Simulateur
 
-Projette le patrimoine net actuel dans le temps — une **hypothèse**, pas une promesse : les marchés ne progressent jamais de façon aussi régulière dans la réalité.
+Projette un capital dans le temps — une **hypothèse**, pas une promesse : les marchés ne progressent jamais de façon aussi régulière dans la réalité. Le **capital de départ** est préempli avec ton patrimoine net actuel, mais librement modifiable : laisse-le tel quel pour voir où en sera ton patrimoine réel, ou change-le pour tester n'importe quel autre scénario ("et si je plaçais 10 000 € à 6 % ?"). Un lien apparaît sous le champ pour revenir en un clic au patrimoine net actuel dès que tu l'as modifié.
 
-- **Hypothèses** : rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), épargne mensuelle ajoutée (€), horizon (boutons 5/10/20/30 ans). Le graphique se met à jour automatiquement après un court délai à chaque changement.
-- **Indépendance financière (FIRE)** : renseigner une dépense annuelle cible et un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique parmi d'autres, pas une vérité universelle, librement modifiable) affiche le patrimoine nécessaire pour vivre de ce patrimoine, et le délai estimé pour l'atteindre avec les mêmes hypothèses de rendement/épargne que ci-dessus. Au-delà de 60 ans de projection, le résultat affiche « Non atteinte » plutôt qu'un nombre d'années trop lointain pour être fiable.
-
-## Écran Outils
-
-Calculs génériques, indépendants du patrimoine suivi par l'application — rien n'est envoyé au serveur, tout se calcule dans le navigateur.
-
-- **Calculateur d'intérêts composés** : capital de départ, taux annuel moyen, versement mensuel et durée (boutons 5/10/20/30 ans) donnent la valeur finale, le total versé et les intérêts gagnés, avec un graphique étagé (capital versé + gains). Utile pour tester un scénario sans qu'il soit rattaché au patrimoine réellement suivi.
-  - Un **tableau de détail** sous le graphique liste, période par période (bascule **Annuelle** / **Mensuelle**) : les versements, les intérêts gagnés, le capital, le versé cumulé et les intérêts cumulés à date. La vue mensuelle défile (jusqu'à 360 lignes sur 30 ans) dans un cadre à hauteur fixe, en-tête toujours visible.
+- **Hypothèses** : capital de départ (€), rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), versement mensuel (€), durée (boutons 5/10/20/30 ans). Tout se recalcule instantanément à chaque changement (aucun appel au serveur).
+- **Graphique et tuiles** : valeur finale, total versé, intérêts gagnés, avec un graphique étagé (capital versé + gains).
+- **Tableau de détail** : sous le graphique, bascule **Annuelle** / **Mensuelle** listant, période par période, les versements, les intérêts gagnés, le capital, le versé cumulé et les intérêts cumulés à date. La vue mensuelle défile (jusqu'à 360 lignes sur 30 ans) dans un cadre à hauteur fixe, en-tête toujours visible.
+- **Indépendance financière (FIRE)** : renseigner une dépense annuelle cible et un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique parmi d'autres, pas une vérité universelle, librement modifiable) affiche le patrimoine nécessaire pour vivre de ce patrimoine, et le délai estimé pour l'atteindre avec les mêmes hypothèses de capital/rendement/versement que ci-dessus. Au-delà de 60 ans de projection, le résultat affiche « Non atteinte » plutôt qu'un nombre d'années trop lointain pour être fiable.
 
 ## Écran Dividendes
 

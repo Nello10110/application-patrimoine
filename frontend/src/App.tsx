@@ -14,7 +14,6 @@ const DividendesPage = lazy(() => import('./pages/DividendesPage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('./pages/ImportPage'))
 const ObjectifsPage = lazy(() => import('./pages/ObjectifsPage'))
-const OutilsPage = lazy(() => import('./pages/OutilsPage'))
 const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
 const RapportPage = lazy(() => import('./pages/RapportPage'))
 const RecommandationsPage = lazy(() => import('./pages/RecommandationsPage'))
@@ -27,7 +26,6 @@ const navItems = [
   { to: '/objectifs', label: 'Objectifs' },
   { to: '/recommandations', label: 'Rééquilibrage' },
   { to: '/simulateur', label: 'Simulateur' },
-  { to: '/outils', label: 'Outils' },
   { to: '/dividendes', label: 'Dividendes' },
   { to: '/rapport', label: 'Rapport' },
   { to: '/import', label: 'Import' },
@@ -97,7 +95,6 @@ function App() {
             <Route path="/objectifs" element={<ObjectifsPage />} />
             <Route path="/recommandations" element={<RecommandationsPage />} />
             <Route path="/simulateur" element={<SimulateurPage />} />
-            <Route path="/outils" element={<OutilsPage />} />
             <Route path="/dividendes" element={<DividendesPage />} />
             <Route path="/rapport" element={<RapportPage />} />
             <Route path="/import" element={<ImportPage />} />

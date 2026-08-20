@@ -1,153 +1,281 @@
-import { useEffect, useState } from 'react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useEffect, useMemo, useState } from 'react'
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
-import type { Simulation, FireResult } from '../api/types'
 import Card from '../components/Card'
 import StatTile from '../components/StatTile'
-import { formatEuro } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import { formatEuro } from '../utils/format'
+import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel } from '../utils/interetsComposes'
 
-const HORIZONS = [5, 10, 20, 30] as const
+const DUREES = [5, 10, 20, 30] as const
+type Vue = 'annuelle' | 'mensuelle'
 
-/** Simulateur de patrimoine et indépendance financière (roadmap Phase 2, équivalent
- * gratuit du « Predict » payant de Finary) : projection à intérêts composés depuis
- * le patrimoine net actuel (`GET /api/patrimoine/simulation`), et calcul FIRE séparé
- * mais réutilisant les mêmes hypothèses (`GET /api/patrimoine/fire`). Tout est
- * recalculé côté serveur à chaque changement — aucun calcul client, une seule
- * source de vérité (même principe que `analysis_service.value_holdings`, LOT 6.7). */
+/** Simulateur de patrimoine, indépendance financière (FIRE) et calculateur
+ * d'intérêts composés générique — une seule page plutôt que deux (Simulateur et
+ * Outils, fusionnées) : les deux ne différaient que par la source du capital de
+ * départ (patrimoine net réel vs saisi librement), pas par le calcul lui-même.
+ * Le capital de départ est préempli avec le patrimoine net actuel (`GET
+ * /api/patrimoine/net`, seul appel réseau de la page) mais reste modifiable, pour
+ * couvrir aussi bien « où en sera mon patrimoine réel » que « et si je plaçais
+ * 10 000€ à 6% ». Tout le reste (projection, tableau de détail, FIRE) est calculé
+ * côté client (`utils/interetsComposes.ts`), avec mise à jour instantanée. */
 export default function SimulateurPage() {
-  const [rendement, setRendement] = useState('5')
-  const [epargne, setEpargne] = useState('0')
-  const [horizon, setHorizon] = useState<number>(20)
+  const [capital, setCapital] = useState('')
+  const [patrimoineNetActuel, setPatrimoineNetActuel] = useState<number | null>(null)
+  const [chargementPatrimoine, setChargementPatrimoine] = useState(true)
 
-  const [simulation, setSimulation] = useState<Simulation | null>(null)
-  const [erreurSimulation, setErreurSimulation] = useState<string | null>(null)
+  const [taux, setTaux] = useState('5')
+  const [versement, setVersement] = useState('0')
+  const [duree, setDuree] = useState<number>(20)
+  const [vue, setVue] = useState<Vue>('annuelle')
 
   const [depenseCible, setDepenseCible] = useState('')
   const [tauxRetrait, setTauxRetrait] = useState('4')
-  const [fire, setFire] = useState<FireResult | null>(null)
-  const [erreurFire, setErreurFire] = useState<string | null>(null)
-
-  // Hypothèses saisies au clavier : un léger différé évite de renvoyer une requête
-  // à chaque frappe (ex. en tapant "1200", sans lui, on interrogerait successivement
-  // 1, 12, 120 puis 1200 pour rien) sans pour autant exiger un bouton "Calculer".
-  useEffect(() => {
-    const rendementNum = Number(rendement)
-    const epargneNum = Number(epargne)
-    if (rendement === '' || epargne === '' || Number.isNaN(rendementNum) || Number.isNaN(epargneNum)) return
-    const delai = setTimeout(() => {
-      setErreurSimulation(null)
-      api
-        .getSimulation({ rendement_annuel_pct: rendementNum, epargne_mensuelle: epargneNum, annees: horizon })
-        .then(setSimulation)
-        .catch((err) => setErreurSimulation(err.message))
-    }, 300)
-    return () => clearTimeout(delai)
-  }, [rendement, epargne, horizon])
 
   useEffect(() => {
-    const rendementNum = Number(rendement)
-    const epargneNum = Number(epargne)
-    const depenseNum = Number(depenseCible)
-    const tauxNum = Number(tauxRetrait)
-    if (!depenseCible || depenseNum <= 0 || !tauxRetrait || tauxNum <= 0) {
-      setFire(null)
-      return
-    }
-    if (Number.isNaN(rendementNum) || Number.isNaN(epargneNum) || Number.isNaN(depenseNum) || Number.isNaN(tauxNum)) return
-    const delai = setTimeout(() => {
-      setErreurFire(null)
-      api
-        .getFire({
-          rendement_annuel_pct: rendementNum,
-          epargne_mensuelle: epargneNum,
-          depense_annuelle_cible: depenseNum,
-          taux_retrait_pct: tauxNum,
-        })
-        .then(setFire)
-        .catch((err) => setErreurFire(err.message))
-    }, 300)
-    return () => clearTimeout(delai)
-  }, [rendement, epargne, depenseCible, tauxRetrait])
+    api
+      .getPatrimoineNet()
+      .then((p) => {
+        setPatrimoineNetActuel(p.patrimoine_net)
+        setCapital(String(p.patrimoine_net))
+      })
+      .catch(() => {
+        // Dégradé plutôt que bloquant : le calculateur reste utilisable en saisissant
+        // un capital de départ à la main si le patrimoine net échoue à charger.
+      })
+      .finally(() => setChargementPatrimoine(false))
+  }, [])
 
-  const data = simulation?.points.map((p) => ({ annee: p.annee, Patrimoine: p.valeur })) ?? []
+  const capitalNum = Number(capital)
+  const tauxNum = Number(taux)
+  const versementNum = Number(versement)
+  const valide =
+    capital !== '' &&
+    taux !== '' &&
+    versement !== '' &&
+    !Number.isNaN(capitalNum) &&
+    !Number.isNaN(tauxNum) &&
+    !Number.isNaN(versementNum) &&
+    capitalNum >= 0 &&
+    versementNum >= 0
+
+  const points = useMemo(
+    () => (valide ? calculerTrajectoire(capitalNum, tauxNum, versementNum, duree) : []),
+    [valide, capitalNum, tauxNum, versementNum, duree],
+  )
+  // Le tableau de détail (mensuel/annuel) part de la même trajectoire mensuelle que
+  // le graphique — dérivée une seule fois ici, agrégée par année à la demande —
+  // pour ne jamais afficher des chiffres qui pourraient diverger entre les deux vues.
+  const pointsMensuels: PointMensuel[] = useMemo(
+    () => (valide ? calculerTrajectoireMensuelle(capitalNum, tauxNum, versementNum, duree) : []),
+    [valide, capitalNum, tauxNum, versementNum, duree],
+  )
+  const pointsAnnuels: PointAnnuel[] = useMemo(() => agregerParAnnee(pointsMensuels), [pointsMensuels])
+
+  const dernierPoint = points[points.length - 1]
+  const valeurFinale = dernierPoint?.valeur ?? 0
+  const totalVerse = dernierPoint?.investi ?? 0
+  const gains = arrondi(valeurFinale - totalVerse)
+
+  const data = points.map((p) => ({ annee: p.annee, Investi: p.investi, Gains: arrondi(p.valeur - p.investi) }))
+
+  const depenseCibleNum = Number(depenseCible)
+  const tauxRetraitNum = Number(tauxRetrait)
+  const fireValide = valide && depenseCible !== '' && depenseCibleNum > 0 && tauxRetrait !== '' && tauxRetraitNum > 0
+  const fire = useMemo(
+    () => (fireValide ? calculerFire(capitalNum, tauxNum, versementNum, depenseCibleNum, tauxRetraitNum) : null),
+    [fireValide, capitalNum, tauxNum, versementNum, depenseCibleNum, tauxRetraitNum],
+  )
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Simulateur</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Projection du patrimoine net actuel ({simulation ? formatEuro(simulation.valeur_depart, 0) : '…'}) selon des
-          hypothèses de rendement et d'épargne — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
-          jamais de façon aussi régulière dans la réalité.
+          Projette un capital dans le temps — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
+          jamais de façon aussi régulière dans la réalité. Préempli avec ton patrimoine net actuel, mais librement modifiable
+          pour tester n'importe quel autre scénario.
         </p>
       </div>
 
       <Card title="Hypothèses">
         <div className="flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            Rendement annuel moyen (%)
+            Capital de départ (€)
             <input
-              value={rendement}
-              onChange={(e) => setRendement(e.target.value)}
+              value={capital}
+              onChange={(e) => setCapital(e.target.value)}
               type="number"
               step="any"
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              min={0}
+              disabled={chargementPatrimoine}
+              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            />
+            {patrimoineNetActuel !== null && capitalNum !== patrimoineNetActuel && (
+              <button
+                type="button"
+                onClick={() => setCapital(String(patrimoineNetActuel))}
+                className="mt-0.5 text-left text-xs font-normal text-slate-400 underline hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                Revenir au patrimoine net actuel ({formatEuro(patrimoineNetActuel, 0)})
+              </button>
+            )}
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+            Rendement annuel moyen (%)
+            <input
+              value={taux}
+              onChange={(e) => setTaux(e.target.value)}
+              type="number"
+              step="any"
+              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            Épargne mensuelle ajoutée (€)
+            Versement mensuel (€)
             <input
-              value={epargne}
-              onChange={(e) => setEpargne(e.target.value)}
+              value={versement}
+              onChange={(e) => setVersement(e.target.value)}
               type="number"
               step="any"
-              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              min={0}
+              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
           <div className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            Horizon
+            Durée
             <div className="flex gap-1">
-              {HORIZONS.map((h) => (
+              {DUREES.map((d) => (
                 <button
-                  key={h}
-                  onClick={() => setHorizon(h)}
+                  key={d}
+                  onClick={() => setDuree(d)}
                   className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                    horizon === h
+                    duree === d
                       ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
                   }`}
                 >
-                  {h} ans
+                  {d} ans
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {erreurSimulation && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{erreurSimulation}</p>}
+        {chargementPatrimoine && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Chargement du patrimoine net...</p>}
+        {!chargementPatrimoine && !valide && (
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400">Renseigne des valeurs numériques positives.</p>
+        )}
 
-        {data.length > 0 && (
-          <ResponsiveContainer width="100%" height={280} className="mt-4">
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
-              <XAxis dataKey="annee" tickFormatter={(v) => `+${v} an${v > 1 ? 's' : ''}`} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-              <YAxis tickFormatter={(v) => formatEuro(Number(v), 0)} width={90} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-              <Tooltip
-                formatter={(value) => formatEuro(Number(value), 0)}
-                labelFormatter={(v) => `Dans ${v} an${Number(v) > 1 ? 's' : ''}`}
-                {...STYLE_INFOBULLE}
-              />
-              <Line type="monotone" dataKey="Patrimoine" stroke="#2563eb" dot={false} strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+        {!chargementPatrimoine && valide && (
+          <>
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <StatTile label="Valeur finale" value={formatEuro(valeurFinale, 0)} />
+              <StatTile label="Total versé" value={formatEuro(totalVerse, 0)} />
+              <StatTile label="Dont intérêts gagnés" value={formatEuro(gains, 0)} tone="good" />
+            </div>
+
+            <ResponsiveContainer width="100%" height={280} className="mt-4">
+              <AreaChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
+                <XAxis
+                  dataKey="annee"
+                  tickFormatter={(v) => `+${v} an${v > 1 ? 's' : ''}`}
+                  tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
+                  stroke={COULEUR_AXE}
+                />
+                <YAxis tickFormatter={(v) => formatEuro(Number(v), 0)} width={90} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+                <Tooltip
+                  formatter={(value) => formatEuro(Number(value), 0)}
+                  labelFormatter={(v) => `Dans ${v} an${Number(v) > 1 ? 's' : ''}`}
+                  {...STYLE_INFOBULLE}
+                />
+                <Area type="monotone" dataKey="Investi" stackId="1" stroke="#94a3b8" fill="#cbd5e1" />
+                <Area type="monotone" dataKey="Gains" stackId="1" stroke="#16a34a" fill="#86efac" />
+              </AreaChart>
+            </ResponsiveContainer>
+
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Détail par période</h3>
+              <div className="flex gap-1">
+                {(['annuelle', 'mensuelle'] as Vue[]).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setVue(v)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                      vue === v
+                        ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    {v === 'annuelle' ? 'Annuelle' : 'Mensuelle'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 max-h-96 overflow-y-auto overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white dark:bg-slate-800">
+                  <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    <th scope="col" className="py-2 pl-3 pr-4">
+                      Période
+                    </th>
+                    <th scope="col" className="py-2 pr-4 text-right">
+                      Versements
+                    </th>
+                    <th scope="col" className="py-2 pr-4 text-right">
+                      Intérêts
+                    </th>
+                    <th scope="col" className="py-2 pr-4 text-right">
+                      Capital
+                    </th>
+                    <th scope="col" className="py-2 pr-4 text-right">
+                      Versé cumulé
+                    </th>
+                    <th scope="col" className="py-2 pr-4 text-right">
+                      Intérêts à date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {vue === 'annuelle'
+                    ? pointsAnnuels.map((p) => (
+                        <tr key={p.annee}>
+                          <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
+                            {p.annee === 0 ? 'Départ' : `An ${p.annee}`}
+                          </td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versements)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules)}</td>
+                        </tr>
+                      ))
+                    : pointsMensuels.map((p) => (
+                        <tr key={p.moisIndex}>
+                          <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
+                            {p.annee === 0 ? 'Départ' : `An ${p.annee} · mois ${p.moisDeLAnnee}`}
+                          </td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versement)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules)}</td>
+                        </tr>
+                      ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
 
       <Card title="Indépendance financière (FIRE)">
         <p className="mb-4 text-xs text-slate-400 dark:text-slate-500">
           Le taux de retrait par défaut (4 %) est un choix méthodologique connu sous le nom de « règle des 4 % » — pas une
-          vérité universelle, à ajuster selon ta propre prudence.
+          vérité universelle, à ajuster selon ta propre prudence. Utilise le capital de départ, le rendement et le versement
+          mensuel renseignés ci-dessus.
         </p>
         <div className="flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -173,23 +301,21 @@ export default function SimulateurPage() {
           </label>
         </div>
 
-        {erreurFire && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{erreurFire}</p>}
-
         {!depenseCible && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Renseigne une dépense annuelle cible pour voir le résultat.</p>}
 
         {fire && depenseCible && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <StatTile label="Patrimoine nécessaire" value={formatEuro(fire.patrimoine_necessaire, 0)} />
+            <StatTile label="Patrimoine nécessaire" value={formatEuro(fire.patrimoineNecessaire, 0)} />
             <StatTile
               label="Indépendance financière"
               value={
-                fire.annees_avant_independance === null
+                fire.anneesAvantIndependance === null
                   ? 'Non atteinte (60 ans)'
-                  : fire.annees_avant_independance === 0
+                  : fire.anneesAvantIndependance === 0
                     ? 'Déjà atteinte'
-                    : `Dans ${fire.annees_avant_independance} ans`
+                    : `Dans ${fire.anneesAvantIndependance} ans`
               }
-              tone={fire.annees_avant_independance === null ? 'warning' : 'good'}
+              tone={fire.anneesAvantIndependance === null ? 'warning' : 'good'}
             />
           </div>
         )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { agregerParAnnee, calculerTrajectoire, calculerTrajectoireMensuelle } from './interetsComposes'
+import { agregerParAnnee, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle } from './interetsComposes'
 
 describe('calculerTrajectoire — intérêts composés mensuels + versement mensuel', () => {
   it('taux nul, sans versement : la valeur ne bouge jamais', () => {
@@ -85,5 +85,37 @@ describe('agregerParAnnee', () => {
     // La somme des intérêts mensuels de l'année 2 doit égaler l'intérêt annuel agrégé.
     const sommeInteretsAnnee2 = mensuel.filter((p) => p.annee === 2).reduce((acc, p) => acc + p.interets, 0)
     expect(annuel[2].interets).toBeCloseTo(sommeInteretsAnnee2, 6)
+  })
+})
+
+// Scénarios repris de l'ancien module backend `simulation_service.py`
+// (`test_simulation_service.py`) : même formule, même comportement attendu, pour
+// garantir que la migration côté client n'a rien changé au calcul.
+describe('calculerFire', () => {
+  it('patrimoine nécessaire = dépense / taux de retrait (règle des 4 %)', () => {
+    const resultat = calculerFire(0, 0, 0, 40000, 4)
+    expect(resultat.patrimoineNecessaire).toBeCloseTo(1_000_000, 6)
+  })
+
+  it('déjà indépendant : 0 année, patrimoine nécessaire inchangé', () => {
+    const resultat = calculerFire(1_500_000, 5, 0, 40000, 4)
+    expect(resultat.patrimoineNecessaire).toBeCloseTo(1_000_000, 6)
+    expect(resultat.anneesAvantIndependance).toBe(0)
+  })
+
+  it('sans rendement, 10 000€/mois pour 1 000 000€ : exactement 100 mois ≈ 8,3 ans', () => {
+    const resultat = calculerFire(0, 0, 10000, 40000, 4)
+    expect(resultat.anneesAvantIndependance).toBeCloseTo(8.3, 6)
+  })
+
+  it("non atteint dans l'horizon de 60 ans sans rendement ni versement : null", () => {
+    const resultat = calculerFire(0, 0, 0, 1_000_000, 4)
+    expect(resultat.anneesAvantIndependance).toBeNull()
+  })
+
+  it('un taux de retrait plus bas exige un patrimoine plus important', () => {
+    const resultat4 = calculerFire(0, 5, 0, 40000, 4)
+    const resultat3 = calculerFire(0, 5, 0, 40000, 3)
+    expect(resultat3.patrimoineNecessaire).toBeGreaterThan(resultat4.patrimoineNecessaire)
   })
 })
