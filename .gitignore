@@ -10,3 +10,6 @@ htmlcov/
 
 # Sauvegardes locales de la base (contiennent tes données financières)
 backend/sauvegardes/
+
+# Sortie générée par l'outil graphify (graphe de code régénérable, cf. graphify-out/manifest.json)
+graphify-out/
