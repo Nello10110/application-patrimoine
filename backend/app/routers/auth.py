@@ -13,22 +13,22 @@ from ..services import auth_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-MESSAGE_EMAIL_DEJA_UTILISE = "Un compte existe déjà avec cet email."
-MESSAGE_IDENTIFIANTS_INVALIDES = "Email ou mot de passe incorrect."
+MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE = "Ce nom d'utilisateur est déjà pris."
+MESSAGE_IDENTIFIANTS_INVALIDES = "Nom d'utilisateur ou mot de passe incorrect."
 
 
 @router.post("/register", response_model=AuthResponse)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    if auth_service.utilisateur_par_email(db, payload.email) is not None:
-        raise HTTPException(status_code=400, detail=MESSAGE_EMAIL_DEJA_UTILISE)
-    user = auth_service.creer_utilisateur(db, payload.email, payload.password)
+    if auth_service.utilisateur_par_username(db, payload.username) is not None:
+        raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
+    user = auth_service.creer_utilisateur(db, payload.username, payload.password)
     token = auth_service.creer_token(db, user)
     return AuthResponse(token=token.token, user=UserOut.model_validate(user))
 
 
 @router.post("/login", response_model=AuthResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = auth_service.utilisateur_par_email(db, payload.email)
+    user = auth_service.utilisateur_par_username(db, payload.username)
     if user is None or not auth_service.verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
     token = auth_service.creer_token(db, user)

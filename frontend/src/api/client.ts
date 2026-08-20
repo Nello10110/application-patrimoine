@@ -89,10 +89,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Authentification (Milestone 1, multi-utilisateur)
-  login: (email: string, password: string) =>
-    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  register: (email: string, password: string) =>
-    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (username: string, password: string) =>
+    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  register: (username: string, password: string) =>
+    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getMe: () => request<AuthUser>('/auth/me'),
 

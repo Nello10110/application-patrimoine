@@ -315,7 +315,11 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    # Pseudo, pas une adresse email (LOT multi-utilisateur suite) : plus simple à
+    # retenir/afficher (avatar+nom en haut à droite de l'écran) pour une appli locale
+    # entre quelques comptes d'un même foyer, où aucune fonctionnalité (récupération
+    # de mot de passe par email...) n'a jamais dépendu du format email.
+    username: Mapped[str] = mapped_column(String, unique=True, index=True)
     # Format `pbkdf2_sha256$<iterations>$<sel>$<hash>` (cf. `services/auth_service.py`) :
     # le nombre d'itérations est stocké dans le hash lui-même, pour pouvoir l'augmenter
     # plus tard sans invalider les mots de passe déjà enregistrés.

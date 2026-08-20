@@ -57,15 +57,35 @@ function BasculeTheme() {
   )
 }
 
-function BoutonDeconnexion() {
-  const { logout } = useAuth()
+// Avatar généré (pas d'upload d'image, initiale + couleur dérivée du nom
+// d'utilisateur — déterministe, donc stable d'une connexion à l'autre). Cliquer
+// dessus déconnecte directement : pas de menu déroulant, c'est la seule action
+// proposée ici.
+function couleurAvatar(nom: string): string {
+  let hash = 0
+  for (const c of nom) hash = (hash * 31 + c.charCodeAt(0)) % 360
+  return `hsl(${hash}, 55%, 42%)`
+}
+
+function AvatarUtilisateur() {
+  const { user, logout } = useAuth()
+  if (!user) return null
+  const initiale = user.username.trim().charAt(0).toUpperCase() || '?'
   return (
     <button
       type="button"
       onClick={logout}
-      className="rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+      title="Se déconnecter"
+      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
     >
-      Déconnexion
+      <span
+        aria-hidden="true"
+        className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold text-white"
+        style={{ backgroundColor: couleurAvatar(user.username) }}
+      >
+        {initiale}
+      </span>
+      <span className="hidden sm:inline">{user.username}</span>
     </button>
   )
 }
@@ -112,7 +132,7 @@ function AppAuthentifiee() {
             ))}
           </nav>
           <BasculeTheme />
-          <BoutonDeconnexion />
+          <AvatarUtilisateur />
         </div>
       </header>
 

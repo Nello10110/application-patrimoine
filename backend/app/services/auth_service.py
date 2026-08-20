@@ -44,12 +44,12 @@ def verify_password(password: str, stored: str) -> bool:
     return secrets.compare_digest(digest.hex(), hash_attendu)
 
 
-def utilisateur_par_email(db: Session, email: str) -> User | None:
-    return db.query(User).filter(User.email == email.strip().lower()).first()
+def utilisateur_par_username(db: Session, username: str) -> User | None:
+    return db.query(User).filter(User.username == username.strip()).first()
 
 
-def creer_utilisateur(db: Session, email: str, password: str) -> User:
-    user = User(email=email.strip().lower(), password_hash=hash_password(password))
+def creer_utilisateur(db: Session, username: str, password: str) -> User:
+    user = User(username=username.strip(), password_hash=hash_password(password))
     db.add(user)
     db.commit()
     db.refresh(user)

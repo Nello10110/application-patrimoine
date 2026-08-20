@@ -2,7 +2,7 @@
 // `/auth/register` et `/auth/login`.
 export interface AuthUser {
   id: number
-  email: string
+  username: string
 }
 
 export interface AuthResponse {

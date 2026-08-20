@@ -7,7 +7,7 @@ type Mode = 'connexion' | 'creation'
 export default function LoginPage() {
   const { login, register } = useAuth()
   const [mode, setMode] = useState<Mode>('connexion')
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -17,8 +17,8 @@ export default function LoginPage() {
     setSaving(true)
     setError(null)
     try {
-      if (mode === 'connexion') await login(email, password)
-      else await register(email, password)
+      if (mode === 'connexion') await login(username, password)
+      else await register(username, password)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -58,13 +58,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-              Email
+              Nom d'utilisateur
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               />
             </label>

@@ -31,8 +31,8 @@ def client_reel(db):
         app.dependency_overrides.pop(get_current_user, None)
 
 
-def _inscrire(client_reel, email="paul@example.com", password="mot-de-passe-solide"):
-    return client_reel.post("/api/auth/register", json={"email": email, "password": password})
+def _inscrire(client_reel, username="paul", password="mot-de-passe-solide"):
+    return client_reel.post("/api/auth/register", json={"username": username, "password": password})
 
 
 def test_inscription_cree_un_compte_et_renvoie_un_jeton(client_reel):
@@ -40,11 +40,11 @@ def test_inscription_cree_un_compte_et_renvoie_un_jeton(client_reel):
 
     assert reponse.status_code == 200
     corps = reponse.json()
-    assert corps["user"]["email"] == "paul@example.com"
+    assert corps["user"]["username"] == "paul"
     assert corps["token"]
 
 
-def test_inscription_email_deja_utilise_renvoie_400(client_reel):
+def test_inscription_nom_utilisateur_deja_utilise_renvoie_400(client_reel):
     _inscrire(client_reel)
 
     reponse = _inscrire(client_reel)
@@ -53,7 +53,7 @@ def test_inscription_email_deja_utilise_renvoie_400(client_reel):
 
 
 def test_inscription_mot_de_passe_trop_court_renvoie_400(client_reel):
-    reponse = client_reel.post("/api/auth/register", json={"email": "paul@example.com", "password": "court"})
+    reponse = client_reel.post("/api/auth/register", json={"username": "paul", "password": "court"})
 
     assert reponse.status_code == 400
 
@@ -61,7 +61,7 @@ def test_inscription_mot_de_passe_trop_court_renvoie_400(client_reel):
 def test_connexion_bons_identifiants(client_reel):
     _inscrire(client_reel)
 
-    reponse = client_reel.post("/api/auth/login", json={"email": "paul@example.com", "password": "mot-de-passe-solide"})
+    reponse = client_reel.post("/api/auth/login", json={"username": "paul", "password": "mot-de-passe-solide"})
 
     assert reponse.status_code == 200
     assert reponse.json()["token"]
@@ -70,13 +70,13 @@ def test_connexion_bons_identifiants(client_reel):
 def test_connexion_mauvais_mot_de_passe_renvoie_401(client_reel):
     _inscrire(client_reel)
 
-    reponse = client_reel.post("/api/auth/login", json={"email": "paul@example.com", "password": "mauvais"})
+    reponse = client_reel.post("/api/auth/login", json={"username": "paul", "password": "mauvais"})
 
     assert reponse.status_code == 401
 
 
-def test_connexion_email_inconnu_renvoie_401(client_reel):
-    reponse = client_reel.post("/api/auth/login", json={"email": "inconnu@example.com", "password": "peu importe"})
+def test_connexion_nom_utilisateur_inconnu_renvoie_401(client_reel):
+    reponse = client_reel.post("/api/auth/login", json={"username": "inconnu", "password": "peu importe"})
 
     assert reponse.status_code == 401
 
@@ -99,7 +99,7 @@ def test_me_avec_jeton_valide_renvoie_lutilisateur(client_reel):
     reponse = client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
 
     assert reponse.status_code == 200
-    assert reponse.json()["email"] == "paul@example.com"
+    assert reponse.json()["username"] == "paul"
 
 
 def test_logout_revoque_le_jeton(client_reel):

@@ -31,21 +31,21 @@ def test_verify_password_format_invalide_ne_leve_pas():
     assert auth_service.verify_password("peu importe", "pas-un-hash-valide") is False
 
 
-def test_creer_utilisateur_normalise_lemail(db):
-    user = auth_service.creer_utilisateur(db, "  Paul@Example.com  ", "mot-de-passe-solide")
-    assert user.email == "paul@example.com"
-    assert auth_service.utilisateur_par_email(db, "PAUL@EXAMPLE.COM") is not None
+def test_creer_utilisateur_normalise_les_espaces_du_nom_dutilisateur(db):
+    user = auth_service.creer_utilisateur(db, "  paul  ", "mot-de-passe-solide")
+    assert user.username == "paul"
+    assert auth_service.utilisateur_par_username(db, "paul") is not None
 
 
 def test_creer_token_expire_dans_le_futur(db):
-    user = auth_service.creer_utilisateur(db, "paul@example.com", "mot-de-passe-solide")
+    user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
     token = auth_service.creer_token(db, user)
     assert token.expires_at > token.created_at
     assert (token.expires_at - token.created_at) == timedelta(days=auth_service.TOKEN_TTL_JOURS)
 
 
 def test_utilisateur_par_token_retrouve_le_bon_utilisateur(db):
-    user = auth_service.creer_utilisateur(db, "paul@example.com", "mot-de-passe-solide")
+    user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
     token = auth_service.creer_token(db, user)
 
     retrouve = auth_service.utilisateur_par_token(db, token.token)
@@ -59,7 +59,7 @@ def test_utilisateur_par_token_absent_renvoie_none(db):
 
 
 def test_utilisateur_par_token_expire_renvoie_none(db):
-    user = auth_service.creer_utilisateur(db, "paul@example.com", "mot-de-passe-solide")
+    user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
     token = auth_service.creer_token(db, user)
     token.expires_at = token.created_at - timedelta(days=1)
     db.commit()
@@ -68,7 +68,7 @@ def test_utilisateur_par_token_expire_renvoie_none(db):
 
 
 def test_supprimer_token_revoque_laccess(db):
-    user = auth_service.creer_utilisateur(db, "paul@example.com", "mot-de-passe-solide")
+    user = auth_service.creer_utilisateur(db, "paul", "mot-de-passe-solide")
     token = auth_service.creer_token(db, user)
 
     auth_service.supprimer_token(db, token.token)

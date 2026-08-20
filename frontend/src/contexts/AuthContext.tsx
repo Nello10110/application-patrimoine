@@ -34,13 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
-      login: async (email, password) => {
-        const { token, user: connecte } = await api.login(email, password)
+      login: async (username, password) => {
+        const { token, user: connecte } = await api.login(username, password)
         setToken(token)
         setUser(connecte)
       },
-      register: async (email, password) => {
-        const { token, user: cree } = await api.register(email, password)
+      register: async (username, password) => {
+        const { token, user: cree } = await api.register(username, password)
         setToken(token)
         setUser(cree)
       },

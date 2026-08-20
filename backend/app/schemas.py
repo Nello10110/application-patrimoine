@@ -706,18 +706,19 @@ class ZoneGeographiqueInfo(BaseModel):
 
 
 MESSAGE_MOT_DE_PASSE_TROP_COURT = "Le mot de passe doit contenir au moins 8 caractères"
+MESSAGE_NOM_UTILISATEUR_INVALIDE = "Le nom d'utilisateur doit contenir entre 2 et 32 caractères"
 
 
 class RegisterRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
-    @field_validator("email")
+    @field_validator("username")
     @classmethod
-    def _valider_email(cls, v: str) -> str:
-        v = v.strip().lower()
-        if "@" not in v or v.startswith("@") or v.endswith("@"):
-            raise ValueError("Adresse email invalide")
+    def _valider_username(cls, v: str) -> str:
+        v = v.strip()
+        if not (2 <= len(v) <= 32):
+            raise ValueError(MESSAGE_NOM_UTILISATEUR_INVALIDE)
         return v
 
     @field_validator("password")
@@ -729,7 +730,7 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
 
@@ -737,7 +738,7 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    email: str
+    username: str
 
 
 class AuthResponse(BaseModel):

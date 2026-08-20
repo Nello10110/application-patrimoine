@@ -431,6 +431,29 @@ l'écran de connexion, patrimoine net réel (10 999 €) et les 49 positions ré
 une fois connecté (aucune perte de données), déconnexion → jeton effacé → tout appel API renvoie 401
 → reconnexion fonctionnelle.
 
+**Complément du même jour** : connexion par **nom d'utilisateur** plutôt qu'email (`User.email` →
+`User.username`, sans contrainte de format — un pseudo, pas une adresse email, plus adapté à une
+appli locale entre quelques comptes d'un même foyer où rien n'a jamais dépendu du format email).
+Avatar généré (initiale + couleur dérivée déterministiquement du nom, pas d'upload d'image) affiché
+en haut à droite avec le nom d'utilisateur (`App.tsx`, composant `AvatarUtilisateur`) — cliquer
+dessus déconnecte directement, sans menu intermédiaire. Un compte `demo`/`demo` a été créé
+directement en base (en contournant volontairement la validation de longueur minimale du mot de
+passe, réservée à l'inscription en libre-service) pour permettre une démonstration rapide sans
+créer de compte personnel.
+
+**Incident rencontré et corrigé pendant ce complément** : le rechargement à chaud (`uvicorn --reload`)
+du backend s'est bloqué après une modification de `models.py` (log `WatchFiles detected changes...
+Reloading...` jamais suivi de `Started server process`/`Application startup complete`) — le process
+worker d'origine a continué à servir les requêtes avec l'ancien schéma (`email` requis) alors que le
+code sur disque attendait déjà `username`, provoquant des `400 Bad Request` incompréhensibles au
+premier abord. Diagnostiqué en comparant les PID/horodatages des process Python actifs
+(`Get-Process python`) au dernier redémarrage loggé, confirmé par un `fetch` direct depuis la
+console navigateur (contournant le frontend pour isoler le problème côté serveur). Résolu par un
+redémarrage complet (kill + relance) plutôt que de faire confiance au rechargement à chaud après un
+changement de modèle SQLAlchemy — accessoirement, ceci confirme qu'un changement de schéma est un
+des cas où `--reload` n'est pas fiable, à garder en tête pour la suite (Milestone 2, qui va justement
+beaucoup toucher aux modèles).
+
 Points 2 à 6 restent `non traités` : c'est là qu'est le vrai risque (isolation des données par
 utilisateur, sur de vraies données financières) — délibérément un Milestone séparé, à planifier une
 fois ce socle d'authentification éprouvé dans le temps, pas dans la foulée.

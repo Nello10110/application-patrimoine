@@ -33,7 +33,7 @@ vi.mock('./api/client', () => ({
 // de ce fichier le suppose déjà.
 beforeEach(() => {
   localStorage.setItem('patrimoine_auth_token', 'jeton-de-test')
-  vi.mocked(api.getMe).mockResolvedValue({ id: 1, email: 'test@example.com' })
+  vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur' })
 })
 
 describe('App — en-tête', () => {
@@ -47,17 +47,20 @@ describe('App — en-tête', () => {
     expect(await screen.findByRole('link', { name: 'Application Patrimoine' })).toHaveAttribute('href', '/')
   })
 
-  it('propose un bouton de déconnexion qui efface le jeton stocké', async () => {
+  it("affiche l'avatar et le nom de l'utilisateur connecté, qui déconnecte au clic", async () => {
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>,
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Déconnexion' }))
+    const avatar = await screen.findByRole('button', { name: 'testeur' })
+    expect(avatar).toHaveAttribute('title', 'Se déconnecter')
+
+    fireEvent.click(avatar)
 
     await waitFor(() => expect(localStorage.getItem('patrimoine_auth_token')).toBeNull())
-    expect(await screen.findByLabelText('Email')).toBeInTheDocument()
+    expect(await screen.findByLabelText("Nom d'utilisateur")).toBeInTheDocument()
   })
 })
 

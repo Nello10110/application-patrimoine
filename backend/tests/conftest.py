@@ -75,7 +75,7 @@ def client(db):
     def _override_get_db():
         yield db
 
-    utilisateur_test = User(email="test@example.com", password_hash="inutilisé")
+    utilisateur_test = User(username="test", password_hash="inutilisé")
     db.add(utilisateur_test)
     db.commit()
 
