@@ -17,14 +17,17 @@ function libelleAnnee(offset: number): string {
 
 /** Mois calendaire projeté, `offset` mois après aujourd'hui — calé sur le 1er du
  * mois pour éviter les débordements de `Date` en fin de mois (le 31 janvier + 1
- * mois ne doit jamais silencieusement retomber en mars). */
+ * mois ne doit jamais silencieusement retomber en mars). Ordre « année mois »
+ * (ex. « 2027 Mars ») plutôt que l'ordre habituel du français (« mars 2027 ») :
+ * cohérent avec le tri chronologique des lignes du tableau, l'année ressort en
+ * premier au lieu d'être reléguée en fin de libellé. */
 function libelleMoisAnnee(offset: number): string {
   const maintenant = new Date()
   const totalMois = maintenant.getMonth() + offset
   const annee = maintenant.getFullYear() + Math.floor(totalMois / 12)
   const mois = ((totalMois % 12) + 12) % 12
-  const libelle = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-  return libelle.charAt(0).toUpperCase() + libelle.slice(1)
+  const nomMois = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long' })
+  return `${annee} ${nomMois.charAt(0).toUpperCase()}${nomMois.slice(1)}`
 }
 
 /** Simulateur de patrimoine, indépendance financière (FIRE) et calculateur
@@ -134,7 +137,7 @@ export default function SimulateurPage() {
       </div>
 
       <Card title="Hypothèses">
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Capital de départ (€)
             <input
@@ -144,17 +147,29 @@ export default function SimulateurPage() {
               step="any"
               min={0}
               disabled={chargementPatrimoine}
-              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
             {patrimoineNetActuel !== null && capitalNum !== patrimoineNetActuel && (
               <button
                 type="button"
                 onClick={() => setCapital(String(patrimoineNetActuel))}
-                className="mt-0.5 text-left text-xs font-normal text-slate-400 underline hover:text-slate-600 dark:hover:text-slate-300"
+                className="text-left text-xs font-normal text-slate-400 underline hover:text-slate-600 dark:hover:text-slate-300"
               >
                 Revenir au patrimoine net actuel ({formatEuro(patrimoineNetActuel, 0)})
               </button>
             )}
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+            Intérêts déjà obtenus (€)
+            <input
+              value={interetsDejaObtenus}
+              onChange={(e) => setInteretsDejaObtenus(e.target.value)}
+              type="number"
+              step="any"
+              min={0}
+              placeholder="optionnel"
+              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             Rendement annuel moyen (%)
@@ -163,7 +178,7 @@ export default function SimulateurPage() {
               onChange={(e) => setTaux(e.target.value)}
               type="number"
               step="any"
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -174,44 +189,34 @@ export default function SimulateurPage() {
               type="number"
               step="any"
               min={0}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            Intérêts déjà obtenus (€, facultatif)
-            <input
-              value={interetsDejaObtenus}
-              onChange={(e) => setInteretsDejaObtenus(e.target.value)}
-              type="number"
-              step="any"
-              min={0}
-              placeholder="0"
-              className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-            />
-          </label>
-          <div className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            Durée
-            <div className="flex gap-1">
-              {DUREES.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDuree(d)}
-                  className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                    duree === d
-                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  {d} ans
-                </button>
-              ))}
-            </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          Durée
+          <div className="flex gap-1">
+            {DUREES.map((d) => (
+              <button
+                key={d}
+                onClick={() => setDuree(d)}
+                className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                  duree === d
+                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                }`}
+              >
+                {d} ans
+              </button>
+            ))}
           </div>
         </div>
-        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          « Intérêts déjà obtenus » : la part du capital de départ déjà constituée de gains plutôt que de versements — pour
-          un tableau de détail qui distingue les vrais intérêts déjà gagnés des futurs. Préempli avec le gain/perte de ton
-          portefeuille financier, librement modifiable ou effaçable.
+
+        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+          « Intérêts déjà obtenus » (optionnel) : la part du capital de départ déjà constituée de gains plutôt que de
+          versements — pour un tableau de détail qui distingue les vrais intérêts déjà gagnés des futurs. Préempli avec le
+          gain/perte de ton portefeuille financier, librement modifiable ou effaçable.
         </p>
 
         {chargementPatrimoine && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Chargement du patrimoine net...</p>}

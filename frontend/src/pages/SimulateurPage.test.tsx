@@ -48,8 +48,8 @@ function moisAnneeAttendu(offset: number): string {
   const totalMois = maintenant.getMonth() + offset
   const annee = maintenant.getFullYear() + Math.floor(totalMois / 12)
   const mois = ((totalMois % 12) + 12) % 12
-  const libelle = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-  return libelle.charAt(0).toUpperCase() + libelle.slice(1)
+  const nomMois = new Date(annee, mois, 1).toLocaleDateString('fr-FR', { month: 'long' })
+  return `${annee} ${nomMois.charAt(0).toUpperCase()}${nomMois.slice(1)}`
 }
 
 // Intl.NumberFormat insère une espace insécable fine entre le nombre et « € » :
