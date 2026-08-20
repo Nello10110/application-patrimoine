@@ -26,11 +26,13 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Vue d'ensemble : patrimoine net (actifs/passifs/net, répartition par classe d'actif), année sélectionnable, bandeau d'alertes de rééquilibrage, évolution du portefeuille, rentabilité globale, répartition réel vs cible, qualité des données de répartition, répartition par compte (si annotée), indicateurs de risque, recommandations |
+| Tableau de bord | `/` | Vue d'ensemble : patrimoine net (actifs/passifs/net, répartition par classe d'actif), année sélectionnable, évolution du portefeuille, rentabilité globale, répartition réel vs cible, qualité des données de répartition, coût de gestion consolidé, répartition par compte (si annotée), indicateurs de risque, indicateur de rééquilibrage (compteur, renvoie vers l'écran dédié) |
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/portefeuille/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | Détail d'une position : valorisation, rendements, émetteur/résumé, look-through géo/secteur, historique de prix |
 | Objectifs | `/objectifs` | Définition des cibles de répartition géo/sectorielle par année, année sélectionnable parmi celles réellement enregistrées |
+| Rééquilibrage | `/recommandations` | Détail complet des alertes et des actions de rééquilibrage recommandées pour l'année sélectionnée — sorti du Tableau de bord pour ne pas y encombrer la vue d'ensemble |
 | Simulateur | `/simulateur` | Projection du patrimoine net à horizon réglable (5/10/20/30 ans) selon des hypothèses de rendement et d'épargne mensuelle ; calcul d'indépendance financière (FIRE) à partir d'une dépense annuelle cible et d'un taux de retrait |
+| Outils | `/outils` | Calculs génériques indépendants du patrimoine suivi : calculateur d'intérêts composés (capital de départ, taux, versement mensuel, durée), calculé entièrement côté client |
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
 | Rapport | `/rapport` | Rapport récapitulatif d'un mois choisi (sélecteur), généré à la demande : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements du mois |
 | Import | `/import` | Import de l'historique de transactions ou d'un relevé de positions |
@@ -146,7 +148,9 @@ légitimement inférieure à 100 % du fonds.
 
 Pour chaque catégorie (géo ou secteur) dont l'écart entre poids réel et poids cible dépasse **2 points**, une **recommandation** est calculée : réduire ou augmenter la catégorie du montant en euros nécessaire pour revenir à la cible. Aucun titre précis n'est recommandé — l'utilisateur reste seul décideur des instruments.
 
-Une **alerte** est un sous-ensemble des recommandations dont l'écart absolu dépasse un **seuil réglable** (par défaut 5 points, modifiable depuis les Réglages) — jamais un recalcul distinct. La distinction est volontaire : une recommandation informe simplement d'un écart mesuré (consultable à la demande, sur le Tableau de bord), une alerte réclame une action et est mise en avant dans un bandeau visible dès le chargement de la page, sans que l'utilisateur ait à aller la chercher.
+Une **alerte** est un sous-ensemble des recommandations dont l'écart absolu dépasse un **seuil réglable** (par défaut 5 points, modifiable depuis les Réglages) — jamais un recalcul distinct.
+
+Le détail complet (alertes et recommandations, catégorie par catégorie) vit sur un écran dédié, `/recommandations` : le Tableau de bord n'affiche plus qu'un **indicateur** résumé (nombre d'actions recommandées, dont nombre d'alertes) avec un lien vers ce détail, pour ne pas encombrer la vue d'ensemble d'une liste pouvant compter plusieurs dizaines de lignes sur un portefeuille peu diversifié.
 
 ### 3.7 Multi-compte
 
@@ -216,6 +220,10 @@ Aucun nouveau calcul de fond : uniquement une agrégation par mois de données d
 ### 3.15 Application installable (PWA, roadmap Phase 3, § H.1)
 
 Le frontend est installable comme une application (icône, plein écran) via un manifeste web et un service worker générés par `vite-plugin-pwa` (Workbox) au moment du build — jamais écrits à la main, pour éviter le piège classique d'un service worker maison qui sert indéfiniment une version périmée. L'API (`/api/*`) est explicitement exclue du cache du service worker (`navigateFallbackDenylist`) : les données financières affichées viennent toujours du backend en direct, jamais d'une réponse mise en cache hors-ligne — seuls les fichiers statiques du build (JS, CSS, icônes) bénéficient du cache.
+
+### 3.16 Outils génériques
+
+L'écran Outils (`/outils`) regroupe des calculs indépendants du patrimoine suivi par l'application — aucune donnée personnelle en jeu, aucun appel réseau. Le **calculateur d'intérêts composés** (`frontend/src/utils/interetsComposes.ts`) applique la même formule que le Simulateur (§ 3.12, intérêts composés **mensuels** + versement mensuel constant), mais calculée entièrement côté client plutôt que via le backend : contrairement au Simulateur, ce calculateur ne part pas du patrimoine net réel de l'utilisateur, un aller-retour serveur n'aurait donc rien apporté pour un calcul aussi simple.
 
 ## 4. Modèle de données (tables principales)
 

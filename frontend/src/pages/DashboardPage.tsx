@@ -197,53 +197,30 @@ export default function DashboardPage() {
 
           {modal && <CompositionModal type={modal.type} categorie={modal.categorie} onClose={() => setModal(null)} />}
 
-          {analysis.alertes.length > 0 && (
-            <details className="group rounded-xl border border-amber-300 bg-amber-50 p-5 shadow-sm dark:border-amber-400/30 dark:bg-amber-950/40">
-              <summary className="cursor-pointer list-none text-sm font-semibold text-amber-800 marker:content-none dark:text-amber-300">
-                <span className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
-                {analysis.alertes.length} alerte{analysis.alertes.length > 1 ? 's' : ''} de rééquilibrage
-              </summary>
-              <ul className="mt-3 space-y-1 pl-4">
-                {analysis.alertes.map((alerte) => (
-                  <li key={`${alerte.type}-${alerte.categorie}`} className="text-sm text-amber-800 dark:text-amber-200/90">
-                    <span className="font-medium">{alerte.categorie}</span> ({alerte.type === 'geo' ? 'géographie' : 'secteur'}) :
-                    écart de {alerte.ecart_pourcentage > 0 ? '+' : ''}
-                    {alerte.ecart_pourcentage}% par rapport à l'objectif
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-
-          <Card title="Actions de rééquilibrage recommandées">
-            {analysis.recommandations.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {hasNoTargets || hasNoHoldings
-                  ? 'Renseigne un portefeuille et des objectifs pour voir les recommandations.'
-                  : 'Portefeuille bien aligné avec les objectifs, aucune action nécessaire.'}
-              </p>
-            ) : (
-              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
-                {analysis.recommandations.map((action) => (
-                  <li key={`${action.type}-${action.categorie}`} className="flex items-center justify-between py-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{action.categorie}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {action.type === 'geo' ? 'Géographie' : 'Secteur'} · écart de {action.ecart_pourcentage > 0 ? '+' : ''}
-                        {action.ecart_pourcentage}%
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-sm font-semibold ${action.sens === 'reduire' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}
-                      >
-                        {action.sens === 'reduire' ? 'Réduire' : 'Augmenter'} de {formatEuro(action.montant_a_ajuster, 0)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <Card title="Rééquilibrage">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p
+                  className={`text-2xl font-semibold ${analysis.alertes.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'}`}
+                >
+                  {analysis.recommandations.length} action{analysis.recommandations.length > 1 ? 's' : ''} recommandée
+                  {analysis.recommandations.length > 1 ? 's' : ''}
+                </p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  {analysis.alertes.length > 0
+                    ? `dont ${analysis.alertes.length} alerte${analysis.alertes.length > 1 ? 's' : ''} au-delà du seuil réglé dans Réglages`
+                    : hasNoTargets || hasNoHoldings
+                      ? 'Renseigne un portefeuille et des objectifs pour voir les recommandations.'
+                      : 'Portefeuille bien aligné avec les objectifs.'}
+                </p>
+              </div>
+              <Link
+                to="/recommandations"
+                className="shrink-0 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+              >
+                Voir le détail
+              </Link>
+            </div>
           </Card>
         </>
       )}

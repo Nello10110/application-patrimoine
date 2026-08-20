@@ -64,12 +64,25 @@ Une action individuelle ou une crypto n'affiche pas de camembert de composition 
 
 Sélectionner une année dans la liste (alimentée par les années réellement enregistrées), ou en ajouter une nouvelle par le champ dédié, puis ajuster les pourcentages cibles de répartition géographique et sectorielle (pré-remplis avec une répartition de référence à la première utilisation d'une année). Chaque catégorie peut être modifiée, supprimée, ou une nouvelle ajoutée. Le total doit sommer à 100 % (indiqué en vert quand c'est le cas). **Enregistrer** sauvegarde les objectifs de l'année sélectionnée.
 
+## Écran Rééquilibrage
+
+Détail complet des alertes et des actions de rééquilibrage recommandées pour l'année sélectionnée (sélecteur propre à cet écran) — sorti du Tableau de bord, qui n'en garde qu'un indicateur résumé avec un lien vers cet écran.
+
+- **Alertes** : sous-ensemble des recommandations dont l'écart dépasse le seuil réglé dans Réglages, mises en avant en haut de l'écran.
+- **Actions de rééquilibrage recommandées** : liste complète des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster (réduire ou augmenter) pour chaque catégorie.
+
 ## Écran Simulateur
 
 Projette le patrimoine net actuel dans le temps — une **hypothèse**, pas une promesse : les marchés ne progressent jamais de façon aussi régulière dans la réalité.
 
 - **Hypothèses** : rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), épargne mensuelle ajoutée (€), horizon (boutons 5/10/20/30 ans). Le graphique se met à jour automatiquement après un court délai à chaque changement.
 - **Indépendance financière (FIRE)** : renseigner une dépense annuelle cible et un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique parmi d'autres, pas une vérité universelle, librement modifiable) affiche le patrimoine nécessaire pour vivre de ce patrimoine, et le délai estimé pour l'atteindre avec les mêmes hypothèses de rendement/épargne que ci-dessus. Au-delà de 60 ans de projection, le résultat affiche « Non atteinte » plutôt qu'un nombre d'années trop lointain pour être fiable.
+
+## Écran Outils
+
+Calculs génériques, indépendants du patrimoine suivi par l'application — rien n'est envoyé au serveur, tout se calcule dans le navigateur.
+
+- **Calculateur d'intérêts composés** : capital de départ, taux annuel moyen, versement mensuel et durée (boutons 5/10/20/30 ans) donnent la valeur finale, le total versé et les intérêts gagnés, avec un graphique étagé (capital versé + gains). Utile pour tester un scénario sans qu'il soit rattaché au patrimoine réellement suivi.
 
 ## Écran Dividendes
 
@@ -82,8 +95,7 @@ Rapport récapitulatif d'un mois choisi via le sélecteur en haut à droite (par
 ## Tableau de bord
 
 - **Patrimoine net** : en tout premier sur l'écran, distinct du reste (indépendant de l'année sélectionnée) — actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER), passifs (somme des emprunts), patrimoine net, et une répartition par grande classe d'actif. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
-- **Sélecteur d'année**, en haut à droite : change l'année de comparaison réel/cible sur tout l'écran (répartitions, recommandations, alertes), sans toucher à la rentabilité globale ni à la répartition par compte, indépendantes de l'année. Le bouton **Actualiser** recharge toutes les données de l'écran.
-- **Bandeau d'alertes** : apparaît en haut de l'écran dès qu'un écart entre répartition réelle et objectif dépasse le seuil réglé dans les Réglages (5 points par défaut), avec le détail de chaque écart concerné.
+- **Sélecteur d'année**, en haut à droite : change l'année de comparaison réel/cible sur tout l'écran (répartitions, indicateur de rééquilibrage), sans toucher à la rentabilité globale ni à la répartition par compte, indépendantes de l'année. Le bouton **Actualiser** recharge toutes les données de l'écran.
 - **Évolution du portefeuille** : graphique avec sélecteur d'échelle et un mode étagé qui distingue le capital investi des gains cumulés.
 - **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net), autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits une seconde fois.
 - **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer sur une barre ouvre le détail des lignes qui composent cette catégorie.
@@ -91,14 +103,14 @@ Rapport récapitulatif d'un mois choisi via le sélecteur en haut à droite (par
 - **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est récupéré qu'une fois par fonds, au fil des rafraîchissements, donc la couverture peut rester partielle un moment après l'ajout d'un nouveau fonds ; le message le rappelle explicitement tant qu'elle n'atteint pas 100 %.
 - **Répartition par compte** : n'apparaît que si au moins une ligne porte une annotation de compte. Rappelle explicitement qu'aucune rentabilité par compte n'est calculable, seule la valeur actuelle l'est (le grand livre importé ne porte aucune information de compte).
 - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne, concentration géographique.
-- **Actions de rééquilibrage recommandées** : liste des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster. Un sous-ensemble de ces écarts, ceux qui dépassent le seuil d'alerte, est repris dans le bandeau d'alertes en haut de l'écran.
+- **Rééquilibrage** : indicateur résumé (nombre d'actions recommandées, dont nombre d'alertes) avec un bouton **Voir le détail** vers l'écran dédié — le détail complet (catégorie par catégorie) n'est plus affiché ici.
 
 ## Écran Réglages
 
 ### Préférences
 
 - **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
-- **Alertes** : seuil d'écart, en points de pourcentage, au-delà duquel une recommandation de rééquilibrage devient une alerte mise en avant sur le tableau de bord.
+- **Alertes** : seuil d'écart, en points de pourcentage, au-delà duquel une recommandation de rééquilibrage devient une alerte mise en avant sur l'écran Rééquilibrage.
 
 ### Rafraîchissement automatique des données de marché
 

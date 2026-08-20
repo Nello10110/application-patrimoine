@@ -138,7 +138,7 @@ describe('DashboardPage — sélecteur d\'année', () => {
   })
 })
 
-describe('DashboardPage — bandeau d\'alerte (LOT 5.5)', () => {
+describe('DashboardPage — indicateur de rééquilibrage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.listTargetYears).mockResolvedValue([])
@@ -157,31 +157,32 @@ describe('DashboardPage — bandeau d\'alerte (LOT 5.5)', () => {
     })
   })
 
-  it('affiche le bandeau ambre replié par défaut, dépliable au clic', async () => {
+  it('affiche le nombre de recommandations et le nombre d\'alertes, avec un lien vers le détail', async () => {
     vi.mocked(api.getAnalysis).mockResolvedValue(
       analyse(CURRENT_YEAR, {
+        recommandations: [{ type: 'geo', categorie: 'Europe', ecart_pourcentage: 8.0, montant_a_ajuster: 100, sens: 'reduire' }],
         alertes: [{ type: 'geo', categorie: 'Europe', ecart_pourcentage: 8.0, montant_a_ajuster: 100, sens: 'reduire' }],
       }),
     )
     renderPage()
 
-    const resume = await screen.findByText(/1 alerte de rééquilibrage/)
-    const details = resume.closest('details')
-    expect(details).not.toBeNull()
-    expect(details).not.toHaveAttribute('open')
-
-    const { fireEvent } = await import('@testing-library/react')
-    fireEvent.click(resume)
-
-    expect(details).toHaveAttribute('open')
-    expect(screen.getByText('Europe')).toBeInTheDocument()
+    await screen.findByText(/1 action recommandée/)
+    expect(screen.getByText(/dont 1 alerte/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Voir le détail' })).toHaveAttribute('href', '/recommandations')
+    // Le détail (catégorie, montant) ne s'affiche plus sur le tableau de bord.
+    expect(screen.queryByText('Europe')).not.toBeInTheDocument()
   })
 
-  it("n'affiche aucun bandeau quand la liste d'alertes est vide", async () => {
-    vi.mocked(api.getAnalysis).mockResolvedValue(analyse(CURRENT_YEAR))
+  it("indique un portefeuille aligné quand il n'y a ni recommandation ni alerte", async () => {
+    vi.mocked(api.getAnalysis).mockResolvedValue(
+      // Un objectif défini (pourcentage_cible non nul) pour ne pas tomber dans le
+      // message "renseigne des objectifs" — ici on veut bien vérifier le message
+      // "portefeuille aligné".
+      analyse(CURRENT_YEAR, { geo: [{ categorie: 'Europe', valeur: 1000, pourcentage_reel: 100, pourcentage_cible: 100, ecart: 0 }] }),
+    )
     renderPage()
 
-    await waitFor(() => expect(api.getAnalysis).toHaveBeenCalled())
-    expect(screen.queryByText(/alerte de rééquilibrage/)).not.toBeInTheDocument()
+    await screen.findByText(/0 action recommandée/)
+    expect(screen.getByText(/Portefeuille bien aligné/)).toBeInTheDocument()
   })
 })

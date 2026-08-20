@@ -16,6 +16,20 @@ vi.mock('./pages/ImportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/ReglagesPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/AidePage', () => ({ default: () => <div /> }))
 vi.mock('./pages/SimulateurPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/OutilsPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/RecommandationsPage', () => ({ default: () => <div /> }))
+
+describe('App — en-tête', () => {
+  it('le titre "Application Patrimoine" est un lien vers le tableau de bord', () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Application Patrimoine' })).toHaveAttribute('href', '/')
+  })
+})
 
 describe('App — bouton de bascule du thème (LOT 5.12)', () => {
   it("affiche un bouton de bascule dans l'en-tête, qui fait cycler le thème au clic", () => {

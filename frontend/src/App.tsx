@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Link, NavLink, Route, Routes } from 'react-router-dom'
 import { useTheme, type Theme } from './hooks/useTheme'
 
 // Découpage par route (LOT 4.8) : `recharts` (utilisé par le Tableau de bord et la
@@ -14,8 +14,10 @@ const DividendesPage = lazy(() => import('./pages/DividendesPage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('./pages/ImportPage'))
 const ObjectifsPage = lazy(() => import('./pages/ObjectifsPage'))
+const OutilsPage = lazy(() => import('./pages/OutilsPage'))
 const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
 const RapportPage = lazy(() => import('./pages/RapportPage'))
+const RecommandationsPage = lazy(() => import('./pages/RecommandationsPage'))
 const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
 const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
 
@@ -23,7 +25,9 @@ const navItems = [
   { to: '/', label: 'Tableau de bord', end: true },
   { to: '/portefeuille', label: 'Portefeuille' },
   { to: '/objectifs', label: 'Objectifs' },
+  { to: '/recommandations', label: 'Rééquilibrage' },
   { to: '/simulateur', label: 'Simulateur' },
+  { to: '/outils', label: 'Outils' },
   { to: '/dividendes', label: 'Dividendes' },
   { to: '/rapport', label: 'Rapport' },
   { to: '/import', label: 'Import' },
@@ -59,7 +63,9 @@ function App() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <header className="border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Application Patrimoine</h1>
+          <Link to="/" className="text-lg font-semibold text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-slate-300">
+            Application Patrimoine
+          </Link>
           <nav className="flex gap-1">
             {navItems.map((item) => (
               <NavLink
@@ -89,7 +95,9 @@ function App() {
             <Route path="/portefeuille" element={<PortefeuillePage />} />
             <Route path="/portefeuille/:ticker" element={<HoldingDetailPage />} />
             <Route path="/objectifs" element={<ObjectifsPage />} />
+            <Route path="/recommandations" element={<RecommandationsPage />} />
             <Route path="/simulateur" element={<SimulateurPage />} />
+            <Route path="/outils" element={<OutilsPage />} />
             <Route path="/dividendes" element={<DividendesPage />} />
             <Route path="/rapport" element={<RapportPage />} />
             <Route path="/import" element={<ImportPage />} />
