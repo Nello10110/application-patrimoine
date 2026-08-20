@@ -576,21 +576,32 @@ dans le navigateur sur le vrai portefeuille (49 positions) : filtre par catégor
 positions, 305,23 €), tri par colonne (Valeur ↑), édition en ligne (Modifier/Annuler) et modale de
 suppression (BTC, annulée) tous fonctionnels sans régression.
 
-#### I.4 — `mineur` · `S` · — Migration de schéma limitée à l'ajout de colonnes
+#### I.4 — `mineur` · `S` · `P2` · `non traité` — Migration de schéma limitée à l'ajout de colonnes
 
 `database.run_startup_migrations` ajoute des colonnes nullable de façon idempotente
 (`ALTER TABLE ... ADD COLUMN`), mais ne sait ni renommer une colonne, ni changer un type, ni
 exécuter une migration de données complexe — ce qui a déjà nécessité des scripts one-off manuels
-par le passé (ex. `migrate_rename_categorie_autres`). Suffisant pour une base mono-utilisateur,
-mais deviendrait un vrai risque si le multi-utilisateur (§ 2.I.1) impose un jour une migration de
-données par utilisateur existant. À réévaluer (par exemple un vrai outil comme Alembic) seulement
-si I.1 est engagé — pas avant, ce serait de la complexité sans bénéfice actuel.
+par le passé (ex. `migrate_rename_categorie_autres`). Ce point notait que ce serait « un vrai
+risque » si le multi-utilisateur (§ 2.I.1) imposait un jour une migration de données par utilisateur
+existant — c'est exactement ce qui s'est produit au Milestone 2a : `migrate_isolation_utilisateur`
+a dû reconstruire `allocation_targets` à la main (renommer/recréer/recopier/supprimer, cf. détail
+Milestone 2a ci-dessus) et un bug de détection a fait planter le démarrage sur la vraie base avant
+d'être corrigé. Le risque prédit ici s'est donc concrètement matérialisé, pas juste en théorie.
+Reste `non traité` : adopter un vrai outil de migration (Alembic) est une décision d'architecture à
+part entière (nouvelle dépendance, nouveau paradigme de migration versionnée) — à proposer
+explicitement plutôt qu'à engager en marge d'un autre lot, mais désormais avec un incident réel à
+l'appui plutôt qu'une hypothèse.
 
-#### I.5 — `mineur` · `S` · `P3` · `non traité` — Pas de test sur l'isolation des données entre utilisateurs
+#### I.5 — `mineur` · `S` · `P3` · `traité` — Tests sur l'isolation des données entre utilisateurs
 
-Conséquence directe de I.1 : comme il n'existe aujourd'hui qu'un seul jeu de données, aucun test ne
-peut (ni ne devrait) vérifier une isolation qui n'existe pas encore. À poser en même temps que I.1
-si celui-ci est un jour engagé — pas un point à traiter isolément.
+Livré avec le Milestone 2a et complété au 2b : `tests/test_isolation_utilisateurs.py` (17 tests) —
+un test par endpoint/mécanisme scopé par utilisateur (holdings liste/détail/update/delete, même
+ticker chez deux comptes, emprunts, objectifs, export CSV, dédoublonnage d'import, reconstruction,
+patrimoine net, performance, préférences et leur effet sur la reconstruction), chacun créant une
+ligne pour le compte A puis vérifiant que le compte B ne la voit, ne la modifie ni ne la supprime.
+Complété par des tests de migration dédiés dans `test_migrations.py` qui rejouent la séquence exacte
+rencontrée en conditions réelles (`run_startup_migrations` puis `migrate_isolation_utilisateur`/
+`migrate_preferences_par_utilisateur` sur un schéma pré-2a/2b simulé).
 
 ---
 
