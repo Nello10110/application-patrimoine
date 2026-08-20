@@ -24,22 +24,28 @@ class ValuedHolding:
     a_des_donnees: bool
 
 
-def holdings_financiers(db: Session) -> list[Holding]:
+def holdings_financiers(db: Session, user_id: int) -> list[Holding]:
     """Portefeuille FINANCIER seul (actions/ETF/crypto/obligations/private equity, ou
     type non renseigné) — exclut l'immobilier/SCPI/assurance-vie/PER (Phase 1 de
     `docs/ROADMAP.md`, cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`), qui n'entrent ni
     dans le look-through géo/sectoriel, ni dans les objectifs, ni dans la rentabilité
     boursière (`performance_service.compute_performance`) — ils entrent en revanche
     dans le patrimoine net (`services/patrimoine_service.py`), qui n'utilise pas cette
-    fonction et reste sur `db.query(Holding).all()`.
+    fonction et reste sur `db.query(Holding).filter(Holding.user_id == user_id).all()`.
 
     `.notin_()` seul exclurait aussi les lignes `type_actif IS NULL` (sémantique SQL :
     `NULL NOT IN (...)` vaut NULL, pas TRUE) — `or_(.is_(None), ...)` les garde,
     puisqu'une ligne sans type renseigné est un cas normal du portefeuille financier
-    existant (saisie manuelle sans type précisé), pas un nouvel actif patrimonial."""
+    existant (saisie manuelle sans type précisé), pas un nouvel actif patrimonial.
+
+    `user_id` : Milestone 2a, multi-utilisateur — jamais le portefeuille d'un autre
+    compte."""
     return (
         db.query(Holding)
-        .filter(or_(Holding.type_actif.is_(None), Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL)))
+        .filter(
+            Holding.user_id == user_id,
+            or_(Holding.type_actif.is_(None), Holding.type_actif.notin_(TYPES_ACTIF_PATRIMOINE_MANUEL)),
+        )
         .all()
     )
 

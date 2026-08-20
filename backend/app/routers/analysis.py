@@ -4,8 +4,9 @@ recommandations de rééquilibrage, détail de composition d'une catégorie."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..auth import get_current_user
 from ..database import get_db
-from ..models import AllocationTarget
+from ..models import AllocationTarget, User
 from ..schemas import (
     AllocationBreakdownItem,
     AnalysisResponse,
@@ -22,14 +23,14 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
 @router.get("/composition", response_model=CategoryCompositionResponse)
-def get_category_composition(type: str, categorie: str, db: Session = Depends(get_db)):
+def get_category_composition(type: str, categorie: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if type not in ("geo", "sector"):
         raise HTTPException(status_code=400, detail="type doit être 'geo' ou 'sector'")
 
     # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
-    holdings = analysis_service.holdings_financiers(db)
+    holdings = analysis_service.holdings_financiers(db, current_user.id)
     valued = analysis_service.value_holdings(holdings)
     lignes = analysis_service.holdings_in_category(db, valued, type, categorie)
     valeur_totale = sum(l["valeur"] for l in lignes)
@@ -38,7 +39,7 @@ def get_category_composition(type: str, categorie: str, db: Session = Depends(ge
 
 
 @router.get("/comptes", response_model=RepartitionComptesResponse)
-def get_repartition_comptes(db: Session = Depends(get_db)):
+def get_repartition_comptes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Répartition de la valeur actuelle par compte (LOT 5.1) : cf. docstring de
     `analysis_service.repartition_par_compte` — aucune rentabilité par compte
     n'est ni calculée ni calculable, seule la valeur l'est. Déclarée AVANT
@@ -47,7 +48,7 @@ def get_repartition_comptes(db: Session = Depends(get_db)):
     # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
-    holdings = analysis_service.holdings_financiers(db)
+    holdings = analysis_service.holdings_financiers(db, current_user.id)
     valued = analysis_service.value_holdings(holdings)
     valeur_totale = sum(v.valeur for v in valued)
     items = analysis_service.repartition_par_compte(valued)
@@ -57,25 +58,25 @@ def get_repartition_comptes(db: Session = Depends(get_db)):
 
 
 @router.get("/cout-gestion", response_model=CoutGestionConsolide)
-def get_cout_gestion_consolide(db: Session = Depends(get_db)):
+def get_cout_gestion_consolide(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Coût de gestion annuel consolidé des fonds/ETF détenus (roadmap Phase 3, § E.3) :
     cf. docstring de `analysis_service.compute_cout_gestion_consolide`. Déclarée AVANT
     `/{annee}` pour la même raison que `/comptes` ci-dessus."""
-    holdings = analysis_service.holdings_financiers(db)
+    holdings = analysis_service.holdings_financiers(db, current_user.id)
     valued = analysis_service.value_holdings(holdings)
     return CoutGestionConsolide(**analysis_service.compute_cout_gestion_consolide(valued))
 
 
 @router.get("/{annee}", response_model=AnalysisResponse)
-def get_analysis(annee: int, db: Session = Depends(get_db)):
+def get_analysis(annee: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
-    holdings = analysis_service.holdings_financiers(db)
+    holdings = analysis_service.holdings_financiers(db, current_user.id)
     valued = analysis_service.value_holdings(holdings)
     valeur_totale = sum(v.valeur for v in valued)
 
-    targets = db.query(AllocationTarget).filter(AllocationTarget.annee == annee).all()
+    targets = db.query(AllocationTarget).filter(AllocationTarget.user_id == current_user.id, AllocationTarget.annee == annee).all()
     geo_cibles = {t.categorie: t.pourcentage_cible for t in targets if t.type == "geo"}
     sector_cibles = {t.categorie: t.pourcentage_cible for t in targets if t.type == "sector"}
 

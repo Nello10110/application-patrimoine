@@ -40,6 +40,9 @@ def _run_market_data_refresh() -> None:
     scheduler ni empêcher la prochaine exécution planifiée."""
     db = SessionLocal()
     try:
+        # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf.
+        # docs/BACKLOG.md § 2.I.1) : le cache de marché reste global, partagé par
+        # tous les comptes — ce job doit couvrir les tickers de tout le monde.
         items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
         market_data_service.refresh_tickers(db, items)
         _record_result(db, MARKET_DATA_REFRESH, "ok", f"{len(items)} position(s) rafraîchie(s)")
@@ -203,6 +206,9 @@ def run_job_now(db: Session, job_key: str) -> ScheduledJobConfig:
         raise KeyError(job_key)
 
     if job_key == MARKET_DATA_REFRESH:
+        # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf.
+        # docs/BACKLOG.md § 2.I.1) : le cache de marché reste global, partagé par
+        # tous les comptes — ce job doit couvrir les tickers de tout le monde.
         items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
 
         def _sur_fin(etat) -> None:

@@ -9,7 +9,7 @@ import pytest
 from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding
 from app.services.portfolio_reconstruction import EPSILON, compute_positions, rebuild_holdings
 
-from .conftest import make_holding, make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
 
 
 def test_achat_simple_quantite_et_cout_de_revient_avec_frais(db):
@@ -25,7 +25,7 @@ def test_achat_simple_quantite_et_cout_de_revient_avec_frais(db):
         tax=-2.0,
     )
 
-    positions = compute_positions(db)
+    positions = compute_positions(db, ID_UTILISATEUR_TEST)
     etat = positions["AAA"]
 
     assert etat.shares == 10.0
@@ -42,7 +42,7 @@ def test_achat_simple_cree_une_ligne_de_portefeuille(db):
         tax=-2.0,
     )
 
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     holding = db.query(Holding).filter(Holding.ticker == "AAA").one()
     assert holding.quantite == 10.0
@@ -53,7 +53,7 @@ def test_achats_successifs_cout_moyen_pondere(db):
     make_transaction(db, transaction_id="tx-1", symbol="BBB", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
     make_transaction(db, transaction_id="tx-2", symbol="BBB", shares=10.0, amount=-2000.0, datetime_utc=datetime(2024, 2, 1))
 
-    etat = compute_positions(db)["BBB"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["BBB"]
 
     assert etat.shares == 20.0
     assert etat.cost_basis == 3000.0
@@ -74,7 +74,7 @@ def test_vente_partielle_cout_moyen_et_gain_realise(db):
         datetime_utc=datetime(2024, 3, 1),
     )
 
-    etat = compute_positions(db)["CCC"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["CCC"]
 
     # Coût moyen avant vente = 150€/titre ; coût retiré = 150 * 5 = 750.
     assert etat.shares == 15.0
@@ -96,10 +96,10 @@ def test_position_retombee_a_zero_disparait_du_portefeuille(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    etat = compute_positions(db)["DDD"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["DDD"]
     assert abs(etat.shares) < EPSILON
 
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     assert db.query(Holding).filter(Holding.ticker == "DDD").count() == 0
 
 
@@ -118,13 +118,13 @@ def test_dividende_ne_modifie_jamais_la_quantite(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    etat = compute_positions(db)["EEE"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["EEE"]
     assert etat.shares == 10.0
 
 
 def test_operation_sur_titre_ajuste_quantite_a_cout_nul(db):
     make_transaction(db, transaction_id="tx-1", symbol="FFF", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    cost_basis_avant = compute_positions(db)["FFF"].cost_basis
+    cost_basis_avant = compute_positions(db, ID_UTILISATEUR_TEST)["FFF"].cost_basis
 
     # Action gratuite : ni TRADING/BUY-SELL, ni CASH/PRIVATE_MARKET_BUY, ni CASH/DIVIDEND.
     make_transaction(
@@ -138,7 +138,7 @@ def test_operation_sur_titre_ajuste_quantite_a_cout_nul(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    etat = compute_positions(db)["FFF"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["FFF"]
     assert etat.shares == 15.0
     assert etat.cost_basis == cost_basis_avant  # coût nul pour l'opération sur titre
 
@@ -153,7 +153,7 @@ def test_private_market_buy_une_part_egale_un_euro_investi(db):
         amount=-500.0,
     )
 
-    etat = compute_positions(db)["GGG"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["GGG"]
     assert etat.shares == 500.0
     assert etat.cost_basis == 500.0
 
@@ -173,7 +173,7 @@ def test_private_market_buy_frais_integres_au_cout_mais_pas_a_la_quantite(db):
         tax=-1.0,
     )
 
-    etat = compute_positions(db)["HHH"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST)["HHH"]
     assert etat.shares == 500.0  # quantité inchangée : -amount uniquement
     assert etat.cost_basis == 511.0  # 500 + 10 + 1 : coût de revient alourdi
 
@@ -196,14 +196,14 @@ def test_vente_sans_achat_correspondant_est_signalee_et_le_cout_reste_positif(db
     )
 
     with caplog.at_level(logging.WARNING, logger="patrimoine.reconstruction"):
-        etat = compute_positions(db)["III"]
+        etat = compute_positions(db, ID_UTILISATEUR_TEST)["III"]
 
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-6)  # jamais négatif, borné à zéro
     assert len(etat.anomalies) == 1
     assert any(r.levelname == "WARNING" and "III" in r.getMessage() for r in caplog.records)
 
     # Une quantité négative n'apparaît jamais dans le portefeuille reconstruit.
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     assert db.query(Holding).filter(Holding.ticker == "III").count() == 0
 
 
@@ -234,13 +234,13 @@ def test_vente_horodatee_avant_son_achat_ne_cree_pas_de_position_fantome(db, cap
     )
 
     with caplog.at_level(logging.WARNING, logger="patrimoine.reconstruction"):
-        etat = compute_positions(db)["KKK"]
+        etat = compute_positions(db, ID_UTILISATEUR_TEST)["KKK"]
 
     assert etat.shares == pytest.approx(0.0, abs=1e-9)
     assert etat.anomalies == []
     assert not [r for r in caplog.records if r.levelname == "WARNING"]
 
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     assert db.query(Holding).filter(Holding.ticker == "KKK").count() == 0
 
 
@@ -256,7 +256,7 @@ def test_rebuild_holdings_remonte_le_nombre_d_anomalies(db):
         datetime_utc=datetime(2024, 2, 1),
     )
 
-    resultat = rebuild_holdings(db)
+    resultat = rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     assert resultat.positions_recalculees == 0  # la position JJJ retombe à 0 -> disparaît du portefeuille
     assert resultat.anomalies_detectees == 1
@@ -265,7 +265,7 @@ def test_rebuild_holdings_remonte_le_nombre_d_anomalies(db):
 def test_rebuild_holdings_zero_anomalie_cas_nominal(db):
     make_transaction(db, symbol="KKK", shares=10.0, amount=-1000.0)
 
-    resultat = rebuild_holdings(db)
+    resultat = rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     assert resultat.positions_recalculees == 1
     assert resultat.anomalies_detectees == 0
@@ -282,7 +282,7 @@ def test_rebuild_holdings_preserve_une_ligne_manuelle_sans_ticker_correspondant(
     make_holding(db, ticker="MANUEL_SEUL", quantite=3.0, origine=ORIGINE_MANUEL)
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
 
-    resultat = rebuild_holdings(db)
+    resultat = rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     assert resultat.positions_recalculees == 1
     assert resultat.lignes_manuelles_remplacees == 0
@@ -299,7 +299,7 @@ def test_rebuild_holdings_remplace_une_ligne_manuelle_avec_ticker_identique(db, 
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
 
     with caplog.at_level(logging.WARNING):
-        resultat = rebuild_holdings(db)
+        resultat = rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     assert resultat.positions_recalculees == 1
     assert resultat.lignes_manuelles_remplacees == 1
@@ -318,7 +318,7 @@ def test_rebuild_holdings_ne_touche_pas_aux_autres_lignes_manuelles(db):
     make_holding(db, ticker="ZZZ", quantite=5.0, origine=ORIGINE_MANUEL)
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
 
-    resultat = rebuild_holdings(db)
+    resultat = rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     assert resultat.lignes_manuelles_remplacees == 1
     ligne_zzz = db.query(Holding).filter(Holding.ticker == "ZZZ").one()
@@ -338,7 +338,7 @@ def test_rebuild_holdings_preserve_le_compte_annote_manuellement(db):
     le second import (qui vide puis recrée les lignes reconstruites) l'effacerait
     silencieusement — verrou direct de la correction."""
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
     ligne.compte = "PEA"
@@ -347,7 +347,7 @@ def test_rebuild_holdings_preserve_le_compte_annote_manuellement(db):
     # Deuxième import (simulé) : nouvelles transactions arrivent, la reconstruction
     # est rejouée comme le ferait `routers/transactions.import_transactions`.
     make_transaction(db, transaction_id="tx-2", symbol="AAA", shares=5.0, amount=-600.0)
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     ligne_recreee = db.query(Holding).filter(Holding.ticker == "AAA").one()
     assert ligne_recreee.compte == "PEA"
@@ -358,7 +358,7 @@ def test_rebuild_holdings_sans_compte_annote_reste_a_none(db):
     """Une ligne jamais annotée ne se voit pas attribuer un compte par accident."""
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
 
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
     assert ligne.compte is None
@@ -402,13 +402,13 @@ def test_fifo_vs_cout_moyen_pondere_gains_realises_et_prix_de_revient_different(
         db, transaction_id="tx-4", symbol="AAA", type="SELL", shares=-20.0, amount=5000.0, datetime_utc=datetime(2024, 4, 1)
     )
 
-    etat_moyen = compute_positions(db, methode="cout_moyen_pondere")["AAA"]
+    etat_moyen = compute_positions(db, ID_UTILISATEUR_TEST, methode="cout_moyen_pondere")["AAA"]
     assert etat_moyen.shares == 10.0
     assert round(etat_moyen.realized_gain, 2) == 1000.00
     assert round(etat_moyen.cost_basis, 2) == 2000.00
     assert round(etat_moyen.cost_basis / etat_moyen.shares, 2) == 200.00
 
-    etat_fifo = compute_positions(db, methode="fifo")["AAA"]
+    etat_fifo = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["AAA"]
     assert etat_fifo.shares == 10.0
     assert round(etat_fifo.realized_gain, 2) == 2000.00
     assert round(etat_fifo.cost_basis, 2) == 3000.00
@@ -425,8 +425,8 @@ def test_fifo_defaut_reste_cout_moyen_pondere_sans_reglage_en_base(db):
     make_transaction(db, transaction_id="tx-1", symbol="BBB", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
     make_transaction(db, transaction_id="tx-2", symbol="BBB", shares=10.0, amount=-2000.0, datetime_utc=datetime(2024, 2, 1))
 
-    etat_defaut = compute_positions(db)["BBB"]
-    etat_moyen = compute_positions(db, methode="cout_moyen_pondere")["BBB"]
+    etat_defaut = compute_positions(db, ID_UTILISATEUR_TEST)["BBB"]
+    etat_moyen = compute_positions(db, ID_UTILISATEUR_TEST, methode="cout_moyen_pondere")["BBB"]
 
     assert etat_defaut.cost_basis == etat_moyen.cost_basis == 3000.0
     assert etat_defaut.shares == etat_moyen.shares == 20.0
@@ -442,7 +442,7 @@ def test_fifo_operation_sur_titre_a_cout_nul_empile_un_lot_a_cout_nul(db):
         db, transaction_id="tx-3", symbol="CCC", type="SELL", shares=-5.0, amount=600.0, datetime_utc=datetime(2024, 3, 1)
     )
 
-    etat = compute_positions(db, methode="fifo")["CCC"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["CCC"]
 
     # Les 5 titres vendus proviennent entièrement du lot gratuit (coût nul) :
     # tout le produit de la vente est un gain réalisé.
@@ -460,7 +460,7 @@ def test_fifo_vente_avec_lots_insuffisants_ne_retire_pas_plus_que_le_cout_dispon
         db, transaction_id="tx-2", symbol="DDD", type="SELL", shares=-15.0, amount=1800.0, datetime_utc=datetime(2024, 2, 1)
     )
 
-    etat = compute_positions(db, methode="fifo")["DDD"]
+    etat = compute_positions(db, ID_UTILISATEUR_TEST, methode="fifo")["DDD"]
 
     assert etat.cost_basis == pytest.approx(0.0, abs=1e-6)
     assert len(etat.anomalies) == 1

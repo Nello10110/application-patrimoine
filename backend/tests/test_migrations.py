@@ -14,6 +14,20 @@ import app.database as database_module
 from app.database import Base
 from app.models import ORIGINE_RECONSTRUIT
 
+# Multi-utilisateur (Milestone 2a) : `allocation_targets`/`holdings` exigent
+# désormais un `user_id` — ce module travaille sur des bases jetables dédiées (pas
+# la fixture `db` partagée de `conftest.py`), donc chaque test qui insère des lignes
+# directement en SQL crée d'abord ce compte minimal.
+ID_UTILISATEUR_TEST = 1
+
+
+def _creer_utilisateur_test(engine) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO users (id, username, password_hash, created_at) VALUES (:id, 'test', 'inutilisé', datetime('now'))"),
+            {"id": ID_UTILISATEUR_TEST},
+        )
+
 
 def test_ajout_colonne_source_sur_base_preexistante(tmp_path, monkeypatch):
     """`fund_composition` créée avant l'ajout de la colonne `source` (schéma figé,
@@ -83,10 +97,10 @@ def _inserer_objectif(engine, annee, type_, categorie, pourcentage):
     with engine.begin() as conn:
         conn.execute(
             text(
-                "INSERT INTO allocation_targets (annee, type, categorie, pourcentage_cible) "
-                "VALUES (:annee, :type_, :categorie, :pourcentage)"
+                "INSERT INTO allocation_targets (user_id, annee, type, categorie, pourcentage_cible) "
+                "VALUES (:user_id, :annee, :type_, :categorie, :pourcentage)"
             ),
-            {"annee": annee, "type_": type_, "categorie": categorie, "pourcentage": pourcentage},
+            {"user_id": ID_UTILISATEUR_TEST, "annee": annee, "type_": type_, "categorie": categorie, "pourcentage": pourcentage},
         )
 
 
@@ -95,6 +109,7 @@ def test_renommage_autres_vers_autres_zones_et_autres_secteurs(tmp_path, monkeyp
     test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
     database_module.Base.metadata.create_all(bind=test_engine)
     monkeypatch.setattr(database_module, "engine", test_engine)
+    _creer_utilisateur_test(test_engine)
 
     _inserer_objectif(test_engine, 2026, "geo", "Autres", 16.65)
     _inserer_objectif(test_engine, 2026, "sector", "Autres", 5.0)
@@ -120,6 +135,7 @@ def test_renommage_autres_idempotent(tmp_path, monkeypatch):
     test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
     database_module.Base.metadata.create_all(bind=test_engine)
     monkeypatch.setattr(database_module, "engine", test_engine)
+    _creer_utilisateur_test(test_engine)
 
     _inserer_objectif(test_engine, 2026, "geo", "Autres", 16.65)
 
@@ -147,6 +163,7 @@ def test_renommage_autres_ne_ecrase_pas_une_ligne_deja_migree(tmp_path, monkeypa
     test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
     database_module.Base.metadata.create_all(bind=test_engine)
     monkeypatch.setattr(database_module, "engine", test_engine)
+    _creer_utilisateur_test(test_engine)
 
     _inserer_objectif(test_engine, 2026, "geo", "Autres", 16.65)
     _inserer_objectif(test_engine, 2026, "geo", "Autres zones", 10.0)
@@ -359,3 +376,137 @@ def test_deux_bases_vides_preferent_le_nouveau_nom(tmp_path, monkeypatch):
     (tmp_path / "portfolio.db").write_bytes(b"")
 
     assert database_module._chemin_base_par_defaut().name == "patrimoine.db"
+
+
+# ---------------------------------------------------------------------------
+# Milestone 2a — migrate_isolation_utilisateur : rattachement au compte demo et
+# correction des contraintes d'unicité devenues trop larges.
+# ---------------------------------------------------------------------------
+
+
+def _creer_ancienne_base_pre_milestone_2a(chemin) -> None:
+    """Simule le schéma tel qu'il existait juste après le Milestone 1 (comptes/
+    jetons déjà en place, mais AUCUNE des 4 tables métier n'a encore de `user_id` —
+    `holdings`/`loans`/`transactions` sans la colonne, `allocation_targets` avec sa
+    contrainte unique à 3 colonnes d'origine, `transactions.transaction_id` avec son
+    index unique nommé d'origine)."""
+    conn = sqlite3.connect(chemin)
+    conn.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR UNIQUE, password_hash VARCHAR, created_at DATETIME)")
+    conn.execute("INSERT INTO users (id, username, password_hash, created_at) VALUES (1, 'demo', 'x', '2026-01-01')")
+
+    conn.execute("CREATE TABLE holdings (id INTEGER PRIMARY KEY, ticker VARCHAR, quantite FLOAT, origine VARCHAR)")
+    conn.execute("INSERT INTO holdings (ticker, quantite, origine) VALUES ('AAPL', 10.0, 'reconstruit')")
+
+    conn.execute("CREATE TABLE loans (id INTEGER PRIMARY KEY, libelle VARCHAR, capital_initial FLOAT)")
+    conn.execute("INSERT INTO loans (libelle, capital_initial) VALUES ('Crédit', 100000.0)")
+
+    conn.execute(
+        "CREATE TABLE transactions (id INTEGER PRIMARY KEY, transaction_id VARCHAR, datetime_utc DATETIME, "
+        "date VARCHAR, category VARCHAR, type VARCHAR, amount FLOAT, fee FLOAT, tax FLOAT, created_at DATETIME)"
+    )
+    conn.execute("CREATE UNIQUE INDEX ix_transactions_transaction_id ON transactions (transaction_id)")
+    conn.execute(
+        "INSERT INTO transactions (transaction_id, datetime_utc, date, category, type, amount, fee, tax, created_at) "
+        "VALUES ('tx-1', '2024-01-01', '2024-01-01', 'TRADING', 'BUY', -100.0, 0.0, 0.0, '2024-01-01')"
+    )
+
+    conn.execute(
+        "CREATE TABLE allocation_targets (id INTEGER PRIMARY KEY, annee INTEGER, type VARCHAR, categorie VARCHAR, "
+        "pourcentage_cible FLOAT, UNIQUE (annee, type, categorie))"
+    )
+    conn.execute(
+        "INSERT INTO allocation_targets (annee, type, categorie, pourcentage_cible) VALUES (2026, 'geo', 'Europe', 100.0)"
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_migrate_isolation_utilisateur_rattache_les_lignes_existantes_au_compte_demo(tmp_path, monkeypatch):
+    chemin = tmp_path / "base_pre_2a.db"
+    _creer_ancienne_base_pre_milestone_2a(chemin)
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.run_startup_migrations()
+    database_module.migrate_isolation_utilisateur()
+
+    with test_engine.connect() as conn:
+        assert conn.execute(text("SELECT ticker, user_id FROM holdings")).fetchall() == [("AAPL", 1)]
+        assert conn.execute(text("SELECT libelle, user_id FROM loans")).fetchall() == [("Crédit", 1)]
+        assert conn.execute(text("SELECT transaction_id, user_id FROM transactions")).fetchall() == [("tx-1", 1)]
+        assert conn.execute(text("SELECT categorie, user_id FROM allocation_targets")).fetchall() == [("Europe", 1)]
+
+    test_engine.dispose()
+
+
+def test_migrate_isolation_utilisateur_idempotent(tmp_path, monkeypatch):
+    chemin = tmp_path / "base_pre_2a_idempotent.db"
+    _creer_ancienne_base_pre_milestone_2a(chemin)
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.run_startup_migrations()
+    database_module.migrate_isolation_utilisateur()
+    database_module.migrate_isolation_utilisateur()  # ne doit rien casser ni dupliquer
+
+    with test_engine.connect() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM holdings")).scalar() == 1
+        assert conn.execute(text("SELECT COUNT(*) FROM allocation_targets")).scalar() == 1
+
+    test_engine.dispose()
+
+
+def test_migrate_isolation_utilisateur_autorise_deux_utilisateurs_sur_le_meme_objectif(tmp_path, monkeypatch):
+    """La contrainte unique de `allocation_targets` doit devenir (user_id, annee,
+    type, categorie) — avant la migration, un second utilisateur avec le même
+    (année, type, catégorie) que le compte demo aurait violé l'ancienne contrainte
+    à 3 colonnes."""
+    chemin = tmp_path / "base_pre_2a_contrainte.db"
+    _creer_ancienne_base_pre_milestone_2a(chemin)
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.run_startup_migrations()
+    database_module.migrate_isolation_utilisateur()
+
+    with test_engine.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, username, password_hash, created_at) VALUES (2, 'autre', 'x', '2026-01-01')"))
+        # Même (annee, type, categorie) que la ligne demo — doit passer, propriétaire différent.
+        conn.execute(
+            text(
+                "INSERT INTO allocation_targets (user_id, annee, type, categorie, pourcentage_cible) "
+                "VALUES (2, 2026, 'geo', 'Europe', 42.0)"
+            )
+        )
+
+    with test_engine.connect() as conn:
+        lignes = conn.execute(text("SELECT user_id, categorie, pourcentage_cible FROM allocation_targets ORDER BY user_id")).fetchall()
+    assert lignes == [(1, "Europe", 100.0), (2, "Europe", 42.0)]
+
+    test_engine.dispose()
+
+
+def test_migrate_isolation_utilisateur_autorise_meme_transaction_id_pour_deux_utilisateurs(tmp_path, monkeypatch):
+    chemin = tmp_path / "base_pre_2a_transactions.db"
+    _creer_ancienne_base_pre_milestone_2a(chemin)
+    test_engine = create_engine(f"sqlite:///{chemin}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database_module, "engine", test_engine)
+
+    database_module.run_startup_migrations()
+    database_module.migrate_isolation_utilisateur()
+
+    with test_engine.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, username, password_hash, created_at) VALUES (2, 'autre', 'x', '2026-01-01')"))
+        # Même transaction_id que la ligne demo ('tx-1') — doit passer, propriétaire différent.
+        conn.execute(
+            text(
+                "INSERT INTO transactions (user_id, transaction_id, datetime_utc, date, category, type, amount, fee, tax, created_at) "
+                "VALUES (2, 'tx-1', '2024-01-01', '2024-01-01', 'TRADING', 'BUY', -50.0, 0.0, 0.0, '2024-01-01')"
+            )
+        )
+
+    with test_engine.connect() as conn:
+        compte = conn.execute(text("SELECT COUNT(*) FROM transactions WHERE transaction_id = 'tx-1'")).scalar()
+    assert compte == 2
+
+    test_engine.dispose()

@@ -33,6 +33,11 @@ def refresh(db: Session = Depends(get_db)):
     except market_data_refresh.RafraichissementTropFrequentError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
 
+    # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf. docs/BACKLOG.md
+    # § 2.I.1) : le cache de marché (MarketDataCache, FundComposition...) reste
+    # global, partagé par tous les comptes — ce rafraîchissement doit donc couvrir
+    # tous les tickers détenus par tout le monde, pas seulement ceux de qui l'a
+    # déclenché.
     items = [(row[0], row[1]) for row in db.query(Holding.ticker, Holding.type_actif).distinct().all()]
     try:
         return market_data_refresh.demarrer_rafraichissement(items)

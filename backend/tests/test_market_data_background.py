@@ -132,12 +132,17 @@ def test_erreur_dans_le_fil_reflechie_en_statut_erreur_sans_faire_planter_le_pro
 
 def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(monkeypatch):
     """Sans cette invalidation, le graphique d'évolution du tableau de bord
-    resterait figé jusqu'à 24h après une mise à jour des cours (LOT 4.5 vs LOT 4B)."""
+    resterait figé jusqu'à 24h après une mise à jour des cours (LOT 4.5 vs LOT 4B).
+    Rafraîchissement global (Milestone 2a) : le cache de CHAQUE utilisateur doit
+    être invalidé, pas seulement celui de qui l'a déclenché."""
+    cle = historique_cache.cle_historique_portefeuille(1)
+    cle_autre_utilisateur = historique_cache.cle_historique_portefeuille(2)
     db = SessionLocal()
     try:
-        cle = historique_cache.cle_historique_portefeuille()
         historique_cache.ecrire(db, cle, [{"date": "2024-01-01", "valeur_portefeuille": 100.0, "valeur_investie": 100.0}])
+        historique_cache.ecrire(db, cle_autre_utilisateur, [{"date": "2024-01-01", "valeur_portefeuille": 50.0, "valeur_investie": 50.0}])
         assert historique_cache.lire(db, cle) is not None
+        assert historique_cache.lire(db, cle_autre_utilisateur) is not None
     finally:
         db.close()
 
@@ -149,6 +154,7 @@ def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(m
     db = SessionLocal()
     try:
         assert historique_cache.lire(db, cle) is None
+        assert historique_cache.lire(db, cle_autre_utilisateur) is None
     finally:
         db.close()
 

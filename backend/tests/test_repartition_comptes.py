@@ -2,13 +2,15 @@
 jamais une rentabilité — cf. docstring de `analysis_service.repartition_par_compte`."""
 
 from app.models import Holding
+
+from .conftest import ID_UTILISATEUR_TEST
 from app.services.analysis_service import COMPTE_SANS_ANNOTATION, repartition_par_compte, value_holdings
 
 
 def test_repartition_par_compte_regroupe_les_lignes_annotees(db):
-    db.add(Holding(ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte="PEA"))
-    db.add(Holding(ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte="CTO"))
-    db.add(Holding(ticker="CCC", quantite=2.0, prix_revient_moyen=100.0, compte="PEA"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte="PEA"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte="CTO"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="CCC", quantite=2.0, prix_revient_moyen=100.0, compte="PEA"))
     db.commit()
 
     valued = value_holdings(db.query(Holding).all())
@@ -23,8 +25,8 @@ def test_repartition_par_compte_regroupe_les_lignes_annotees(db):
 
 
 def test_repartition_par_compte_regroupe_les_lignes_sans_annotation(db):
-    db.add(Holding(ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte=None))
-    db.add(Holding(ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte="CTO"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte=None))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte="CTO"))
     db.commit()
 
     valued = value_holdings(db.query(Holding).all())
@@ -40,7 +42,7 @@ def test_repartition_par_compte_portefeuille_vide():
 
 
 def test_route_comptes_signale_l_absence_d_annotation(client, db):
-    db.add(Holding(ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte=None))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte=None))
     db.commit()
 
     reponse = client.get("/api/analysis/comptes")
@@ -53,8 +55,8 @@ def test_route_comptes_signale_l_absence_d_annotation(client, db):
 
 
 def test_route_comptes_detecte_au_moins_une_ligne_annotee(client, db):
-    db.add(Holding(ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte="PEA"))
-    db.add(Holding(ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte=None))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=100.0, compte="PEA"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=100.0, compte=None))
     db.commit()
 
     corps = client.get("/api/analysis/comptes").json()

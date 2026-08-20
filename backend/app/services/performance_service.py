@@ -129,11 +129,12 @@ def xirr(cash_flows: list[tuple[datetime, float]]) -> float | None:
     return resultat_pct
 
 
-def compute_performance(db: Session, positions: dict[str, PositionState] | None = None) -> dict:
-    """`positions` : résultat déjà calculé de `portfolio_reconstruction.compute_positions(db)`,
+def compute_performance(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> dict:
+    """`user_id` : scope strictement à ce compte (Milestone 2a). `positions` :
+    résultat déjà calculé de `portfolio_reconstruction.compute_positions(db, user_id)`,
     à fournir par un appelant qui l'a déjà en main pour éviter de rejouer le grand livre une
     deuxième fois (cf. LOT 4.3) ; recalculé si omis, comportement inchangé."""
-    transactions = db.query(Transaction).order_by(Transaction.datetime_utc.asc()).all()
+    transactions = db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.datetime_utc.asc()).all()
 
     # Flux de revenus NETS (frais/taxes déjà intégrés, convention algébrique) : jamais
     # de `abs()` sur `fee`/`tax`, qui transformerait un remboursement (tax > 0) en charge.
@@ -171,12 +172,12 @@ def compute_performance(db: Session, positions: dict[str, PositionState] | None 
     # immobilier sans coût de base associé gonflerait le gain latent de sa valeur
     # entière. Ces actifs entrent dans le patrimoine net (`patrimoine_service.py`), pas
     # dans la rentabilité boursière.
-    holdings = analysis_service.holdings_financiers(db)
+    holdings = analysis_service.holdings_financiers(db, user_id)
     valued = analysis_service.value_holdings(holdings)
     valeur_positions = sum(v.valeur for v in valued)
 
     if positions is None:
-        positions = portfolio_reconstruction.compute_positions(db)
+        positions = portfolio_reconstruction.compute_positions(db, user_id)
     gains_realises = sum(state.realized_gain for state in positions.values())
     cout_base_ouvert = sum(state.cost_basis for state in positions.values() if state.shares > portfolio_reconstruction.EPSILON)
     gains_latents = valeur_positions - cout_base_ouvert
@@ -216,14 +217,14 @@ def compute_performance(db: Session, positions: dict[str, PositionState] | None 
     }
 
 
-def compute_dividend_calendar(db: Session) -> list[dict]:
+def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:
     """Dividendes perçus regroupés par mois calendaire (roadmap Phase 3, § C.1) —
     même source et même convention algébrique que `dividendes_percus` ci-dessus
     (`amount + fee + tax`, jamais d'`abs()`), simplement ventilée par mois et par
-    ligne plutôt qu'en un seul total."""
+    ligne plutôt qu'en un seul total. `user_id` : Milestone 2a, multi-utilisateur."""
     transactions = (
         db.query(Transaction)
-        .filter(Transaction.category == "CASH", Transaction.type == "DIVIDEND")
+        .filter(Transaction.user_id == user_id, Transaction.category == "CASH", Transaction.type == "DIVIDEND")
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
@@ -274,7 +275,7 @@ def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionStat
     }
 
 
-def compute_holding_returns(db: Session, positions: dict[str, PositionState] | None = None) -> dict[str, dict]:
+def compute_holding_returns(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> dict[str, dict]:
     """Rendement par ligne du portefeuille :
     - `depuis_achat` : simple (prix actuel vs prix de revient), calculable pour toute ligne
       ayant un prix de revient et un prix actuel (y compris les lignes saisies manuellement).
@@ -282,40 +283,42 @@ def compute_holding_returns(db: Session, positions: dict[str, PositionState] | N
       donc uniquement disponible pour les positions reconstruites depuis l'historique de
       transactions (une ligne ajoutée manuellement n'a pas de date d'achat connue).
 
-    `positions` : cf. LOT 4.3, résultat déjà calculé de `compute_positions(db)` à réutiliser
-    si l'appelant l'a déjà en main ; recalculé si omis, comportement inchangé.
+    `user_id` : Milestone 2a, multi-utilisateur. `positions` : cf. LOT 4.3, résultat déjà
+    calculé de `compute_positions(db, user_id)` à réutiliser si l'appelant l'a déjà en
+    main ; recalculé si omis, comportement inchangé.
     """
-    holdings = db.query(Holding).all()
+    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
     valued = analysis_service.value_holdings(holdings)
     if positions is None:
-        positions = portfolio_reconstruction.compute_positions(db)
+        positions = portfolio_reconstruction.compute_positions(db, user_id)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     return {v.holding.ticker: _rendement_pour_ligne(v, positions.get(v.holding.ticker), now) for v in valued}
 
 
-def compute_holding_return(db: Session, ticker: str, position: PositionState | None = None) -> dict:
+def compute_holding_return(db: Session, ticker: str, user_id: int, position: PositionState | None = None) -> dict:
     """Variante ciblée sur une seule ligne (LOT 4.2) : évite de relire tout le grand
-    livre et de revaloriser tout le portefeuille (`compute_holding_returns(db)`) pour
-    n'en afficher qu'une seule fiche (`holding_detail_service.build_holding_detail`).
-    Renvoie exactement le même résultat que `compute_holding_returns(db)[ticker]` — même
-    calcul (`_rendement_pour_ligne`), sur les mêmes données pour ce ticker, seule la
+    livre et de revaloriser tout le portefeuille (`compute_holding_returns(db, user_id)`)
+    pour n'en afficher qu'une seule fiche (`holding_detail_service.build_holding_detail`).
+    Renvoie exactement le même résultat que `compute_holding_returns(db, user_id)[ticker]`
+    — même calcul (`_rendement_pour_ligne`), sur les mêmes données pour ce ticker, seule la
     façon de les obtenir change (une ligne + sa position, au lieu de tout le
     portefeuille). `{"rendement_depuis_achat_pct": None, "rendement_annualise_pct":
     None}` si le ticker n'existe pas dans le portefeuille, comme le ferait un `.get(ticker,
     {})` sur le résultat de `compute_holding_returns` (valeurs absentes -> `None` côté API).
 
-    `position` : cf. LOT 4.3, résultat déjà calculé de
-    `portfolio_reconstruction.compute_position(db, ticker)` à réutiliser si l'appelant
-    l'a déjà en main ; recalculé si omis.
+    `user_id` : filtré EN PLUS du ticker (Milestone 2a) — deux utilisateurs peuvent
+    détenir le même titre, jamais l'un sans l'autre. `position` : cf. LOT 4.3, résultat
+    déjà calculé de `portfolio_reconstruction.compute_position(db, ticker, user_id)` à
+    réutiliser si l'appelant l'a déjà en main ; recalculé si omis.
     """
-    holding = db.query(Holding).filter(Holding.ticker == ticker).first()
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == user_id).first()
     if holding is None:
         return {"rendement_depuis_achat_pct": None, "rendement_annualise_pct": None}
 
     v = analysis_service.value_holdings([holding])[0]
     if position is None:
-        position = portfolio_reconstruction.compute_position(db, ticker)
+        position = portfolio_reconstruction.compute_position(db, ticker, user_id)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     return _rendement_pour_ligne(v, position, now)

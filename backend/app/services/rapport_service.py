@@ -36,9 +36,10 @@ def _valeur_a_ou_avant(points: list[dict], date_str: str) -> float | None:
     return points[0]["valeur_portefeuille"] if points else None
 
 
-def compute_rapport_periode(db: Session, date_debut: str, date_fin: str) -> dict:
-    """`date_debut`/`date_fin` : bornes inclusives au format `AAAA-MM-JJ`."""
-    points = historical_performance_service.compute_portfolio_history(db)
+def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id: int) -> dict:
+    """`date_debut`/`date_fin` : bornes inclusives au format `AAAA-MM-JJ`. `user_id` :
+    Milestone 2a, multi-utilisateur — le rapport ne porte jamais que sur ce compte."""
+    points = historical_performance_service.compute_portfolio_history(db, user_id)
     valeur_debut = _valeur_a_ou_avant(points, date_debut)
     valeur_fin = _valeur_a_ou_avant(points, date_fin)
     evolution_pct = (
@@ -49,7 +50,7 @@ def compute_rapport_periode(db: Session, date_debut: str, date_fin: str) -> dict
 
     transactions_periode = (
         db.query(Transaction)
-        .filter(Transaction.date >= date_debut, Transaction.date <= date_fin)
+        .filter(Transaction.user_id == user_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )

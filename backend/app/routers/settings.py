@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..models import User
 from ..schemas import Preferences, PreferencesUpdate, PreferencesUpdateResponse, ScheduledJobOut, ScheduledJobUpdate
 from ..services import market_data_refresh, portfolio_reconstruction, preferences_service, scheduler_service
 
@@ -27,14 +28,21 @@ def update_preferences(payload: PreferencesUpdate, db: Session = Depends(get_db)
     `services/historique_cache.invalider`) et on renvoie le nombre de positions
     recalculées. Un simple changement du seuil d'alerte n'a, lui, aucun effet sur
     les positions : pas de reconstruction dans ce cas (`positions_recalculees`
-    reste `None`)."""
+    reste `None`).
+
+    Préférences encore globales à ce stade (Milestone 2a, `Parametre` par
+    utilisateur reste un Milestone 2b séparé — cf. `docs/BACKLOG.md` § 2.I.1) : un
+    changement de méthode reconstruit donc le portefeuille de TOUS les comptes, pas
+    seulement celui de qui a modifié le réglage."""
     ancienne_methode = preferences_service.lire_methode_cout(db)
     preferences_service.enregistrer_preferences(db, payload.methode_cout, payload.seuil_alerte_ecart_pct)
 
     positions_recalculees = None
     if payload.methode_cout != ancienne_methode:
-        resultat = portfolio_reconstruction.rebuild_holdings(db)
-        positions_recalculees = resultat.positions_recalculees
+        positions_recalculees = 0
+        for (uid,) in db.query(User.id).all():
+            resultat = portfolio_reconstruction.rebuild_holdings(db, uid)
+            positions_recalculees += resultat.positions_recalculees
 
     return PreferencesUpdateResponse(
         methode_cout=payload.methode_cout,

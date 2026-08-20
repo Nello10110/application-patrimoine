@@ -16,6 +16,8 @@ from app.services.analysis_service import (
 )
 from app.services.reference_indices import NON_CATEGORISE
 
+from .conftest import ID_UTILISATEUR_TEST
+
 
 # --- 4.1 : Holding.market_data chargé en un lot, pas en N+1 requêtes -------------
 
@@ -31,7 +33,7 @@ def test_market_data_charge_en_un_lot_pas_une_requete_par_ligne(db):
     maintenant = datetime.now(timezone.utc)
     for i in range(nombre_lignes):
         ticker = f"MULTI{i}"
-        db.add(Holding(ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
+        db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker=ticker, quantite=1.0, prix_revient_moyen=10.0))
         db.add(MarketDataCache(ticker=ticker, prix_actuel=12.0, derniere_maj=maintenant))
     db.commit()
     db.expire_all()  # force un rechargement réel depuis la base, pas depuis l'identity map
@@ -57,7 +59,7 @@ def test_market_data_charge_en_un_lot_pas_une_requete_par_ligne(db):
 
 
 def test_value_holdings_valorise_au_prix_de_marche(db):
-    db.add(Holding(ticker="AAA", quantite=10.0, prix_revient_moyen=50.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=50.0))
     db.add(MarketDataCache(ticker="AAA", prix_actuel=80.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
@@ -69,7 +71,7 @@ def test_value_holdings_valorise_au_prix_de_marche(db):
 
 
 def test_value_holdings_repli_sur_cout_de_revient_sans_cotation(db):
-    db.add(Holding(ticker="BBB", quantite=5.0, prix_revient_moyen=200.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="BBB", quantite=5.0, prix_revient_moyen=200.0))
     db.commit()
 
     holdings = db.query(Holding).all()
@@ -84,7 +86,7 @@ def test_value_holdings_valeur_estimee_prime_sur_prix_fois_quantite(db):
     `valeur_estimee` renseignée est un montant ABSOLU, prioritaire même si une
     `MarketDataCache` existait par ailleurs (cas normalement impossible pour ces
     types, mais la priorité doit être sans ambiguïté)."""
-    db.add(Holding(ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
     db.add(MarketDataCache(ticker="MAISON", prix_actuel=1.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
@@ -97,12 +99,12 @@ def test_value_holdings_valeur_estimee_prime_sur_prix_fois_quantite(db):
 
 
 def test_holdings_financiers_exclut_les_types_valorises_manuellement(db):
-    db.add(Holding(ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
-    db.add(Holding(ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
-    db.add(Holding(ticker="SANS_TYPE", quantite=1.0, prix_revient_moyen=50.0, type_actif=None))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="SANS_TYPE", quantite=1.0, prix_revient_moyen=50.0, type_actif=None))
     db.commit()
 
-    financiers = analysis_service.holdings_financiers(db)
+    financiers = analysis_service.holdings_financiers(db, ID_UTILISATEUR_TEST)
     tickers = {h.ticker for h in financiers}
 
     # AAA (type financier) et SANS_TYPE (type non renseigné, cas normal du
@@ -111,7 +113,7 @@ def test_holdings_financiers_exclut_les_types_valorises_manuellement(db):
 
 
 def test_breakdown_lookthrough_eclate_un_etf_sur_sa_composition(db):
-    db.add(Holding(ticker="ETF1", quantite=1.0, prix_revient_moyen=1000.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ETF1", quantite=1.0, prix_revient_moyen=1000.0))
     db.add(MarketDataCache(ticker="ETF1", prix_actuel=1000.0, derniere_maj=datetime.now(timezone.utc)))
     db.add(FundComposition(ticker="ETF1", type="geo", categorie="Europe", poids=0.6))
     db.add(FundComposition(ticker="ETF1", type="geo", categorie="Amérique du Nord", poids=0.4))
@@ -125,7 +127,7 @@ def test_breakdown_lookthrough_eclate_un_etf_sur_sa_composition(db):
 
 
 def test_breakdown_lookthrough_sans_composition_reste_sur_sa_propre_categorie(db):
-    db.add(Holding(ticker="STOCK1", quantite=1.0, prix_revient_moyen=100.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="STOCK1", quantite=1.0, prix_revient_moyen=100.0))
     db.add(
         MarketDataCache(
             ticker="STOCK1",
@@ -144,8 +146,8 @@ def test_breakdown_lookthrough_sans_composition_reste_sur_sa_propre_categorie(db
 
 
 def test_compute_risk_indicators_indice_herfindahl(db):
-    db.add(Holding(ticker="A", quantite=1.0, prix_revient_moyen=600.0))
-    db.add(Holding(ticker="B", quantite=1.0, prix_revient_moyen=400.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="A", quantite=1.0, prix_revient_moyen=600.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="B", quantite=1.0, prix_revient_moyen=400.0))
     db.commit()
 
     holdings = db.query(Holding).all()
@@ -172,12 +174,12 @@ def test_compute_data_quality_melange_les_quatre_situations(db):
     now = datetime.now(timezone.utc)
 
     # 1) Fonds dont la géographie vient de la composition réelle du fonds.
-    db.add(Holding(ticker="ETF_COMPO", quantite=1.0, prix_revient_moyen=1000.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ETF_COMPO", quantite=1.0, prix_revient_moyen=1000.0))
     db.add(MarketDataCache(ticker="ETF_COMPO", prix_actuel=1000.0, derniere_maj=now))
     db.add(FundComposition(ticker="ETF_COMPO", type="geo", categorie="Europe", poids=1.0, source=SOURCE_COMPOSITION))
 
     # 2) Fonds dont la géographie est estimée à partir du nom de l'indice suivi.
-    db.add(Holding(ticker="ETF_INDICE", quantite=1.0, prix_revient_moyen=500.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ETF_INDICE", quantite=1.0, prix_revient_moyen=500.0))
     db.add(MarketDataCache(ticker="ETF_INDICE", prix_actuel=500.0, derniere_maj=now))
     db.add(
         FundComposition(
@@ -186,12 +188,12 @@ def test_compute_data_quality_melange_les_quatre_situations(db):
     )
 
     # 3) Ligne cotée mais sans aucune donnée géographique (pays non renseigné par Yahoo).
-    db.add(Holding(ticker="STOCK_SANS_PAYS", quantite=1.0, prix_revient_moyen=300.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="STOCK_SANS_PAYS", quantite=1.0, prix_revient_moyen=300.0))
     db.add(MarketDataCache(ticker="STOCK_SANS_PAYS", prix_actuel=300.0, region=None, derniere_maj=now))
 
     # 4) Ligne sans cotation (private equity/obligation) : valorisée à son coût de
     #    revient, ET sans donnée géographique.
-    db.add(Holding(ticker="SANS_COTATION", quantite=1.0, prix_revient_moyen=200.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="SANS_COTATION", quantite=1.0, prix_revient_moyen=200.0))
 
     db.commit()
 
@@ -223,7 +225,7 @@ def test_un_fonds_sans_composition_n_est_jamais_classe_sur_son_pays_de_domicilia
     (Irlande, Luxembourg pour la quasi-totalité des ETF européens), pas celui de ses
     actifs. Sans composition ni indice reconnu, le fonds doit rester explicitement non
     catégorisé plutôt que d'être compté comme une exposition européenne."""
-    db.add(Holding(ticker="ETF-IE", nom="ETF domicilié en Irlande", quantite=10.0, prix_revient_moyen=100.0, type_actif="FUND"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ETF-IE", nom="ETF domicilié en Irlande", quantite=10.0, prix_revient_moyen=100.0, type_actif="FUND"))
     db.add(MarketDataCache(ticker="ETF-IE", prix_actuel=100.0, pays="Ireland", region="Europe"))
     db.commit()
 
@@ -239,7 +241,7 @@ def test_un_fonds_sans_composition_n_est_jamais_classe_sur_son_pays_de_domicilia
 
 def test_une_action_reste_classee_sur_son_pays(db):
     """À l'inverse d'un fonds, le pays d'une action individuelle EST son exposition."""
-    db.add(Holding(ticker="ACT-US", nom="Action américaine", quantite=10.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ACT-US", nom="Action américaine", quantite=10.0, prix_revient_moyen=100.0, type_actif="STOCK"))
     db.add(MarketDataCache(ticker="ACT-US", prix_actuel=100.0, pays="United States", region="Amérique du Nord"))
     db.commit()
 
@@ -253,7 +255,7 @@ def test_une_action_reste_classee_sur_son_pays(db):
 
 
 def test_cout_gestion_consolide_ignore_les_lignes_non_fonds(db):
-    db.add(Holding(ticker="AAPL", quantite=10.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAPL", quantite=10.0, prix_revient_moyen=100.0, type_actif="STOCK"))
     db.add(MarketDataCache(ticker="AAPL", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
@@ -270,10 +272,10 @@ def test_cout_gestion_consolide_ignore_les_lignes_non_fonds(db):
 
 def test_cout_gestion_consolide_calcule_le_cout_annuel_et_la_couverture(db):
     # ETF avec TER connu : 1000€ * 0,2% = 2€/an.
-    db.add(Holding(ticker="ETF1", quantite=10.0, prix_revient_moyen=90.0, type_actif="FUND"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ETF1", quantite=10.0, prix_revient_moyen=90.0, type_actif="FUND"))
     db.add(MarketDataCache(ticker="ETF1", prix_actuel=100.0, frais_gestion_pct=0.2, derniere_maj=datetime.now(timezone.utc)))
     # ETF sans TER connu (pas encore rafraîchi depuis la livraison de la fonctionnalité).
-    db.add(Holding(ticker="ETF2", quantite=5.0, prix_revient_moyen=190.0, type_actif="FUND"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="ETF2", quantite=5.0, prix_revient_moyen=190.0, type_actif="FUND"))
     db.add(MarketDataCache(ticker="ETF2", prix_actuel=200.0, frais_gestion_pct=None, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 

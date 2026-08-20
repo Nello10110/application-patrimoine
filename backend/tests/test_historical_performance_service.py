@@ -25,7 +25,7 @@ from app.services.historical_performance_service import (
 )
 from app.services.portfolio_reconstruction import rebuild_holdings
 
-from .conftest import make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_transaction
 
 # ---------------------------------------------------------------------------
 # 4.6 — recherche dichotomique de _value_at
@@ -118,30 +118,30 @@ class _FauxTickerQuiEchoue:
 
 
 def test_holding_price_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(db, monkeypatch):
-    db.add(Holding(ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    resultat_froid = compute_holding_price_history(db, "AAA")
+    resultat_froid = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
     assert resultat_froid is not None
     assert len(resultat_froid["points"]) == 3
 
     # Lecture à chaud : le double lève désormais s'il est instancié -> preuve qu'aucun
     # appel yfinance n'a eu lieu, le résultat vient bien du cache.
     monkeypatch.setattr(yf, "Ticker", _FauxTickerQuiEchoue)
-    resultat_chaud = compute_holding_price_history(db, "AAA")
+    resultat_chaud = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
 
     assert resultat_chaud == resultat_froid
 
 
 def test_holding_price_history_expire_au_dela_de_24h(db, monkeypatch):
-    db.add(Holding(ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
     db.commit()
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    compute_holding_price_history(db, "AAA")
+    compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
 
     entree = db.get(HistoriqueCache, historique_cache.cle_historique_ligne("AAA"))
     entree.derniere_maj = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
@@ -158,22 +158,22 @@ def test_holding_price_history_expire_au_dela_de_24h(db, monkeypatch):
 
     monkeypatch.setattr(yf, "Ticker", _FauxTickerCompte)
 
-    resultat = compute_holding_price_history(db, "AAA")
+    resultat = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
     assert resultat is not None
     assert appels["n"] == 1  # cache périmé : un nouvel appel yfinance a bien eu lieu
 
 
 def test_portfolio_history_lecture_a_froid_puis_a_chaud_sans_appel_yfinance(db, monkeypatch):
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    resultat_froid = compute_portfolio_history(db)
+    resultat_froid = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
     assert resultat_froid  # au moins un point de la grille hebdomadaire
 
     monkeypatch.setattr(yf, "Ticker", _FauxTickerQuiEchoue)
-    resultat_chaud = compute_portfolio_history(db)
+    resultat_chaud = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
 
     assert resultat_chaud == resultat_froid
 
@@ -231,7 +231,7 @@ def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(d
     """Un fonds dont `MarketDataCache.devise == "EUR"` (cotation justETF) mais dont
     l'historique yfinance est réellement en USD doit quand même être converti."""
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=110.0))
     db.commit()
 
@@ -239,7 +239,7 @@ def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(d
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecDeviseUSD)
     monkeypatch.setattr(historical_performance_service, "_fetch_fx_history", _faux_taux_change_fixe)
 
-    resultat = compute_portfolio_history(db)
+    resultat = compute_portfolio_history(db, ID_UTILISATEUR_TEST)
 
     # Dernier prix connu de la série simulée (110.0, en USD) x 10 parts x taux
     # simulé (0.5) = 550 €. Sans la conversion (bug reproduit), la valeur
@@ -250,7 +250,7 @@ def test_portfolio_history_convertit_meme_si_market_data_cache_devise_vaut_eur(d
 
 def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_eur(db, monkeypatch):
     """Même verrouillage côté fiche détaillée d'une position (`compute_holding_price_history`)."""
-    db.add(Holding(ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="FUND"))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="FUND"))
     db.add(MarketDataCache(ticker="AAA", devise="EUR", prix_actuel=110.0))
     db.commit()
 
@@ -258,7 +258,7 @@ def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_e
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecDeviseUSD)
     monkeypatch.setattr(historical_performance_service, "_fetch_fx_history", _faux_taux_change_fixe)
 
-    resultat = compute_holding_price_history(db, "AAA")
+    resultat = compute_holding_price_history(db, "AAA", ID_UTILISATEUR_TEST)
 
     assert resultat is not None
     # Série simulée 100/105/110 (USD) x taux simulé 0.5 = 50/52.5/55.
@@ -268,17 +268,17 @@ def test_holding_price_history_convertit_meme_si_market_data_cache_devise_vaut_e
 
 def test_portfolio_history_invalide_apres_reconstruction_du_portefeuille(db, monkeypatch):
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1))
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     monkeypatch.setattr(historical_performance_service.market_data_service, "resolve_ticker", lambda *a, **k: "RESOLVED")
     monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
 
-    compute_portfolio_history(db)
-    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille()) is not None
+    compute_portfolio_history(db, ID_UTILISATEUR_TEST)
+    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST)) is not None
 
     # Un nouvel import change le portefeuille : `rebuild_holdings` doit invalider le
     # cache d'historique existant (LOT 4.5), sans quoi le tableau de bord afficherait
     # une évolution périmée après un import de transactions.
     make_transaction(db, transaction_id="t2", symbol="BBB", shares=5.0, amount=-500.0, datetime_utc=datetime(2024, 2, 1))
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
-    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille()) is None
+    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST)) is None

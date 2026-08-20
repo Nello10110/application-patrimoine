@@ -82,4 +82,17 @@ def test_invalider_sans_cle_purge_tout_le_cache(db):
 def test_cles_nommees_construisent_le_format_attendu():
     assert historique_cache.cle_historique_ligne("AAA") == "historique_ligne:AAA"
     assert historique_cache.cle_historique_ligne("FR0000120271") == "historique_ligne:FR0000120271"
-    assert historique_cache.cle_historique_portefeuille() == "historique_portefeuille"
+    assert historique_cache.cle_historique_portefeuille(1) == "historique_portefeuille:1"
+    assert historique_cache.cle_historique_portefeuille(42) == "historique_portefeuille:42"
+
+
+def test_invalider_historiques_portefeuille_purge_tous_les_utilisateurs_sans_toucher_aux_lignes(db):
+    historique_cache.ecrire(db, historique_cache.cle_historique_portefeuille(1), {"a": 1})
+    historique_cache.ecrire(db, historique_cache.cle_historique_portefeuille(2), {"a": 2})
+    historique_cache.ecrire(db, historique_cache.cle_historique_ligne("AAA"), {"prix": 1})
+
+    historique_cache.invalider_historiques_portefeuille(db)
+
+    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(1)) is None
+    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(2)) is None
+    assert historique_cache.lire(db, historique_cache.cle_historique_ligne("AAA")) == {"prix": 1}

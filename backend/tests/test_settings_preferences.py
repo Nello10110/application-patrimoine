@@ -6,7 +6,7 @@ from datetime import datetime
 
 from app.services.portfolio_reconstruction import rebuild_holdings
 
-from .conftest import make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_transaction
 
 
 def test_get_preferences_renvoie_les_defauts(client):
@@ -67,7 +67,7 @@ def test_put_preferences_changement_de_methode_declenche_la_reconstruction(clien
         db, transaction_id="tx-4", symbol="AAA", type="SELL", shares=-20.0, amount=5000.0, datetime_utc=datetime(2024, 4, 1)
     )
 
-    rebuild_holdings(db)  # position initiale, méthode par défaut (coût moyen pondéré)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)  # position initiale, méthode par défaut (coût moyen pondéré)
     avant = client.get("/api/portfolio/holdings").json()
     assert len(avant) == 1
     assert avant[0]["prix_revient_moyen"] == 200.0

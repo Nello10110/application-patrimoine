@@ -5,8 +5,9 @@ que FastAPI ne tente pas de convertir ces segments littéraux en `int`."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..auth import get_current_user
 from ..database import get_db
-from ..models import AllocationTarget
+from ..models import AllocationTarget, User
 from ..schemas import AllocationTargetOut, AllocationTargetsSet
 from ..services.reference_indices import DEFAULT_GEO_TARGETS, DEFAULT_SECTOR_TARGETS
 
@@ -22,18 +23,24 @@ def get_defaults():
 
 
 @router.get("/", response_model=list[int])
-def list_years(db: Session = Depends(get_db)):
-    rows = db.query(AllocationTarget.annee).distinct().order_by(AllocationTarget.annee.desc()).all()
+def list_years(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    rows = (
+        db.query(AllocationTarget.annee)
+        .filter(AllocationTarget.user_id == current_user.id)
+        .distinct()
+        .order_by(AllocationTarget.annee.desc())
+        .all()
+    )
     return [r[0] for r in rows]
 
 
 @router.get("/{annee}", response_model=list[AllocationTargetOut])
-def get_targets(annee: int, db: Session = Depends(get_db)):
-    return db.query(AllocationTarget).filter(AllocationTarget.annee == annee).all()
+def get_targets(annee: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(AllocationTarget).filter(AllocationTarget.user_id == current_user.id, AllocationTarget.annee == annee).all()
 
 
 @router.put("/{annee}", response_model=list[AllocationTargetOut])
-def set_targets(annee: int, payload: AllocationTargetsSet, db: Session = Depends(get_db)):
+def set_targets(annee: int, payload: AllocationTargetsSet, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if annee != payload.annee:
         raise HTTPException(status_code=400, detail="L'année de l'URL et du payload doivent correspondre")
 
@@ -45,12 +52,20 @@ def set_targets(annee: int, payload: AllocationTargetsSet, db: Session = Depends
                 detail=f"La répartition '{type_}' doit sommer à 100% (actuellement {total:.1f}%)",
             )
 
-    db.query(AllocationTarget).filter(AllocationTarget.annee == annee).delete()
+    db.query(AllocationTarget).filter(AllocationTarget.user_id == current_user.id, AllocationTarget.annee == annee).delete()
 
     for item in payload.geo:
-        db.add(AllocationTarget(annee=annee, type="geo", categorie=item.categorie, pourcentage_cible=item.pourcentage_cible))
+        db.add(
+            AllocationTarget(
+                user_id=current_user.id, annee=annee, type="geo", categorie=item.categorie, pourcentage_cible=item.pourcentage_cible
+            )
+        )
     for item in payload.sector:
-        db.add(AllocationTarget(annee=annee, type="sector", categorie=item.categorie, pourcentage_cible=item.pourcentage_cible))
+        db.add(
+            AllocationTarget(
+                user_id=current_user.id, annee=annee, type="sector", categorie=item.categorie, pourcentage_cible=item.pourcentage_cible
+            )
+        )
 
     db.commit()
-    return db.query(AllocationTarget).filter(AllocationTarget.annee == annee).all()
+    return db.query(AllocationTarget).filter(AllocationTarget.user_id == current_user.id, AllocationTarget.annee == annee).all()

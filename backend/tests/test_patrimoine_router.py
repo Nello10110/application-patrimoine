@@ -10,7 +10,7 @@ from datetime import datetime
 
 from app.models import Loan
 
-from .conftest import make_holding
+from .conftest import ID_UTILISATEUR_TEST, make_holding
 
 
 def test_patrimoine_net_vide(client):
@@ -29,6 +29,7 @@ def test_patrimoine_net_actifs_moins_passifs(client, db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
     db.add(
         Loan(
+            user_id=ID_UTILISATEUR_TEST,
             libelle="Crédit immo",
             capital_initial=200000.0,
             taux_annuel_pct=0.0,

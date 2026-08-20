@@ -72,6 +72,12 @@ class Holding(Base):
     __tablename__ = "holdings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Multi-utilisateur (Milestone 2a, cf. docs/BACKLOG.md § 2.I.1) : colonne ajoutée
+    # nullable en base par `database.run_startup_migrations` (ADD COLUMN ne pose
+    # jamais de NOT NULL), puis rétro-remplie par `database.migrate_backfill_user_id`
+    # — le code applicatif la traite comme toujours renseignée dès qu'une ligne est
+    # créée ou lue via l'API (jamais `None` en pratique après la migration).
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     ticker: Mapped[str] = mapped_column(String, index=True)
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
     quantite: Mapped[float] = mapped_column(Float)
@@ -121,6 +127,8 @@ class Loan(Base):
     __tablename__ = "loans"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     libelle: Mapped[str] = mapped_column(String)
     capital_initial: Mapped[float] = mapped_column(Float)
     taux_annuel_pct: Mapped[float] = mapped_column(Float)
@@ -161,9 +169,11 @@ class MarketDataCache(Base):
 
 class AllocationTarget(Base):
     __tablename__ = "allocation_targets"
-    __table_args__ = (UniqueConstraint("annee", "type", "categorie", name="uq_target_annee_type_categorie"),)
+    __table_args__ = (UniqueConstraint("user_id", "annee", "type", "categorie", name="uq_target_user_annee_type_categorie"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     annee: Mapped[int] = mapped_column(Integer, index=True)
     type: Mapped[str] = mapped_column(String)  # "geo" | "sector"
     categorie: Mapped[str] = mapped_column(String)
@@ -172,9 +182,17 @@ class AllocationTarget(Base):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    # Multi-utilisateur (Milestone 2a) : l'unicité de `transaction_id` (identifiant
+    # émis par le courtier) devient relative à un utilisateur — deux utilisateurs
+    # avec des comptes courtier différents peuvent avoir des `transaction_id` qui se
+    # recoupent par coïncidence sans que ce soit un doublon. Remplace l'ancien
+    # `unique=True` sur la seule colonne `transaction_id`, cf. `database.migrate_isolation_utilisateur`.
+    __table_args__ = (UniqueConstraint("transaction_id", "user_id", name="uq_transaction_user_transaction_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    transaction_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    transaction_id: Mapped[str] = mapped_column(String, index=True)
     datetime_utc: Mapped[datetime] = mapped_column(DateTime, index=True)
     date: Mapped[str] = mapped_column(String)
     category: Mapped[str] = mapped_column(String, index=True)

@@ -18,7 +18,7 @@ from app.services.startup_maintenance import (
     reconstruire_si_regles_de_calcul_modifiees,
 )
 
-from .conftest import make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_transaction
 
 
 def _version_en_base(db) -> str | None:
@@ -31,7 +31,7 @@ def test_reconstruit_quand_aucune_version_n_est_enregistree(db):
     le portefeuille stocké date de l'ancienne règle de calcul."""
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
     # Prix de revient volontairement faux, comme s'il venait d'une version antérieure.
-    db.add(Holding(ticker="AAA", quantite=10.0, prix_revient_moyen=1.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=10.0, prix_revient_moyen=1.0))
     db.commit()
 
     recalculees = reconstruire_si_regles_de_calcul_modifiees(db)
@@ -73,7 +73,7 @@ def test_version_illisible_traitee_comme_absente(db):
 def test_base_sans_transaction_pose_la_version_sans_rien_reconstruire(db):
     """Base neuve, ou portefeuille entièrement saisi à la main : il n'y a rien à
     reconstruire, et surtout rien à écraser."""
-    db.add(Holding(ticker="MANUEL", quantite=3.0, prix_revient_moyen=50.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MANUEL", quantite=3.0, prix_revient_moyen=50.0))
     db.commit()
 
     assert reconstruire_si_regles_de_calcul_modifiees(db) is None
@@ -85,13 +85,13 @@ def test_le_cache_d_historique_est_invalide_apres_reconstruction(db):
     """Les historiques en cache reposent sur les positions reconstruites : les garder
     afficherait une courbe incohérente avec les nouveaux chiffres."""
     make_transaction(db, symbol="EEE", shares=1.0, amount=-100.0)
-    historique_cache.ecrire(db, historique_cache.cle_historique_portefeuille(), [{"date": "2026-01-01"}])
+    historique_cache.ecrire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST), [{"date": "2026-01-01"}])
     db.commit()
-    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille()) is not None
+    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST)) is not None
 
     reconstruire_si_regles_de_calcul_modifiees(db)
 
-    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille()) is None
+    assert historique_cache.lire(db, historique_cache.cle_historique_portefeuille(ID_UTILISATEUR_TEST)) is None
 
 
 def test_un_echec_ne_fait_jamais_echouer_le_demarrage(db, monkeypatch, caplog):
@@ -120,7 +120,7 @@ def test_les_lignes_saisies_manuellement_survivent_a_la_remise_a_niveau(db, date
     from app.models import ORIGINE_MANUEL
 
     make_transaction(db, symbol="GGG", shares=5.0, amount=-500.0, datetime_utc=datetime_utc)
-    db.add(Holding(ticker="A-LA-MAIN", quantite=7.0, prix_revient_moyen=12.0, origine=ORIGINE_MANUEL))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="A-LA-MAIN", quantite=7.0, prix_revient_moyen=12.0, origine=ORIGINE_MANUEL))
     db.commit()
 
     reconstruire_si_regles_de_calcul_modifiees(db)

@@ -28,7 +28,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from ..models import Parametre, Transaction
+from ..models import Parametre, Transaction, User
 from . import historique_cache, portfolio_reconstruction
 
 logger = logging.getLogger("patrimoine.maintenance")
@@ -62,9 +62,20 @@ def _enregistrer_version(db: Session, version: int) -> None:
 
 
 def reconstruire_si_regles_de_calcul_modifiees(db: Session) -> int | None:
-    """Reconstruit le portefeuille si les règles de calcul ont changé depuis la dernière
-    reconstruction. Renvoie le nombre de positions recalculées, ou `None` s'il n'y avait
-    rien à faire.
+    """Reconstruit le portefeuille de TOUS les utilisateurs si les règles de calcul
+    ont changé depuis la dernière reconstruction. Renvoie le nombre total de
+    positions recalculées (tous comptes confondus), ou `None` s'il n'y avait rien à
+    faire.
+
+    Multi-utilisateur (Milestone 2a) : `VERSION_CALCUL_PORTEFEUILLE` reste une
+    version GLOBALE (`Parametre` n'est pas encore par utilisateur, cf.
+    `docs/BACKLOG.md` § 2.I.1, Milestone 2b) — un changement de règle de calcul
+    reconstruit donc le portefeuille de chaque compte existant, en boucle, plutôt
+    que de choisir un utilisateur particulier. Tourne toujours au démarrage du
+    process, avec une session unique partagée par tous les comptes (pas de
+    `current_user` disponible ici, contrairement aux endpoints HTTP) : un futur
+    déplacement de ce déclenchement vers la connexion (plutôt que le démarrage)
+    reste une piste pour le Milestone 2b, pas nécessaire pour que ceci reste correct.
 
     Une exception n'est jamais laissée remonter : une remise à niveau qui échoue ne doit
     pas empêcher l'application de démarrer — l'utilisateur peut toujours relancer une
@@ -75,20 +86,28 @@ def reconstruire_si_regles_de_calcul_modifiees(db: Session) -> int | None:
             return None
 
         if db.query(Transaction).first() is None:
-            # Base neuve ou portefeuille entièrement saisi à la main : rien à
-            # reconstruire, on se contente de poser la version courante.
+            # Aucun utilisateur n'a de grand livre importé (base neuve, ou
+            # portefeuilles entièrement saisis à la main) : rien à reconstruire, on
+            # se contente de poser la version courante.
             _enregistrer_version(db, VERSION_CALCUL_PORTEFEUILLE)
             return None
 
-        resultat = portfolio_reconstruction.rebuild_holdings(db)
+        total_recalcule = 0
+        for (user_id,) in db.query(User.id).all():
+            if db.query(Transaction).filter(Transaction.user_id == user_id).first() is None:
+                continue  # ce compte n'a pas de grand livre importé, rien à reconstruire pour lui
+            resultat = portfolio_reconstruction.rebuild_holdings(db, user_id)
+            total_recalcule += resultat.positions_recalculees
+
         historique_cache.invalider(db)
         _enregistrer_version(db, VERSION_CALCUL_PORTEFEUILLE)
         logger.info(
-            "remise à niveau: portefeuille reconstruit (%d position(s)) suite à un changement "
-            "des règles de calcul — les prix de revient et gains réalisés sont à jour.",
-            resultat.positions_recalculees,
+            "remise à niveau: portefeuille reconstruit (%d position(s), tous comptes confondus) "
+            "suite à un changement des règles de calcul — les prix de revient et gains réalisés "
+            "sont à jour.",
+            total_recalcule,
         )
-        return resultat.positions_recalculees
+        return total_recalcule
     except Exception:
         db.rollback()
         logger.exception(

@@ -35,9 +35,12 @@ def cle_historique_ligne(ticker: str) -> str:
     return f"historique_ligne:{ticker}"
 
 
-def cle_historique_portefeuille() -> str:
-    """Clé de cache de l'historique de valeur de tout le portefeuille (4.5)."""
-    return "historique_portefeuille"
+def cle_historique_portefeuille(user_id: int) -> str:
+    """Clé de cache de l'historique de valeur de tout le portefeuille (4.5), scopée
+    par utilisateur (Milestone 2a) — sans `user_id`, le premier utilisateur à
+    calculer son historique verrait sa donnée servie à tous les autres tant que le
+    cache est valide (24h)."""
+    return f"historique_portefeuille:{user_id}"
 
 
 def lire(db: Session, cle: str):
@@ -82,4 +85,19 @@ def invalider(db: Session, cle: str | None = None) -> None:
     if cle is not None:
         query = query.filter(HistoriqueCache.cle == cle)
     query.delete()
+    db.commit()
+
+
+def invalider_historiques_portefeuille(db: Session) -> None:
+    """Purge le cache d'historique de portefeuille de TOUS les utilisateurs (préfixe
+    `historique_portefeuille:`), sans toucher aux caches d'historique de ligne
+    (`historique_ligne:...`, partagés entre utilisateurs et non concernés). Appelée
+    après un rafraîchissement des cours (`market_data_refresh.py`) : ce
+    rafraîchissement est global (tous les tickers de tous les utilisateurs, cf.
+    `docs/BACKLOG.md` § 2.I.1), donc son impact sur l'historique de valeur d'un
+    portefeuille l'est aussi — contrairement à `portfolio_reconstruction.rebuild_holdings`
+    (`invalider(db)` sans clé, plus large : un seul utilisateur y est concerné à la
+    fois, mais l'événement est rare, purger tout le cache reste sans conséquence
+    notable)."""
+    db.query(HistoriqueCache).filter(HistoriqueCache.cle.like("historique_portefeuille:%")).delete(synchronize_session=False)
     db.commit()

@@ -100,25 +100,30 @@ def _fetch_fx_history(devise: str, start: datetime) -> TimeSeries:
     return series
 
 
-def compute_portfolio_history(db: Session, positions: dict[str, PositionState] | None = None) -> list[dict]:
-    """Historique de valeur de tout le portefeuille (cf. LOT 4.5).
+def compute_portfolio_history(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> list[dict]:
+    """Historique de valeur du portefeuille d'UN utilisateur (Milestone 2a, cf. LOT 4.5).
 
-    Mis en cache (`historique_cache`, clé `cle_historique_portefeuille`) : en cas de
-    lecture à chaud, aucun accès au grand livre ni à `yfinance` n'a lieu, `positions`
-    n'est alors même pas consulté. En cas de lecture à froid, `positions` — cf. LOT 4.3
-    — évite de rejouer le grand livre si l'appelant l'a déjà calculé ; recalculé sinon.
+    Mis en cache (`historique_cache`, clé `cle_historique_portefeuille(user_id)` —
+    scopée par utilisateur depuis Milestone 2a, sans quoi le premier utilisateur à
+    calculer son historique verrait sa donnée servie à tous les autres tant que le
+    cache est valide) : en cas de lecture à chaud, aucun accès au grand livre ni à
+    `yfinance` n'a lieu, `positions` n'est alors même pas consulté. En cas de lecture
+    à froid, `positions` — cf. LOT 4.3 — évite de rejouer le grand livre si l'appelant
+    l'a déjà calculé ; recalculé sinon.
     """
-    cle = historique_cache.cle_historique_portefeuille()
+    cle = historique_cache.cle_historique_portefeuille(user_id)
     en_cache = historique_cache.lire(db, cle)
     if en_cache is not None:
         return en_cache
 
-    points = _compute_portfolio_history(db, positions if positions is not None else portfolio_reconstruction.compute_positions(db))
+    points = _compute_portfolio_history(
+        db, user_id, positions if positions is not None else portfolio_reconstruction.compute_positions(db, user_id)
+    )
     historique_cache.ecrire(db, cle, points)
     return points
 
 
-def _compute_portfolio_history(db: Session, positions: dict[str, PositionState]) -> list[dict]:
+def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, PositionState]) -> list[dict]:
     starts = [state.shares_history[0][0] for state in positions.values() if state.shares_history]
     if not starts:
         return []
@@ -127,7 +132,7 @@ def _compute_portfolio_history(db: Session, positions: dict[str, PositionState])
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     grid = _weekly_grid(start, now)
 
-    holdings_by_ticker = {h.ticker: h for h in db.query(Holding).all()}
+    holdings_by_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id).all()}
     fx_cache: dict[str, TimeSeries] = {}
     price_series: dict[str, TimeSeries] = {}
 
@@ -182,32 +187,37 @@ def _compute_portfolio_history(db: Session, positions: dict[str, PositionState])
     return points
 
 
-def compute_holding_price_history(db: Session, identifiant: str) -> dict | None:
+def compute_holding_price_history(db: Session, identifiant: str, user_id: int) -> dict | None:
     """Performance historique du titre/fonds lui-même (indépendante de la position de
     l'utilisateur) : série de prix + volatilité annualisée + max drawdown, calculées
     sur tout l'historique disponible via `yfinance`. Retourne `None` si le titre n'est
     pas résolu ou si aucune donnée n'est disponible (ex. private equity, obligation).
 
-    Mis en cache (cf. LOT 4.4, clé `cle_historique_ligne(identifiant)`) : sans ça,
-    chaque ouverture de la fiche détaillée retélécharge tout l'historique
-    (`period="max"`), plusieurs secondes d'attente pour une série hebdomadaire. Un
-    résultat `None` n'est volontairement pas mis en cache (ticker non résolu ou
-    absence de donnée peuvent être transitoires ou corrigés par un rafraîchissement
-    entre-temps ; ce n'est de toute façon jamais le chemin coûteux qu'on cherche à
-    éviter, aucun appel `yfinance` ne s'est produit ou son résultat était vide)."""
+    `user_id` (Milestone 2a) : seulement pour vérifier que CE ticker fait bien partie
+    du portefeuille de l'appelant (`_compute_holding_price_history`) — le résultat
+    lui-même (prix, volatilité) reste une donnée de marché publique, partageable, mise
+    en cache globalement comme avant (clé `cle_historique_ligne(identifiant)`, sans
+    `user_id` : contrairement à l'historique du PORTEFEUILLE, l'historique d'un TICKER
+    est objectivement le même pour tout le monde). Sans ça, chaque ouverture de la
+    fiche détaillée retélécharge tout l'historique (`period="max"`), plusieurs
+    secondes d'attente pour une série hebdomadaire. Un résultat `None` n'est
+    volontairement pas mis en cache (ticker non résolu ou absence de donnée peuvent
+    être transitoires ou corrigés par un rafraîchissement entre-temps ; ce n'est de
+    toute façon jamais le chemin coûteux qu'on cherche à éviter, aucun appel
+    `yfinance` ne s'est produit ou son résultat était vide)."""
     cle = historique_cache.cle_historique_ligne(identifiant)
     en_cache = historique_cache.lire(db, cle)
     if en_cache is not None:
         return en_cache
 
-    resultat = _compute_holding_price_history(db, identifiant)
+    resultat = _compute_holding_price_history(db, identifiant, user_id)
     if resultat is not None:
         historique_cache.ecrire(db, cle, resultat)
     return resultat
 
 
-def _compute_holding_price_history(db: Session, identifiant: str) -> dict | None:
-    holding = db.query(Holding).filter(Holding.ticker == identifiant).first()
+def _compute_holding_price_history(db: Session, identifiant: str, user_id: int) -> dict | None:
+    holding = db.query(Holding).filter(Holding.ticker == identifiant, Holding.user_id == user_id).first()
     if holding is None:
         return None
 

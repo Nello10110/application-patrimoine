@@ -15,6 +15,7 @@ from .database import (
     Base,
     SessionLocal,
     engine,
+    migrate_isolation_utilisateur,
     migrate_recalculer_regions_en_cache,
     migrate_rename_categorie_autres,
     run_startup_migrations,
@@ -28,6 +29,7 @@ Base.metadata.create_all(bind=engine)
 run_startup_migrations()
 migrate_rename_categorie_autres()
 migrate_recalculer_regions_en_cache()
+migrate_isolation_utilisateur()
 
 # Après les migrations de schéma et de contenu : remise à niveau du portefeuille
 # reconstruit si les règles de calcul ont changé depuis la dernière reconstruction

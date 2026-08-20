@@ -60,10 +60,11 @@ def _table_deux_colonnes(lignes: list[tuple[str, str]]) -> Table:
     return table
 
 
-def generer_pdf_patrimoine(db: Session) -> bytes:
+def generer_pdf_patrimoine(db: Session, user_id: int) -> bytes:
     """Construit le PDF en mémoire (jamais écrit sur disque) et renvoie son contenu
     binaire — l'appelant (`routers/export.py`) le sert directement en réponse HTTP,
-    comme les exports CSV existants."""
+    comme les exports CSV existants. `user_id` : le relevé ne porte jamais que sur
+    le patrimoine de CE compte (Milestone 2a, multi-utilisateur)."""
     styles = getSampleStyleSheet()
     tampon = BytesIO()
     doc = SimpleDocTemplate(
@@ -75,7 +76,7 @@ def generer_pdf_patrimoine(db: Session) -> bytes:
     elements.append(Paragraph(f"Situation au {date.today().strftime('%d/%m/%Y')}", styles["Normal"]))
     elements.append(Spacer(1, 0.6 * cm))
 
-    patrimoine = patrimoine_service.compute_patrimoine_net(db)
+    patrimoine = patrimoine_service.compute_patrimoine_net(db, user_id)
     elements.append(Paragraph("Patrimoine net", styles["Heading2"]))
     elements.append(
         _table_deux_colonnes(
@@ -95,7 +96,7 @@ def generer_pdf_patrimoine(db: Session) -> bytes:
         )
         elements.append(Spacer(1, 0.5 * cm))
 
-    performance = performance_service.compute_performance(db)
+    performance = performance_service.compute_performance(db, user_id)
     if performance["nombre_transactions"] > 0:
         elements.append(Paragraph("Rentabilité globale (portefeuille financier)", styles["Heading2"]))
         elements.append(
@@ -112,7 +113,7 @@ def generer_pdf_patrimoine(db: Session) -> bytes:
         )
         elements.append(Spacer(1, 0.5 * cm))
 
-    holdings = analysis_service.holdings_financiers(db)
+    holdings = analysis_service.holdings_financiers(db, user_id)
     valued = analysis_service.value_holdings(holdings)
     comptes = analysis_service.repartition_par_compte(valued)
     a_des_comptes_annotes = any(c["compte"] != COMPTE_SANS_ANNOTATION for c in comptes)

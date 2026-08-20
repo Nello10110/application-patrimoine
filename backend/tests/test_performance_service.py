@@ -16,7 +16,7 @@ from app.services.performance_service import (
 )
 from app.services.portfolio_reconstruction import rebuild_holdings
 
-from .conftest import make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_transaction
 
 
 def test_xirr_doublement_en_un_an_environ_100_pourcent():
@@ -36,7 +36,7 @@ def test_xirr_none_si_tous_les_flux_ont_le_meme_signe():
 
 
 def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
-    db.add(Holding(ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="XYZ", nom="Titre XYZ", quantite=10.0, prix_revient_moyen=100.0))
     db.add(
         MarketDataCache(
             ticker="XYZ",
@@ -46,7 +46,7 @@ def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
     )
     db.commit()
 
-    resultats = compute_holding_returns(db)
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
     assert resultats["XYZ"]["rendement_depuis_achat_pct"] == 20.0
 
@@ -54,11 +54,11 @@ def test_rendement_depuis_achat_prix_actuel_sur_prix_de_revient(db):
 def test_pas_de_rendement_annualise_sans_prix_de_marche_reel(db):
     # Position reconstruite (donc avec des flux de trésorerie réels)...
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     # ... mais sans aucune cotation en cache : la ligne est valorisée à son coût
     # (`a_des_donnees=False`), donc pas de XIRR affiché même si des flux existent.
-    resultats = compute_holding_returns(db)
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
     assert resultats["ABC"]["rendement_annualise_pct"] is None
 
@@ -68,12 +68,18 @@ def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
     `MarketDataCache`, mais `valeur_estimee` joue le rôle du prix actuel."""
     db.add(
         Holding(
-            ticker="MAISON", nom="Résidence", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=230000.0
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="MAISON",
+            nom="Résidence",
+            quantite=1.0,
+            prix_revient_moyen=200000.0,
+            type_actif="REAL_ESTATE",
+            valeur_estimee=230000.0,
         )
     )
     db.commit()
 
-    resultats = compute_holding_returns(db)
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
     assert resultats["MAISON"]["rendement_depuis_achat_pct"] == 15.0
     # Pas d'historique de transactions pour cette ligne : pas de XIRR possible.
@@ -86,12 +92,12 @@ def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):
     `valeur_positions`/`gains_latents` gonflerait le gain latent de sa valeur
     entière. La carte Rentabilité (boursière pure, increment 5) doit l'ignorer."""
     make_transaction(db, symbol="ABC", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     db.add(MarketDataCache(ticker="ABC", prix_actuel=150.0, derniere_maj=datetime.now(timezone.utc)))
-    db.add(Holding(ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MAISON", quantite=1.0, prix_revient_moyen=200000.0, type_actif="REAL_ESTATE", valeur_estimee=250000.0))
     db.commit()
 
-    resultat = compute_performance(db)
+    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
 
     # 10 * 150 = 1500 (ABC seul, la maison à 250000 € n'y figure pas).
     assert resultat["valeur_positions"] == 1500.0
@@ -202,7 +208,7 @@ def test_scenario_complet_gain_perte_total_au_centime_pres(db):
         datetime_utc=datetime(2024, 3, 4),
     )
 
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     db.add(
         MarketDataCache(
             ticker="SCN",
@@ -212,7 +218,7 @@ def test_scenario_complet_gain_perte_total_au_centime_pres(db):
     )
     db.commit()
 
-    resultat = compute_performance(db)
+    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
 
     assert resultat["gains_realises"] == pytest.approx(193.2, abs=0.005)
     assert resultat["gains_latents"] == pytest.approx(55.8, abs=0.005)
@@ -243,7 +249,7 @@ def test_type_de_mouvement_inconnu_est_exclu_du_resultat(db):
         datetime_utc=datetime(2024, 1, 1),
     )
 
-    resultat = compute_performance(db)
+    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
 
     assert resultat["dividendes_percus"] == 0.0
     assert resultat["interets_percus"] == 0.0
@@ -268,7 +274,7 @@ def test_frais_et_impots_informatifs_sans_influence_sur_le_gain(db):
         datetime_utc=datetime(2024, 1, 1),
     )
 
-    resultat = compute_performance(db)
+    resultat = compute_performance(db, ID_UTILISATEUR_TEST)
 
     assert resultat["frais_payes"] == pytest.approx(10.0)
     assert resultat["impots_preleves"] == pytest.approx(5.0)
@@ -338,21 +344,21 @@ def test_compute_holding_return_identique_a_compute_holding_returns_sur_plusieur
     # CCC : achat, sans cotation en cache -> ni depuis_achat ni annualise (valorisé au coût).
     make_transaction(db, transaction_id="ccc-1", symbol="CCC", shares=2.0, amount=-200.0, datetime_utc=datetime(2023, 3, 1))
 
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
     db.add(MarketDataCache(ticker="BBB", prix_actuel=90.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
-    ensemble = compute_holding_returns(db)
+    ensemble = compute_holding_returns(db, ID_UTILISATEUR_TEST)
     assert set(ensemble) == {"AAA", "BBB", "CCC"}
 
     for ticker in ensemble:
-        assert compute_holding_return(db, ticker) == ensemble[ticker], f"divergence pour {ticker}"
+        assert compute_holding_return(db, ticker, ID_UTILISATEUR_TEST) == ensemble[ticker], f"divergence pour {ticker}"
 
     # Un ticker absent du portefeuille renvoie des valeurs nulles — même comportement
     # que `.get(ticker, {})` sur le résultat de `compute_holding_returns`, tel qu'utilisé
     # par les appelants (routeur/`holding_detail_service`).
-    assert compute_holding_return(db, "INEXISTANT") == {
+    assert compute_holding_return(db, "INEXISTANT", ID_UTILISATEUR_TEST) == {
         "rendement_depuis_achat_pct": None,
         "rendement_annualise_pct": None,
     }
@@ -364,14 +370,14 @@ def test_compute_holding_return_ne_relit_pas_tout_le_grand_livre(db, monkeypatch
     c'était précisément le coût que ce lot élimine pour l'affichage d'une seule fiche."""
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=1.0, amount=-100.0)
     make_transaction(db, transaction_id="t2", symbol="BBB", shares=1.0, amount=-100.0)
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     def _echoue(*args, **kwargs):
         raise AssertionError("compute_holding_return ne doit pas appeler compute_positions (tout le grand livre)")
 
     monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _echoue)
 
-    resultat = compute_holding_return(db, "AAA")
+    resultat = compute_holding_return(db, "AAA", ID_UTILISATEUR_TEST)
     assert resultat["rendement_depuis_achat_pct"] is None  # pas de cotation, mais pas d'exception non plus
 
 
@@ -380,40 +386,40 @@ def test_compute_holding_return_ne_relit_pas_tout_le_grand_livre(db, monkeypatch
 
 def test_positions_partagees_evite_un_recalcul_quand_plusieurs_fonctions_sont_enchainees(db, monkeypatch):
     """Démontre le mécanisme retenu pour le LOT 4.3 : un appelant qui a déjà calculé
-    `positions` (typiquement via `compute_positions(db)`) peut le transmettre
+    `positions` (typiquement via `compute_positions(db, ID_UTILISATEUR_TEST)`) peut le transmettre
     explicitement à `compute_performance` et `compute_holding_returns` plutôt que de
     laisser chacune le recalculer pour son propre compte — une seule reconstruction du
     grand livre au lieu d'une par fonction enchaînée, sans changer aucun résultat."""
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=10.0, amount=-1000.0)
-    rebuild_holdings(db)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
     db.add(MarketDataCache(ticker="AAA", prix_actuel=120.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
     compteur = {"n": 0}
     original = portfolio_reconstruction.compute_positions
 
-    def _compte_et_calcule(db_):
+    def _compte_et_calcule(db_, user_id_):
         compteur["n"] += 1
-        return original(db_)
+        return original(db_, user_id_)
 
     monkeypatch.setattr(portfolio_reconstruction, "compute_positions", _compte_et_calcule)
 
-    positions = portfolio_reconstruction.compute_positions(db)  # calculé une fois par l'appelant
-    resultat_perf = compute_performance(db, positions=positions)
-    resultat_holdings = compute_holding_returns(db, positions=positions)
+    positions = portfolio_reconstruction.compute_positions(db, ID_UTILISATEUR_TEST)  # calculé une fois par l'appelant
+    resultat_perf = compute_performance(db, ID_UTILISATEUR_TEST, positions=positions)
+    resultat_holdings = compute_holding_returns(db, ID_UTILISATEUR_TEST, positions=positions)
 
     assert compteur["n"] == 1  # les deux fonctions enchaînées ont réutilisé le même résultat
 
     # Sans le paramètre explicite, chaque fonction recalcule pour son propre compte —
     # et les résultats restent rigoureusement identiques (aucun changement de calcul).
     compteur["n"] = 0
-    assert compute_performance(db) == resultat_perf
-    assert compute_holding_returns(db) == resultat_holdings
+    assert compute_performance(db, ID_UTILISATEUR_TEST) == resultat_perf
+    assert compute_holding_returns(db, ID_UTILISATEUR_TEST) == resultat_holdings
     assert compteur["n"] == 2
 
 
 def test_calendrier_dividendes_vide_sans_dividende(db):
-    assert compute_dividend_calendar(db) == []
+    assert compute_dividend_calendar(db, ID_UTILISATEUR_TEST) == []
 
 
 def test_calendrier_dividendes_regroupe_par_mois_et_somme_net(db):
@@ -436,7 +442,7 @@ def test_calendrier_dividendes_regroupe_par_mois_et_somme_net(db):
     # Bruit : une transaction non-dividende ne doit apparaître nulle part.
     make_transaction(db, transaction_id="t1", symbol="AAA", shares=1.0, amount=-100.0, datetime_utc=datetime(2024, 3, 10), date="2024-03-10")
 
-    calendrier = compute_dividend_calendar(db)
+    calendrier = compute_dividend_calendar(db, ID_UTILISATEUR_TEST)
 
     assert [m["mois"] for m in calendrier] == ["2024-03", "2024-04"]
     mars = calendrier[0]

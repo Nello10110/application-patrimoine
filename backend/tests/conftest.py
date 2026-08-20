@@ -46,6 +46,23 @@ from app.services import justetf_service, market_data_refresh
 
 _compteur_transaction_id = itertools.count(1)
 
+# Multi-utilisateur (Milestone 2a, isolation des données) : la fixture `db` crée cet
+# utilisateur comme TOUTE PREMIÈRE ligne de la base de test, fraîchement créée à
+# chaque test (fichier SQLite jetable) — son id est donc déterministe (1), fixé
+# explicitement ici plutôt que de compter sur l'autoincrément pour que ce ne soit
+# pas un détail d'implémentation implicite. `make_holding`/`make_transaction`
+# l'utilisent comme propriétaire par défaut ; les tests qui construisent une ligne
+# directement (`Holding(...)`, `Transaction(...)`, `Loan(...)`, `AllocationTarget(...)`)
+# doivent désormais passer `user_id=ID_UTILISATEUR_TEST` explicitement.
+ID_UTILISATEUR_TEST = 1
+NOM_UTILISATEUR_TEST = "test"
+# Second compte, pour les tests d'isolation inter-utilisateurs (Milestone 2a,
+# `tests/test_isolation_utilisateurs.py`) — créé par la fixture `client_b`, jamais
+# par `db` (qui ne crée que ID_UTILISATEUR_TEST), pour ne pas fausser les ~450
+# tests existants qui ne s'attendent qu'à un seul utilisateur en base.
+ID_UTILISATEUR_B = 2
+NOM_UTILISATEUR_B = "test-b"
+
 
 @pytest.fixture
 def db():
@@ -55,6 +72,10 @@ def db():
     Base.metadata.create_all(bind=engine_test)
     SessionLocalTest = sessionmaker(autocommit=False, autoflush=False, bind=engine_test)
     session = SessionLocalTest()
+    # Multi-utilisateur (Milestone 2a) : toute première ligne de la base fraîchement
+    # créée, donc id déterministe — cf. ID_UTILISATEUR_TEST ci-dessus.
+    session.add(User(id=ID_UTILISATEUR_TEST, username=NOM_UTILISATEUR_TEST, password_hash="inutilisé"))
+    session.commit()
     try:
         yield session
     finally:
@@ -65,19 +86,17 @@ def db():
 
 @pytest.fixture
 def client(db):
-    """`get_current_user` est aussi basculée (Milestone 1, multi-utilisateur) vers un
-    utilisateur de test fixe : la quasi-totalité de la suite ne teste pas
-    l'authentification elle-même, seulement le comportement des routes UNE FOIS
-    connecté — sans cet override, les ~400 tests existants échoueraient tous en 401.
-    `tests/test_auth_router.py` retire volontairement cet override pour exercer le
-    vrai comportement (401 sans jeton, jeton invalide/expiré)."""
+    """`get_current_user` est aussi basculée (Milestone 1, multi-utilisateur) vers
+    l'utilisateur de test fixe créé par la fixture `db` : la quasi-totalité de la
+    suite ne teste pas l'authentification elle-même, seulement le comportement des
+    routes UNE FOIS connecté — sans cet override, les ~400 tests existants
+    échoueraient tous en 401. `tests/test_auth_router.py` retire volontairement cet
+    override pour exercer le vrai comportement (401 sans jeton, jeton invalide/expiré)."""
 
     def _override_get_db():
         yield db
 
-    utilisateur_test = User(username="test", password_hash="inutilisé")
-    db.add(utilisateur_test)
-    db.commit()
+    utilisateur_test = db.get(User, ID_UTILISATEUR_TEST)
 
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_current_user] = lambda: utilisateur_test
@@ -87,6 +106,22 @@ def client(db):
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_current_user, None)
+
+
+def basculer_utilisateur(db, user_id: int, username: str) -> User:
+    """Repointe `get_current_user` (Milestone 2a, `test_isolation_utilisateurs.py`)
+    vers un autre compte, créé au passage si besoin, sur le MÊME `client` déjà en
+    place — `app.dependency_overrides` est un dict global sur l'objet `app` unique
+    du process de test : deux fixtures `client` séparées s'écraseraient l'une
+    l'autre plutôt que de coexister, d'où ce basculement explicite en cours de test
+    plutôt qu'une seconde fixture `client_b`."""
+    utilisateur = db.get(User, user_id)
+    if utilisateur is None:
+        utilisateur = User(id=user_id, username=username, password_hash="inutilisé")
+        db.add(utilisateur)
+        db.commit()
+    app.dependency_overrides[get_current_user] = lambda: utilisateur
+    return utilisateur
 
 
 class FauxTicker:
@@ -164,6 +199,7 @@ def make_transaction(db, **overrides) -> Transaction:
     """Construit et persiste une transaction de test avec des valeurs par défaut
     raisonnables (achat en bourse), surchargeables au cas par cas."""
     defaults = dict(
+        user_id=ID_UTILISATEUR_TEST,
         transaction_id=f"tx-test-{next(_compteur_transaction_id)}",
         datetime_utc=datetime(2024, 1, 1),
         date="2024-01-01",
@@ -190,6 +226,7 @@ def make_transaction(db, **overrides) -> Transaction:
 def make_holding(db, **overrides) -> Holding:
     """Construit et persiste une ligne de portefeuille de test."""
     defaults = dict(
+        user_id=ID_UTILISATEUR_TEST,
         ticker="TEST",
         nom="Titre de test",
         quantite=10.0,

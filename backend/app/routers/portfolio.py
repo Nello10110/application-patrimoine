@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from ..auth import get_current_user
 from ..database import get_db
-from ..models import ORIGINE_MANUEL, Holding
+from ..models import ORIGINE_MANUEL, Holding, User
 from ..schemas import (
     ColumnMapping,
     HoldingCreate,
@@ -68,7 +69,7 @@ def _colonnes_mappees_absentes(mapping: ColumnMapping, colonnes_fichier: list[st
 
 
 @router.post("/import/confirm", response_model=ImportResult)
-def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db)):
+def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         df = csv_import.get_pending(mapping.file_token)
     except KeyError as exc:
@@ -97,7 +98,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db)):
             # au grand livre : les supprimer ici créerait un état incohérent que le
             # prochain import de transactions rétablirait tout seul, sans que
             # l'utilisateur comprenne pourquoi (cf. `models.Holding.origine`).
-            db.query(Holding).filter(Holding.origine == ORIGINE_MANUEL).delete()
+            db.query(Holding).filter(Holding.user_id == current_user.id, Holding.origine == ORIGINE_MANUEL).delete()
 
         for idx, row in df.iterrows():
             ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
@@ -110,6 +111,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db)):
 
             db.add(
                 Holding(
+                    user_id=current_user.id,
                     ticker=ticker,
                     nom=_cellule_texte(row, mapping.nom_col),
                     quantite=qty_val,
@@ -135,9 +137,9 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db)):
 
 
 @router.get("/holdings", response_model=list[HoldingOut])
-def list_holdings(db: Session = Depends(get_db)):
-    holdings = db.query(Holding).order_by(Holding.ticker).all()
-    rendements = performance_service.compute_holding_returns(db)
+def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    holdings = db.query(Holding).filter(Holding.user_id == current_user.id).order_by(Holding.ticker).all()
+    rendements = performance_service.compute_holding_returns(db, current_user.id)
     # `value_holdings` applique déjà la règle « prix de marché, à défaut prix de
     # revient » ; on la réutilise ici pour ne pas dupliquer ce calcul (LOT 6.7).
     # Elle retombe sur 0 quand aucun prix n'est connu (pratique pour les sommes des
@@ -157,21 +159,21 @@ def list_holdings(db: Session = Depends(get_db)):
 
 
 @router.get("/holdings/{ticker}/detail", response_model=HoldingDetail)
-def get_holding_detail(ticker: str, db: Session = Depends(get_db)):
-    detail = holding_detail_service.build_holding_detail(db, ticker)
+def get_holding_detail(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    detail = holding_detail_service.build_holding_detail(db, ticker, current_user.id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     return HoldingDetail(**detail)
 
 
 @router.get("/holdings/{ticker}/price-history", response_model=HoldingPriceHistoryResponse)
-def get_holding_price_history(ticker: str, db: Session = Depends(get_db)):
-    result = historical_performance_service.compute_holding_price_history(db, ticker)
+def get_holding_price_history(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = historical_performance_service.compute_holding_price_history(db, ticker, current_user.id)
     return HoldingPriceHistoryResponse(**result) if result else HoldingPriceHistoryResponse(points=[])
 
 
 @router.post("/holdings", response_model=HoldingOut)
-def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)):
+def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
     donnees = payload.model_dump()
@@ -180,7 +182,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)):
     # ici dès qu'une valeur estimée est fournie à la création.
     if donnees.get("valeur_estimee") is not None:
         donnees["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
-    holding = Holding(**donnees, origine=ORIGINE_MANUEL)
+    holding = Holding(**donnees, origine=ORIGINE_MANUEL, user_id=current_user.id)
     db.add(holding)
     db.commit()
     db.refresh(holding)
@@ -188,9 +190,9 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingOut)
-def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depends(get_db)):
+def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     holding = db.get(Holding, holding_id)
-    if holding is None:
+    if holding is None or holding.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     updates = payload.model_dump(exclude_unset=True)
     # `date_valeur_estimee` n'avance que si `valeur_estimee` change réellement dans cet
@@ -206,9 +208,9 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
 
 
 @router.delete("/holdings/{holding_id}")
-def delete_holding(holding_id: int, db: Session = Depends(get_db)):
+def delete_holding(holding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     holding = db.get(Holding, holding_id)
-    if holding is None:
+    if holding is None or holding.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     db.delete(holding)
     db.commit()

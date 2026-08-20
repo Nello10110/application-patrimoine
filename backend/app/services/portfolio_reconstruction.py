@@ -216,10 +216,13 @@ def _apply_transaction(state: PositionState, tx: Transaction, methode: str) -> N
         state.shares_history.append((tx.datetime_utc, state.shares))
 
 
-def compute_positions(db: Session, methode: str | None = None) -> dict[str, PositionState]:
-    """`methode` : `preferences_service.METHODE_COUT_MOYEN_PONDERE` ou `METHODE_FIFO`.
-    Explicite plutôt qu'implicite pour rester testable sans base (les tests unitaires
-    de ce module passent la méthode qu'ils veulent vérifier) ; si omis (cas normal des
+def compute_positions(db: Session, user_id: int, methode: str | None = None) -> dict[str, PositionState]:
+    """`user_id` : reconstruction strictement scopée à ce compte — le grand livre
+    d'un autre utilisateur ne doit JAMAIS entrer dans ce calcul (Milestone 2a,
+    multi-utilisateur, cf. `docs/BACKLOG.md` § 2.I.1). `methode` :
+    `preferences_service.METHODE_COUT_MOYEN_PONDERE` ou `METHODE_FIFO`. Explicite
+    plutôt qu'implicite pour rester testable sans base (les tests unitaires de ce
+    module passent la méthode qu'ils veulent vérifier) ; si omis (cas normal des
     appelants applicatifs), lu depuis les préférences persistées (LOT 5B) — comportement
     par défaut : coût moyen pondéré, comme avant l'introduction de ce réglage."""
     if methode is None:
@@ -227,7 +230,7 @@ def compute_positions(db: Session, methode: str | None = None) -> dict[str, Posi
 
     transactions = (
         db.query(Transaction)
-        .filter(Transaction.symbol.isnot(None), Transaction.symbol != "")
+        .filter(Transaction.user_id == user_id, Transaction.symbol.isnot(None), Transaction.symbol != "")
         .order_by(Transaction.datetime_utc.asc())
         .all()
     )
@@ -243,22 +246,29 @@ def compute_positions(db: Session, methode: str | None = None) -> dict[str, Posi
     return positions
 
 
-def compute_position(db: Session, ticker: str, methode: str | None = None) -> PositionState | None:
+def compute_position(db: Session, ticker: str, user_id: int, methode: str | None = None) -> PositionState | None:
     """Reconstruction ciblée sur un seul ticker (cf. LOT 4.2) : ne relit que les
     transactions de ce ticker plutôt que de rejouer tout le grand livre pour n'en
     garder qu'une position, comme le faisait `holding_detail_service` en passant par
     `compute_positions(db)` complet pour afficher une seule fiche. Résultat
-    rigoureusement identique à `compute_positions(db).get(ticker)` — même fonction
-    de traitement (`_apply_transaction`/`_controler_coherence`) appliquée aux mêmes
-    transactions, seule la requête source change (filtrée par ticker plutôt que
-    ramenant tout le grand livre). Renvoie `None` si ce ticker n'a aucune
+    rigoureusement identique à `compute_positions(db, user_id).get(ticker)` — même
+    fonction de traitement (`_apply_transaction`/`_controler_coherence`) appliquée
+    aux mêmes transactions, seule la requête source change (filtrée par ticker
+    plutôt que ramenant tout le grand livre). Renvoie `None` si ce ticker n'a aucune
     transaction (pas de ligne dans `positions` pour lui, comme `compute_positions`).
 
-    `methode` : cf. `compute_positions`, même défaut (lu depuis les préférences)."""
+    `user_id` : deux utilisateurs peuvent détenir le même ticker — filtré en plus du
+    ticker, jamais l'un sans l'autre (Milestone 2a). `methode` : cf. `compute_positions`,
+    même défaut (lu depuis les préférences)."""
     if methode is None:
         methode = preferences_service.lire_methode_cout(db)
 
-    transactions = db.query(Transaction).filter(Transaction.symbol == ticker).order_by(Transaction.datetime_utc.asc()).all()
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.symbol == ticker, Transaction.user_id == user_id)
+        .order_by(Transaction.datetime_utc.asc())
+        .all()
+    )
     if not transactions:
         return None
 
@@ -299,8 +309,10 @@ class ReconstructionResult:
     lignes_manuelles_remplacees: int
 
 
-def rebuild_holdings(db: Session) -> ReconstructionResult:
-    """Reconstruit les lignes du portefeuille depuis le grand livre.
+def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
+    """Reconstruit les lignes du portefeuille depuis le grand livre, pour UN SEUL
+    utilisateur (`user_id`, Milestone 2a) — ne touche jamais aux lignes/transactions
+    d'un autre compte.
 
     Arbitrage saisie manuelle / reconstruction (LOT 3.4) : seules les lignes
     `origine=ORIGINE_RECONSTRUIT` sont supprimées puis recréées — une ligne saisie
@@ -317,16 +329,18 @@ def rebuild_holdings(db: Session) -> ReconstructionResult:
     les lignes existantes (manuelles et reconstruites) avant leur suppression,
     pour couvrir aussi le cas, plus rare, d'une ligne manuelle remplacée ci-dessus.
     """
-    positions = compute_positions(db)
+    positions = compute_positions(db, user_id)
 
-    lignes_manuelles_existantes = {h.ticker: h for h in db.query(Holding).filter(Holding.origine == ORIGINE_MANUEL).all()}
+    lignes_manuelles_existantes = {
+        h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_MANUEL).all()
+    }
 
     comptes_par_ticker: dict[str, str] = {}
-    for h in db.query(Holding).all():
+    for h in db.query(Holding).filter(Holding.user_id == user_id).all():
         if h.compte and h.ticker not in comptes_par_ticker:
             comptes_par_ticker[h.ticker] = h.compte
 
-    db.query(Holding).filter(Holding.origine == ORIGINE_RECONSTRUIT).delete()
+    db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT).delete()
 
     count = 0
     lignes_manuelles_remplacees = 0
@@ -348,6 +362,7 @@ def rebuild_holdings(db: Session) -> ReconstructionResult:
         prix_revient = state.cost_basis / state.shares
         db.add(
             Holding(
+                user_id=user_id,
                 ticker=state.symbol,
                 nom=state.name,
                 quantite=state.shares,

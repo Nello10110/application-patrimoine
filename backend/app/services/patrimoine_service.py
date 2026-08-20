@@ -28,16 +28,17 @@ LABEL_TYPE_ACTIF: dict[str | None, str] = {
 LABEL_NON_RENSEIGNE = "Non renseigné"
 
 
-def compute_patrimoine_net(db: Session) -> dict:
-    """`actifs_totaux` couvre toutes les lignes (`Holding.valeur_estimee` en priorité,
-    sinon la même règle que `analysis_service.value_holdings` — prix de marché, à
-    défaut coût de revient). `passifs_totaux` est la somme des capitaux restants dus
-    de tous les emprunts (`loan_service.compute_capital_restant_du`)."""
-    holdings = db.query(Holding).all()
+def compute_patrimoine_net(db: Session, user_id: int) -> dict:
+    """`actifs_totaux` couvre toutes les lignes de CET utilisateur (`user_id`,
+    Milestone 2a — `Holding.valeur_estimee` en priorité, sinon la même règle que
+    `analysis_service.value_holdings` — prix de marché, à défaut coût de revient).
+    `passifs_totaux` est la somme des capitaux restants dus de tous ses emprunts
+    (`loan_service.compute_capital_restant_du`)."""
+    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
     valued = analysis_service.value_holdings(holdings)
     actifs_totaux = sum(v.valeur for v in valued)
 
-    loans = db.query(Loan).all()
+    loans = db.query(Loan).filter(Loan.user_id == user_id).all()
     passifs_totaux = sum(loan_service.compute_capital_restant_du(loan) for loan in loans)
 
     par_classe: dict[str, float] = {}

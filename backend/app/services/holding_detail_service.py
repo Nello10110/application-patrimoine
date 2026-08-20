@@ -10,14 +10,21 @@ from ..models import FundComposition, FundCompositionBrute, FundTopHolding, Hold
 from . import market_data_service, performance_service, reference_indices
 
 
-def _frais_transaction_payes(db: Session, ticker: str) -> float:
-    lignes = db.query(Transaction).filter(Transaction.symbol == ticker).with_entities(Transaction.fee, Transaction.tax).all()
+def _frais_transaction_payes(db: Session, ticker: str, user_id: int) -> float:
+    lignes = (
+        db.query(Transaction)
+        .filter(Transaction.symbol == ticker, Transaction.user_id == user_id)
+        .with_entities(Transaction.fee, Transaction.tax)
+        .all()
+    )
     return sum(abs(fee) + abs(tax) for fee, tax in lignes)
 
 
-def build_holding_detail(db: Session, ticker: str) -> dict | None:
-    """Retourne `None` si le ticker n'existe pas dans le portefeuille."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker).first()
+def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
+    """Retourne `None` si le ticker n'existe pas dans le portefeuille de cet
+    utilisateur (`user_id`, Milestone 2a — deux comptes peuvent détenir le même
+    ticker, filtré en plus dans toute requête ci-dessous)."""
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == user_id).first()
     if holding is None:
         return None
 
@@ -30,7 +37,7 @@ def build_holding_detail(db: Session, ticker: str) -> dict | None:
     # les transactions de ce ticker, plutôt que `compute_holding_returns(db)` qui
     # rejouerait tout le grand livre et revaloriserait tout le portefeuille pour
     # n'afficher au final que ces deux pourcentages sur une seule fiche.
-    rendements = performance_service.compute_holding_return(db, ticker)
+    rendements = performance_service.compute_holding_return(db, ticker, user_id)
 
     compositions = db.query(FundComposition).filter(FundComposition.ticker == ticker).all()
     repartition_geo = [{"categorie": c.categorie, "poids": c.poids} for c in compositions if c.type == "geo"]
@@ -82,7 +89,7 @@ def build_holding_detail(db: Session, ticker: str) -> dict | None:
         "emetteur": emetteur,
         "resume": resume,
         "frais_gestion_pct": extra.get("frais_gestion_pct"),
-        "frais_transaction_payes": round(_frais_transaction_payes(db, ticker), 2),
+        "frais_transaction_payes": round(_frais_transaction_payes(db, ticker, user_id), 2),
         "repartition_geo": repartition_geo,
         "repartition_sector": repartition_sector,
         "repartition_geo_detaillee": repartition_geo_detaillee,

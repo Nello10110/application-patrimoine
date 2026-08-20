@@ -266,3 +266,141 @@ def migrate_recalculer_regions_en_cache() -> None:
 
     if corrigees:
         logger.info("migration: zone géographique recalculée pour %d entrée(s) de market_data_cache", corrigees)
+
+
+def migrate_isolation_utilisateur() -> None:
+    """Multi-utilisateur (Milestone 2a, `docs/BACKLOG.md` § 2.I.1) : rattache toutes
+    les lignes `holdings`/`loans`/`transactions`/`allocation_targets` existantes à un
+    utilisateur, et corrige les contraintes d'unicité devenues trop larges maintenant
+    que plusieurs utilisateurs peuvent exister.
+
+    À appeler après `run_startup_migrations()`, qui a déjà ajouté la colonne
+    `user_id` (nullable — `ADD COLUMN` ne pose jamais de `NOT NULL`) sur les 4 tables.
+
+    Rattachement au compte `demo` : choix explicite de l'utilisateur (20/08/2026),
+    fait au moment où les seules données réelles de l'application n'avaient encore
+    aucune notion de propriétaire. Un futur transfert vers un autre compte reste une
+    opération manuelle en base, hors périmètre de cette migration automatique.
+
+    `allocation_targets` a un traitement à part : son ancienne contrainte unique
+    `(annee, type, categorie)` a été déclarée au moment de la création de la table
+    (`__table_args__`), donc SQLite la représente en interne par un
+    `sqlite_autoindex_...` — un index que `DROP INDEX` refuse explicitement de
+    supprimer (message SQLite : « index associated with UNIQUE or PRIMARY KEY
+    constraint cannot be dropped »). La seule façon de la remplacer par la version à
+    4 colonnes (avec `user_id`) est de reconstruire la table : renommer l'ancienne,
+    recréer la nouvelle depuis le modèle actuel (garantit un schéma toujours
+    synchronisé avec `models.py`), recopier les données, supprimer l'ancienne.
+    `transactions.transaction_id` n'a pas ce problème : son ancienne contrainte
+    unique est un index nommé ordinaire (`ix_transactions_transaction_id`, posé via
+    `Column(unique=True)`), qu'un `DROP INDEX` classique supprime sans souci.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "users" not in tables:
+        return  # base neuve : aucune des tables métier n'a encore de données à rattacher
+
+    from .models import AllocationTarget
+
+    with engine.begin() as conn:
+        demo_id = conn.execute(text("SELECT id FROM users WHERE username = 'demo'")).scalar()
+
+    # --- holdings / loans / transactions : ADD COLUMN déjà fait, il ne reste que le
+    # rattachement des lignes existantes (idempotent : n'affecte que `user_id IS NULL`).
+    if demo_id is not None:
+        with engine.begin() as conn:
+            for table in ("holdings", "loans", "transactions"):
+                if table not in tables:
+                    continue
+                colonnes = {c["name"] for c in inspector.get_columns(table)}
+                if "user_id" not in colonnes:
+                    continue  # run_startup_migrations n'est pas encore passé par là (ordre d'appel)
+                resultat = conn.execute(
+                    text(f'UPDATE "{table}" SET user_id = :demo_id WHERE user_id IS NULL'),
+                    {"demo_id": demo_id},
+                )
+                if resultat.rowcount:
+                    logger.info("migration: %d ligne(s) de %s rattachée(s) au compte demo", resultat.rowcount, table)
+
+    # --- transactions : contrainte unique globale -> par utilisateur.
+    if "transactions" in tables:
+        index_transactions = {ix["name"] for ix in inspector.get_indexes("transactions")}
+        if "ix_transactions_transaction_id" in index_transactions:
+            with engine.begin() as conn:
+                conn.execute(text('DROP INDEX "ix_transactions_transaction_id"'))
+            logger.info("migration: ancien index unique global sur transactions.transaction_id supprimé")
+            # `run_startup_migrations` (déjà passé avant cet appel, cf. `main.py`) a
+            # déjà créé la nouvelle `UniqueConstraint("transaction_id", "user_id")`
+            # du modèle dans le même cycle de démarrage (ADD COLUMN puis CREATE UNIQUE
+            # INDEX passent par la même transaction) — elle coexistait donc brièvement
+            # avec l'ancien index à colonne unique ci-dessus, plus restrictif ; sa
+            # suppression ici est ce qui rend la nouvelle contrainte effective.
+
+    # --- allocation_targets : reconstruction complète (cf. docstring).
+    if "allocation_targets" in tables:
+        # La reconstruction est nécessaire tant que l'ANCIENNE contrainte à 3 colonnes
+        # (sans `user_id`, héritée du schéma pré-Milestone 2a) existe encore — pas
+        # simplement tant que la nouvelle n'existe pas : `run_startup_migrations`
+        # (déjà passé avant cet appel) crée la nouvelle `UniqueConstraint("user_id",
+        # "annee", "type", "categorie")` du modèle dès que la colonne `user_id`
+        # existe, via un `CREATE UNIQUE INDEX` séparé qui COEXISTE avec l'ancienne
+        # contrainte inline plutôt que de la remplacer. Sans reconstruction complète
+        # ici, l'ancienne contrainte à 3 colonnes resterait active et interdirait à
+        # deux utilisateurs différents de partager la même combinaison (année, type,
+        # catégorie) — exactement le bug que ce Milestone doit lever. Une contrainte
+        # unique existe soit comme contrainte de table (`get_unique_constraints`, cas
+        # d'une déclaration inline au moment du CREATE TABLE), soit comme index unique
+        # nommé (`get_indexes`, cas d'un `CREATE UNIQUE INDEX` séparé) : les deux
+        # formes comptent, comme dans `run_startup_migrations` lui-même.
+        ancienne = tuple(sorted(["annee", "type", "categorie"]))
+        contraintes_uniques = {
+            tuple(sorted(uc["column_names"])) for uc in inspector.get_unique_constraints("allocation_targets")
+        }
+        index_uniques = {
+            tuple(sorted(ix["column_names"])) for ix in inspector.get_indexes("allocation_targets") if ix["unique"]
+        }
+        if ancienne in contraintes_uniques or ancienne in index_uniques:
+            colonnes_avant = {c["name"] for c in inspector.get_columns("allocation_targets")}
+            avait_deja_user_id = "user_id" in colonnes_avant
+            # SQLite ne renomme jamais les index existants avec leur table (`ALTER
+            # TABLE ... RENAME` les laisse pointer vers la table renommée sous leur
+            # nom d'origine) : sans les supprimer ici, `AllocationTarget.__table__.create`
+            # échouerait juste après en tentant de recréer un index de même nom
+            # (`ix_allocation_targets_annee`, ou l'index unique que `run_startup_migrations`
+            # vient tout juste de créer ci-dessus). Seuls les index NOMMÉS comptent :
+            # un `sqlite_autoindex_*` (contrainte inline d'origine) disparaît de
+            # lui-même avec la table qui le porte, au DROP TABLE plus bas.
+            noms_index_a_supprimer = [ix["name"] for ix in inspector.get_indexes("allocation_targets") if ix["name"]]
+
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE allocation_targets RENAME TO allocation_targets_avant_migration"))
+                for nom_index in noms_index_a_supprimer:
+                    conn.execute(text(f'DROP INDEX IF EXISTS "{nom_index}"'))
+
+            AllocationTarget.__table__.create(bind=engine)
+
+            with engine.begin() as conn:
+                if avait_deja_user_id:
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO allocation_targets (id, user_id, annee, type, categorie, pourcentage_cible)
+                            SELECT id, COALESCE(user_id, :demo_id), annee, type, categorie, pourcentage_cible
+                            FROM allocation_targets_avant_migration
+                            """
+                        ),
+                        {"demo_id": demo_id},
+                    )
+                else:
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO allocation_targets (id, user_id, annee, type, categorie, pourcentage_cible)
+                            SELECT id, :demo_id, annee, type, categorie, pourcentage_cible
+                            FROM allocation_targets_avant_migration
+                            """
+                        ),
+                        {"demo_id": demo_id},
+                    )
+                conn.execute(text("DROP TABLE allocation_targets_avant_migration"))
+            logger.info("migration: allocation_targets reconstruite avec user_id et sa nouvelle contrainte unique")

@@ -351,7 +351,7 @@ côté backend — revue manuelle des imports des services les plus volumineux, 
 au-delà de ce qui a déjà été nettoyé (l'import `ForeignKey` inutilisé de `models.py` et
 `analysis_service.breakdown_by`, tous deux déjà retirés, cf. audit archivé).
 
-#### I.1 — `majeur` · `L` · `en cours (Milestone 1 traité)` — Ce qu'impliquerait un vrai multi-utilisateur (détail de G.1)
+#### I.1 — `majeur` · `L` · `en cours (Milestones 1 et 2a traités)` — Ce qu'impliquerait un vrai multi-utilisateur (détail de G.1)
 
 L'application est explicitement conçue comme « 100 % locale, sans authentification »
 (`backend/app/main.py`, docstring de module) — ce n'est pas un oubli, c'est un choix assumé et
@@ -454,9 +454,56 @@ changement de modèle SQLAlchemy — accessoirement, ceci confirme qu'un changem
 des cas où `--reload` n'est pas fiable, à garder en tête pour la suite (Milestone 2, qui va justement
 beaucoup toucher aux modèles).
 
-Points 2 à 6 restent `non traités` : c'est là qu'est le vrai risque (isolation des données par
-utilisateur, sur de vraies données financières) — délibérément un Milestone séparé, à planifier une
-fois ce socle d'authentification éprouvé dans le temps, pas dans la foulée.
+**Milestone 2a livré et vérifié le 20/08/2026** : point 2 traité pour `Holding`, `Loan`,
+`AllocationTarget`, `Transaction` (`Parametre`/`ScheduledJobConfig` restent en Milestone 2b, cf.
+ci-dessous) — chacune des 4 tables gagne une colonne `user_id` (FK), et chaque requête de chaque
+router/service concerné (`portfolio.py`, `loans.py`, `targets.py`, `transactions.py`, `export.py`,
+`analysis.py`, `portfolio_reconstruction.py`, `analysis_service.py`, `patrimoine_service.py`,
+`performance_service.py`, `holding_detail_service.py`, `historical_performance_service.py`,
+`rapport_service.py`) filtre désormais par `current_user.id`. Décision d'architecture (point 4,
+validée avec l'utilisateur) : base SQLite unique partagée avec filtrage applicatif systématique,
+plutôt qu'un fichier par utilisateur — jugé disproportionné à l'échelle d'un usage familial. Le cache
+marché (`MarketDataCache`/`TickerResolution`/`FundComposition*`/`FundTopHolding`) reste global comme
+prévu au point 3, avec un commentaire explicite à chaque site de requête non filtré pour ne pas le
+« corriger » par erreur plus tard. Risques additionnels corrigés au passage : collision de ticker
+entre deux utilisateurs (tout lookup par `ticker`/`symbol` filtre désormais aussi par `user_id`),
+IDOR sur les endpoints update/delete par id (`db.get(...)` suivi d'une vérification de propriétaire,
+404 — pas 403 — en cas de mismatch), dédoublonnage d'import de transactions devenu par-utilisateur
+(`UniqueConstraint("transaction_id", "user_id")` plutôt qu'un identifiant unique global), et une fuite
+de cache réelle trouvée pendant l'audit (`historique_cache.cle_historique_portefeuille()` était une
+clé globale constante — le premier utilisateur à calculer son historique de portefeuille aurait vu sa
+donnée servie à tous les autres pendant 24h ; devenue `cle_historique_portefeuille(user_id)`).
+
+Migration de contenu (`database.migrate_isolation_utilisateur`, appelée une fois au démarrage) :
+rattache toutes les lignes existantes (49 positions, 4059 transactions, 17 objectifs) au compte
+`demo`, sur décision explicite de l'utilisateur le temps qu'un compte personnel soit créé. Incident
+rencontré pendant le déploiement sur la vraie base : la fonction plantait
+(`sqlite3.OperationalError: index ix_allocation_targets_annee already exists`) car sa détection
+« déjà migré ? » ne consultait que `inspector.get_unique_constraints()`, alors que
+`run_startup_migrations` (qui s'exécute juste avant) avait déjà créé la nouvelle contrainte via un
+`CREATE UNIQUE INDEX` séparé — visible seulement via `inspector.get_indexes()`. Corrigé sur les deux
+plans : la détection consulte désormais les deux, ET la condition de reconstruction a été inversée
+pour se baser sur la présence de l'ANCIENNE contrainte à 3 colonnes plutôt que l'absence de la
+nouvelle (sinon l'ancienne contrainte, plus restrictive, restait active en silence — verrouillé par
+`test_migrations.py::test_migrate_isolation_utilisateur_autorise_deux_utilisateurs_sur_le_meme_objectif`,
+qui échouait avant ce second correctif). `ALTER TABLE ... RENAME` ne renommant pas les index SQLite
+existants, la fonction supprime aussi explicitement les index nommés de l'ancienne table avant de
+recréer la nouvelle, pour éviter une collision de nom. Les 17 lignes d'objectifs, momentanément
+bloquées dans une table intermédiaire suite au premier plantage, ont été récupérées manuellement sans
+perte après correction. 442 tests backend au vert (dont 15 nouveaux dans
+`test_isolation_utilisateurs.py`, un par endpoint scopé : liste/détail/update/delete croisés entre
+deux comptes). Vérifié en conditions réelles : compte `demo` toujours au complet (49 positions, 4059
+transactions, 17 objectifs) après migration ; un second compte de test créé de zéro démarre avec un
+portefeuille strictement vide ; une position créée sur ce second compte n'apparaît jamais côté `demo`
+et réciproquement.
+
+Points 2 (partiel, cf. ci-dessus), 5 et 6 restent `non traités` — Milestone 2b, à planifier séparément :
+`Parametre` (préférences) par utilisateur (nécessite une clé composite `(cle, user_id)`, aujourd'hui
+accédée par PK simple), `startup_maintenance.reconstruire_si_regles_de_calcul_modifiees` et
+`scheduler_service.py` (aujourd'hui contournés pragmatiquement par une boucle sur tous les
+utilisateurs plutôt qu'une vraie redéfinition de leur portée), et le garde frontend (point 6) —
+`api/client.ts` gère déjà le jeton, mais aucune redirection dédiée n'a encore été revue pour un
+contexte réellement multi-compte au-delà de `demo`.
 
 #### I.2 — `mineur` · `M` · `P3` · `traité` — `market_data_service.py` devenu un fichier fourre-tout
 

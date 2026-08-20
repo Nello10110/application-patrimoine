@@ -11,7 +11,7 @@ import pandas as pd
 from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding
 from app.services import csv_import, upload_limits
 
-from .conftest import make_holding
+from .conftest import ID_UTILISATEUR_TEST, make_holding
 
 CSV_VALIDE = (
     "ticker,quantite\n"
@@ -238,8 +238,8 @@ def test_remplacer_existant_epargne_les_lignes_du_grand_livre(db, client, monkey
     l'utilisateur gère lui-même : une position issue du grand livre de transactions
     appartient au grand livre et doit survivre à l'import d'un relevé de positions —
     la supprimer créerait un état que le prochain import rétablirait tout seul."""
-    db.add(Holding(ticker="RECONSTRUIT", quantite=5.0, prix_revient_moyen=10.0, origine=ORIGINE_RECONSTRUIT))
-    db.add(Holding(ticker="MANUELLE", quantite=3.0, prix_revient_moyen=20.0, origine=ORIGINE_MANUEL))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="RECONSTRUIT", quantite=5.0, prix_revient_moyen=10.0, origine=ORIGINE_RECONSTRUIT))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="MANUELLE", quantite=3.0, prix_revient_moyen=20.0, origine=ORIGINE_MANUEL))
     db.commit()
 
     df = pd.DataFrame({"Ticker": ["NOUVELLE"], "Qte": [7.0]})

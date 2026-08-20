@@ -28,7 +28,7 @@ from typing import Callable
 
 from ..database import SessionLocal
 from . import market_data_service
-from .historique_cache import cle_historique_portefeuille, invalider
+from .historique_cache import invalider_historiques_portefeuille
 
 logger = logging.getLogger("patrimoine.market_data")
 
@@ -148,8 +148,10 @@ def _executer_rafraichissement(
         # Le cache d'historique du portefeuille (LOT 4.5) est valable 24h : sans
         # cette invalidation, le graphique d'évolution du tableau de bord resterait
         # figé jusqu'à 24h après une mise à jour des cours, en contradiction avec la
-        # valeur (calculée à partir des cours frais) affichée juste à côté.
-        invalider(db, cle_historique_portefeuille())
+        # valeur (calculée à partir des cours frais) affichée juste à côté. Ce
+        # rafraîchissement est global (tous les tickers de tous les utilisateurs,
+        # Milestone 2a) : l'invalidation l'est aussi, pour tout le monde d'un coup.
+        invalider_historiques_portefeuille(db)
 
         with _verrou_etat:
             _etat.statut = "ok"

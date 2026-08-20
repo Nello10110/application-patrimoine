@@ -14,8 +14,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.models import Holding, MarketDataCache, Transaction
+from app.models import Holding, MarketDataCache, Transaction, User
 from scripts import sauvegarde
+
+# Multi-utilisateur (Milestone 2a) : `holdings`/`transactions` exigent désormais un
+# `user_id` — ce fichier construit ses propres bases isolées (pas la fixture `db`
+# partagée de `conftest.py`), donc ce compte minimal est créé ici.
+ID_UTILISATEUR_TEST = 1
 
 
 def _creer_base_peuplee(chemin: Path, *, ticker: str = "AAPL") -> None:
@@ -26,11 +31,15 @@ def _creer_base_peuplee(chemin: Path, *, ticker: str = "AAPL") -> None:
     Session = sessionmaker(bind=engine)
     session = Session()
     try:
+        session.add(User(id=ID_UTILISATEUR_TEST, username="test", password_hash="inutilisé"))
         session.add(
-            Holding(ticker=ticker, nom="Apple Inc.", quantite=10.0, prix_revient_moyen=150.0, type_actif="STOCK")
+            Holding(
+                user_id=ID_UTILISATEUR_TEST, ticker=ticker, nom="Apple Inc.", quantite=10.0, prix_revient_moyen=150.0, type_actif="STOCK"
+            )
         )
         session.add(
             Transaction(
+                user_id=ID_UTILISATEUR_TEST,
                 transaction_id=f"tx-{ticker}",
                 datetime_utc=datetime(2024, 1, 1),
                 date="2024-01-01",
@@ -238,14 +247,14 @@ def test_restauration_remplace_la_base_et_met_lancienne_de_cote(tmp_path):
     sauvegarde.restaurer(fichier_a_restaurer, base_courante, dossier, horodatage=datetime(2026, 3, 1, 8, 0, 0))
 
     # La base courante porte maintenant le contenu du fichier restauré.
-    tickers_restaures = {ligne[1] for ligne in _lignes(base_courante, "holdings")}
+    tickers_restaures = {ligne[2] for ligne in _lignes(base_courante, "holdings")}
     assert tickers_restaures == {"NOUVEAU"}
 
     # L'ancienne base a été mise de côté, contenu intact, sous un nom distinct des
     # sauvegardes périodiques.
     copies = list(dossier.glob("patrimoine-avant-restauration-*.db"))
     assert len(copies) == 1
-    tickers_mis_de_cote = {ligne[1] for ligne in _lignes(copies[0], "holdings")}
+    tickers_mis_de_cote = {ligne[2] for ligne in _lignes(copies[0], "holdings")}
     assert tickers_mis_de_cote == {"ANCIEN"}
     assert sauvegarde.lister_sauvegardes(dossier) == []  # pas comptée comme sauvegarde périodique
 
@@ -270,7 +279,7 @@ def test_restauration_fichier_introuvable_leve_file_not_found_et_ne_touche_rien(
     with pytest.raises(FileNotFoundError):
         sauvegarde.restaurer(tmp_path / "absent.db", base_courante, dossier)
 
-    assert {ligne[1] for ligne in _lignes(base_courante, "holdings")} == {"INTACT"}
+    assert {ligne[2] for ligne in _lignes(base_courante, "holdings")} == {"INTACT"}
     assert not dossier.exists()
 
 
@@ -287,7 +296,7 @@ def test_restauration_fichier_invalide_refuse_avant_de_toucher_a_la_base_courant
 
     # La base courante n'a pas bougé et aucune copie de sécurité n'a été créée :
     # le contrôle d'intégrité du fichier à restaurer a lieu avant tout effet de bord.
-    assert {ligne[1] for ligne in _lignes(base_courante, "holdings")} == {"INTACT"}
+    assert {ligne[2] for ligne in _lignes(base_courante, "holdings")} == {"INTACT"}
     assert not dossier.exists()
 
 
@@ -320,7 +329,7 @@ def test_cli_restauration_annulee_sans_confirmation(tmp_path, monkeypatch, capsy
 
     assert code_retour == 1
     assert "annulée" in capsys.readouterr().out
-    assert {ligne[1] for ligne in _lignes(base_courante, "holdings")} == {"INTACT"}
+    assert {ligne[2] for ligne in _lignes(base_courante, "holdings")} == {"INTACT"}
 
 
 def test_cli_restauration_avec_forcer_ne_demande_pas_confirmation(tmp_path, monkeypatch, capsys):
@@ -347,7 +356,7 @@ def test_cli_restauration_avec_forcer_ne_demande_pas_confirmation(tmp_path, monk
     )
 
     assert code_retour == 0
-    assert {ligne[1] for ligne in _lignes(base_courante, "holdings")} == {"AUTRE"}
+    assert {ligne[2] for ligne in _lignes(base_courante, "holdings")} == {"AUTRE"}
 
 
 def test_cli_help_ne_leve_pas_et_mentionne_restaurer(capsys):

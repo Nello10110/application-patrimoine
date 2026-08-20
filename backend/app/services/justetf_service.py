@@ -304,6 +304,9 @@ def refresh_all(db: Session) -> dict:
     composition a été écrite, pas seulement la description), utilisé par
     `scheduler_service._run_justetf_refresh` pour construire le message de statut
     affiché dans Réglages."""
+    # Intentionnellement NON filtré par utilisateur (Milestone 2a, cf.
+    # docs/BACKLOG.md § 2.I.1) : FundComposition/FundCompositionBrute restent
+    # globaux, partagés par tous les comptes.
     items = db.query(Holding.ticker, Holding.type_actif).filter(Holding.type_actif == "FUND").distinct().all()
 
     traites = 0

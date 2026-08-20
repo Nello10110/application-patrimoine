@@ -5,7 +5,9 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..auth import get_current_user
 from ..database import get_db
+from ..models import User
 from ..schemas import DividendeMois, PerformanceSummary, PortfolioHistoryResponse, RapportPeriode
 from ..services import historical_performance_service, performance_service, rapport_service
 
@@ -15,24 +17,26 @@ router = APIRouter(prefix="/api/performance", tags=["performance"])
 
 
 @router.get("", response_model=PerformanceSummary)
-def get_performance(db: Session = Depends(get_db)):
-    return performance_service.compute_performance(db)
+def get_performance(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return performance_service.compute_performance(db, current_user.id)
 
 
 @router.get("/history", response_model=PortfolioHistoryResponse)
-def get_portfolio_history(db: Session = Depends(get_db)):
-    points = historical_performance_service.compute_portfolio_history(db)
+def get_portfolio_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    points = historical_performance_service.compute_portfolio_history(db, current_user.id)
     return PortfolioHistoryResponse(points=points)
 
 
 @router.get("/dividendes", response_model=list[DividendeMois])
-def get_dividend_calendar(db: Session = Depends(get_db)):
+def get_dividend_calendar(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Calendrier des dividendes perçus, mois par mois (roadmap Phase 3, § C.1)."""
-    return performance_service.compute_dividend_calendar(db)
+    return performance_service.compute_dividend_calendar(db, current_user.id)
 
 
 @router.get("/rapport", response_model=RapportPeriode)
-def get_rapport_periode(date_debut: str, date_fin: str, db: Session = Depends(get_db)):
+def get_rapport_periode(
+    date_debut: str, date_fin: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     """Rapport récapitulatif sur une période arbitraire (roadmap Phase 4, § D.2 —
     étendu à l'annuel et aux périodes personnalisées), généré à la demande — cf.
     docstring de `rapport_service.compute_rapport_periode`. `date_debut`/`date_fin`
@@ -43,4 +47,4 @@ def get_rapport_periode(date_debut: str, date_fin: str, db: Session = Depends(ge
         raise HTTPException(status_code=400, detail="date_debut et date_fin doivent être au format AAAA-MM-JJ")
     if date_fin < date_debut:
         raise HTTPException(status_code=400, detail="date_fin doit être postérieure ou égale à date_debut")
-    return rapport_service.compute_rapport_periode(db, date_debut, date_fin)
+    return rapport_service.compute_rapport_periode(db, date_debut, date_fin, current_user.id)

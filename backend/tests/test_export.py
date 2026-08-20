@@ -7,7 +7,7 @@ import pytest
 
 from app.models import Holding, MarketDataCache
 
-from .conftest import make_holding, make_transaction
+from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
 
 ROUTES_EXPORT = [
     "/api/export/positions",
@@ -94,7 +94,7 @@ def test_transactions_triees_par_date(client, db):
 
 def test_performance_deux_colonnes_libelle_valeur(client, db):
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0, datetime_utc=datetime(2024, 1, 1), date="2024-01-01")
-    db.add(Holding(ticker="AAA", nom="Titre A", quantite=10.0, prix_revient_moyen=100.0))
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", nom="Titre A", quantite=10.0, prix_revient_moyen=100.0))
     db.add(MarketDataCache(ticker="AAA", prix_actuel=110.0, derniere_maj=datetime.now(timezone.utc)))
     db.commit()
 
