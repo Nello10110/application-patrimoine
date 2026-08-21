@@ -62,7 +62,7 @@ function AppAuthentifiee() {
 
   return (
     <PreferencesAffichageProvider>
-      <div className="flex min-h-screen bg-surface-elevee">
+      <div className="flex h-screen overflow-hidden bg-surface-elevee">
         <Sidebar />
 
         <main className="flex-1 overflow-y-auto">
