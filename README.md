@@ -34,6 +34,7 @@ npm run test
 
 ## Documentation
 
+- [Expression de besoin](docs/EXPRESSION_DE_BESOIN.md) — **point d'entrée des développements** : contexte, exigences, lots priorisés, critères d'acceptation
 - [Spécifications fonctionnelles](docs/SPECIFICATIONS_FONCTIONNELLES.md) — périmètre, règles métier, modèle de données
 - [Manuel utilisateur](docs/MANUEL_UTILISATEUR.md) — mode d'emploi de chaque écran
 - [Manuel d'exploitation](docs/MANUEL_EXPLOITATION.md) — architecture, démarrage, tests, sauvegarde, dépannage
