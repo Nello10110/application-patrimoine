@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { RapportPeriode } from '../api/types'
 import Card from '../components/Card'
+import EtatErreur from '../components/EtatErreur'
+import EtatVide from '../components/EtatVide'
+import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro, formatPct } from '../utils/format'
+import { bornesPeriode } from '../utils/periode'
 
 type Mode = 'mensuel' | 'annuel' | 'personnalise'
 
@@ -42,12 +46,19 @@ function bornesDeLAnnee(annee: number): { dateDebut: string; dateFin: string } {
 }
 
 export default function RapportPage() {
-  const { montantsMasques } = usePreferencesAffichage()
-  const [mode, setMode] = useState<Mode>('mensuel')
+  const { montantsMasques, periode: periodeTransverse } = usePreferencesAffichage()
+  // Synchronisation à SENS UNIQUE, au premier montage seulement (backlog 2.K.3) :
+  // si la Période transverse n'est pas "Tout" (son défaut), on pré-remplit le mode
+  // "Personnalisé" avec ses bornes — modifier les dates ici ensuite n'écrit jamais
+  // dans la préférence transverse, et la changer après coup ne remonte pas dans
+  // cette page déjà montée (évite une boucle de rétroaction entre les deux
+  // contrôles, cf. plan).
+  const bornesInitiales = bornesPeriode(periodeTransverse)
+  const [mode, setMode] = useState<Mode>(() => (bornesInitiales ? 'personnalise' : 'mensuel'))
   const [moisSelectionne, setMoisSelectionne] = useState(moisCourant())
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear())
-  const [dateDebutPerso, setDateDebutPerso] = useState(`${moisCourant()}-01`)
-  const [dateFinPerso, setDateFinPerso] = useState(aujourdhuiISO())
+  const [dateDebutPerso, setDateDebutPerso] = useState(bornesInitiales?.dateDebut ?? `${moisCourant()}-01`)
+  const [dateFinPerso, setDateFinPerso] = useState(bornesInitiales?.dateFin ?? aujourdhuiISO())
 
   const [rapport, setRapport] = useState<RapportPeriode | null>(null)
   const [loading, setLoading] = useState(true)
@@ -81,7 +92,7 @@ export default function RapportPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Rapport</h2>
+        <h2 className="text-xl font-semibold text-texte">Rapport</h2>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex gap-1">
             {MODES.map((m) => (
@@ -89,9 +100,7 @@ export default function RapportPage() {
                 key={m.value}
                 onClick={() => setMode(m.value)}
                 className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                  mode === m.value
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                  mode === m.value ? 'bg-texte text-surface' : 'bg-surface-elevee text-texte-attenue hover:text-texte'
                 }`}
               >
                 {m.label}
@@ -105,7 +114,7 @@ export default function RapportPage() {
               value={moisSelectionne}
               max={moisCourant()}
               onChange={(e) => setMoisSelectionne(e.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
             />
           )}
           {mode === 'annuel' && (
@@ -115,7 +124,7 @@ export default function RapportPage() {
               min={2000}
               max={new Date().getFullYear()}
               onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
-              className="w-24 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              className="w-24 rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
             />
           )}
           {mode === 'personnalise' && (
@@ -125,76 +134,66 @@ export default function RapportPage() {
                 value={dateDebutPerso}
                 max={aujourdhuiISO()}
                 onChange={(e) => setDateDebutPerso(e.target.value)}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
-              <span className="text-sm text-slate-500 dark:text-slate-400">au</span>
+              <span className="text-sm text-texte-attenue">au</span>
               <input
                 type="date"
                 value={dateFinPerso}
                 max={aujourdhuiISO()}
                 onChange={(e) => setDateFinPerso(e.target.value)}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
             </div>
           )}
         </div>
       </div>
 
-      {periodeInvalide && (
-        <p className="text-sm text-red-600 dark:text-red-400">La date de fin doit être postérieure ou égale à la date de début.</p>
-      )}
-      {!periodeInvalide && loading && <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>}
-      {!periodeInvalide && error && <p className="text-sm text-red-600 dark:text-red-400">Erreur: {error}</p>}
+      {periodeInvalide && <EtatErreur message="La date de fin doit être postérieure ou égale à la date de début." />}
+      {!periodeInvalide && loading && <SkeletonTexte lignes={4} />}
+      {!periodeInvalide && error && <EtatErreur message={error} />}
 
       {!periodeInvalide && rapport && !loading && (
         <>
-          <h3 className="text-sm text-slate-500 dark:text-slate-400">{libellePeriode}</h3>
+          <h3 className="text-sm text-texte-attenue">{libellePeriode}</h3>
 
           {rapport.nombre_transactions === 0 && rapport.valeur_debut_periode === null ? (
             <Card>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Aucune donnée disponible pour cette période (aucune transaction, portefeuille pas encore constitué à cette date).
-              </p>
+              <EtatVide titre="Aucune donnée disponible pour cette période (aucune transaction, portefeuille pas encore constitué à cette date)." />
             </Card>
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Card title="Valeur en fin de période">
-                  <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                  <p className="text-2xl font-semibold text-texte">
                     {rapport.valeur_fin_periode !== null ? formatEuro(rapport.valeur_fin_periode, 0, montantsMasques) : '—'}
                   </p>
                 </Card>
                 <Card title="Évolution sur la période">
                   <p
                     className={`text-2xl font-semibold ${
-                      rapport.evolution_pct === null
-                        ? 'text-slate-900 dark:text-slate-100'
-                        : rapport.evolution_pct >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
+                      rapport.evolution_pct === null ? 'text-texte' : rapport.evolution_pct >= 0 ? 'text-positif' : 'text-negatif'
                     }`}
                   >
                     {formatPct(rapport.evolution_pct)}
                   </p>
                 </Card>
                 <Card title="Dividendes perçus">
-                  <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
-                    {formatEuro(rapport.dividendes_percus, 2, montantsMasques)}
-                  </p>
+                  <p className="text-2xl font-semibold text-positif">{formatEuro(rapport.dividendes_percus, 2, montantsMasques)}</p>
                 </Card>
               </div>
 
               <Card title="Plus gros mouvements de la période">
                 {rapport.plus_gros_mouvements.length === 0 ? (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Aucun mouvement sur cette période.</p>
+                  <EtatVide titre="Aucun mouvement sur cette période." />
                 ) : (
-                  <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                  <ul className="divide-y divide-bordure">
                     {rapport.plus_gros_mouvements.map((m, i) => (
                       <li key={i} className="flex items-center justify-between py-2 text-sm">
-                        <span className="text-slate-700 dark:text-slate-300">
+                        <span className="text-texte">
                           {formatDate(m.date)} · {m.nom ?? m.symbol ?? '—'}
                         </span>
-                        <span className={`font-medium ${m.montant >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                        <span className={`font-medium ${m.montant >= 0 ? 'text-positif' : 'text-texte'}`}>
                           {formatEuro(m.montant, 2, montantsMasques)}
                         </span>
                       </li>

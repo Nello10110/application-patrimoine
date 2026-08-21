@@ -138,7 +138,9 @@ describe('DashboardPage — sélecteur d\'année', () => {
     vi.mocked(api.getAnalysis).mockRejectedValue(new Error('panne simulée'))
     renderPage()
 
-    await screen.findByText(/Erreur: panne simulée/)
+    // Message brut (backlog 2.K.1, `EtatErreur`) : le préfixe "Erreur: " a été retiré,
+    // normalisé comme partout ailleurs dans l'application.
+    await screen.findByText('panne simulée')
     expect(screen.getByRole('combobox')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Actualiser/ })).toBeInTheDocument()
   })

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { AccessLogEntry, Detenteur, HouseholdMember, Preferences, Role, ScheduledJob, Session, TypeDetenteur } from '../api/types'
 import Card from '../components/Card'
+import EtatErreur from '../components/EtatErreur'
+import EtatVide from '../components/EtatVide'
+import { SkeletonTexte } from '../components/Skeleton'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure } from '../utils/format'
 
@@ -56,23 +59,23 @@ function DetenteursCard() {
 
   return (
     <Card title="Personnes et sociétés">
-      <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+      <p className="mb-4 text-sm text-texte">
         Déclarées une fois, réutilisées pour répartir la propriété des actifs et des emprunts (quotités, depuis la fiche
         détaillée de chaque position) et filtrer le patrimoine par détenteur (barre de contrôles, en haut de l'écran).
       </p>
 
       {loading ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+        <SkeletonTexte />
       ) : detenteurs.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Aucun détenteur déclaré.</p>
+        <EtatVide titre="Aucun détenteur déclaré." />
       ) : (
-        <ul className="mb-4 divide-y divide-slate-100 dark:divide-slate-700">
+        <ul className="mb-4 divide-y divide-bordure">
           {detenteurs.map((d) => (
             <li key={d.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="text-slate-900 dark:text-slate-100">
-                {d.nom} <span className="text-xs text-slate-500 dark:text-slate-400">({d.type === 'personne' ? 'Personne' : 'Société'})</span>
+              <span className="text-texte">
+                {d.nom} <span className="text-xs text-texte-attenue">({d.type === 'personne' ? 'Personne' : 'Société'})</span>
               </span>
-              <button onClick={() => handleDelete(d.id)} className="text-xs text-red-600 hover:underline dark:text-red-400">
+              <button onClick={() => handleDelete(d.id)} className="text-xs text-negatif hover:underline">
                 Supprimer
               </button>
             </li>
@@ -80,22 +83,22 @@ function DetenteursCard() {
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Nom
           <input
             value={nom}
             onChange={(e) => setNom(e.target.value)}
             placeholder="Alice"
-            className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Type
           <select
             value={type}
             onChange={(e) => setType(e.target.value as TypeDetenteur)}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           >
             <option value="personne">Personne</option>
             <option value="societe">Société</option>
@@ -104,12 +107,12 @@ function DetenteursCard() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Ajouter
         </button>
       </form>
-      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <EtatErreur message={error} />}
     </Card>
   )
 }
@@ -178,13 +181,13 @@ function PreferencesCard() {
     }
   }
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
-  if (!prefs) return error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null
+  if (loading) return <SkeletonTexte />
+  if (!prefs) return error ? <EtatErreur message={error} /> : null
 
   return (
     <>
       <Card title="Méthode de calcul du coût de revient">
-        <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
+        <p className="mb-4 text-sm text-avertissement">
           Attention : changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de TOUT le
           portefeuille.
         </p>
@@ -192,7 +195,7 @@ function PreferencesCard() {
           {METHODE_OPTIONS.map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 dark:border-slate-700"
+              className="flex cursor-pointer items-start gap-3 rounded-md border border-bordure p-3"
             >
               <input
                 type="radio"
@@ -203,22 +206,22 @@ function PreferencesCard() {
                 className="mt-1"
               />
               <span>
-                <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">{option.label}</span>
-                <span className="block text-xs text-slate-500 dark:text-slate-400">{option.description}</span>
+                <span className="block text-sm font-medium text-texte">{option.label}</span>
+                <span className="block text-xs text-texte-attenue">{option.description}</span>
               </span>
             </label>
           ))}
         </div>
-        {message && <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">{message}</p>}
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {message && <p className="mt-3 text-sm text-positif">{message}</p>}
+        {error && <EtatErreur message={error} />}
       </Card>
 
       <Card title="Alertes">
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mb-4 text-sm text-texte">
           Seuil d'écart (en points de pourcentage) entre la répartition réelle et l'objectif au-delà duquel une
           recommandation de rééquilibrage devient une alerte, mise en avant sur le tableau de bord.
         </p>
-        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-texte">
           Seuil d'alerte
           <input
             type="number"
@@ -231,7 +234,7 @@ function PreferencesCard() {
               const valeur = Number(e.target.value)
               if (!Number.isNaN(valeur) && valeur !== prefs.seuil_alerte_ecart_pct) handleSeuilChange(valeur)
             }}
-            className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
           points
         </label>
@@ -320,21 +323,21 @@ function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: Schedul
 
   return (
     <Card title={JOB_LABELS[job.job_key] ?? job.job_key}>
-      <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">{JOB_DESCRIPTIONS[job.job_key]}</p>
+      <p className="mb-4 text-sm text-texte">{JOB_DESCRIPTIONS[job.job_key]}</p>
 
       <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-texte">
           <input type="checkbox" checked={job.enabled} disabled={saving} onChange={(e) => handleToggle(e.target.checked)} />
           Activé
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-texte">
           Toutes les
           <select
             value={job.intervalle_heures}
             disabled={saving || !job.enabled}
             onChange={(e) => handleIntervalChange(Number(e.target.value))}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:opacity-40 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
           >
             {INTERVAL_OPTIONS.map((h) => (
               <option key={h} value={h}>
@@ -347,23 +350,23 @@ function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: Schedul
         <button
           onClick={handleRunNow}
           disabled={running}
-          className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+          className="ml-auto rounded-md bg-texte px-3 py-1.5 text-xs font-medium text-surface disabled:opacity-40"
         >
           {running ? libelleRunNow : 'Lancer maintenant'}
         </button>
       </div>
 
-      <div className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+      <div className="mt-4 border-t border-bordure pt-3 text-xs text-texte-attenue">
         <p>Dernière exécution : {formatDateHeure(job.derniere_execution)}</p>
         {job.dernier_statut && (
-          <p className={job.dernier_statut === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+          <p className={job.dernier_statut === 'ok' ? 'text-positif' : 'text-negatif'}>
             {job.dernier_statut === 'ok' ? 'Succès' : 'Échec'} — {job.dernier_message}
           </p>
         )}
       </div>
 
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {erreurRafraichissement && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{erreurRafraichissement}</p>}
+      {error && <EtatErreur message={error} />}
+      {erreurRafraichissement && <EtatErreur message={erreurRafraichissement} />}
     </Card>
   )
 }
@@ -405,7 +408,7 @@ function SessionsCard() {
         toucher aux autres.
       </p>
       {loading ? (
-        <p className="text-sm text-texte-attenue">Chargement...</p>
+        <SkeletonTexte />
       ) : (
         <ul className="divide-y divide-bordure">
           {sessions.map((s) => (
@@ -429,7 +432,7 @@ function SessionsCard() {
           ))}
         </ul>
       )}
-      {error && <p className="mt-3 text-sm text-negatif">{error}</p>}
+      {error && <EtatErreur message={error} />}
     </Card>
   )
 }
@@ -455,9 +458,9 @@ function JournalAccesCard() {
     <Card title="Journal d'accès">
       <p className="mb-4 text-sm text-texte-attenue">Historique des connexions et déconnexions, réussies ou non.</p>
       {loading ? (
-        <p className="text-sm text-texte-attenue">Chargement...</p>
+        <SkeletonTexte />
       ) : entrees.length === 0 ? (
-        <p className="text-sm text-texte-attenue">Aucune entrée{page > 1 ? ' sur cette page' : ''}.</p>
+        <EtatVide titre={`Aucune entrée${page > 1 ? ' sur cette page' : ''}.`} />
       ) : (
         <ul className="divide-y divide-bordure">
           {entrees.map((e) => (
@@ -489,7 +492,7 @@ function JournalAccesCard() {
           Page suivante
         </button>
       </div>
-      {error && <p className="mt-3 text-sm text-negatif">{error}</p>}
+      {error && <EtatErreur message={error} />}
     </Card>
   )
 }
@@ -570,9 +573,9 @@ function GestionFoyerCard() {
       </p>
 
       {loading ? (
-        <p className="text-sm text-texte-attenue">Chargement...</p>
+        <SkeletonTexte />
       ) : membres.length === 0 ? (
-        <p className="mb-4 text-sm text-texte-attenue">Aucun autre compte dans ce foyer.</p>
+        <EtatVide titre="Aucun autre compte dans ce foyer." />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
           {membres.map((m) => (
@@ -639,7 +642,7 @@ function GestionFoyerCard() {
         </div>
       )}
 
-      {error && <p className="mt-3 text-sm text-negatif">{error}</p>}
+      {error && <EtatErreur message={error} />}
     </Card>
   )
 }
@@ -663,10 +666,10 @@ export default function ReglagesPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Réglages</h2>
+      <h2 className="text-xl font-semibold text-texte">Réglages</h2>
 
-      {loading && <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>}
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {loading && <SkeletonTexte />}
+      {error && <EtatErreur message={error} />}
 
       <div className="space-y-4">
         <DetenteursCard />
@@ -683,38 +686,38 @@ export default function ReglagesPage() {
       </div>
 
       <Card title="Exporter">
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mb-4 text-sm text-texte">
           Fichiers CSV compatibles Excel (séparateur point-virgule, décimale virgule), téléchargés directement par le
           navigateur.
         </p>
         <div className="flex flex-wrap gap-3">
           <a
             href="/api/export/positions"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+            className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
           >
             Positions
           </a>
           <a
             href="/api/export/transactions"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+            className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
           >
             Transactions
           </a>
           <a
             href="/api/export/performance"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+            className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
           >
             Rentabilité
           </a>
         </div>
 
-        <p className="mb-4 mt-6 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mb-4 mt-6 text-sm text-texte">
           Relevé de patrimoine PDF : une photographie mise en forme, prête à imprimer ou archiver — patrimoine net,
           répartition et rentabilité globale.
         </p>
         <a
           href="/api/export/patrimoine.pdf"
-          className="inline-block rounded-md border border-slate-900 px-4 py-2 text-sm font-medium text-slate-900 dark:border-slate-100 dark:text-slate-100"
+          className="inline-block rounded-md border border-texte px-4 py-2 text-sm font-medium text-texte"
         >
           Relevé de patrimoine (PDF)
         </a>

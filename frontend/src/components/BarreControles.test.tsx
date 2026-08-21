@@ -70,7 +70,7 @@ describe('BarreControles — filtre détenteur (backlog 2.L.1)', () => {
     renderBarre()
 
     await screen.findByText('Détenteur')
-    const select = screen.getByRole('combobox')
+    const select = screen.getAllByRole('combobox')[0]
     expect(select).toHaveValue('')
     expect(screen.getByRole('option', { name: 'Foyer' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Alice' })).toBeInTheDocument()
@@ -82,8 +82,38 @@ describe('BarreControles — filtre détenteur (backlog 2.L.1)', () => {
     renderBarre()
     await screen.findByText('Détenteur')
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: '7' } })
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '7' } })
 
     expect(localStorage.getItem('patrimoine:detenteur-id')).toBe('7')
+  })
+})
+
+describe('BarreControles — Période (backlog 2.K.3)', () => {
+  it('"Tout" est la valeur par défaut', () => {
+    renderBarre()
+    const selects = screen.getAllByRole('combobox')
+    const selectPeriode = selects[selects.length - 1]
+    expect(selectPeriode).toHaveValue('TOUT')
+  })
+
+  it('choisir "3 mois" persiste la préférence', () => {
+    renderBarre()
+    const selects = screen.getAllByRole('combobox')
+    const selectPeriode = selects[selects.length - 1]
+
+    fireEvent.change(selectPeriode, { target: { value: '3M' } })
+
+    expect(localStorage.getItem('patrimoine:periode')).toBe(JSON.stringify({ type: 'relative', valeur: '3M' }))
+  })
+
+  it('choisir "Personnalisée" affiche deux champs de date', () => {
+    renderBarre()
+    const selects = screen.getAllByRole('combobox')
+    const selectPeriode = selects[selects.length - 1]
+
+    fireEvent.change(selectPeriode, { target: { value: 'personnalisee' } })
+
+    const champsDate = document.querySelectorAll('input[type="date"]')
+    expect(champsDate).toHaveLength(2)
   })
 })

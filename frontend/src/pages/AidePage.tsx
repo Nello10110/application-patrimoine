@@ -176,8 +176,8 @@ const GLOSSAIRE: GlossaireEntry[] = [
 function ZoneCard({ zone }: { zone: ZoneGeographiqueInfo }) {
   const style = STYLE_PAR_ZONE[zone.zone] ?? STYLE_PAR_ZONE['Autres zones']
   return (
-    <div className={`rounded-xl border border-l-4 border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 ${style.bordure} dark:bg-slate-800`}>
-      <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+    <div className={`rounded-xl border border-l-4 border-bordure bg-surface p-4 shadow-sm ${style.bordure}`}>
+      <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-texte">
         <span aria-hidden="true">{style.emoji}</span>
         {zone.zone}
       </p>
@@ -190,7 +190,7 @@ function ZoneCard({ zone }: { zone: ZoneGeographiqueInfo }) {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-texte-attenue">
           Pas de liste fixe : c’est la catégorie résiduelle pour un pays connu mais qui ne rentre dans aucune des 5 autres zones
           (ex. certains petits marchés d’Europe de l’Est ou d’Asie centrale). Elle grandira automatiquement si l’appli reconnaît un
           jour de nouveaux pays.
@@ -202,25 +202,25 @@ function ZoneCard({ zone }: { zone: ZoneGeographiqueInfo }) {
 
 function SectorCard({ secteur }: { secteur: SecteurInfo }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+    <div className="rounded-xl border border-bordure bg-surface p-4 shadow-sm">
+      <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-texte">
         <span aria-hidden="true">{secteur.emoji}</span>
         {secteur.nom}
       </p>
-      <p className="text-xs text-slate-600 dark:text-slate-300">{secteur.description}</p>
-      <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">Ex. {secteur.exemples}</p>
+      <p className="text-xs text-texte">{secteur.description}</p>
+      <p className="mt-2 text-xs text-texte-attenue">Ex. {secteur.exemples}</p>
     </div>
   )
 }
 
 function AccordeonItem({ question, reponse }: QuestionReponse) {
   return (
-    <details className="group rounded-lg border border-slate-200 p-3 open:bg-slate-50 dark:border-slate-700 dark:open:bg-slate-700/40">
-      <summary className="cursor-pointer list-none text-sm font-medium text-slate-800 marker:content-none dark:text-slate-200">
+    <details className="group rounded-lg border border-bordure p-3 open:bg-surface-elevee">
+      <summary className="cursor-pointer list-none text-sm font-medium text-texte marker:content-none">
         <span className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
         {question}
       </summary>
-      <p className="mt-2 pl-4 text-sm text-slate-600 dark:text-slate-300">{reponse}</p>
+      <p className="mt-2 pl-4 text-sm text-texte">{reponse}</p>
     </details>
   )
 }
@@ -239,21 +239,21 @@ export default function AidePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">🧭 Aide &amp; FAQ</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <h2 className="text-xl font-semibold text-texte">🧭 Aide &amp; FAQ</h2>
+        <p className="mt-1 text-sm text-texte-attenue">
           Un petit guide pour comprendre ce que racontent vraiment les chiffres du Tableau de bord — pensé pour un premier
           passage dans l’investissement, promis, sans jargon inutile.
         </p>
       </div>
 
       <Card title="🌍 Les 6 zones géographiques">
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mb-4 text-sm text-texte">
           Chaque position du portefeuille est rattachée à une zone selon le pays où se trouve réellement l’activité de
           l’entreprise (pas le pays où le fonds est domicilié administrativement). Voici les pays connus de chaque zone,
           directement depuis les règles utilisées par l’application.
         </p>
-        {erreur && <p className="text-sm text-red-600 dark:text-red-400">{erreur}</p>}
-        {!zones && !erreur && <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>}
+        {erreur && <p className="text-sm text-negatif">{erreur}</p>}
+        {!zones && !erreur && <p className="text-sm text-texte-attenue">Chargement...</p>}
         {zones && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {zones.map((zone) => (
@@ -264,7 +264,7 @@ export default function AidePage() {
       </Card>
 
       <Card title="🏷️ Les 11 secteurs d'activité">
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mb-4 text-sm text-texte">
           En plus de la zone géographique, chaque position est aussi rattachée à un secteur — le TYPE d’activité de
           l’entreprise, indépendamment d’où elle se trouve.
         </p>
@@ -284,14 +284,14 @@ export default function AidePage() {
       </Card>
 
       <Card title="📡 D'où viennent les données ?">
-        <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+        <div className="space-y-3 text-sm text-texte">
           <p>
-            <span className="font-medium text-slate-900 dark:text-slate-100">Yahoo Finance</span> fournit les cours des
+            <span className="font-medium text-texte">Yahoo Finance</span> fournit les cours des
             actions/cryptos et une partie de la composition des fonds, rafraîchis automatiquement (cadence réglable dans
             Réglages).
           </p>
           <p>
-            <span className="font-medium text-slate-900 dark:text-slate-100">justETF</span> fournit le cours de référence
+            <span className="font-medium text-texte">justETF</span> fournit le cours de référence
             des ETF ainsi que leur composition géographique/sectorielle détaillée et leur description, sous une autorisation
             spécifique obtenue par l’utilisateur — traité avec beaucoup d’égards (rafraîchissement peu fréquent, pour ne pas
             solliciter leur service à l’excès).
@@ -307,8 +307,8 @@ export default function AidePage() {
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           {GLOSSAIRE.map((entry) => (
             <div key={entry.terme}>
-              <dt className="text-sm font-semibold text-slate-800 dark:text-slate-200">{entry.terme}</dt>
-              <dd className="text-xs text-slate-600 dark:text-slate-300">{entry.definition}</dd>
+              <dt className="text-sm font-semibold text-texte">{entry.terme}</dt>
+              <dd className="text-xs text-texte">{entry.definition}</dd>
             </div>
           ))}
         </dl>

@@ -4,13 +4,16 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { PreferencesAffichageProvider } from './PreferencesAffichageContext'
 
 function Sonde() {
-  const { lentille, setLentille, montantsMasques, toggleMontantsMasques } = usePreferencesAffichage()
+  const { lentille, setLentille, montantsMasques, toggleMontantsMasques, periode, setPeriode } = usePreferencesAffichage()
   return (
     <div>
       <p>lentille: {lentille}</p>
       <p>montantsMasques: {String(montantsMasques)}</p>
+      <p>periode: {periode.type === 'relative' ? periode.valeur : `${periode.dateDebut}..${periode.dateFin}`}</p>
       <button onClick={() => setLentille('brut')}>brut</button>
       <button onClick={toggleMontantsMasques}>toggle</button>
+      <button onClick={() => setPeriode({ type: 'relative', valeur: '3M' })}>periode-3M</button>
+      <button onClick={() => setPeriode({ type: 'personnalisee', dateDebut: '2026-01-01', dateFin: '2026-06-30' })}>periode-perso</button>
     </div>
   )
 }
@@ -88,5 +91,37 @@ describe('PreferencesAffichageProvider (backlog 2.K.3)', () => {
     renderSonde()
     fireEvent.keyDown(document, { key: 'M', ctrlKey: true })
     expect(screen.getByText('montantsMasques: false')).toBeInTheDocument()
+  })
+})
+
+describe('PreferencesAffichageProvider — périodes (backlog 2.K.3)', () => {
+  it('valeur par défaut : "TOUT"', () => {
+    renderSonde()
+    expect(screen.getByText('periode: TOUT')).toBeInTheDocument()
+  })
+
+  it('persiste une période relative dans localStorage et la relit au remontage', () => {
+    const { unmount } = renderSonde()
+    fireEvent.click(screen.getByRole('button', { name: 'periode-3M' }))
+
+    expect(screen.getByText('periode: 3M')).toBeInTheDocument()
+    expect(localStorage.getItem('patrimoine:periode')).toBe(JSON.stringify({ type: 'relative', valeur: '3M' }))
+
+    unmount()
+    renderSonde()
+    expect(screen.getByText('periode: 3M')).toBeInTheDocument()
+  })
+
+  it('persiste une période personnalisée (objet complet)', () => {
+    renderSonde()
+    fireEvent.click(screen.getByRole('button', { name: 'periode-perso' }))
+
+    expect(screen.getByText('periode: 2026-01-01..2026-06-30')).toBeInTheDocument()
+  })
+
+  it('un contenu localStorage invalide retombe sur la valeur par défaut', () => {
+    localStorage.setItem('patrimoine:periode', 'pas-du-json-valide')
+    renderSonde()
+    expect(screen.getByText('periode: TOUT')).toBeInTheDocument()
   })
 })

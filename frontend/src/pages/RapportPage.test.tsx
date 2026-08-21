@@ -11,9 +11,18 @@ vi.mock('../api/client', () => ({
 }))
 
 // Contrôles transverses (backlog 2.K.3) : `RapportPage` lit
-// `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+// `usePreferencesAffichage()` (montants masqués, période) — `periode` stub à "Tout"
+// (défaut) pour préserver le comportement mode "mensuel" par défaut déjà testé
+// ci-dessous ; la synchronisation à sens unique Période→Rapport a son propre test.
 vi.mock('../hooks/usePreferencesAffichage', () => ({
-  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+  usePreferencesAffichage: () => ({
+    lentille: 'net',
+    setLentille: vi.fn(),
+    montantsMasques: false,
+    toggleMontantsMasques: vi.fn(),
+    periode: { type: 'relative', valeur: 'TOUT' },
+    setPeriode: vi.fn(),
+  }),
 }))
 
 function rapport(overrides: Partial<RapportPeriode> = {}): RapportPeriode {

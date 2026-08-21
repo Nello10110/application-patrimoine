@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { PreferencesAffichageContext, type Lentille } from './preferencesAffichageContextObject'
+import { PERIODE_DEFAUT, type Periode } from '../utils/periode'
 
 const CLE_LENTILLE = 'patrimoine:lentille'
 const CLE_MONTANTS_MASQUES = 'patrimoine:montants-masques'
 const CLE_DETENTEUR = 'patrimoine:detenteur-id'
+const CLE_PERIODE = 'patrimoine:periode'
 const LENTILLES: Lentille[] = ['net', 'brut', 'financier']
 
 function lentilleStockee(): Lentille {
@@ -24,6 +26,22 @@ function detenteurIdStocke(): number | null {
   return Number.isFinite(nombre) ? nombre : null
 }
 
+/** `Periode` est un objet (contrairement aux autres préférences, des primitives) :
+ * sérialisé en JSON, avec repli sur la valeur par défaut si le contenu stocké est
+ * absent ou invalide (format changé, corruption manuelle...). */
+function periodeStockee(): Periode {
+  if (typeof window === 'undefined') return PERIODE_DEFAUT
+  const brut = window.localStorage.getItem(CLE_PERIODE)
+  if (!brut) return PERIODE_DEFAUT
+  try {
+    const valeur = JSON.parse(brut)
+    if (valeur?.type === 'relative' || valeur?.type === 'personnalisee') return valeur as Periode
+    return PERIODE_DEFAUT
+  } catch {
+    return PERIODE_DEFAUT
+  }
+}
+
 function champDeSaisieActif(): boolean {
   const el = document.activeElement
   if (!el) return false
@@ -42,6 +60,7 @@ export function PreferencesAffichageProvider({ children }: { children: ReactNode
   const [lentille, setLentilleState] = useState<Lentille>(() => lentilleStockee())
   const [montantsMasques, setMontantsMasques] = useState<boolean>(() => montantsMasquesStockes())
   const [detenteurId, setDetenteurIdState] = useState<number | null>(() => detenteurIdStocke())
+  const [periode, setPeriodeState] = useState<Periode>(() => periodeStockee())
 
   const setLentille = useCallback((suivante: Lentille) => {
     setLentilleState(suivante)
@@ -52,6 +71,11 @@ export function PreferencesAffichageProvider({ children }: { children: ReactNode
     setDetenteurIdState(suivant)
     if (suivant === null) window.localStorage.removeItem(CLE_DETENTEUR)
     else window.localStorage.setItem(CLE_DETENTEUR, String(suivant))
+  }, [])
+
+  const setPeriode = useCallback((suivante: Periode) => {
+    setPeriodeState(suivante)
+    window.localStorage.setItem(CLE_PERIODE, JSON.stringify(suivante))
   }, [])
 
   const toggleMontantsMasques = useCallback(() => {
@@ -79,7 +103,7 @@ export function PreferencesAffichageProvider({ children }: { children: ReactNode
 
   return (
     <PreferencesAffichageContext.Provider
-      value={{ lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId }}
+      value={{ lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId, periode, setPeriode }}
     >
       {children}
     </PreferencesAffichageContext.Provider>

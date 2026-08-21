@@ -9,7 +9,7 @@ export default function PieChartCard({ title, items }: { title: string; items: R
   if (items.length === 0) {
     return (
       <Card title={title}>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Titre unique, pas de décomposition interne.</p>
+        <p className="text-sm text-texte-attenue">Titre unique, pas de décomposition interne.</p>
       </Card>
     )
   }

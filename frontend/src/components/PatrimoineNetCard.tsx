@@ -48,11 +48,11 @@ export default function PatrimoineNetCard() {
       </div>
 
       {patrimoine.repartition_par_classe.length > 0 && (
-        <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-2 dark:divide-slate-700 dark:border-slate-700">
+        <ul className="mt-4 divide-y divide-bordure border-t border-bordure pt-2">
           {patrimoine.repartition_par_classe.map((item) => (
             <li key={item.categorie} className="flex items-center justify-between py-1.5 text-sm">
-              <span className="text-slate-600 dark:text-slate-300">{item.categorie}</span>
-              <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(item.valeur, 0, montantsMasques)}</span>
+              <span className="text-texte">{item.categorie}</span>
+              <span className="font-medium text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</span>
             </li>
           ))}
         </ul>

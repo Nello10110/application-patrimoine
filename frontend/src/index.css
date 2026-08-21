@@ -7,17 +7,17 @@
    qui ignore justement ce choix. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Relié aux jetons sémantiques (backlog 2.K.1, bloc @theme plus bas) plutôt qu'à
+   des hex codés en dur : `var()` se réévalue seule au changement de `.dark`, un
+   seul bloc `.dark` n'est donc plus nécessaire ici. Ce fond n'est en pratique
+   visible que sur `LoginPage` et l'écran de chargement initial (le reste de l'app
+   est recouvert par le conteneur racine `bg-surface-elevee` de `App.tsx`). */
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--surface-elevee);
+  color: var(--texte);
   transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.dark body {
-  background-color: #0f172a;
-  color: #e2e8f0;
 }
 
 /* Couleurs des graphiques Recharts (LOT 5.12) : Recharts prend ses couleurs en

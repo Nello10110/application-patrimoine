@@ -32,7 +32,7 @@ function elementsFocusables(conteneur: HTMLElement): HTMLElement[] {
 export default function Modale({
   onClose,
   children,
-  panelClassName = 'w-full max-w-lg rounded-xl bg-white p-6 shadow-xl',
+  panelClassName = 'w-full max-w-lg rounded-xl bg-surface p-6 shadow-xl',
 }: {
   onClose: () => void
   children: (ctx: { titleId: string }) => ReactNode
@@ -112,7 +112,7 @@ export default function Modale({
         aria-labelledby={titleId}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`relative max-h-[85vh] overflow-y-auto dark:bg-slate-800 ${panelClassName}`}
+        className={`relative max-h-[85vh] overflow-y-auto ${panelClassName}`}
       >
         {children({ titleId })}
       </div>

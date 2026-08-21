@@ -12,6 +12,7 @@ import {
   IconSynthese,
 } from './icons'
 import MenuCompte from './MenuCompte'
+import PaletteRecherche from './PaletteRecherche'
 
 const ICONES = {
   Synthèse: IconSynthese,
@@ -50,6 +51,10 @@ export default function Sidebar() {
           </span>
           {!repliee && <span className="truncate">Patrimoine</span>}
         </Link>
+      </div>
+
+      <div className="px-2 pb-2">
+        <PaletteRecherche compact={repliee} />
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2" aria-label="Navigation principale">

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { PatrimoineNet } from '../api/types'
 import { PreferencesAffichageContext, type Lentille } from '../contexts/preferencesAffichageContextObject'
+import { PERIODE_DEFAUT } from '../utils/periode'
 import PatrimoineNetCard from './PatrimoineNetCard'
 
 vi.mock('../api/client', () => ({
@@ -30,7 +31,16 @@ function patrimoine(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
 function renderCard(lentille: Lentille = 'net', detenteurId: number | null = null) {
   return render(
     <PreferencesAffichageContext.Provider
-      value={{ lentille, setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn(), detenteurId, setDetenteurId: vi.fn() }}
+      value={{
+        lentille,
+        setLentille: vi.fn(),
+        montantsMasques: false,
+        toggleMontantsMasques: vi.fn(),
+        detenteurId,
+        setDetenteurId: vi.fn(),
+        periode: PERIODE_DEFAUT,
+        setPeriode: vi.fn(),
+      }}
     >
       <PatrimoineNetCard />
     </PreferencesAffichageContext.Provider>,

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
@@ -120,7 +121,7 @@ describe('PortefeuillePage', () => {
     }
 
     it('trie par ticker croissant au premier clic, décroissant au second', async () => {
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       const enTeteTicker = await screen.findByRole('columnheader', { name: /Ticker/ })
 
       fireEvent.click(enTeteTicker)
@@ -133,7 +134,7 @@ describe('PortefeuillePage', () => {
     })
 
     it('trie par valeur, en repoussant les valeurs nulles (—) en fin de liste quel que soit le sens', async () => {
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       const enTeteValeur = await screen.findByRole('columnheader', { name: /^Valeur/ })
 
       fireEvent.click(enTeteValeur)
@@ -154,7 +155,7 @@ describe('PortefeuillePage', () => {
         holding({ id: 1, ticker: 'AAA', quantite: 10, type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
         holding({ id: 2, ticker: 'BBB', quantite: 1, type_actif: 'FUND', market_data: marketData({ ticker: 'BBB', prix_actuel: 200 }) }),
       ])
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       function ligneTotal() {
         return screen.getAllByRole('row').at(-1)!
@@ -170,6 +171,68 @@ describe('PortefeuillePage', () => {
     })
   })
 
+  describe('restitution d\'état via l\'URL (backlog 2.K.2)', () => {
+    // Sonde la barre d'adresse mémorisée par `MemoryRouter` (qui ne touche jamais
+    // `window.location`, contrairement à un vrai navigateur) — même technique que
+    // le reste de la suite pour vérifier une navigation par `useSearchParams`.
+    function SondeURL() {
+      const params = new URLSearchParams(useLocation().search)
+      return <p data-testid="sonde-url">{params.get('categorie') ?? '(aucune)'}</p>
+    }
+
+    it('cliquer un onglet de catégorie met à jour le paramètre `categorie` de l\'URL', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+      ])
+      render(
+        <MemoryRouter>
+          <SondeURL />
+          <PortefeuillePage />
+        </MemoryRouter>,
+      )
+      await screen.findByText('1 position')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+
+      await waitFor(() => expect(screen.getByTestId('sonde-url')).toHaveTextContent('STOCK'))
+    })
+
+    it('revenir à "Tous" retire le paramètre de l\'URL (défaut, URL propre)', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+      ])
+      render(
+        <MemoryRouter>
+          <SondeURL />
+          <PortefeuillePage />
+        </MemoryRouter>,
+      )
+      await screen.findByText('1 position')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+      await waitFor(() => expect(screen.getByTestId('sonde-url')).toHaveTextContent('STOCK'))
+      fireEvent.click(screen.getByRole('button', { name: 'Tous' }))
+
+      await waitFor(() => expect(screen.getByTestId('sonde-url')).toHaveTextContent('(aucune)'))
+    })
+
+    it('une URL initiale avec `?categorie=STOCK` présélectionne l\'onglet correspondant', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+        holding({ id: 2, ticker: 'BBB', type_actif: 'FUND', market_data: marketData({ ticker: 'BBB', prix_actuel: 100 }) }),
+      ])
+      render(
+        <MemoryRouter initialEntries={['/patrimoine?categorie=STOCK']}>
+          <PortefeuillePage />
+        </MemoryRouter>,
+      )
+
+      await screen.findByText('1 position')
+      expect(screen.getByText('AAA')).toBeInTheDocument()
+      expect(screen.queryByText('BBB')).not.toBeInTheDocument()
+    })
+  })
+
   describe('filtre par catégorie : obligations et private equity distinguées de "Autres"', () => {
     it('BOND et PRIVATE_FUND ont leur propre onglet, "Autres" ne garde que le type non précisé', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([
@@ -177,7 +240,7 @@ describe('PortefeuillePage', () => {
         holding({ id: 2, ticker: 'BBB', type_actif: 'PRIVATE_FUND', market_data: marketData({ ticker: 'BBB', prix_actuel: 100 }) }),
         holding({ id: 3, ticker: 'CCC', type_actif: null, market_data: marketData({ ticker: 'CCC', prix_actuel: 100 }) }),
       ])
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       await screen.findByText('3 positions')
 
@@ -205,7 +268,7 @@ describe('PortefeuillePage', () => {
         holding({ id: 3, ticker: 'CCC', quantite: 1, compte: 'PEA', type_actif: 'FUND', market_data: marketData({ ticker: 'CCC', prix_actuel: 300 }) }),
         holding({ id: 4, ticker: 'DDD', quantite: 1, compte: null, type_actif: 'STOCK', market_data: marketData({ ticker: 'DDD', prix_actuel: 50 }) }),
       ])
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       await screen.findByText('4 positions')
 
@@ -234,7 +297,7 @@ describe('PortefeuillePage', () => {
 
     it("le clic sur Modifier bascule en édition sans ouvrir la modale de détail", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
 
@@ -245,7 +308,7 @@ describe('PortefeuillePage', () => {
 
     it('un clic sur la ligne en édition (hors contrôle) n\'ouvre pas la modale', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
       const ligne = screen.getByText('AAA').closest('tr')
@@ -261,7 +324,7 @@ describe('PortefeuillePage', () => {
       const relue = [holding({ id: 42, ticker: 'AAA', quantite: 15, prix_revient_moyen: 100, compte: 'PEA', type_actif: 'STOCK' })]
       vi.mocked(api.listHoldings).mockResolvedValueOnce(relue)
 
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
 
       fireEvent.change(screen.getByLabelText('Quantité (édition)'), { target: { value: '15' } })
@@ -283,7 +346,7 @@ describe('PortefeuillePage', () => {
       vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
       vi.mocked(api.updateHolding).mockRejectedValue(new Error('La quantité doit être strictement positive'))
 
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
       fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
@@ -294,7 +357,7 @@ describe('PortefeuillePage', () => {
 
     it('Annuler ferme le mode édition sans appeler updateHolding', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
       fireEvent.change(screen.getByLabelText('Quantité (édition)'), { target: { value: '999' } })
@@ -312,7 +375,7 @@ describe('PortefeuillePage', () => {
 
     it('le clic sur Supprimer ouvre une modale nommant la ligne, sans appeler deleteHolding', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
 
@@ -323,7 +386,7 @@ describe('PortefeuillePage', () => {
 
     it('Annuler ferme la modale sans appeler deleteHolding', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
 
       fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
       await screen.findByRole('dialog')
@@ -338,7 +401,7 @@ describe('PortefeuillePage', () => {
       vi.mocked(api.deleteHolding).mockResolvedValue({ ok: true })
       vi.mocked(api.listHoldings).mockResolvedValueOnce([])
 
-      render(<PortefeuillePage />)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
       const modale = await screen.findByRole('dialog')
       // Deux boutons "Supprimer" à l'écran une fois la modale ouverte (celui de la

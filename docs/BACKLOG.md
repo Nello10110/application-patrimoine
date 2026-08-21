@@ -780,7 +780,7 @@ confirme et objective. Ce n'est pas une question de goût : ce sont des mesures.
 - **Émojis en guise d'icônes** (`☀️` `🌙` `🖥️`) : rendu différent sur chaque système, aucune unité
   graphique, aucune bibliothèque d'icônes.
 
-#### K.1 — `majeur` · `L` · `P0` · `non traité` — Système de design et enveloppe applicative
+#### K.1 — `majeur` · `L` · `P0` · `traité` (21/08/2026) — Système de design et enveloppe applicative
 
 Poser ce qui manque avant d'ajouter le moindre écran, sinon chaque nouveau lot reproduira les mêmes
 défauts.
@@ -798,16 +798,22 @@ défauts.
   navigation clavier complète (le chantier d'août avait déjà traité ce point, il ne doit pas
   régresser).
 
-**Incrément pilote livré le 21/08/2026** : les 9 jetons sémantiques de couleur et l'échelle
-typographique à 6 niveaux sont posés dans `frontend/src/index.css` (mécanisme `@theme` de
-Tailwind v4, valeurs indirectes vers des variables `:root`/`.dark` réévaluées par le navigateur au
-changement de thème — même pattern déjà en place pour les couleurs Recharts). Deux composants
-migrés à titre de preuve (`Card.tsx`, `StatTile.tsx`), zéro régression visuelle vérifiée en
-conditions réelles (clair et sombre). **Reste non traité** : la bibliothèque d'icônes, les 7
-composants de base (`Skeleton`, `EtatVide`, `EtatErreur`, `Badge`, `Tooltip`, `SegmentedControl`,
-`Sheet`), et la migration des ~27 fichiers/~630 occurrences `dark:` restantes.
+**Pilote livré le 21/08/2026, complété le 21/08/2026** : les 9 jetons sémantiques + l'échelle
+typographique (`frontend/src/index.css`, mécanisme `@theme` Tailwind v4) sont désormais utilisés
+sur les 25 fichiers `.tsx` qui portaient encore des classes `dark:` littérales (652 occurrences
+migrées) — plus aucune classe `dark:` de couleur en dehors de la définition des jetons, hors
+exceptions assumées et documentées dans le code (palette catégorielle décorative d'`AidePage.tsx`,
+bandeaux à fond teinté succès/avertissement de plusieurs écrans, scrim de `Modale.tsx`). Boutons
+d'action primaire migrés du bleu littéral vers le jeton `accent` (indigo) — seul changement de
+teinte assumé. Trois nouveaux composants construits et câblés partout où ils remplaçaient un motif
+répété : `Skeleton`/`SkeletonTexte`/`SkeletonGraphique`, `EtatVide`, `EtatErreur`. Bibliothèque
+d'icônes (`frontend/src/components/icons.tsx`) étendue à 17 icônes trait, remplaçant les derniers
+émojis d'interface (`BasculeTheme.tsx`) et les symboles Unicode ad hoc (✕ ↗ ← → ✓). **Reste hors
+périmètre, explicitement reporté** : `Badge`/`Tooltip`/`SegmentedControl`/`Sheet` (aucun site
+d'usage identifié aujourd'hui — reportés plutôt que construits dans le vide, à réévaluer au premier
+vrai besoin, ex. `Sheet` pour K.4 mobile).
 
-#### K.2 — `majeur` · `M` · `P0` · `non traité` — Navigation : barre latérale et hiérarchie
+#### K.2 — `majeur` · `M` · `P0` · `traité` (21/08/2026) — Navigation : barre latérale et hiérarchie
 
 - **Barre latérale verticale repliable**, avec deux rangs : les écrans de consultation
   (*Synthèse, Patrimoine, Analyse, Objectifs, Budget*) et, séparés, les écrans d'administration
@@ -819,15 +825,19 @@ composants de base (`Skeleton`, `EtatVide`, `EtatErreur`, `Badge`, `Tooltip`, `S
   défilement compris), pas au haut de la liste.
 - **Recherche globale** (`Ctrl/⌘ + K`) : atteindre une position, un bien, un emprunt, un écran.
 
-**Incrément pilote livré le 21/08/2026** : barre latérale repliable (persistée), vocabulaire
-unifié (`/patrimoine`, `/analyse`, `/objectifs` — anciennes URL `/portefeuille`, `/repartition`,
-`/simulateur` redirigées pour ne pas casser les marque-pages), titre d'onglet dynamique par écran
-(source unique `frontend/src/layout/routes.ts`), et menu du compte (voir K.7). Dividendes et
-Rapport restent deux entrées de consultation à part entière en attendant que Budget (Lot 6) existe
-réellement — les y rattacher aujourd'hui aurait été un mauvais mapping. **Reste non traité** : fil
-d'Ariane + retour avec restitution d'état (filtres/défilement), recherche globale `Ctrl/⌘+K`.
+**Pilote livré le 21/08/2026, complété le 21/08/2026** : barre latérale repliable (persistée),
+vocabulaire unifié, titre d'onglet dynamique, menu du compte (K.7) — inchangés. **Fil d'Ariane**
+(`FilDAriane.tsx`, dérivé de `ROUTES`) sur tous les écrans hors accueil, avec le ticker réel affiché
+sur la fiche détaillée d'une position. **Retour avec restitution d'état** : catégorie/compte du
+Portefeuille portés par l'URL (`?categorie=&compte=`, restitués automatiquement par le retour
+navigateur), tri de `PositionsTable` et position de défilement persistés en `sessionStorage`,
+bouton retour de la fiche détaillée utilisant `navigate(-1)` quand l'origine est connue. **Recherche
+globale `Ctrl/⌘+K`** (`PaletteRecherche.tsx`, sans dépendance tierce) : filtre en mémoire sur les
+écrans, positions (`listHoldings`) et emprunts (`listLoans`) déjà exposés côté frontend — limitation
+assumée : un résultat "emprunt" navigue vers Portefeuille en général, pas une ancre précise vers
+`LoansCard`.
 
-#### K.3 — `majeur` · `M` · `P0` · `non traité` — Contrôles transverses persistants
+#### K.3 — `majeur` · `M` · `P0` · `traité` (21/08/2026) — Contrôles transverses persistants
 
 Trois contrôles vivent dans l'en-tête et s'appliquent à **tous** les écrans, avec mémorisation :
 
@@ -841,15 +851,17 @@ Un quatrième contrôle est indépendant : **masquer les montants** (bascule + r
 remplace chaque valeur par des points sans changer les proportions des graphiques. Utile pour
 ouvrir l'application devant quelqu'un.
 
-**Incrément pilote livré le 21/08/2026** : nouvelle barre de contrôles persistante (en tête de
-`<main>`, visible sur tous les écrans) avec la **lentille** Patrimoine net/brut/financier (backend
-étendu — `patrimoine_service.compute_patrimoine_net` expose désormais les trois vues — branché sur
-`PatrimoineNetCard`) et **masquer les montants** (raccourci `Ctrl/⌘+Maj+M`, couverture complète des
-93 emplacements `formatEuro` sur 19 fichiers via un paramètre explicite plutôt qu'un état global
-caché). **Reste non traité** : Période unifiée sur tous les écrans (3 logiques de période
-incompatibles coexistent encore : Dashboard/Répartition par année, Rapport par plage
-mensuelle/annuelle/personnalisée, graphique d'évolution par fenêtre glissante) et Détenteur
-(bloqué par L.1, non livré).
+**Pilote livré le 21/08/2026 (Lentille, Masquer les montants), Détenteur livré le 21/08/2026 avec
+L.1, Période complétée le 21/08/2026.** Décision de conception pour la Période : le sélecteur
+« année » du Dashboard/Répartition/Objectifs reste un contrôle **spécifique aux Objectifs** (non
+remplacé) — `AllocationTarget` est un objectif intrinsèquement annuel, une fenêtre glissante « 3
+derniers mois » n'ayant pas de sens pour lui. La Période transverse (`1M/3M/6M/YTD/1A/3A/TOUT` +
+personnalisée, `frontend/src/utils/periode.ts`) s'applique donc uniquement au graphique d'évolution
+du patrimoine (filtré côté client, comme avant) et au Rapport (pré-remplit son mode Personnalisé au
+premier montage, synchronisation à sens unique — modifier les dates dans Rapport n'écrit jamais
+dans la préférence transverse). `/performance`, `/performance/dividendes` et `/patrimoine/net`
+restent hors périmètre (recalculer leurs métriques cumulées depuis-l'origine sur une fenêtre est un
+chantier backend nettement plus lourd) — **aucun fichier backend n'a été modifié pour ce point**.
 
 #### K.4 — `majeur` · `M` · `P1` · `non traité` — Mobile et responsive
 

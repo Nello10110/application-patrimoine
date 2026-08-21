@@ -4,6 +4,9 @@ import type { AllocationTargetInput, AnalysisResponse } from '../api/types'
 import Card from '../components/Card'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { IconFermer, IconValide } from '../components/icons'
+import EtatErreur from '../components/EtatErreur'
+import { SkeletonTexte } from '../components/Skeleton'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const ANNEE_MIN = 1990
@@ -50,17 +53,17 @@ function AllocationEditor({
       <div className="space-y-2">
         {items.map((item) => (
           <div key={item.categorie} className="flex items-center gap-3">
-            <span className="flex-1 text-sm text-slate-700 dark:text-slate-300">{item.categorie}</span>
+            <span className="flex-1 text-sm text-texte">{item.categorie}</span>
             <input
               type="number"
               step="any"
               value={item.pourcentage_cible}
               onChange={(e) => updatePct(item.categorie, Number(e.target.value))}
-              className="w-24 rounded-md border border-slate-300 px-2 py-1 text-right text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-24 rounded-md border border-bordure bg-surface px-2 py-1 text-right text-sm text-texte"
             />
-            <span className="w-4 text-xs text-slate-400 dark:text-slate-500">%</span>
-            <button onClick={() => remove(item.categorie)} className="text-xs text-red-600 hover:underline dark:text-red-400">
-              ✕
+            <span className="w-4 text-xs text-texte-attenue">%</span>
+            <button onClick={() => remove(item.categorie)} className="text-negatif hover:underline">
+              <IconFermer className="h-3.5 w-3.5" />
             </button>
           </div>
         ))}
@@ -74,21 +77,22 @@ function AllocationEditor({
             if (erreurAjout) setErreurAjout(null)
           }}
           placeholder="Nouvelle catégorie"
-          className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+          className="flex-1 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
         />
         <button
           onClick={add}
-          className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-600 dark:text-slate-300"
+          className="rounded-md border border-bordure px-3 py-1 text-xs font-medium text-texte"
         >
           Ajouter
         </button>
       </div>
-      {erreurAjout && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{erreurAjout}</p>}
+      {erreurAjout && <p className="mt-1 text-xs text-negatif">{erreurAjout}</p>}
 
       <p
-        className={`mt-3 text-sm font-medium ${Math.abs(total - 100) < 0.5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}
+        className={`mt-3 flex items-center gap-1 text-sm font-medium ${Math.abs(total - 100) < 0.5 ? 'text-positif' : 'text-avertissement'}`}
       >
-        Total : {total.toFixed(1)}% {Math.abs(total - 100) < 0.5 ? '✓' : '(doit sommer à 100%)'}
+        Total : {total.toFixed(1)}%{' '}
+        {Math.abs(total - 100) < 0.5 ? <IconValide className="h-4 w-4" /> : '(doit sommer à 100%)'}
       </p>
     </Card>
   )
@@ -236,12 +240,12 @@ export default function RepartitionPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Répartition {annee}</h2>
+        <h2 className="text-xl font-semibold text-texte">Répartition {annee}</h2>
         <div className="flex items-center gap-3">
           <select
             value={annee}
             onChange={(e) => setAnnee(Number(e.target.value))}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+            className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
           >
             {anneesDisponibles.map((y) => (
               <option key={y} value={y}>
@@ -259,22 +263,22 @@ export default function RepartitionPage() {
                 }}
                 placeholder="Ajouter une année"
                 aria-label="Ajouter une année"
-                className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               />
               <button
                 onClick={ajouterAnnee}
                 type="button"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-600 dark:text-slate-300"
+                className="rounded-md border border-bordure px-3 py-1.5 text-xs font-medium text-texte"
               >
                 Ajouter
               </button>
             </div>
-            {erreurNouvelleAnnee && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{erreurNouvelleAnnee}</p>}
+            {erreurNouvelleAnnee && <p className="mt-1 text-xs text-negatif">{erreurNouvelleAnnee}</p>}
           </div>
           <button
             onClick={handleSave}
             disabled={saving || loadingTargets || echecChargement !== null}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
           >
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
@@ -282,11 +286,13 @@ export default function RepartitionPage() {
       </div>
 
       {message && (
-        <p className={`text-sm ${message.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+        <p className={`text-sm ${message.type === 'success' ? 'text-positif' : 'text-negatif'}`}>
           {message.text}
         </p>
       )}
 
+      {/* Bandeau à fond teinté : même exception que `QualiteDonneesCard` (backlog
+          2.K.1) — hors des 9 jetons sémantiques. */}
       {echecChargement && (
         <Card className="border-red-200 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10">
           <p className="text-sm text-red-800 dark:text-red-300">
@@ -299,7 +305,7 @@ export default function RepartitionPage() {
           <button
             onClick={() => setCompteurRechargement((n) => n + 1)}
             type="button"
-            className="mt-3 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+            className="mt-3 rounded-md bg-texte px-3 py-1.5 text-xs font-medium text-surface"
           >
             Réessayer
           </button>
@@ -307,7 +313,7 @@ export default function RepartitionPage() {
       )}
 
       {echecChargement ? null : loadingTargets ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+        <SkeletonTexte />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <AllocationEditor title="Répartition géographique" items={geo} onChange={setGeo} />
@@ -316,13 +322,15 @@ export default function RepartitionPage() {
       )}
 
       <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Rééquilibrage</h3>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-texte-attenue">Rééquilibrage</h3>
 
-        {loadingAnalysis && <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>}
-        {erreurAnalysis && <p className="text-sm text-red-600 dark:text-red-400">Erreur: {erreurAnalysis}</p>}
+        {loadingAnalysis && <p className="text-sm text-texte-attenue">Chargement...</p>}
+        {erreurAnalysis && <EtatErreur message={erreurAnalysis} />}
 
         {!loadingAnalysis && !erreurAnalysis && analysis && (
           <div className="space-y-4">
+            {/* Bandeaux à fond teinté : même exception que `QualiteDonneesCard`
+                (backlog 2.K.1) — hors des 9 jetons sémantiques. */}
             {analysis.alertes.length > 0 && (
               <Card className="border-amber-300 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
                 <p className="mb-3 text-sm font-semibold text-amber-800 dark:text-amber-300">
@@ -342,25 +350,25 @@ export default function RepartitionPage() {
 
             <Card title="Actions de rééquilibrage recommandées">
               {analysis.recommandations.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-texte-attenue">
                   {hasNoTargets || hasNoHoldings
                     ? 'Renseigne un portefeuille et des objectifs pour voir les recommandations.'
                     : 'Portefeuille bien aligné avec les objectifs, aucune action nécessaire.'}
                 </p>
               ) : (
-                <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                <ul className="divide-y divide-bordure">
                   {analysis.recommandations.map((action) => (
                     <li key={`${action.type}-${action.categorie}`} className="flex items-center justify-between py-3">
                       <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{action.categorie}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <p className="text-sm font-medium text-texte">{action.categorie}</p>
+                        <p className="text-xs text-texte-attenue">
                           {action.type === 'geo' ? 'Géographie' : 'Secteur'} · écart de {action.ecart_pourcentage > 0 ? '+' : ''}
                           {action.ecart_pourcentage}%
                         </p>
                       </div>
                       <div className="text-right">
                         <p
-                          className={`text-sm font-semibold ${action.sens === 'reduire' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}
+                          className={`text-sm font-semibold ${action.sens === 'reduire' ? 'text-avertissement' : 'text-positif'}`}
                         >
                           {action.sens === 'reduire' ? 'Réduire' : 'Augmenter'} de {formatEuro(action.montant_a_ajuster, 0, montantsMasques)}
                         </p>

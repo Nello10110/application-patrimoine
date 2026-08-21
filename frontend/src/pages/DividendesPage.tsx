@@ -3,6 +3,9 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { api } from '../api/client'
 import type { DividendeMois } from '../api/types'
 import Card from '../components/Card'
+import EtatErreur from '../components/EtatErreur'
+import EtatVide from '../components/EtatVide'
+import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
@@ -19,29 +22,29 @@ function MoisCard({ mois }: { mois: DividendeMois }) {
   const [ouvert, setOuvert] = useState(false)
 
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-700">
+    <div className="rounded-lg border border-bordure">
       <button
         type="button"
         onClick={() => setOuvert((v) => !v)}
         aria-expanded={ouvert}
         className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
       >
-        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{libelleMois(mois.mois)}</span>
+        <span className="text-sm font-medium text-texte">{libelleMois(mois.mois)}</span>
         <span className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatEuro(mois.montant_total, 2, montantsMasques)}</span>
-          <span className="text-slate-400" aria-hidden="true">
+          <span className="text-sm font-semibold text-positif">{formatEuro(mois.montant_total, 2, montantsMasques)}</span>
+          <span className="text-texte-attenue" aria-hidden="true">
             {ouvert ? '▲' : '▼'}
           </span>
         </span>
       </button>
       {ouvert && (
-        <table className="w-full border-t border-slate-100 text-sm dark:border-slate-700">
+        <table className="w-full border-t border-bordure text-sm">
           <tbody>
             {mois.lignes.map((ligne, i) => (
-              <tr key={i} className="border-b border-slate-50 last:border-0 dark:border-slate-800">
-                <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{formatDate(ligne.date)}</td>
-                <td className="px-4 py-2 text-slate-700 dark:text-slate-300">{ligne.nom ?? ligne.symbol ?? '—'}</td>
-                <td className="px-4 py-2 text-right font-medium text-slate-900 dark:text-slate-100">{formatEuro(ligne.montant, 2, montantsMasques)}</td>
+              <tr key={i} className="border-b border-bordure last:border-0">
+                <td className="px-4 py-2 text-texte-attenue">{formatDate(ligne.date)}</td>
+                <td className="px-4 py-2 text-texte">{ligne.nom ?? ligne.symbol ?? '—'}</td>
+                <td className="px-4 py-2 text-right font-medium text-texte">{formatEuro(ligne.montant, 2, montantsMasques)}</td>
               </tr>
             ))}
           </tbody>
@@ -63,8 +66,8 @@ export default function DividendesPage() {
       .catch((err) => setError(err.message))
   }, [])
 
-  if (error) return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-  if (!calendrier) return <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+  if (error) return <EtatErreur message={error} />
+  if (!calendrier) return <SkeletonTexte />
 
   const total = calendrier.reduce((acc, m) => acc + m.montant_total, 0)
   const donneesGraphique = calendrier.map((m) => ({ mois: libelleMois(m.mois), montant: m.montant_total }))
@@ -72,19 +75,17 @@ export default function DividendesPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Dividendes</h2>
+      <h2 className="text-xl font-semibold text-texte">Dividendes</h2>
 
       {calendrier.length === 0 ? (
         <Card>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Aucun dividende perçu pour l'instant sur les transactions importées.
-          </p>
+          <EtatVide titre="Aucun dividende perçu pour l'instant sur les transactions importées." />
         </Card>
       ) : (
         <>
           <Card title="Total perçu">
-            <p className="text-3xl font-semibold text-emerald-600 dark:text-emerald-400">{formatEuro(total, 2, montantsMasques)}</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-3xl font-semibold text-positif">{formatEuro(total, 2, montantsMasques)}</p>
+            <p className="mt-1 text-sm text-texte-attenue">
               sur {calendrier.length} mois, du {libelleMois(calendrier[0].mois)} au {libelleMois(calendrier[calendrier.length - 1].mois)}
             </p>
           </Card>

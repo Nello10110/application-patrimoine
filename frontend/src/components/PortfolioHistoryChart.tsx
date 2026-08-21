@@ -3,18 +3,19 @@ import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, T
 import { api } from '../api/client'
 import type { PortfolioHistoryPoint } from '../api/types'
 import Card from './Card'
+import EtatErreur from './EtatErreur'
+import EtatVide from './EtatVide'
+import { SkeletonGraphique } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { bornesPeriode } from '../utils/periode'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
-type Range = '1y' | '5y' | 'all'
-
 export default function PortfolioHistoryChart() {
-  const { montantsMasques } = usePreferencesAffichage()
+  const { montantsMasques, periode } = usePreferencesAffichage()
   const [points, setPoints] = useState<PortfolioHistoryPoint[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [range, setRange] = useState<Range>('all')
   const [stacked, setStacked] = useState(false)
 
   useEffect(() => {
@@ -25,15 +26,15 @@ export default function PortfolioHistoryChart() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Filtrage par la Période transverse (backlog 2.K.3), calculé côté client sur la
+  // série complète déjà reçue en un seul appel (`getPortfolioHistory` ne prend
+  // aucun paramètre de période, cf. plan — inchangé ici).
   const filtered = useMemo(() => {
     if (!points) return []
-    if (range === 'all') return points
-    const years = range === '1y' ? 1 : 5
-    const cutoff = new Date()
-    cutoff.setFullYear(cutoff.getFullYear() - years)
-    const cutoffStr = cutoff.toISOString().slice(0, 10)
-    return points.filter((p) => p.date >= cutoffStr)
-  }, [points, range])
+    const bornes = bornesPeriode(periode)
+    if (!bornes) return points
+    return points.filter((p) => p.date >= bornes.dateDebut && p.date <= bornes.dateFin)
+  }, [points, periode])
 
   const data = useMemo(
     () =>
@@ -52,46 +53,30 @@ export default function PortfolioHistoryChart() {
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Évolution du portefeuille</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1">
-            {(['1y', '5y', 'all'] as Range[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  range === r
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                }`}
-              >
-                {r === '1y' ? '1 an' : r === '5y' ? '5 ans' : 'Depuis le début'}
-              </button>
-            ))}
-          </div>
-          <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-            <input type="checkbox" checked={stacked} onChange={(e) => setStacked(e.target.checked)} />
-            Mode étagé (investi + gains)
-          </label>
-        </div>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Évolution du portefeuille</h2>
+        <label className="flex items-center gap-1.5 text-xs text-texte">
+          <input type="checkbox" checked={stacked} onChange={(e) => setStacked(e.target.checked)} />
+          Mode étagé (investi + gains)
+        </label>
       </div>
 
       {stacked && (
-        <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+        <p className="mb-2 text-xs text-texte-attenue">
           « Gains » inclut les ventes réalisées, dividendes et intérêts perçus — même chiffre que le
           Gain/Perte total de la carte Rentabilité globale.
         </p>
       )}
 
       {loading && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Calcul de l'historique en cours (peut prendre jusqu'à une minute, une seule fois)...
-        </p>
+        <>
+          <p className="mb-2 text-sm text-texte-attenue">
+            Calcul de l'historique en cours (peut prendre jusqu'à une minute, une seule fois)...
+          </p>
+          <SkeletonGraphique />
+        </>
       )}
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {!loading && !error && data.length === 0 && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Pas encore d'historique disponible.</p>
-      )}
+      {error && <EtatErreur message={error} />}
+      {!loading && !error && data.length === 0 && <EtatVide titre="Pas encore d'historique disponible." />}
 
       {!loading && !error && data.length > 0 && (
         <ResponsiveContainer width="100%" height={280}>

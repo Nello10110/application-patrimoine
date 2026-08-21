@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { Detenteur } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { Lentille } from '../contexts/preferencesAffichageContextObject'
+import { PERIODES_RELATIVES, type PeriodeRelative } from '../utils/periode'
 import { IconOeil, IconOeilBarre } from './icons'
 
 const OPTIONS_LENTILLE: { valeur: Lentille; label: string }[] = [
@@ -11,13 +12,16 @@ const OPTIONS_LENTILLE: { valeur: Lentille; label: string }[] = [
   { valeur: 'financier', label: 'Financier' },
 ]
 
+const VALEUR_PERSONNALISEE = 'personnalisee'
+
 /** Barre de contrôles transverses (backlog 2.K.3/2.L.1), persistante et visible sur
  * tous les écrans (montée une seule fois dans `App.tsx`, en tête de `<main>`) —
  * lentille patrimoine net/brut/financier, filtre Détenteur (foyer ou une personne/
- * société précise) et bascule "masquer les montants". Période reste hors périmètre
- * de cet incrément (cf. plan). */
+ * société précise), Période (graphique d'évolution + Rapport uniquement, cf.
+ * `title` ci-dessous) et bascule "masquer les montants". */
 export default function BarreControles() {
-  const { lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId } = usePreferencesAffichage()
+  const { lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId, periode, setPeriode } =
+    usePreferencesAffichage()
   const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
 
   useEffect(() => {
@@ -59,6 +63,46 @@ export default function BarreControles() {
             ))}
           </select>
         </>
+      )}
+
+      <span className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Période</span>
+      <select
+        value={periode.type === 'personnalisee' ? VALEUR_PERSONNALISEE : periode.valeur}
+        onChange={(e) => {
+          const valeur = e.target.value
+          if (valeur === VALEUR_PERSONNALISEE) {
+            const aujourdhui = new Date().toISOString().slice(0, 10)
+            setPeriode({ type: 'personnalisee', dateDebut: aujourdhui, dateFin: aujourdhui })
+          } else {
+            setPeriode({ type: 'relative', valeur: valeur as PeriodeRelative })
+          }
+        }}
+        title="S'applique au Rapport et à l'évolution du patrimoine"
+        className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+      >
+        {PERIODES_RELATIVES.map((p) => (
+          <option key={p.valeur} value={p.valeur}>
+            {p.label}
+          </option>
+        ))}
+        <option value={VALEUR_PERSONNALISEE}>Personnalisée…</option>
+      </select>
+      {periode.type === 'personnalisee' && (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={periode.dateDebut}
+            onChange={(e) => setPeriode({ type: 'personnalisee', dateDebut: e.target.value, dateFin: periode.dateFin })}
+            className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+          />
+          <span className="text-xs text-texte-attenue">au</span>
+          <input
+            type="date"
+            value={periode.dateFin}
+            onChange={(e) => setPeriode({ type: 'personnalisee', dateDebut: periode.dateDebut, dateFin: e.target.value })}
+            className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+          />
+        </div>
       )}
 
       <button

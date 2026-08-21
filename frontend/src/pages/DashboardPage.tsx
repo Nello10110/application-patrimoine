@@ -6,6 +6,8 @@ import AllocationChartCard from '../components/AllocationChartCard'
 import Card from '../components/Card'
 import CompositionModal from '../components/CompositionModal'
 import CoutGestionCard from '../components/CoutGestionCard'
+import EtatErreur from '../components/EtatErreur'
+import { SkeletonTexte } from '../components/Skeleton'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
 import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
@@ -77,12 +79,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Tableau de bord {annee}</h2>
+        <h2 className="text-xl font-semibold text-texte">Tableau de bord {annee}</h2>
         <div className="flex items-center gap-3">
           <select
             value={annee}
             onChange={(e) => setAnnee(Number(e.target.value))}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+            className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
           >
             {anneesDisponibles.map((y) => (
               <option key={y} value={y}>
@@ -93,7 +95,7 @@ export default function DashboardPage() {
           <button
             onClick={chargerDonnees}
             disabled={loading}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+            className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
           >
             {loading ? 'Actualisation...' : 'Actualiser'}
           </button>
@@ -102,13 +104,16 @@ export default function DashboardPage() {
 
       <PatrimoineNetCard />
 
-      {loading && <p className="text-slate-500 dark:text-slate-400">Chargement...</p>}
-      {error && <p className="text-red-600 dark:text-red-400">Erreur: {error}</p>}
+      {loading && <SkeletonTexte lignes={4} />}
+      {error && <EtatErreur message={error} />}
 
       {!loading && !error && analysis && (
         <>
           <PortfolioHistoryChart />
 
+          {/* Bandeaux à fond teinté : même exception que `QualiteDonneesCard` (backlog
+              2.K.1) — hors des 9 jetons sémantiques, pas de jeton de fond teinté
+              multi-nuances disponible pour ce besoin. */}
           {hasNoHoldings && (
             <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
               <p className="text-sm text-amber-800 dark:text-amber-200/90">
@@ -162,7 +167,7 @@ export default function DashboardPage() {
               items={analysis.geo}
               onCategoryClick={(categorie) => setModal({ type: 'geo', categorie })}
               footnote={
-                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                <p className="mt-2 text-xs text-texte-attenue">
                   Géographie des fonds/ETF issue de leur composition réelle (10 plus grosses lignes, extrapolées à 100% du fonds)
                   quand Yahoo Finance la fournit, sinon estimée à partir de l'indice suivi par le fonds (voir le détail de qualité
                   des données ci-dessous) ; secteur des fonds basé sur leur composition complète. Clique sur une barre (ou une
@@ -183,17 +188,17 @@ export default function DashboardPage() {
 
           {comptes && comptes.a_des_comptes_annotes && (
             <Card title="Répartition par compte">
-              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+              <ul className="divide-y divide-bordure">
                 {comptes.items.map((item) => (
                   <li key={item.compte} className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-slate-700 dark:text-slate-300">{item.compte}</span>
-                    <span className="font-medium text-slate-900 dark:text-slate-100">
+                    <span className="text-texte">{item.compte}</span>
+                    <span className="font-medium text-texte">
                       {formatEuro(item.valeur, 0, montantsMasques)} · {item.pourcentage}%
                     </span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">{comptes.pas_de_rentabilite_par_compte}</p>
+              <p className="mt-3 text-xs text-texte-attenue">{comptes.pas_de_rentabilite_par_compte}</p>
             </Card>
           )}
 
@@ -203,12 +208,12 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p
-                  className={`text-2xl font-semibold ${analysis.alertes.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'}`}
+                  className={`text-2xl font-semibold ${analysis.alertes.length > 0 ? 'text-avertissement' : 'text-texte'}`}
                 >
                   {analysis.recommandations.length} action{analysis.recommandations.length > 1 ? 's' : ''} recommandée
                   {analysis.recommandations.length > 1 ? 's' : ''}
                 </p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-sm text-texte-attenue">
                   {analysis.alertes.length > 0
                     ? `dont ${analysis.alertes.length} alerte${analysis.alertes.length > 1 ? 's' : ''} au-delà du seuil réglé dans Réglages`
                     : hasNoTargets || hasNoHoldings
@@ -218,7 +223,7 @@ export default function DashboardPage() {
               </div>
               <Link
                 to="/analyse"
-                className="shrink-0 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+                className="shrink-0 rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
               >
                 Voir le détail
               </Link>

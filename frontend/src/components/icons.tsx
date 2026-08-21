@@ -1,8 +1,7 @@
-// Jeu minimal d'icônes trait (20px, `currentColor`), tracées à la main pour les
-// besoins de la barre latérale et du menu du compte (backlog 2.K.2) — remplace les
-// émojis utilisés jusqu'ici pour la navigation. Portée volontairement limitée à ces
-// deux composants : la bibliothèque d'icônes unique pour le reste de l'application
-// reste à traiter (backlog 2.K.1).
+// Bibliothèque d'icônes trait (20px, `currentColor`) de l'application (backlog
+// 2.K.1), tracées à la main plutôt que via une dépendance tierce — remplace les
+// émojis d'interface (navigation, bascule de thème) et les symboles Unicode ad hoc
+// (✕ ↗ ← → ✓) utilisés jusqu'ici comme icônes.
 
 type IconProps = { className?: string }
 
@@ -137,6 +136,83 @@ export function IconDeconnexion({ className }: IconProps) {
     <svg {...base} className={className}>
       <path d="M8.5 3.5 H5 A1.5 1.5 0 0 0 3.5 5 V15 A1.5 1.5 0 0 0 5 16.5 H8.5" />
       <path d="M9 10 H16.5 M13.5 7 L16.5 10 L13.5 13" />
+    </svg>
+  )
+}
+
+export function IconFermer({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M5 5 L15 15 M15 5 L5 15" />
+    </svg>
+  )
+}
+
+export function IconLienExterne({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M8.5 4.5 H15.5 V11.5" />
+      <path d="M15.5 4.5 L8 12" />
+      <path d="M12.5 9.5 V15 A1 1 0 0 1 11.5 16 H5 A1 1 0 0 1 4 15 V8.5 A1 1 0 0 1 5 7.5 H10.5" />
+    </svg>
+  )
+}
+
+export function IconFlecheGauche({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M16 10 H4.5 M9.5 4.5 L4 10 L9.5 15.5" />
+    </svg>
+  )
+}
+
+export function IconFlecheDroite({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 10 H15.5 M10.5 4.5 L16 10 L10.5 15.5" />
+    </svg>
+  )
+}
+
+export function IconValide({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 10.5 L8 14.5 L16 5.5" />
+    </svg>
+  )
+}
+
+export function IconSoleil({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="10" cy="10" r="3.2" />
+      <path d="M10 2.8 V4.6 M10 15.4 V17.2 M17.2 10 H15.4 M4.6 10 H2.8 M15 5 L13.7 6.3 M6.3 13.7 L5 15 M15 15 L13.7 13.7 M6.3 6.3 L5 5" />
+    </svg>
+  )
+}
+
+export function IconLune({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M16.2 12.3 A6.8 6.8 0 1 1 7.7 3.8 A5.4 5.4 0 0 0 16.2 12.3 Z" />
+    </svg>
+  )
+}
+
+export function IconEcran({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="3" y="4" width="14" height="9.5" rx="1.2" />
+      <path d="M7.5 16.5 H12.5 M10 13.5 V16.5" />
+    </svg>
+  )
+}
+
+export function IconRecherche({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="8.5" cy="8.5" r="5.5" />
+      <path d="M16.5 16.5 L12.7 12.7" />
     </svg>
   )
 }

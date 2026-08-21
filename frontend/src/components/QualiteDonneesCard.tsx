@@ -32,6 +32,11 @@ export default function QualiteDonneesCard({ qualite }: { qualite: QualiteDonnee
 
   if (lignes.length === 0) return null
 
+  // Bandeau d'alerte à fond teinté (backlog 2.K.1) : volontairement hors des 9
+  // jetons sémantiques, comme la palette catégorielle d'AidePage — `avertissement`
+  // n'est qu'une couleur scalaire (texte/bordure fine), pas un jeton de fond teinté
+  // à plusieurs nuances avec opacité ; en introduire un pour ce seul usage aurait
+  // été prématuré (aucun autre bandeau de ce type dans l'application aujourd'hui).
   return (
     <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
       <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-300">Qualité des données</p>

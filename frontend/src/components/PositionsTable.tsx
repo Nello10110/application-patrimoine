@@ -6,15 +6,32 @@ import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
 import { formatEuro, formatQuantite } from '../utils/format'
 
 function RendementCell({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-slate-400 dark:text-slate-500">—</span>
+  if (value === null) return <span className="text-texte-attenue">—</span>
   const positif = value >= 0
   return (
-    <span className={positif ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>{`${positif ? '+' : ''}${value.toFixed(1)}%`}</span>
+    <span className={positif ? 'text-positif' : 'text-negatif'}>{`${positif ? '+' : ''}${value.toFixed(1)}%`}</span>
   )
 }
 
 type CleTri = 'ticker' | 'nom' | 'quantite' | 'prix_actuel' | 'valeur' | 'depuis_achat' | 'annualise'
 type SensTri = 'asc' | 'desc'
+
+// Tri persisté dans `sessionStorage` (backlog 2.K.2) : une préférence de PRÉSENTATION
+// pure (pas un filtre de données), qui ne mérite donc pas de polluer l'URL comme
+// `categorie`/`compte` (cf. `PortefeuillePage`) — `sessionStorage`, pas `localStorage`
+// comme les préférences durables de `PreferencesAffichageContext` : un état de la
+// session de navigation en cours, pas une préférence utilisateur au long cours.
+const CLE_TRI = 'patrimoine:positions-tri'
+
+function triStocke(): { cle: CleTri; direction: SensTri } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const brut = window.sessionStorage.getItem(CLE_TRI)
+    return brut ? JSON.parse(brut) : null
+  } catch {
+    return null
+  }
+}
 
 interface ColonneTriable {
   cle: CleTri
@@ -66,7 +83,15 @@ interface PositionsTableProps {
 
 export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, onSaved }: PositionsTableProps) {
   const { montantsMasques } = usePreferencesAffichage()
-  const [tri, setTri] = useState<{ cle: CleTri; direction: SensTri } | null>(null)
+  const [tri, setTriState] = useState<{ cle: CleTri; direction: SensTri } | null>(() => triStocke())
+
+  function setTri(maj: (prev: { cle: CleTri; direction: SensTri } | null) => { cle: CleTri; direction: SensTri }) {
+    setTriState((prev) => {
+      const suivant = maj(prev)
+      window.sessionStorage.setItem(CLE_TRI, JSON.stringify(suivant))
+      return suivant
+    })
+  }
 
   // Édition en ligne (LOT 5.8) : une seule ligne éditable à la fois, identifiée par
   // son id. `editForm` reste des chaînes (comme le formulaire d'ajout) pour laisser
@@ -148,7 +173,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+          <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
             {COLONNES_TRIABLES.map((col) => {
               const triActif = tri?.cle === col.cle
               return (
@@ -157,7 +182,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                   scope="col"
                   onClick={() => handleSort(col.cle)}
                   aria-sort={triActif ? (tri.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
-                  className="cursor-pointer select-none py-2 pr-4 hover:text-slate-700 dark:hover:text-slate-200"
+                  className="cursor-pointer select-none py-2 pr-4 hover:text-texte"
                 >
                   {col.label}
                   {triActif && <span className="ml-1">{tri.direction === 'asc' ? '▲' : '▼'}</span>}
@@ -169,7 +194,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
             <th className="py-2 pr-4"></th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+        <tbody className="divide-y divide-bordure">
           {lignesAffichees.map((h) => {
             const md = h.market_data
             const enEdition = editingId === h.id
@@ -180,20 +205,20 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                   if (enEdition) return
                   onSelectTicker(h.ticker)
                 }}
-                className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                className="cursor-pointer hover:bg-surface-elevee"
               >
-                <td className="py-2 pr-4 font-medium text-slate-900 dark:text-slate-100">
+                <td className="py-2 pr-4 font-medium text-texte">
                   {h.ticker}
                   {h.origine === 'manuel' && (
                     <span
                       title="Ligne saisie manuellement : non recalculée par un import de transactions"
-                      className="ml-2 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                      className="ml-2 rounded-full bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
                     >
                       saisie manuelle
                     </span>
                   )}
                 </td>
-                <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{md?.nom ?? h.nom ?? '—'}</td>
+                <td className="py-2 pr-4 text-texte">{md?.nom ?? h.nom ?? '—'}</td>
                 <td className="py-2 pr-4">
                   {enEdition ? (
                     <input
@@ -203,7 +228,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                       type="number"
                       step="any"
                       aria-label="Quantité (édition)"
-                      className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      className="w-24 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     />
                   ) : (
                     formatQuantite(h.quantite)
@@ -217,9 +242,9 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                 <td className="py-2 pr-4">
                   <RendementCell value={h.rendement_annualise_pct} />
                 </td>
-                <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{md?.secteur ?? '—'}</td>
-                <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">
-                  {md?.erreur ? <span className="text-amber-600 dark:text-amber-400">{md.erreur}</span> : (md?.pays ?? '—')}
+                <td className="py-2 pr-4 text-texte">{md?.secteur ?? '—'}</td>
+                <td className="py-2 pr-4 text-texte">
+                  {md?.erreur ? <span className="text-avertissement">{md.erreur}</span> : (md?.pays ?? '—')}
                 </td>
                 <td className="py-2 pr-4 text-right">
                   {enEdition ? (
@@ -227,20 +252,20 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                       <button
                         onClick={(e) => saveEdit(e, h.id)}
                         disabled={editSaving}
-                        className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-40 dark:text-emerald-400"
+                        className="text-xs font-medium text-positif hover:underline disabled:opacity-40"
                       >
                         Enregistrer
                       </button>
-                      <button onClick={(e) => cancelEdit(e)} className="text-xs text-slate-500 hover:underline dark:text-slate-400">
+                      <button onClick={(e) => cancelEdit(e)} className="text-xs text-texte-attenue hover:underline">
                         Annuler
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={(e) => startEdit(e, h)} className="text-xs text-slate-600 hover:underline dark:text-slate-300">
+                      <button onClick={(e) => startEdit(e, h)} className="text-xs text-texte-attenue hover:underline">
                         Modifier
                       </button>
-                      <button onClick={(e) => handleDelete(e, h)} className="text-xs text-red-600 hover:underline dark:text-red-400">
+                      <button onClick={(e) => handleDelete(e, h)} className="text-xs text-negatif hover:underline">
                         Supprimer
                       </button>
                     </div>
@@ -251,9 +276,9 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
           })}
           {editingId !== null && lignesAffichees.some((h) => h.id === editingId) && (
             <tr onClick={(e) => e.stopPropagation()}>
-              <td colSpan={10} className="bg-slate-50 py-3 pr-4 dark:bg-slate-700/50">
+              <td colSpan={10} className="bg-surface-elevee py-3 pr-4">
                 <div className="flex flex-wrap items-end gap-3">
-                  <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Prix de revient
                     <input
                       value={editForm.prix_revient_moyen}
@@ -262,27 +287,27 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                       type="number"
                       step="any"
                       aria-label="Prix de revient (édition)"
-                      className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                     />
                   </label>
-                  <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Compte
                     <input
                       value={editForm.compte}
                       onChange={(e) => setEditForm({ ...editForm, compte: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
                       aria-label="Compte (édition)"
-                      className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                     />
                   </label>
-                  <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Type d'actif
                     <select
                       value={editForm.type_actif}
                       onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
                       aria-label="Type d'actif (édition)"
-                      className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                     >
                       {TYPE_ACTIF_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -291,7 +316,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                       ))}
                     </select>
                   </label>
-                  <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Valeur estimée
                     <input
                       value={editForm.valeur_estimee}
@@ -300,18 +325,18 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                       type="number"
                       step="any"
                       aria-label="Valeur estimée (édition)"
-                      className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       placeholder="optionnel"
                     />
                   </label>
                 </div>
-                {editError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editError}</p>}
+                {editError && <p className="mt-2 text-xs text-negatif">{editError}</p>}
               </td>
             </tr>
           )}
         </tbody>
         <tfoot>
-          <tr className="border-t border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+          <tr className="border-t border-bordure text-sm font-semibold text-texte">
             <td colSpan={4} className="py-2 pr-4">
               {rows.length} position{rows.length > 1 ? 's' : ''}
             </td>

@@ -130,8 +130,8 @@ export default function SimulateurPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Simulateur</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <h2 className="text-xl font-semibold text-texte">Simulateur</h2>
+        <p className="mt-1 text-sm text-texte-attenue">
           Projette un capital dans le temps — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
           jamais de façon aussi régulière dans la réalité. Préempli avec ton patrimoine net actuel, mais librement modifiable
           pour tester n'importe quel autre scénario.
@@ -140,7 +140,7 @@ export default function SimulateurPage() {
 
       <Card title="Hypothèses">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Capital de départ (€)
             <input
               value={capital}
@@ -149,19 +149,19 @@ export default function SimulateurPage() {
               step="any"
               min={0}
               disabled={chargementPatrimoine}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte disabled:opacity-50"
             />
             {patrimoineNetActuel !== null && capitalNum !== patrimoineNetActuel && (
               <button
                 type="button"
                 onClick={() => setCapital(String(patrimoineNetActuel))}
-                className="text-left text-xs font-normal text-slate-400 underline hover:text-slate-600 dark:hover:text-slate-300"
+                className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
               >
                 Revenir au patrimoine net actuel ({formatEuro(patrimoineNetActuel, 0, montantsMasques)})
               </button>
             )}
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Intérêts déjà obtenus (€)
             <input
               value={interetsDejaObtenus}
@@ -170,20 +170,20 @@ export default function SimulateurPage() {
               step="any"
               min={0}
               placeholder="optionnel"
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Rendement annuel moyen (%)
             <input
               value={taux}
               onChange={(e) => setTaux(e.target.value)}
               type="number"
               step="any"
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Versement mensuel (€)
             <input
               value={versement}
@@ -191,12 +191,12 @@ export default function SimulateurPage() {
               type="number"
               step="any"
               min={0}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
         </div>
 
-        <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Durée
           <div className="flex gap-1">
             {DUREES.map((d) => (
@@ -205,8 +205,8 @@ export default function SimulateurPage() {
                 onClick={() => setDuree(d)}
                 className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
                   duree === d
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                    ? 'bg-texte text-surface'
+                    : 'bg-surface-elevee text-texte-attenue hover:text-texte'
                 }`}
               >
                 {d} ans
@@ -215,15 +215,15 @@ export default function SimulateurPage() {
           </div>
         </div>
 
-        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+        <p className="mt-3 text-xs text-texte-attenue">
           « Intérêts déjà obtenus » (optionnel) : la part du capital de départ déjà constituée de gains plutôt que de
           versements — pour un tableau de détail qui distingue les vrais intérêts déjà gagnés des futurs. Préempli avec le
           gain/perte de ton portefeuille financier, librement modifiable ou effaçable.
         </p>
 
-        {chargementPatrimoine && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Chargement du patrimoine net...</p>}
+        {chargementPatrimoine && <p className="mt-3 text-sm text-texte-attenue">Chargement du patrimoine net...</p>}
         {!chargementPatrimoine && !valide && (
-          <p className="mt-3 text-sm text-red-600 dark:text-red-400">Renseigne des valeurs numériques positives.</p>
+          <p className="mt-3 text-sm text-negatif">Renseigne des valeurs numériques positives.</p>
         )}
 
         {!chargementPatrimoine && valide && (
@@ -255,7 +255,7 @@ export default function SimulateurPage() {
             </ResponsiveContainer>
 
             <div className="mt-6 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Détail par période</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Détail par période</h3>
               <div className="flex gap-1">
                 {(['annuelle', 'mensuelle'] as Vue[]).map((v) => (
                   <button
@@ -263,8 +263,8 @@ export default function SimulateurPage() {
                     onClick={() => setVue(v)}
                     className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                       vue === v
-                        ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                        ? 'bg-texte text-surface'
+                        : 'bg-surface-elevee text-texte-attenue hover:text-texte'
                     }`}
                   >
                     {v === 'annuelle' ? 'Annuelle' : 'Mensuelle'}
@@ -273,10 +273,10 @@ export default function SimulateurPage() {
               </div>
             </div>
 
-            <div className="mt-3 max-h-96 overflow-y-auto overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700">
+            <div className="mt-3 max-h-96 overflow-y-auto overflow-x-auto rounded-md border border-bordure">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-white dark:bg-slate-800">
-                  <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <thead className="sticky top-0 bg-surface">
+                  <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
                     <th scope="col" className="py-2 pl-3 pr-4">
                       Période
                     </th>
@@ -297,30 +297,30 @@ export default function SimulateurPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-bordure">
                   {vue === 'annuelle'
                     ? pointsAnnuels.map((p) => (
                         <tr key={p.annee}>
-                          <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
+                          <td className="py-2 pl-3 pr-4 font-medium text-texte">
                             {p.annee === 0 ? 'Départ' : libelleAnnee(p.annee)}
                           </td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versements, 2, montantsMasques)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets, 2, montantsMasques)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-positif">{formatEuro(p.interets, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-texte">{formatEuro(p.capital, 2, montantsMasques)}</td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule, 2, montantsMasques)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-positif">{formatEuro(p.interetsCumules, 2, montantsMasques)}</td>
                         </tr>
                       ))
                     : pointsMensuels.map((p) => (
                         <tr key={p.moisIndex}>
-                          <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
+                          <td className="py-2 pl-3 pr-4 font-medium text-texte">
                             {p.annee === 0 ? 'Départ' : libelleMoisAnnee(p.moisIndex)}
                           </td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versement, 2, montantsMasques)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets, 2, montantsMasques)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-positif">{formatEuro(p.interets, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-texte">{formatEuro(p.capital, 2, montantsMasques)}</td>
                           <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule, 2, montantsMasques)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-positif">{formatEuro(p.interetsCumules, 2, montantsMasques)}</td>
                         </tr>
                       ))}
                 </tbody>
@@ -331,13 +331,13 @@ export default function SimulateurPage() {
       </Card>
 
       <Card title="Indépendance financière (FIRE)">
-        <p className="mb-4 text-xs text-slate-400 dark:text-slate-500">
+        <p className="mb-4 text-xs text-texte-attenue">
           Le taux de retrait par défaut (4 %) est un choix méthodologique connu sous le nom de « règle des 4 % » — pas une
           vérité universelle, à ajuster selon ta propre prudence. Utilise le capital de départ, le rendement et le versement
           mensuel renseignés ci-dessus.
         </p>
         <div className="flex flex-wrap items-end gap-4">
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Dépense annuelle cible (€)
             <input
               value={depenseCible}
@@ -345,22 +345,22 @@ export default function SimulateurPage() {
               type="number"
               step="any"
               placeholder="ex. 30000"
-              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Taux de retrait (%)
             <input
               value={tauxRetrait}
               onChange={(e) => setTauxRetrait(e.target.value)}
               type="number"
               step="any"
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
         </div>
 
-        {!depenseCible && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Renseigne une dépense annuelle cible pour voir le résultat.</p>}
+        {!depenseCible && <p className="mt-4 text-sm text-texte-attenue">Renseigne une dépense annuelle cible pour voir le résultat.</p>}
 
         {fire && depenseCible && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">

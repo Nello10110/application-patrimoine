@@ -67,25 +67,25 @@ function DetenteursSection({ ticker, quotitesInitiales }: { ticker: string; quot
 
   return (
     <Card title="Détenteurs">
-      <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+      <p className="mb-4 text-sm text-texte">
         Répartition de cette ligne entre les personnes/sociétés déclarées dans Réglages — la somme doit faire 100 % (ou
         rester à 0 % pour ne pas répartir, 100 % foyer implicite).
       </p>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+          <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
             <th className="py-2 pr-4">Détenteur</th>
             <th className="py-2 pr-4">Quotité</th>
             <th className="py-2 pr-4 text-right">Part détenue</th>
             <th className="py-2 pr-4 text-right">Part nette</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+        <tbody className="divide-y divide-bordure">
           {detenteurs.map((d) => {
             const enregistree = quotitesEnregistrees.find((q) => q.detenteur_id === d.id)
             return (
               <tr key={d.id}>
-                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">{d.nom}</td>
+                <td className="py-2 pr-4 text-texte">{d.nom}</td>
                 <td className="py-2 pr-4">
                   <input
                     type="number"
@@ -94,14 +94,14 @@ function DetenteursSection({ ticker, quotitesInitiales }: { ticker: string; quot
                     step="any"
                     value={saisie[d.id] ?? ''}
                     onChange={(e) => setSaisie({ ...saisie, [d.id]: e.target.value })}
-                    className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    className="w-20 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                   />
                   %
                 </td>
-                <td className="py-2 pr-4 text-right text-slate-700 dark:text-slate-300">
+                <td className="py-2 pr-4 text-right text-texte">
                   {enregistree ? formatEuro(enregistree.part_detenue, 2, montantsMasques) : '—'}
                 </td>
-                <td className="py-2 pr-4 text-right font-medium text-slate-900 dark:text-slate-100">
+                <td className="py-2 pr-4 text-right font-medium text-texte">
                   {enregistree ? formatEuro(enregistree.part_nette, 2, montantsMasques) : '—'}
                 </td>
               </tr>
@@ -114,12 +114,12 @@ function DetenteursSection({ ticker, quotitesInitiales }: { ticker: string; quot
         <button
           onClick={handleSave}
           disabled={!totalValide || saving}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Enregistrer
         </button>
-        {!totalValide && <span className="text-sm text-red-600 dark:text-red-400">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</span>}
-        {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
+        {!totalValide && <span className="text-sm text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</span>}
+        {error && <span className="text-sm text-negatif">{error}</span>}
       </div>
     </Card>
   )
@@ -132,12 +132,12 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
   return (
     <div className="space-y-6">
       <div className="flex items-baseline gap-3">
-        <h2 id={titleId} className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+        <h2 id={titleId} className="text-xl font-semibold text-texte">
           {detail.nom ?? detail.ticker}
         </h2>
-        <span className="text-sm text-slate-500 dark:text-slate-400">{detail.ticker}</span>
+        <span className="text-sm text-texte-attenue">{detail.ticker}</span>
         {detail.type_actif && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+          <span className="rounded-full bg-surface-elevee px-2 py-0.5 text-xs font-medium text-texte-attenue">
             {CATEGORY_LABELS[detail.type_actif] ?? detail.type_actif}
           </span>
         )}
@@ -146,43 +146,43 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
       <Card>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Quantité</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatQuantite(detail.quantite)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Quantité</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatQuantite(detail.quantite)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Prix de revient</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_revient_moyen, 2, montantsMasques)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Prix de revient</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.prix_revient_moyen, 2, montantsMasques)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Prix actuel</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_actuel, 2, montantsMasques)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Prix actuel</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.prix_actuel, 2, montantsMasques)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Valeur</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.valeur, 2, montantsMasques)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.valeur, 2, montantsMasques)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Depuis achat</p>
-            <p className={`mt-1 text-lg font-semibold ${gainPositif ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Depuis achat</p>
+            <p className={`mt-1 text-lg font-semibold ${gainPositif ? 'text-positif' : 'text-negatif'}`}>
               {formatPct(detail.rendement_depuis_achat_pct)}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Rendement annualisé</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatPct(detail.rendement_annualise_pct)}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rendement annualisé</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatPct(detail.rendement_annualise_pct)}</p>
             {detail.rendement_annualise_pct === null && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-texte-attenue">
                 indisponible : moins de 90 jours de détention, ou pas d'historique exploitable
               </p>
             )}
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Secteur</p>
-            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{detail.secteur ?? '—'}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Secteur</p>
+            <p className="mt-1 text-sm text-texte">{detail.secteur ?? '—'}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Pays</p>
-            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{detail.pays ?? '—'}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Pays</p>
+            <p className="mt-1 text-sm text-texte">{detail.pays ?? '—'}</p>
           </div>
         </div>
       </Card>
@@ -195,22 +195,22 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
         <div className="space-y-3 text-sm">
           {detail.emetteur && (
             <p>
-              <span className="font-medium text-slate-700 dark:text-slate-300">Émetteur : </span>
+              <span className="font-medium text-texte">Émetteur : </span>
               {detail.emetteur}
             </p>
           )}
-          {detail.resume && <p className="text-slate-600 dark:text-slate-300">{detail.resume}</p>}
-          {!detail.emetteur && !detail.resume && <p className="text-slate-500 dark:text-slate-400">Informations non disponibles.</p>}
-          <div className="flex gap-6 border-t border-slate-100 pt-3 dark:border-slate-700">
+          {detail.resume && <p className="text-texte">{detail.resume}</p>}
+          {!detail.emetteur && !detail.resume && <p className="text-texte-attenue">Informations non disponibles.</p>}
+          <div className="flex gap-6 border-t border-bordure pt-3">
             <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Frais de gestion annuels</p>
-              <p className="font-medium text-slate-900 dark:text-slate-100">
+              <p className="text-xs text-texte-attenue">Frais de gestion annuels</p>
+              <p className="font-medium text-texte">
                 {detail.frais_gestion_pct !== null ? `${detail.frais_gestion_pct}%` : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Frais de transaction payés (cumulés)</p>
-              <p className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(detail.frais_transaction_payes, 2, montantsMasques)}</p>
+              <p className="text-xs text-texte-attenue">Frais de transaction payés (cumulés)</p>
+              <p className="font-medium text-texte">{formatEuro(detail.frais_transaction_payes, 2, montantsMasques)}</p>
             </div>
           </div>
         </div>
@@ -226,13 +226,13 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           {detail.repartition_geo_detaillee.length > 0 && (
             <Card title="Répartition géographique détaillée">
               <table className="w-full text-sm">
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-bordure">
                   {[...detail.repartition_geo_detaillee]
                     .sort((a, b) => b.poids - a.poids)
                     .map((item) => (
                       <tr key={item.categorie}>
-                        <td className="py-2 pr-4 text-slate-700 dark:text-slate-300">{item.categorie}</td>
-                        <td className="py-2 text-right font-medium text-slate-900 dark:text-slate-100">{(item.poids * 100).toFixed(2)}%</td>
+                        <td className="py-2 pr-4 text-texte">{item.categorie}</td>
+                        <td className="py-2 text-right font-medium text-texte">{(item.poids * 100).toFixed(2)}%</td>
                       </tr>
                     ))}
                 </tbody>
@@ -242,13 +242,13 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           {detail.repartition_sector_detaillee.length > 0 && (
             <Card title="Répartition sectorielle détaillée">
               <table className="w-full text-sm">
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-bordure">
                   {[...detail.repartition_sector_detaillee]
                     .sort((a, b) => b.poids - a.poids)
                     .map((item) => (
                       <tr key={item.categorie}>
-                        <td className="py-2 pr-4 text-slate-700 dark:text-slate-300">{item.categorie}</td>
-                        <td className="py-2 text-right font-medium text-slate-900 dark:text-slate-100">{(item.poids * 100).toFixed(2)}%</td>
+                        <td className="py-2 pr-4 text-texte">{item.categorie}</td>
+                        <td className="py-2 text-right font-medium text-texte">{(item.poids * 100).toFixed(2)}%</td>
                       </tr>
                     ))}
                 </tbody>
@@ -291,25 +291,25 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
                   <th className="py-2 pr-4">Action</th>
                   <th className="py-2 pr-4">Proportion</th>
                   <th className="py-2 pr-4">Pays</th>
                   <th className="py-2 pr-4">Secteur</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              <tbody className="divide-y divide-bordure">
                 {detail.composition_actions.map((a) => (
                   <tr key={a.symbol}>
                     <td className="py-2 pr-4">
-                      <span className="font-medium text-slate-900 dark:text-slate-100">{a.nom ?? a.symbol}</span>
+                      <span className="font-medium text-texte">{a.nom ?? a.symbol}</span>
                       {/* Positions justETF (2.6) : pas de ticker Yahoo distinct, `symbol` porte
                         déjà le nom de l'entreprise — sous-titre redondant, donc masqué. */}
-                      {a.symbol !== a.nom && <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">{a.symbol}</span>}
+                      {a.symbol !== a.nom && <span className="ml-1 text-xs text-texte-attenue">{a.symbol}</span>}
                     </td>
-                    <td className="py-2 pr-4 text-slate-700 dark:text-slate-300">{(a.poids * 100).toFixed(2)}%</td>
-                    <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{a.pays ?? '—'}</td>
-                    <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{a.secteur ?? '—'}</td>
+                    <td className="py-2 pr-4 text-texte">{(a.poids * 100).toFixed(2)}%</td>
+                    <td className="py-2 pr-4 text-texte-attenue">{a.pays ?? '—'}</td>
+                    <td className="py-2 pr-4 text-texte-attenue">{a.secteur ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

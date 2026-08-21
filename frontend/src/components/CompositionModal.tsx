@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { api } from '../api/client'
 import type { CategoryCompositionResponse } from '../api/types'
+import EtatErreur from './EtatErreur'
+import EtatVide from './EtatVide'
 import HoldingDetailModal from './HoldingDetailModal'
+import { IconFermer } from './icons'
 import Modale from './Modale'
+import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import { STYLE_INFOBULLE } from '../utils/chartTheme'
@@ -37,39 +41,30 @@ export default function CompositionModal({
 
   return (
     <>
-      <Modale onClose={onClose} panelClassName="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+      <Modale onClose={onClose} panelClassName="w-full max-w-lg rounded-xl bg-surface p-6 shadow-xl">
         {({ titleId }) => (
           <>
             <div className="mb-4 flex items-start justify-between">
               <div>
-                <h3 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <h3 id={titleId} className="text-lg font-semibold text-texte">
                   {categorie}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {type === 'geo' ? 'Répartition géographique' : 'Répartition sectorielle'}
-                </p>
+                <p className="text-xs text-texte-attenue">{type === 'geo' ? 'Répartition géographique' : 'Répartition sectorielle'}</p>
               </div>
-              <button
-                onClick={onClose}
-                aria-label="Fermer"
-                className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-              >
-                ✕
+              <button onClick={onClose} aria-label="Fermer" className="text-texte-attenue hover:text-texte">
+                <IconFermer className="h-4 w-4" />
               </button>
             </div>
 
-            {loading && <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>}
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {loading && <SkeletonTexte />}
+            {error && <EtatErreur message={error} />}
 
-            {data && data.lignes.length === 0 && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">Aucune ligne ne compose cette catégorie.</p>
-            )}
+            {data && data.lignes.length === 0 && <EtatVide titre="Aucune ligne ne compose cette catégorie." />}
 
             {data && data.lignes.length > 0 && (
               <>
-                <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">
-                  Valeur totale :{' '}
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(data.valeur_totale, 2, montantsMasques)}</span>
+                <p className="mb-2 text-sm text-texte">
+                  Valeur totale : <span className="font-medium text-texte">{formatEuro(data.valeur_totale, 2, montantsMasques)}</span>
                 </p>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
@@ -91,16 +86,16 @@ export default function CompositionModal({
                   </PieChart>
                 </ResponsiveContainer>
 
-                <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-700 dark:border-slate-700">
+                <ul className="mt-3 divide-y divide-bordure border-t border-bordure">
                   {data.lignes.map((l) => (
                     <li key={l.ticker}>
                       <button
                         type="button"
                         onClick={() => setSelectedTicker(l.ticker)}
-                        className="flex w-full items-center justify-between py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                        className="flex w-full items-center justify-between py-2 text-left text-sm hover:bg-surface-elevee"
                       >
-                        <span className="text-slate-700 dark:text-slate-300">{l.nom ?? l.ticker}</span>
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(l.valeur, 2, montantsMasques)}</span>
+                        <span className="text-texte">{l.nom ?? l.ticker}</span>
+                        <span className="font-medium text-texte">{formatEuro(l.valeur, 2, montantsMasques)}</span>
                       </button>
                     </li>
                   ))}

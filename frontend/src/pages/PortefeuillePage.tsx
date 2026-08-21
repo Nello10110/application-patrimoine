@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
 import Card from '../components/Card'
+import EtatErreur from '../components/EtatErreur'
+import EtatVide from '../components/EtatVide'
 import HoldingDetailModal from '../components/HoldingDetailModal'
 import LoansCard from '../components/LoansCard'
 import Modale from '../components/Modale'
 import PositionsTable from '../components/PositionsTable'
+import { SkeletonTexte } from '../components/Skeleton'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import {
   CATEGORY_TABS,
@@ -21,13 +25,59 @@ import {
 } from '../utils/holdingCategories'
 import { formatDateHeure, parseDateApi } from '../utils/format'
 
+// Position de défilement de la page (backlog 2.K.2), restituée au remontage
+// (ex. retour depuis la fiche détaillée en pleine page) — comme le tri de
+// `PositionsTable`, un état de la session en cours, pas une préférence durable.
+const CLE_DEFILEMENT = 'patrimoine:portefeuille-defilement'
+
 export default function PortefeuillePage() {
   const [holdings, setHoldings] = useState<Holding[]>([])
-  const [categorie, setCategorie] = useState<Categorie>('TOUS')
-  const [filtreCompte, setFiltreCompte] = useState<string>(FILTRE_TOUS_COMPTES)
+  // Catégorie et compte sont des FILTRES (ils changent ce qui est affiché), donc
+  // portés par l'URL (backlog 2.K.2) plutôt qu'un état local : le retour
+  // navigateur/`navigate(-1)` restitue automatiquement l'URL précédente, sans code
+  // de restitution dédié. Clé omise de l'URL quand elle vaut sa valeur par défaut,
+  // pour garder les URL propres par défaut.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const categorie = (searchParams.get('categorie') as Categorie | null) ?? 'TOUS'
+  const filtreCompte = searchParams.get('compte') ?? FILTRE_TOUS_COMPTES
+
+  function setCategorie(suivante: Categorie) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (suivante === 'TOUS') next.delete('categorie')
+      else next.set('categorie', suivante)
+      return next
+    })
+  }
+
+  function setFiltreCompte(suivant: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (suivant === FILTRE_TOUS_COMPTES) next.delete('compte')
+      else next.set('compte', suivant)
+      return next
+    })
+  }
+
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Restitue le défilement enregistré au démontage précédent (ex. retour depuis la
+  // fiche pleine page) ; `useLayoutEffect` pour restituer avant la première
+  // peinture visible, sans clignotement au scroll 0. Le conteneur qui défile
+  // réellement est `<main>` (`App.tsx` : `h-screen overflow-hidden` + `<main
+  // className="overflow-y-auto">`), pas `window` — l'application ne fait jamais
+  // défiler la fenêtre elle-même.
+  useLayoutEffect(() => {
+    const conteneur = document.querySelector('main')
+    if (!conteneur) return
+    const enregistre = window.sessionStorage.getItem(CLE_DEFILEMENT)
+    if (enregistre) conteneur.scrollTop = Number(enregistre)
+    return () => {
+      window.sessionStorage.setItem(CLE_DEFILEMENT, String(conteneur.scrollTop))
+    }
+  }, [])
 
   const [form, setForm] = useState({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '' })
   const [saving, setSaving] = useState(false)
@@ -115,72 +165,72 @@ export default function PortefeuillePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Portefeuille</h2>
+        <h2 className="text-xl font-semibold text-texte">Portefeuille</h2>
         <div className="flex items-center gap-3">
           {dateCoursLePlusAncien && (
-            <span className={`text-xs ${coursPerimes ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
+            <span className={`text-xs ${coursPerimes ? 'text-avertissement' : 'text-texte-attenue'}`}>
               Cours à jour au {formatDateHeure(dateCoursLePlusAncien)}
             </span>
           )}
           <button
             onClick={handleRefresh}
             disabled={refreshing || holdings.length === 0}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+            className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
           >
             {refreshing ? libelleRafraichissement : 'Rafraîchir les cours'}
           </button>
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {erreurRafraichissement && <p className="text-sm text-red-600 dark:text-red-400">{erreurRafraichissement}</p>}
+      {error && <EtatErreur message={error} />}
+      {erreurRafraichissement && <EtatErreur message={erreurRafraichissement} />}
 
       <Card title="Ajouter une ligne manuellement">
         <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Ticker
             <input
               value={form.ticker}
               onChange={(e) => setForm({ ...form, ticker: e.target.value })}
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               placeholder="AAPL"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Quantité
             <input
               value={form.quantite}
               onChange={(e) => setForm({ ...form, quantite: e.target.value })}
               type="number"
               step="any"
-              className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Prix de revient
             <input
               value={form.prix_revient_moyen}
               onChange={(e) => setForm({ ...form, prix_revient_moyen: e.target.value })}
               type="number"
               step="any"
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Compte
             <input
               value={form.compte}
               onChange={(e) => setForm({ ...form, compte: e.target.value })}
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               placeholder="PEA, CTO..."
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Type d'actif
             <select
               value={form.type_actif}
               onChange={(e) => setForm({ ...form, type_actif: e.target.value })}
-              className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             >
               {TYPE_ACTIF_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -189,26 +239,26 @@ export default function PortefeuillePage() {
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Valeur estimée
             <input
               value={form.valeur_estimee}
               onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
               type="number"
               step="any"
-              className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               placeholder="optionnel"
             />
           </label>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
           >
             Ajouter
           </button>
         </form>
-        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+        <p className="mt-3 text-xs text-texte-attenue">
           Pour l'immobilier, une SCPI, une assurance-vie ou un PER : laisser Quantité à 1 et renseigner Valeur estimée — elle
           remplace le calcul prix × quantité et se met à jour à la main, périodiquement.
         </p>
@@ -222,8 +272,8 @@ export default function PortefeuillePage() {
               onClick={() => setCategorie(tab.key)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 categorie === tab.key
-                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                  ? 'bg-texte text-surface'
+                  : 'bg-surface text-texte-attenue hover:bg-surface-elevee'
               }`}
             >
               {tab.label}
@@ -232,12 +282,12 @@ export default function PortefeuillePage() {
         </div>
 
         {holdings.length > 0 && (
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <label className="flex items-center gap-2 text-xs font-medium text-texte-attenue">
             Filtrer par compte
             <select
               value={filtreCompte}
               onChange={(e) => setFiltreCompte(e.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             >
               <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
               {comptesDisponibles(holdings).map((compte) => (
@@ -253,9 +303,9 @@ export default function PortefeuillePage() {
 
       <Card>
         {loading ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+          <SkeletonTexte lignes={5} />
         ) : holdings.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Aucune position. Ajoute une ligne ou importe un fichier.</p>
+          <EtatVide titre="Aucune position. Ajoute une ligne ou importe un fichier." />
         ) : (
           <PositionsTable
             rows={lignesFiltrees}
@@ -271,28 +321,28 @@ export default function PortefeuillePage() {
       {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
 
       {confirmSuppression && (
-        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <h2 id={titleId} className="text-lg font-semibold text-texte">
                 Supprimer cette ligne ?
               </h2>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                La ligne <span className="font-medium text-slate-900 dark:text-slate-100">{confirmSuppression.ticker}</span> sera
+              <p className="mt-2 text-sm text-texte">
+                La ligne <span className="font-medium text-texte">{confirmSuppression.ticker}</span> sera
                 définitivement supprimée du portefeuille.
               </p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40 dark:bg-red-600 dark:hover:bg-red-500"
+                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>

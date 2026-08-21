@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'react-router-dom'
 import BarreControles from './components/BarreControles'
+import FilDAriane from './components/FilDAriane'
 import Sidebar from './components/Sidebar'
 import { AuthProvider } from './contexts/AuthContext'
 import { PreferencesAffichageProvider } from './contexts/PreferencesAffichageContext'
@@ -67,6 +68,7 @@ function AppAuthentifiee() {
 
         <main className="flex-1 overflow-y-auto">
           <BarreControles />
+          <FilDAriane />
           <div className="mx-auto max-w-6xl px-6 py-8">
             <Suspense fallback={<p className="text-sm text-texte-attenue">Chargement...</p>}>
               <Routes>

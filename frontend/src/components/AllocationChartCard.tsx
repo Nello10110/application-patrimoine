@@ -5,6 +5,7 @@ import { formatEuro, formatPct } from '../utils/format'
 import AllocationBarChart from './AllocationBarChart'
 import AllocationPieChart from './AllocationPieChart'
 import Card from './Card'
+import { IconFermer } from './icons'
 import Modale from './Modale'
 import StatTile from './StatTile'
 
@@ -54,8 +55,8 @@ function BoutonMode({
       onClick={onClick}
       className={`flex h-7 w-7 items-center justify-center transition-colors ${
         actif
-          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-          : 'bg-white text-slate-500 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+          ? 'bg-texte text-surface'
+          : 'bg-surface text-texte-attenue hover:bg-surface-elevee'
       }`}
     >
       {children}
@@ -84,7 +85,7 @@ export default function AllocationChartCard({
   const [pleinEcran, setPleinEcran] = useState(false)
 
   const modeToggle = items.length > 0 && (
-    <div className="flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-600">
+    <div className="flex overflow-hidden rounded-md border border-bordure">
       <BoutonMode actif={mode === 'bar'} onClick={() => setMode('bar')} titre="Barres (réel vs cible)">
         <IconBarChart />
       </BoutonMode>
@@ -102,7 +103,7 @@ export default function AllocationChartCard({
         aria-label="Agrandir le graphique"
         title="Agrandir"
         onClick={() => setPleinEcran(true)}
-        className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+        className="flex h-7 w-7 items-center justify-center rounded-md border border-bordure text-texte-attenue hover:bg-surface-elevee"
       >
         <IconExpand />
       </button>
@@ -124,27 +125,23 @@ export default function AllocationChartCard({
             <AllocationPieChart items={items} onCategoryClick={onCategoryClick} />
           )
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Aucune donnée</p>
+          <p className="text-sm text-texte-attenue">Aucune donnée</p>
         )}
         {footnote}
       </Card>
 
       {pleinEcran && items.length > 0 && (
-        <Modale onClose={() => setPleinEcran(false)} panelClassName="w-full max-w-4xl rounded-xl bg-white p-6 shadow-xl">
+        <Modale onClose={() => setPleinEcran(false)} panelClassName="w-full max-w-4xl rounded-xl bg-surface p-6 shadow-xl">
           {({ titleId }) => (
             <>
               <div className="mb-4 flex items-start justify-between gap-4">
-                <h3 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <h3 id={titleId} className="text-lg font-semibold text-texte">
                   {title}
                 </h3>
                 <div className="flex items-center gap-3">
                   {modeToggle}
-                  <button
-                    onClick={() => setPleinEcran(false)}
-                    aria-label="Fermer"
-                    className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                  >
-                    ✕
+                  <button onClick={() => setPleinEcran(false)} aria-label="Fermer" className="text-texte-attenue hover:text-texte">
+                    <IconFermer className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -177,7 +174,7 @@ export default function AllocationChartCard({
 
               <table className="mt-6 w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  <tr className="border-b border-bordure text-left text-xs uppercase tracking-wide text-texte-attenue">
                     <th className="py-2 font-medium">Catégorie</th>
                     <th className="py-2 text-right font-medium">Valeur</th>
                     <th className="py-2 text-right font-medium">Réel</th>
@@ -185,30 +182,30 @@ export default function AllocationChartCard({
                     <th className="py-2 text-right font-medium">Écart</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-bordure">
                   {[...items]
                     .sort((a, b) => b.pourcentage_reel - a.pourcentage_reel)
                     .map((item) => (
                       <tr
                         key={item.categorie}
-                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                        className="cursor-pointer hover:bg-surface-elevee"
                         onClick={() => onCategoryClick(item.categorie)}
                       >
-                        <td className="py-2 text-slate-700 dark:text-slate-300">{item.categorie}</td>
-                        <td className="py-2 text-right text-slate-900 dark:text-slate-100">{formatEuro(item.valeur, 0, montantsMasques)}</td>
-                        <td className="py-2 text-right text-slate-900 dark:text-slate-100">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
-                        <td className="py-2 text-right text-slate-500 dark:text-slate-400">
+                        <td className="py-2 text-texte">{item.categorie}</td>
+                        <td className="py-2 text-right text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</td>
+                        <td className="py-2 text-right text-texte">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
+                        <td className="py-2 text-right text-texte-attenue">
                           {item.pourcentage_cible !== null ? `${item.pourcentage_cible.toFixed(1)}%` : '—'}
                         </td>
                         <td
                           className={`py-2 text-right font-medium ${
                             item.ecart === null
-                              ? 'text-slate-400 dark:text-slate-500'
+                              ? 'text-texte-attenue'
                               : item.ecart > 0
-                                ? 'text-amber-600 dark:text-amber-400'
+                                ? 'text-avertissement'
                                 : item.ecart < 0
-                                  ? 'text-blue-600 dark:text-blue-400'
-                                  : 'text-slate-500 dark:text-slate-400'
+                                  ? 'text-accent'
+                                  : 'text-texte-attenue'
                           }`}
                         >
                           {formatPct(item.ecart)}

@@ -4,7 +4,10 @@ import type { Holding, Loan } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDateHeure, formatEuro } from '../utils/format'
 import Card from './Card'
+import EtatErreur from './EtatErreur'
+import EtatVide from './EtatVide'
 import Modale from './Modale'
+import { SkeletonTexte } from './Skeleton'
 
 interface LoanForm {
   libelle: string
@@ -133,17 +136,21 @@ export default function LoansCard() {
 
   return (
     <Card title="Dettes et emprunts">
-      {error && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <div className="mb-3">
+          <EtatErreur message={error} />
+        </div>
+      )}
 
       {loading ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+        <SkeletonTexte />
       ) : loans.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Aucun emprunt enregistré.</p>
+        <EtatVide titre="Aucun emprunt enregistré." />
       ) : (
         <div className="mb-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
                 <th className="py-2 pr-4">Libellé</th>
                 <th className="py-2 pr-4">Capital initial</th>
                 <th className="py-2 pr-4">Taux</th>
@@ -153,13 +160,13 @@ export default function LoansCard() {
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+            <tbody className="divide-y divide-bordure">
               {loans.map((loan) => (
                 <tr key={loan.id}>
-                  <td className="py-2 pr-4 font-medium text-slate-900 dark:text-slate-100">{loan.libelle}</td>
-                  <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{formatEuro(loan.capital_initial, 0, montantsMasques)}</td>
-                  <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{loan.taux_annuel_pct.toFixed(2)}%</td>
-                  <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{formatEuro(loan.mensualite, 0, montantsMasques)}</td>
+                  <td className="py-2 pr-4 font-medium text-texte">{loan.libelle}</td>
+                  <td className="py-2 pr-4 text-texte">{formatEuro(loan.capital_initial, 0, montantsMasques)}</td>
+                  <td className="py-2 pr-4 text-texte">{loan.taux_annuel_pct.toFixed(2)}%</td>
+                  <td className="py-2 pr-4 text-texte">{formatEuro(loan.mensualite, 0, montantsMasques)}</td>
                   <td className="py-2 pr-4">
                     {recalageId === loan.id ? (
                       <div className="flex items-center gap-2">
@@ -169,24 +176,24 @@ export default function LoansCard() {
                           type="number"
                           step="any"
                           aria-label={`Recaler le capital restant dû de ${loan.libelle}`}
-                          className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                          className="w-28 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                         />
                         <button
                           onClick={() => saveRecalage(loan.id)}
                           disabled={recalageSaving}
-                          className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-40 dark:text-emerald-400"
+                          className="text-xs font-medium text-positif hover:underline disabled:opacity-40"
                         >
                           Enregistrer
                         </button>
-                        <button onClick={() => setRecalageId(null)} className="text-xs text-slate-500 hover:underline dark:text-slate-400">
+                        <button onClick={() => setRecalageId(null)} className="text-xs text-texte-attenue hover:underline">
                           Annuler
                         </button>
                       </div>
                     ) : (
                       <div>
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
+                        <span className="font-medium text-texte">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
                         {loan.derniere_maj_manuelle && (
-                          <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
+                          <span className="ml-2 text-xs text-texte-attenue">
                             recalé le {formatDateHeure(loan.derniere_maj_manuelle)}
                           </span>
                         )}
@@ -198,7 +205,7 @@ export default function LoansCard() {
                       value={loan.holding_id ?? ''}
                       disabled={rattachementSaving === loan.id}
                       onChange={(e) => handleRattacher(loan.id, e.target.value === '' ? null : Number(e.target.value))}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     >
                       <option value="">Aucun</option>
                       {holdings.map((h) => (
@@ -211,12 +218,12 @@ export default function LoansCard() {
                   <td className="py-2 pr-4 text-right">
                     {recalageId !== loan.id && (
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => startRecalage(loan)} className="text-xs text-slate-600 hover:underline dark:text-slate-300">
+                        <button onClick={() => startRecalage(loan)} className="text-xs text-texte-attenue hover:underline">
                           Recaler
                         </button>
                         <button
                           onClick={() => setConfirmSuppression({ id: loan.id, libelle: loan.libelle })}
-                          className="text-xs text-red-600 hover:underline dark:text-red-400"
+                          className="text-xs text-negatif hover:underline"
                         >
                           Supprimer
                         </button>
@@ -227,7 +234,7 @@ export default function LoansCard() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+              <tr className="border-t border-bordure text-sm font-semibold text-texte">
                 <td colSpan={4} className="py-2 pr-4">
                   {loans.length} emprunt{loans.length > 1 ? 's' : ''}
                 </td>
@@ -240,101 +247,101 @@ export default function LoansCard() {
         </div>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Libellé
           <input
             value={form.libelle}
             onChange={(e) => setForm({ ...form, libelle: e.target.value })}
-            className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             placeholder="Crédit immobilier"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Capital initial
           <input
             value={form.capital_initial}
             onChange={(e) => setForm({ ...form, capital_initial: e.target.value })}
             type="number"
             step="any"
-            className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Taux annuel (%)
           <input
             value={form.taux_annuel_pct}
             onChange={(e) => setForm({ ...form, taux_annuel_pct: e.target.value })}
             type="number"
             step="any"
-            className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Mensualité
           <input
             value={form.mensualite}
             onChange={(e) => setForm({ ...form, mensualite: e.target.value })}
             type="number"
             step="any"
-            className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Date de début
           <input
             value={form.date_debut}
             onChange={(e) => setForm({ ...form, date_debut: e.target.value })}
             type="date"
-            className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Durée (mois)
           <input
             value={form.duree_mois}
             onChange={(e) => setForm({ ...form, duree_mois: e.target.value })}
             type="number"
             step="1"
-            className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Ajouter
         </button>
       </form>
-      <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+      <p className="mt-3 text-xs text-texte-attenue">
         Le capital restant dû est calculé automatiquement (amortissement à taux fixe) ; « Recaler » permet de le corriger à la
         main d'après un relevé bancaire réel — le recalage prime alors sur le calcul théorique.
       </p>
 
       {confirmSuppression && (
-        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
           {({ titleId }) => (
             <>
-              <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <h2 id={titleId} className="text-lg font-semibold text-texte">
                 Supprimer cet emprunt ?
               </h2>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                L'emprunt <span className="font-medium text-slate-900 dark:text-slate-100">{confirmSuppression.libelle}</span> sera
+              <p className="mt-2 text-sm text-texte">
+                L'emprunt <span className="font-medium text-texte">{confirmSuppression.libelle}</span> sera
                 définitivement supprimé.
               </p>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40 dark:bg-red-600 dark:hover:bg-red-500"
+                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>

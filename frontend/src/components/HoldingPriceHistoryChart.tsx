@@ -3,6 +3,8 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { api } from '../api/client'
 import type { HoldingPriceHistoryResponse } from '../api/types'
 import Card from './Card'
+import { SkeletonGraphique } from './Skeleton'
+import EtatVide from './EtatVide'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
@@ -25,7 +27,7 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
   if (loading) {
     return (
       <Card title="Performance historique">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement de l'historique de cours...</p>
+        <SkeletonGraphique hauteur={240} />
       </Card>
     )
   }
@@ -33,7 +35,7 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
   if (!data || data.points.length === 0) {
     return (
       <Card title="Performance historique">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Historique de cours non disponible pour ce titre.</p>
+        <EtatVide titre="Historique de cours non disponible pour ce titre." />
       </Card>
     )
   }
@@ -56,18 +58,16 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
         </LineChart>
       </ResponsiveContainer>
 
-      <div className="mt-3 flex gap-6 border-t border-slate-100 pt-3 text-sm dark:border-slate-700">
+      <div className="mt-3 flex gap-6 border-t border-bordure pt-3 text-sm">
         <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Volatilité annualisée</p>
-          <p className="font-medium text-slate-900 dark:text-slate-100">
+          <p className="text-xs text-texte-attenue">Volatilité annualisée</p>
+          <p className="font-medium text-texte">
             {data.volatilite_annualisee_pct !== null ? `${data.volatilite_annualisee_pct.toFixed(1)}%` : '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Perte maximale historique (drawdown)</p>
-          <p className="font-medium text-red-600 dark:text-red-400">
-            {data.max_drawdown_pct !== null ? `${data.max_drawdown_pct.toFixed(1)}%` : '—'}
-          </p>
+          <p className="text-xs text-texte-attenue">Perte maximale historique (drawdown)</p>
+          <p className="font-medium text-negatif">{data.max_drawdown_pct !== null ? `${data.max_drawdown_pct.toFixed(1)}%` : '—'}</p>
         </div>
       </div>
     </Card>
