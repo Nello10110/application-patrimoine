@@ -37,7 +37,7 @@ vi.mock('./api/client', () => ({
 // comme le reste de ce fichier le suppose déjà.
 beforeEach(() => {
   localStorage.setItem('patrimoine_auth_token', 'jeton-de-test')
-  vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur' })
+  vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire' })
 })
 
 describe('App — barre latérale (backlog 2.K.2)', () => {

@@ -926,21 +926,42 @@ que la valeur estimée. **Reste hors périmètre** : éditeur dédié d'une quot
 de celle de l'actif (le calcul backend la supporte déjà — héritage par défaut depuis l'actif — mais
 aucune UI ne permet encore de la saisir explicitement).
 
-#### L.2 — `majeur` · `M` · `P0` · `non traité` — Exposition sécurisée sur le serveur personnel
+#### L.2 — `majeur` · `M` · `P0` · `traité` (socle applicatif, 21/08/2026) — Exposition sécurisée sur le serveur personnel
 
 L'authentification existe (`AuthContext`, `LoginPage`, milestones 1/2a/2b du § I.1) mais elle a été
 conçue pour un usage `localhost`. L'exposer change la nature du risque.
 
-- **HTTPS obligatoire**, terminaison sur le reverse proxy du homelab, HSTS, cookies `Secure` +
-  `SameSite=Strict`.
-- **Second facteur** (TOTP) au minimum pour le compte propriétaire.
-- **Limitation du nombre de tentatives** et **verrouillage temporaire** sur la connexion.
-- **Sessions** : durée, révocation, liste des sessions actives.
-- **Journal d'accès** consultable dans les réglages (qui s'est connecté, quand, depuis où).
-- **Sauvegarde chiffrée** planifiée — le script `scripts/sauvegarde.py` existe mais n'est pas
-  programmé (piste déjà relevée dans `ETAT_DU_CHANTIER.md` § 5).
-- **Rôles** : propriétaire (tout), membre du foyer (lecture + saisie sur ses propres actifs),
-  invité (lecture seule d'un périmètre choisi — recouvre § Q.1).
+**Livré le 21/08/2026** :
+- **Rôles** : `proprietaire` (tout), `membre` du foyer (lecture + saisie sur les Holdings/Loans/
+  Transactions du foyer, granularité par type de ressource — pas encore par quotité individuelle),
+  `invite` (lecture seule, filtrée serveur à un périmètre de détenteurs assignés, limitée à
+  Patrimoine net/Portefeuille/Emprunts — les autres écrans lui renvoient 403). Comptes créés
+  exclusivement par le propriétaire (`POST /api/auth/household-members`) ; l'auto-inscription
+  (`POST /api/auth/register`) se ferme après le tout premier compte.
+- **Limitation des tentatives + verrouillage temporaire** : 5 échecs en 15 minutes glissantes →
+  verrouillage de 15 minutes, dérivé du journal d'accès (une seule source de vérité).
+- **Sessions** : `AuthToken` enrichi (IP, user-agent, dernière activité), listées et révocables
+  individuellement depuis Réglages (`GET/DELETE /api/auth/sessions`) — plus seulement "la session
+  courante".
+- **Journal d'accès** : table `AccessLogEntry`, consultable (paginé) dans Réglages, réservé au
+  propriétaire.
+- **Sauvegarde chiffrée planifiée** : nouveau service `backup_service.py` (chiffrement Fernet)
+  branché sur l'APScheduler existant (job `sauvegarde_chiffree`, quotidien par défaut), sans modifier
+  `scripts/sauvegarde.py` (reste utilisable tel quel en CLI, non chiffré). Nécessite la variable
+  d'environnement `PATRIMOINE_BACKUP_KEY` (absente : le job échoue proprement, statut visible dans
+  Réglages, sans affecter les autres jobs ni planter le scheduler) — cf. `docs/MANUEL_EXPLOITATION.md`.
+
+**Reste hors périmètre, explicitement reporté** :
+- **TOTP (second facteur)** et **migration du jeton vers un cookie `Secure`/`SameSite=Strict`** — un
+  incrément ultérieur.
+- **HTTPS obligatoire, HSTS, reverse proxy** — infrastructure homelab, hors du dépôt : à la charge de
+  l'utilisateur (recommandation dans `docs/MANUEL_EXPLOITATION.md` : Caddy/nginx/Traefik + Let's
+  Encrypt devant l'application).
+- **Granularité fine du rôle membre** (restreindre l'écriture aux seuls actifs où sa quotité est non
+  nulle, plutôt qu'à tout le foyer) — nécessiterait un lien `User`↔`Détenteur` explicite.
+- **Filtrage serveur généralisé pour l'invité** au-delà de Patrimoine net/Portefeuille/Emprunts
+  (Analyse, Rapport, Objectifs, Transactions, Import n'ont pas de filtrage par détenteur fiable côté
+  serveur aujourd'hui — un incrément séparé).
 
 ---
 
@@ -1201,7 +1222,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Phase 1** | A.1, A.2, A.3 — patrimoine net (immobilier, SCPI/AV/PER, dettes) | — | — | **Livré** 19/08/2026 |
 | **Phase 2** | B.1, B.2, A.4 — simulateur, FIRE, catégorie libre | Phase 1 | — | **Livré** 19-20/08/2026 |
 | **Phase 3** | C.1, D.1, D.2, E.3, H.1 — dividendes, PDF, rapport, coût consolidé, PWA | Phase 2 | — | **Livré** 20/08/2026 |
-| **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | À lancer |
+| **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | En cours — L.1, L.2, M.2, K.7 livrés ; K.1/K.2/K.3 en pilote ; K.5 restant |
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | À lancer |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | À lancer |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | À lancer |

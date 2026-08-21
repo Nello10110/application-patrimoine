@@ -8,7 +8,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Transaction, User
 from ..schemas import TransactionImportResult
-from ..services import portfolio_reconstruction, transaction_import, upload_limits
+from ..services import auth_service, portfolio_reconstruction, transaction_import, upload_limits
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -30,7 +30,7 @@ async def import_transactions(file: UploadFile, db: Session = Depends(get_db), c
     # sans ce filtre, l'import de l'un pourrait ignorer à tort une transaction parce
     # qu'un AUTRE utilisateur a, par coïncidence, le même identifiant.
     existing_ids = {
-        row[0] for row in db.query(Transaction.transaction_id).filter(Transaction.user_id == current_user.id).all()
+        row[0] for row in db.query(Transaction.transaction_id).filter(Transaction.user_id == auth_service.id_foyer(current_user)).all()
     }
 
     doublons = 0
@@ -39,13 +39,13 @@ async def import_transactions(file: UploadFile, db: Session = Depends(get_db), c
         if row["transaction_id"] in existing_ids:
             doublons += 1
             continue
-        db.add(Transaction(**row, user_id=current_user.id))
+        db.add(Transaction(**row, user_id=auth_service.id_foyer(current_user)))
         existing_ids.add(row["transaction_id"])
         importees += 1
 
     db.commit()
 
-    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, current_user.id)
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, auth_service.id_foyer(current_user))
 
     return TransactionImportResult(
         lignes_lues=parsed.lignes_lues,
@@ -60,7 +60,7 @@ async def import_transactions(file: UploadFile, db: Session = Depends(get_db), c
 
 @router.post("/reconstruct")
 def reconstruct(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    resultat = portfolio_reconstruction.rebuild_holdings(db, current_user.id)
+    resultat = portfolio_reconstruction.rebuild_holdings(db, auth_service.id_foyer(current_user))
     return {
         "positions_recalculees": resultat.positions_recalculees,
         "anomalies_detectees": resultat.anomalies_detectees,
@@ -72,4 +72,4 @@ def reconstruct(db: Session = Depends(get_db), current_user: User = Depends(get_
 def count(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Diagnostic (non utilisé par l'interface) : nombre de transactions en base,
     utile pour vérifier un import depuis les outils d'exploitation (cf. MANUEL_EXPLOITATION.md)."""
-    return {"total": db.query(Transaction).filter(Transaction.user_id == current_user.id).count()}
+    return {"total": db.query(Transaction).filter(Transaction.user_id == auth_service.id_foyer(current_user)).count()}

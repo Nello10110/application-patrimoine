@@ -7,7 +7,7 @@ import MenuCompte from './MenuCompte'
 function renderMenu() {
   const logout = vi.fn()
   const valeur: AuthContextValue = {
-    user: { id: 1, username: 'testeur' },
+    user: { id: 1, username: 'testeur', role: 'proprietaire' },
     loading: false,
     login: async () => {},
     register: async () => {},

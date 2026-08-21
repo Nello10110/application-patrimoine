@@ -75,7 +75,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
         >
           <p className="px-2.5 py-1.5 text-xs font-medium uppercase tracking-wide text-texte-attenue">{user.username}</p>
 
-          {routesDuRang('administration').map((r) => {
+          {routesDuRang('administration', user.role).map((r) => {
             const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined
             return (
               <NavLink

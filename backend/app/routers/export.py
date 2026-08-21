@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Holding, Transaction, User
-from ..services import analysis_service, pdf_export_service, performance_service
+from ..services import analysis_service, auth_service, pdf_export_service, performance_service
 from ..services.csv_export import construire_csv, formater_horodatage, formater_nombre
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -46,9 +46,9 @@ def _formater_date_fr(date_iso: str | None) -> str:
 
 @router.get("/positions")
 def export_positions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    holdings = db.query(Holding).filter(Holding.user_id == current_user.id).order_by(Holding.ticker).all()
+    holdings = db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user)).order_by(Holding.ticker).all()
     valeur_par_ticker = {v.holding.ticker: v.valeur for v in analysis_service.value_holdings(holdings)}
-    rendements = performance_service.compute_holding_returns(db, current_user.id)
+    rendements = performance_service.compute_holding_returns(db, auth_service.id_foyer(current_user))
 
     en_tetes = [
         "Ticker",
@@ -93,7 +93,7 @@ def export_positions(db: Session = Depends(get_db), current_user: User = Depends
 
 @router.get("/transactions")
 def export_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    transactions = db.query(Transaction).filter(Transaction.user_id == current_user.id).order_by(Transaction.datetime_utc.asc()).all()
+    transactions = db.query(Transaction).filter(Transaction.user_id == auth_service.id_foyer(current_user)).order_by(Transaction.datetime_utc.asc()).all()
 
     en_tetes = [
         "Date",
@@ -154,7 +154,7 @@ _LIBELLES_PERFORMANCE = [
 
 @router.get("/performance")
 def export_performance(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    performance = performance_service.compute_performance(db, current_user.id)
+    performance = performance_service.compute_performance(db, auth_service.id_foyer(current_user))
 
     lignes = []
     for cle, libelle in _LIBELLES_PERFORMANCE:
@@ -175,6 +175,6 @@ def export_patrimoine_pdf(db: Session = Depends(get_db), current_user: User = De
     """Relevé de patrimoine PDF (roadmap Phase 3, § D.1) — au-delà des trois CSV
     ci-dessus, une photographie mise en forme du patrimoine net, de sa répartition
     et de la rentabilité globale, cf. `services/pdf_export_service.py`."""
-    contenu = pdf_export_service.generer_pdf_patrimoine(db, current_user.id)
+    contenu = pdf_export_service.generer_pdf_patrimoine(db, auth_service.id_foyer(current_user))
     nom_fichier = f"patrimoine-{date_.today().isoformat()}.pdf"
     return Response(content=contenu, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nom_fichier}"'})

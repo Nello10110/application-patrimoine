@@ -10,9 +10,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .auth import get_current_user
+from .auth import get_current_user, require_role
 from .database import SessionLocal, upgrade_schema
 from .logging_config import configure_logging
+from .models import ROLE_MEMBRE, ROLE_PROPRIETAIRE
 from .routers import analysis, auth, detenteurs, export, loans, market_data, patrimoine, performance, portfolio, reference, settings, targets, transactions
 from .services import scheduler_service, startup_maintenance
 
@@ -76,23 +77,29 @@ async def gestion_erreurs_validation(request: Request, exc: RequestValidationErr
 
 app.include_router(auth.router)
 
-# Protégées : toutes exigent un jeton valide. Passé au niveau de `include_router`
-# plutôt que sur chaque endpoint individuellement (LOT Milestone 1) — aucun de ces
-# routeurs n'a encore besoin de savoir QUI est connecté tant qu'aucune donnée n'est
-# scopée par utilisateur (cf. `docs/BACKLOG.md` § 2.I.1, Milestone 2).
+# Protégées : toutes exigent un jeton valide (Milestone 1). Au-delà de la simple
+# authentification, les rôles (backlog 2.L.2) restreignent certains routeurs
+# entièrement au propriétaire, ou au propriétaire+membre (invité exclu) — appliqué
+# ici au niveau `include_router` pour les routeurs à granularité uniforme ;
+# `portfolio.py`/`loans.py`/`patrimoine.py` restent protégés seulement par
+# `_protegee` ici et affinent eux-mêmes au niveau endpoint (lecture ouverte aux 3
+# rôles avec filtrage serveur pour l'invité, écriture réservée propriétaire+membre).
 _protegee = [Depends(get_current_user)]
+_proprietaire_seul = [Depends(require_role(ROLE_PROPRIETAIRE))]
+_pas_invite = [Depends(require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE))]
+
 app.include_router(portfolio.router, dependencies=_protegee)
-app.include_router(market_data.router, dependencies=_protegee)
-app.include_router(targets.router, dependencies=_protegee)
-app.include_router(analysis.router, dependencies=_protegee)
-app.include_router(transactions.router, dependencies=_protegee)
-app.include_router(performance.router, dependencies=_protegee)
-app.include_router(settings.router, dependencies=_protegee)
-app.include_router(export.router, dependencies=_protegee)
+app.include_router(market_data.router, dependencies=_pas_invite)
+app.include_router(targets.router, dependencies=_proprietaire_seul)
+app.include_router(analysis.router, dependencies=_pas_invite)
+app.include_router(transactions.router, dependencies=_pas_invite)
+app.include_router(performance.router, dependencies=_pas_invite)
+app.include_router(settings.router, dependencies=_proprietaire_seul)
+app.include_router(export.router, dependencies=_proprietaire_seul)
 app.include_router(reference.router, dependencies=_protegee)
 app.include_router(loans.router, dependencies=_protegee)
 app.include_router(patrimoine.router, dependencies=_protegee)
-app.include_router(detenteurs.router, dependencies=_protegee)
+app.include_router(detenteurs.router, dependencies=_proprietaire_seul)
 
 
 @app.get("/api/health")

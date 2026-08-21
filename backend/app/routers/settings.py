@@ -10,14 +10,14 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
 from ..schemas import Preferences, PreferencesUpdate, PreferencesUpdateResponse, ScheduledJobOut, ScheduledJobUpdate
-from ..services import market_data_refresh, portfolio_reconstruction, preferences_service, scheduler_service
+from ..services import auth_service, market_data_refresh, portfolio_reconstruction, preferences_service, scheduler_service
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 @router.get("/preferences", response_model=Preferences)
 def get_preferences(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return Preferences(**preferences_service.lire_preferences(db, current_user.id))
+    return Preferences(**preferences_service.lire_preferences(db, auth_service.id_foyer(current_user)))
 
 
 @router.put("/preferences", response_model=PreferencesUpdateResponse)
@@ -35,12 +35,12 @@ def update_preferences(payload: PreferencesUpdate, db: Session = Depends(get_db)
     un changement de méthode ne reconstruit désormais QUE le portefeuille de
     l'utilisateur qui l'a modifié, plus les autres comptes en boucle comme avant
     2b."""
-    ancienne_methode = preferences_service.lire_methode_cout(db, current_user.id)
-    preferences_service.enregistrer_preferences(db, current_user.id, payload.methode_cout, payload.seuil_alerte_ecart_pct)
+    ancienne_methode = preferences_service.lire_methode_cout(db, auth_service.id_foyer(current_user))
+    preferences_service.enregistrer_preferences(db, auth_service.id_foyer(current_user), payload.methode_cout, payload.seuil_alerte_ecart_pct)
 
     positions_recalculees = None
     if payload.methode_cout != ancienne_methode:
-        resultat = portfolio_reconstruction.rebuild_holdings(db, current_user.id)
+        resultat = portfolio_reconstruction.rebuild_holdings(db, auth_service.id_foyer(current_user))
         positions_recalculees = resultat.positions_recalculees
 
     return PreferencesUpdateResponse(

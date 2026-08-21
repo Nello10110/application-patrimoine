@@ -131,6 +131,23 @@ lente par politesse envers justETF qui n'offre aucun support). Pour chacune :
   nombre d'ETF détenus) mais sans compteur de progression.
 - La dernière exécution (date/heure, succès ou échec, message) est affichée sous chaque carte.
 
+### Comptes du foyer, sessions et journal d'accès
+
+Section visible uniquement par le propriétaire du compte.
+
+- **Comptes du foyer** : le propriétaire crée les comptes des autres membres du foyer (nom
+  d'utilisateur, mot de passe, rôle). Un **membre** peut consulter et saisir des actifs, emprunts et
+  transactions comme le propriétaire, mais pas modifier les objectifs ni la sécurité. Un **invité**
+  ne voit, en lecture seule, que le patrimoine net et le portefeuille des personnes/sociétés qui lui
+  sont explicitement assignées (aucun accès par défaut tant qu'aucun détenteur n'est coché).
+  Il n'existe plus d'inscription libre au-delà du tout premier compte du serveur.
+- **Sessions actives** : chaque appareil ou navigateur connecté avec ce compte, avec sa dernière
+  activité. « Révoquer » déconnecte immédiatement cet appareil précis, sans toucher aux autres — la
+  session en cours d'utilisation ne peut pas se révoquer elle-même.
+- **Journal d'accès** : historique des connexions et déconnexions (réussies ou non), avec l'adresse
+  IP d'origine — utile pour repérer une tentative de connexion suspecte. Après 5 mots de passe
+  erronés en 15 minutes, le compte concerné est verrouillé 15 minutes, même avec le bon mot de passe.
+
 ### Exporter
 
 Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule). Un quatrième bouton télécharge un **relevé de patrimoine au format PDF** : une photographie mise en forme (patrimoine net, répartition par classe d'actif, rentabilité globale, répartition par compte), prête à imprimer ou archiver.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, Preferences, ScheduledJob, TypeDetenteur } from '../api/types'
+import type { AccessLogEntry, Detenteur, HouseholdMember, Preferences, Role, ScheduledJob, Session, TypeDetenteur } from '../api/types'
 import Card from '../components/Card'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure } from '../utils/format'
@@ -243,12 +243,15 @@ function PreferencesCard() {
 const JOB_LABELS: Record<string, string> = {
   market_data_refresh: 'Rafraîchissement des données de marché',
   justetf_refresh: 'Composition géographique/sectorielle (justETF)',
+  sauvegarde_chiffree: 'Sauvegarde chiffrée',
 }
 
 const JOB_DESCRIPTIONS: Record<string, string> = {
   market_data_refresh: 'Cours, composition des ETF et principales lignes sous-jacentes, pour toutes les positions du portefeuille.',
   justetf_refresh:
     "Répartition pays/secteurs réelle des ETF détenus, récupérée sur justETF.com. Cadence hebdomadaire par défaut : la composition d'un ETF évolue lentement, et justETF n'offre aucun support en cas de blocage.",
+  sauvegarde_chiffree:
+    "Copie chiffrée de la base, déposée dans backend/sauvegardes/ (rétention des 10 plus récentes). Nécessite la variable d'environnement PATRIMOINE_BACKUP_KEY sur le serveur — sans elle, ce job échoue proprement (visible ci-dessous) sans affecter les autres.",
 }
 
 // 168h (une semaine) couvre l'intervalle par défaut de justetf_refresh
@@ -365,6 +368,282 @@ function JobCard({ job, onChange }: { job: ScheduledJob; onChange: (job: Schedul
   )
 }
 
+/** Sessions actives du compte (backlog 2.L.2) : liste tous les jetons valides (un
+ * par appareil/navigateur connecté), révocables individuellement — jamais "tout
+ * déconnecter" en un clic, pour ne pas se déconnecter soi-même par erreur en
+ * révoquant la session courante (bouton désactivé sur cette ligne). */
+function SessionsCard() {
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  function load() {
+    setLoading(true)
+    api
+      .listSessions()
+      .then(setSessions)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
+
+  async function handleRevoke(idSession: string) {
+    setError(null)
+    try {
+      await api.revokeSession(idSession)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  return (
+    <Card title="Sessions actives">
+      <p className="mb-4 text-sm text-texte-attenue">
+        Un appareil ou navigateur connecté par ligne. Révoquer une session déconnecte immédiatement cet appareil, sans
+        toucher aux autres.
+      </p>
+      {loading ? (
+        <p className="text-sm text-texte-attenue">Chargement...</p>
+      ) : (
+        <ul className="divide-y divide-bordure">
+          {sessions.map((s) => (
+            <li key={s.id_session} className="flex items-center justify-between gap-4 py-2 text-sm">
+              <span className="min-w-0">
+                <span className="block truncate text-texte">
+                  {s.ip ?? 'IP inconnue'} {s.est_courante && <span className="text-xs text-accent">(session actuelle)</span>}
+                </span>
+                <span className="block truncate text-xs text-texte-attenue">
+                  {s.user_agent ?? 'Agent inconnu'} · dernière activité {formatDateHeure(s.derniere_utilisation)}
+                </span>
+              </span>
+              <button
+                onClick={() => handleRevoke(s.id_session)}
+                disabled={s.est_courante}
+                className="shrink-0 text-xs text-negatif hover:underline disabled:opacity-40 disabled:hover:no-underline"
+              >
+                Révoquer
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p className="mt-3 text-sm text-negatif">{error}</p>}
+    </Card>
+  )
+}
+
+/** Journal d'accès (backlog 2.L.2) : qui s'est connecté, quand, résultat — réservé
+ * au propriétaire (`require_role`, cf. `routers/auth.py`). Pagination simple. */
+function JournalAccesCard() {
+  const [entrees, setEntrees] = useState<AccessLogEntry[]>([])
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLoading(true)
+    api
+      .getAccessLog(page)
+      .then(setEntrees)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [page])
+
+  return (
+    <Card title="Journal d'accès">
+      <p className="mb-4 text-sm text-texte-attenue">Historique des connexions et déconnexions, réussies ou non.</p>
+      {loading ? (
+        <p className="text-sm text-texte-attenue">Chargement...</p>
+      ) : entrees.length === 0 ? (
+        <p className="text-sm text-texte-attenue">Aucune entrée{page > 1 ? ' sur cette page' : ''}.</p>
+      ) : (
+        <ul className="divide-y divide-bordure">
+          {entrees.map((e) => (
+            <li key={e.id} className="flex items-center justify-between gap-4 py-2 text-sm">
+              <span className="text-texte">
+                {e.username_saisi} · {e.action === 'login' ? 'connexion' : 'déconnexion'} · {e.ip ?? 'IP inconnue'}
+              </span>
+              <span className={e.resultat === 'succes' ? 'text-positif' : 'text-negatif'}>
+                {e.resultat === 'succes' ? 'Succès' : `Échec (${e.raison ?? '?'})`} · {formatDateHeure(e.timestamp)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex items-center gap-3 text-xs">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="rounded-md border border-bordure px-2 py-1 text-texte disabled:opacity-40"
+        >
+          Page précédente
+        </button>
+        <span className="text-texte-attenue">Page {page}</span>
+        <button
+          onClick={() => setPage((p) => p + 1)}
+          disabled={entrees.length === 0}
+          className="rounded-md border border-bordure px-2 py-1 text-texte disabled:opacity-40"
+        >
+          Page suivante
+        </button>
+      </div>
+      {error && <p className="mt-3 text-sm text-negatif">{error}</p>}
+    </Card>
+  )
+}
+
+const ROLE_LABELS: Record<Role, string> = { proprietaire: 'Propriétaire', membre: 'Membre du foyer', invite: 'Invité' }
+
+/** Comptes du foyer (backlog 2.L.2) : le propriétaire crée les comptes membre/invité
+ * — l'auto-inscription se ferme après le tout premier compte (`routers/auth.py`).
+ * Un invité doit se voir assigner au moins un détenteur pour voir quoi que ce soit
+ * (périmètre vide par défaut, jamais "tout le foyer" implicitement). */
+function GestionFoyerCard() {
+  const [membres, setMembres] = useState<HouseholdMember[]>([])
+  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<'membre' | 'invite'>('membre')
+  const [detenteurIds, setDetenteurIds] = useState<number[]>([])
+  const [saving, setSaving] = useState(false)
+
+  function load() {
+    setLoading(true)
+    Promise.all([api.listHouseholdMembers(), api.listDetenteurs()])
+      .then(([m, d]) => {
+        setMembres(m)
+        setDetenteurs(d)
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    if (!username.trim() || password.length < 8) return
+    setSaving(true)
+    setError(null)
+    try {
+      await api.createHouseholdMember({
+        username: username.trim(),
+        password,
+        role,
+        detenteur_ids: role === 'invite' ? detenteurIds : undefined,
+      })
+      setUsername('')
+      setPassword('')
+      setDetenteurIds([])
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(id: number) {
+    setError(null)
+    try {
+      await api.deleteHouseholdMember(id)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  function toggleDetenteur(id: number) {
+    setDetenteurIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
+  }
+
+  return (
+    <Card title="Comptes du foyer">
+      <p className="mb-4 text-sm text-texte-attenue">
+        Un membre peut consulter et saisir des actifs/emprunts/transactions du foyer, mais pas les objectifs ni la
+        sécurité. Un invité ne voit, en lecture seule, que le patrimoine net et le portefeuille des détenteurs qui lui
+        sont assignés ci-dessous.
+      </p>
+
+      {loading ? (
+        <p className="text-sm text-texte-attenue">Chargement...</p>
+      ) : membres.length === 0 ? (
+        <p className="mb-4 text-sm text-texte-attenue">Aucun autre compte dans ce foyer.</p>
+      ) : (
+        <ul className="mb-4 divide-y divide-bordure">
+          {membres.map((m) => (
+            <li key={m.id} className="flex items-center justify-between py-2 text-sm">
+              <span className="text-texte">
+                {m.username} <span className="text-xs text-texte-attenue">({ROLE_LABELS[m.role]})</span>
+              </span>
+              <button onClick={() => handleDelete(m.id)} className="text-xs text-negatif hover:underline">
+                Supprimer
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Nom d'utilisateur
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Mot de passe
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Rôle
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value as 'membre' | 'invite')}
+            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          >
+            <option value="membre">Membre du foyer</option>
+            <option value="invite">Invité</option>
+          </select>
+        </label>
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        >
+          Ajouter
+        </button>
+      </form>
+
+      {role === 'invite' && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {detenteurs.map((d) => (
+            <label key={d.id} className="flex items-center gap-1.5 text-xs text-texte">
+              <input type="checkbox" checked={detenteurIds.includes(d.id)} onChange={() => toggleDetenteur(d.id)} />
+              {d.nom}
+            </label>
+          ))}
+          {detenteurs.length === 0 && <span className="text-xs text-texte-attenue">Aucun détenteur déclaré.</span>}
+        </div>
+      )}
+
+      {error && <p className="mt-3 text-sm text-negatif">{error}</p>}
+    </Card>
+  )
+}
+
 export default function ReglagesPage() {
   const [jobs, setJobs] = useState<ScheduledJob[]>([])
   const [loading, setLoading] = useState(true)
@@ -392,6 +671,9 @@ export default function ReglagesPage() {
       <div className="space-y-4">
         <DetenteursCard />
         <PreferencesCard />
+        <GestionFoyerCard />
+        <SessionsCard />
+        <JournalAccesCard />
       </div>
 
       <div className="space-y-4">

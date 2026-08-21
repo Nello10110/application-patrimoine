@@ -3,6 +3,7 @@ import type {
   AllocationTargetOut,
   AllocationTargetsSet,
   AnalysisResponse,
+  AccessLogEntry,
   AuthResponse,
   AuthUser,
   CategoryCompositionResponse,
@@ -18,6 +19,8 @@ import type {
   HoldingInput,
   HoldingPriceHistoryResponse,
   HoldingUpdateInput,
+  HouseholdMember,
+  HouseholdMemberInput,
   ImportPreview,
   ImportResult,
   Loan,
@@ -30,6 +33,7 @@ import type {
   QuotiteEntree,
   RepartitionComptesResponse,
   ScheduledJob,
+  Session,
   TransactionImportResult,
   TypeDetenteur,
   ZoneGeographiqueInfo,
@@ -98,6 +102,17 @@ export const api = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getMe: () => request<AuthUser>('/auth/me'),
+
+  // Sessions et journal d'accès (backlog 2.L.2).
+  listSessions: () => request<Session[]>('/auth/sessions'),
+  revokeSession: (idSession: string) => request<void>(`/auth/sessions/${idSession}`, { method: 'DELETE' }),
+  getAccessLog: (page = 1) => request<AccessLogEntry[]>(`/auth/access-log?page=${page}`),
+
+  // Comptes du foyer (backlog 2.L.2, réservé au propriétaire).
+  listHouseholdMembers: () => request<HouseholdMember[]>('/auth/household-members'),
+  createHouseholdMember: (payload: HouseholdMemberInput) =>
+    request<HouseholdMember>('/auth/household-members', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteHouseholdMember: (id: number) => request<void>(`/auth/household-members/${id}`, { method: 'DELETE' }),
 
   // Portfolio
   listHoldings: () => request<Holding[]>('/portfolio/holdings'),

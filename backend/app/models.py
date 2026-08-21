@@ -398,13 +398,20 @@ class UserParametre(Base):
     valeur: Mapped[str] = mapped_column(String)
 
 
+ROLE_PROPRIETAIRE = "proprietaire"
+ROLE_MEMBRE = "membre"
+ROLE_INVITE = "invite"
+ROLES_VALIDES = (ROLE_PROPRIETAIRE, ROLE_MEMBRE, ROLE_INVITE)
+
+
 class User(Base):
     """Compte utilisateur (multi-utilisateur, Milestone 1 — cf. `docs/BACKLOG.md` § 2.I.1).
-    Aucune table métier (Holding, Loan, Transaction...) n'est encore scopée par
-    `user_id` à ce stade : ce milestone pose uniquement l'authentification elle-même
-    (se créer un compte, se connecter, protéger les routes existantes). L'isolation
-    des données par utilisateur est un milestone séparé, volontairement pas fait en
-    même temps que la connexion elle-même sur de vraies données financières."""
+    Rôles (backlog 2.L.2) : un `proprietaire` est son propre foyer (`owner_user_id`
+    `None`) ; un `membre`/`invite` est rattaché au foyer d'un propriétaire via
+    `owner_user_id` — toutes les données qu'il consulte/crée restent stockées sous
+    `owner_user_id` (cf. `services/auth_service.id_foyer`), jamais sous son propre
+    `id`. Un foyer reste donc un unique `user_id` métier, cohérent avec toute
+    l'isolation par `user_id` déjà en place (Milestone 2a/2b)."""
 
     __tablename__ = "users"
 
@@ -418,7 +425,22 @@ class User(Base):
     # le nombre d'itérations est stocké dans le hash lui-même, pour pouvoir l'augmenter
     # plus tard sans invalider les mots de passe déjà enregistrés.
     password_hash: Mapped[str] = mapped_column(String)
+    role: Mapped[str] = mapped_column(String, default=ROLE_PROPRIETAIRE, server_default=ROLE_PROPRIETAIRE)
+    owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PerimetreInvite(Base):
+    """Détenteurs auxquels un compte `invite` (2.L.2) a accès en lecture — un invité
+    sans aucune ligne ici ne voit aucun actif (périmètre vide par défaut, jamais
+    "tout le foyer" implicitement)."""
+
+    __tablename__ = "perimetres_invites"
+    __table_args__ = (UniqueConstraint("user_id", "detenteur_id", name="uq_perimetre_invite_user_detenteur"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
 
 
 class AuthToken(Base):
@@ -426,11 +448,38 @@ class AuthToken(Base):
     pas de secret de signature à gérer). Vraie `ForeignKey` ici, contrairement au
     reste de ce fichier qui évite les FK à cause de la reconstruction du portefeuille
     depuis les transactions (cf. docstring de module) — sans rapport avec ce
-    mécanisme, une FK classique est le choix naturel pour lier un jeton à son compte."""
+    mécanisme, une FK classique est le choix naturel pour lier un jeton à son compte.
+    `id_session` (2.L.2) est l'identifiant PUBLIC de la session, renvoyé par
+    `GET /api/auth/sessions` et utilisé pour la révocation individuelle — jamais
+    `token` lui-même (le secret porteur), qui ne doit plus jamais réapparaître dans
+    une réponse une fois émis."""
 
     __tablename__ = "auth_tokens"
 
     token: Mapped[str] = mapped_column(String, primary_key=True)
+    id_session: Mapped[str] = mapped_column(String, nullable=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
+    derniere_utilisation: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    ip: Mapped[str | None] = mapped_column(String, nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class AccessLogEntry(Base):
+    """Journal d'accès (2.L.2), consultable dans Réglages par le propriétaire —
+    alimente aussi le calcul de verrouillage temporaire (`auth_service.verrouillage_actif`),
+    qui relit ces lignes plutôt que de maintenir un compteur séparé (une seule source
+    de vérité). `username_saisi` est conservé même si le compte n'existe pas (tentative
+    sur un identifiant inconnu) — c'est justement ce qu'un journal d'accès doit montrer."""
+
+    __tablename__ = "access_log_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    username_saisi: Mapped[str] = mapped_column(String)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    ip: Mapped[str | None] = mapped_column(String, nullable=True)
+    action: Mapped[str] = mapped_column(String)  # "login" | "logout"
+    resultat: Mapped[str] = mapped_column(String)  # "succes" | "echec"
+    raison: Mapped[str | None] = mapped_column(String, nullable=True)

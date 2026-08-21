@@ -9,7 +9,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
 from ..schemas import DividendeMois, PerformanceSummary, PortfolioHistoryResponse, RapportPeriode
-from ..services import historical_performance_service, performance_service, rapport_service
+from ..services import auth_service, historical_performance_service, performance_service, rapport_service
 
 _MOTIF_DATE_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -18,19 +18,19 @@ router = APIRouter(prefix="/api/performance", tags=["performance"])
 
 @router.get("", response_model=PerformanceSummary)
 def get_performance(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return performance_service.compute_performance(db, current_user.id)
+    return performance_service.compute_performance(db, auth_service.id_foyer(current_user))
 
 
 @router.get("/history", response_model=PortfolioHistoryResponse)
 def get_portfolio_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    points = historical_performance_service.compute_portfolio_history(db, current_user.id)
+    points = historical_performance_service.compute_portfolio_history(db, auth_service.id_foyer(current_user))
     return PortfolioHistoryResponse(points=points)
 
 
 @router.get("/dividendes", response_model=list[DividendeMois])
 def get_dividend_calendar(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Calendrier des dividendes perçus, mois par mois (roadmap Phase 3, § C.1)."""
-    return performance_service.compute_dividend_calendar(db, current_user.id)
+    return performance_service.compute_dividend_calendar(db, auth_service.id_foyer(current_user))
 
 
 @router.get("/rapport", response_model=RapportPeriode)
@@ -47,4 +47,4 @@ def get_rapport_periode(
         raise HTTPException(status_code=400, detail="date_debut et date_fin doivent être au format AAAA-MM-JJ")
     if date_fin < date_debut:
         raise HTTPException(status_code=400, detail="date_fin doit être postérieure ou égale à date_debut")
-    return rapport_service.compute_rapport_periode(db, date_debut, date_fin, current_user.id)
+    return rapport_service.compute_rapport_periode(db, date_debut, date_fin, auth_service.id_foyer(current_user))

@@ -15,14 +15,17 @@ from typing import Callable
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 
+from scripts import sauvegarde as sauvegarde_module
+
 from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
-from . import justetf_service, market_data_refresh, market_data_service
+from . import backup_service, justetf_service, market_data_refresh, market_data_service
 
 logger = logging.getLogger("patrimoine.scheduler")
 
 MARKET_DATA_REFRESH = "market_data_refresh"
 JUSTETF_REFRESH = "justetf_refresh"
+BACKUP_ENCRYPTED = "sauvegarde_chiffree"
 
 # Intervalle par défaut (heures) appliqué à la création de la config d'un job, à la
 # place du `24.0` du modèle `ScheduledJobConfig` (correct pour MARKET_DATA_REFRESH,
@@ -30,7 +33,7 @@ JUSTETF_REFRESH = "justetf_refresh"
 # ETF qui change lentement, et politesse envers une ressource sans SLA ni support
 # recommandent d'y aller doucement (hebdomadaire par défaut, ajustable ensuite
 # depuis Réglages comme n'importe quel job).
-DEFAULTS: dict[str, float] = {JUSTETF_REFRESH: 168.0}
+DEFAULTS: dict[str, float] = {JUSTETF_REFRESH: 168.0, BACKUP_ENCRYPTED: 24.0}
 
 
 def _run_market_data_refresh() -> None:
@@ -88,9 +91,36 @@ def _run_justetf_refresh() -> None:
         db.close()
 
 
+def _run_sauvegarde_chiffree() -> None:
+    """Sauvegarde + chiffrement planifiés (backlog 2.L.2), même structure que
+    `_run_justetf_refresh`. `backup_service.CleChiffrementAbsenteError` (clé
+    `PATRIMOINE_BACKUP_KEY` non définie) est incluse dans les erreurs jamais
+    remontées : le scheduler et les autres jobs continuent de tourner même sans
+    clé configurée, le job apparaît simplement en statut "erreur" dans Réglages."""
+    db = SessionLocal()
+    try:
+        chemin = backup_service.sauvegarder_chiffre(sauvegarde_module.chemin_base_source(), sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT)
+        supprimees = backup_service.appliquer_retention_chiffree(sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT, sauvegarde_module.RETENTION_PAR_DEFAUT)
+        message = chemin.name
+        if supprimees:
+            message += f" ({len(supprimees)} ancienne(s) supprimée(s))"
+        _record_result(db, BACKUP_ENCRYPTED, "ok", message)
+    except Exception as exc:
+        db.rollback()
+        logger.exception("échec de la sauvegarde chiffrée planifiée")
+        db_statut = SessionLocal()
+        try:
+            _record_result(db_statut, BACKUP_ENCRYPTED, "erreur", str(exc))
+        finally:
+            db_statut.close()
+    finally:
+        db.close()
+
+
 JOBS: dict[str, Callable[[], None]] = {
     MARKET_DATA_REFRESH: _run_market_data_refresh,
     JUSTETF_REFRESH: _run_justetf_refresh,
+    BACKUP_ENCRYPTED: _run_sauvegarde_chiffree,
 }
 
 _scheduler: BackgroundScheduler | None = None

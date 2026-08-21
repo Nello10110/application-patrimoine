@@ -1,3 +1,5 @@
+import type { Role } from '../api/types'
+
 export type Rang = 'consultation' | 'administration'
 
 export type RouteMeta = {
@@ -13,6 +15,12 @@ export type RouteMeta = {
   /** Rang d'affichage : `consultation` dans la barre latérale, `administration`
    * dans le menu du compte. Absent = route sans entrée de menu. */
   rang?: Rang
+  /** Rôles autorisés à voir cette entrée de navigation (backlog 2.L.2) — reflète
+   * les restrictions déjà appliquées côté serveur (`main.py`), en gardant le menu
+   * cohérent avec ce que l'API accepterait réellement. Absent = tous les rôles
+   * connectés (propriétaire/membre/invité). Purement une aide d'affichage : la
+   * vraie frontière de sécurité reste le backend, jamais ce filtre client. */
+  rolesAutorises?: Role[]
 }
 
 /** Source unique de vérité pour la navigation (backlog 2.K.2) : URL, libellé et
@@ -22,15 +30,15 @@ export const ROUTES: RouteMeta[] = [
   { path: '/', titre: 'Synthèse', navLabel: 'Synthèse', rang: 'consultation' },
   { path: '/patrimoine', titre: 'Patrimoine', navLabel: 'Patrimoine', rang: 'consultation' },
   { path: '/patrimoine/:ticker', titre: 'Détail de la position' },
-  { path: '/analyse', titre: 'Analyse', navLabel: 'Analyse', rang: 'consultation' },
-  { path: '/objectifs', titre: 'Objectifs', navLabel: 'Objectifs', rang: 'consultation' },
-  { path: '/dividendes', titre: 'Dividendes', navLabel: 'Dividendes', rang: 'consultation' },
-  { path: '/rapport', titre: 'Rapport', navLabel: 'Rapport', rang: 'consultation' },
-  { path: '/import', titre: 'Import', navLabel: 'Import', rang: 'administration' },
-  { path: '/reglages', titre: 'Réglages', navLabel: 'Réglages', rang: 'administration' },
+  { path: '/analyse', titre: 'Analyse', navLabel: 'Analyse', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
+  { path: '/objectifs', titre: 'Objectifs', navLabel: 'Objectifs', rang: 'consultation', rolesAutorises: ['proprietaire'] },
+  { path: '/dividendes', titre: 'Dividendes', navLabel: 'Dividendes', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
+  { path: '/rapport', titre: 'Rapport', navLabel: 'Rapport', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
+  { path: '/import', titre: 'Import', navLabel: 'Import', rang: 'administration', rolesAutorises: ['proprietaire', 'membre'] },
+  { path: '/reglages', titre: 'Réglages', navLabel: 'Réglages', rang: 'administration', rolesAutorises: ['proprietaire'] },
   { path: '/aide', titre: 'Aide', navLabel: 'Aide', rang: 'administration' },
 ]
 
-export function routesDuRang(rang: Rang): RouteMeta[] {
-  return ROUTES.filter((r) => r.rang === rang)
+export function routesDuRang(rang: Rang, role?: Role): RouteMeta[] {
+  return ROUTES.filter((r) => r.rang === rang && (!r.rolesAutorises || !role || r.rolesAutorises.includes(role)))
 }

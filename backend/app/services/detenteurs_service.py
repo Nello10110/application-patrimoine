@@ -7,10 +7,17 @@ explicitement saisie — cf. `compute_parts`."""
 
 from sqlalchemy.orm import Session
 
-from ..models import Detenteur, Holding, Loan, QuotiteHolding, QuotiteLoan
+from ..models import Detenteur, Holding, Loan, PerimetreInvite, QuotiteHolding, QuotiteLoan
 from . import loan_service
 
 TOLERANCE_SOMME_PCT = 0.01
+
+
+def perimetre_invite(db: Session, user_id_invite: int) -> list[int]:
+    """Détenteurs auxquels un compte `invite` (backlog 2.L.2) a accès en lecture —
+    liste vide si le propriétaire ne lui en a assigné aucun (pas d'accès implicite)."""
+    lignes = db.query(PerimetreInvite).filter(PerimetreInvite.user_id == user_id_invite).all()
+    return [ligne.detenteur_id for ligne in lignes]
 
 
 def list_detenteurs(db: Session, user_id: int) -> list[Detenteur]:

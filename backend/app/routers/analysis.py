@@ -17,7 +17,7 @@ from ..schemas import (
     RepartitionComptesResponse,
     RiskIndicators,
 )
-from ..services import analysis_service, preferences_service, rebalancing
+from ..services import analysis_service, auth_service, preferences_service, rebalancing
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
@@ -30,7 +30,7 @@ def get_category_composition(type: str, categorie: str, db: Session = Depends(ge
     # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
-    holdings = analysis_service.holdings_financiers(db, current_user.id)
+    holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))
     valued = analysis_service.value_holdings(holdings)
     lignes = analysis_service.holdings_in_category(db, valued, type, categorie)
     valeur_totale = sum(l["valeur"] for l in lignes)
@@ -48,7 +48,7 @@ def get_repartition_comptes(db: Session = Depends(get_db), current_user: User = 
     # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
-    holdings = analysis_service.holdings_financiers(db, current_user.id)
+    holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))
     valued = analysis_service.value_holdings(holdings)
     valeur_totale = sum(v.valeur for v in valued)
     items = analysis_service.repartition_par_compte(valued)
@@ -62,7 +62,7 @@ def get_cout_gestion_consolide(db: Session = Depends(get_db), current_user: User
     """Coût de gestion annuel consolidé des fonds/ETF détenus (roadmap Phase 3, § E.3) :
     cf. docstring de `analysis_service.compute_cout_gestion_consolide`. Déclarée AVANT
     `/{annee}` pour la même raison que `/comptes` ci-dessus."""
-    holdings = analysis_service.holdings_financiers(db, current_user.id)
+    holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))
     valued = analysis_service.value_holdings(holdings)
     return CoutGestionConsolide(**analysis_service.compute_cout_gestion_consolide(valued))
 
@@ -72,11 +72,11 @@ def get_analysis(annee: int, db: Session = Depends(get_db), current_user: User =
     # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
     # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
     # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
-    holdings = analysis_service.holdings_financiers(db, current_user.id)
+    holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))
     valued = analysis_service.value_holdings(holdings)
     valeur_totale = sum(v.valeur for v in valued)
 
-    targets = db.query(AllocationTarget).filter(AllocationTarget.user_id == current_user.id, AllocationTarget.annee == annee).all()
+    targets = db.query(AllocationTarget).filter(AllocationTarget.user_id == auth_service.id_foyer(current_user), AllocationTarget.annee == annee).all()
     geo_cibles = {t.categorie: t.pourcentage_cible for t in targets if t.type == "geo"}
     sector_cibles = {t.categorie: t.pourcentage_cible for t in targets if t.type == "sector"}
 
@@ -100,7 +100,7 @@ def get_analysis(annee: int, db: Session = Depends(get_db), current_user: User =
     # `rebalancing.SEUIL_ECART_PCT` (2 points, fixe) qui décide, lui, si une
     # recommandation existe tout court : une recommandation informe, une alerte
     # réclame une action de l'utilisateur.
-    seuil_alerte = preferences_service.lire_seuil_alerte_ecart_pct(db, current_user.id)
+    seuil_alerte = preferences_service.lire_seuil_alerte_ecart_pct(db, auth_service.id_foyer(current_user))
     alertes = [a for a in actions if abs(a["ecart_pourcentage"]) > seuil_alerte]
 
     return AnalysisResponse(

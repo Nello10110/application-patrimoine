@@ -12,12 +12,13 @@ en nettoyant la ligne de config avant/après chaque test pour rester indépendan
 l'ordre d'exécution."""
 
 import threading
+from pathlib import Path
 
 import pytest
 
 from app.database import SessionLocal
 from app.models import ScheduledJobConfig
-from app.services import justetf_service, market_data_refresh, market_data_service, scheduler_service
+from app.services import backup_service, justetf_service, market_data_refresh, market_data_service, scheduler_service
 
 from .conftest import attendre_fin_rafraichissement_arriere_plan, make_holding
 
@@ -26,7 +27,9 @@ def _supprimer_config_job():
     db = SessionLocal()
     try:
         db.query(ScheduledJobConfig).filter(
-            ScheduledJobConfig.job_key.in_([scheduler_service.MARKET_DATA_REFRESH, scheduler_service.JUSTETF_REFRESH])
+            ScheduledJobConfig.job_key.in_(
+                [scheduler_service.MARKET_DATA_REFRESH, scheduler_service.JUSTETF_REFRESH, scheduler_service.BACKUP_ENCRYPTED]
+            )
         ).delete(synchronize_session=False)
         db.commit()
     finally:
@@ -274,3 +277,62 @@ def test_run_justetf_refresh_persiste_le_statut_erreur(monkeypatch):
     assert config is not None
     assert config.dernier_statut == "erreur"
     assert "panne simulée justETF" in config.dernier_message
+
+
+# ---------------------------------------------------------------------------
+# Sauvegarde chiffrée planifiée (2.L.2)
+# ---------------------------------------------------------------------------
+
+
+def test_sauvegarde_chiffree_presente_dans_jobs():
+    assert scheduler_service.BACKUP_ENCRYPTED in scheduler_service.JOBS
+
+
+def test_sauvegarde_chiffree_config_par_defaut_quotidienne(db):
+    config = scheduler_service._get_or_create_config(db, scheduler_service.BACKUP_ENCRYPTED)
+    assert config.intervalle_heures == 24.0
+
+
+def test_run_sauvegarde_chiffree_persiste_le_statut_ok(tmp_path, monkeypatch):
+    monkeypatch.setattr(backup_service, "sauvegarder_chiffre", lambda source, dossier, horodatage=None: tmp_path / "patrimoine-xxx.db.enc")
+    monkeypatch.setattr(backup_service, "appliquer_retention_chiffree", lambda dossier, retention: [])
+
+    scheduler_service._run_sauvegarde_chiffree()
+
+    config = _lire_config_job(scheduler_service.BACKUP_ENCRYPTED)
+    assert config is not None
+    assert config.dernier_statut == "ok"
+    assert "patrimoine-xxx.db.enc" in config.dernier_message
+
+
+def test_run_sauvegarde_chiffree_sans_cle_persiste_le_statut_erreur_sans_planter(monkeypatch):
+    """`CleChiffrementAbsenteError` (clé non configurée) ne doit jamais faire
+    remonter d'exception — le scheduler et les autres jobs continuent de tourner,
+    ce job apparaît simplement en statut erreur dans Réglages."""
+
+    def sauvegarder_sans_cle(source, dossier, horodatage=None):
+        raise backup_service.CleChiffrementAbsenteError("PATRIMOINE_BACKUP_KEY non définie")
+
+    monkeypatch.setattr(backup_service, "sauvegarder_chiffre", sauvegarder_sans_cle)
+
+    scheduler_service._run_sauvegarde_chiffree()  # ne doit lever aucune exception
+
+    config = _lire_config_job(scheduler_service.BACKUP_ENCRYPTED)
+    assert config is not None
+    assert config.dernier_statut == "erreur"
+    assert "PATRIMOINE_BACKUP_KEY" in config.dernier_message
+
+
+def test_run_job_now_sauvegarde_chiffree_synchrone_via_la_branche_generique(db, monkeypatch):
+    appels = []
+    monkeypatch.setattr(
+        backup_service,
+        "sauvegarder_chiffre",
+        lambda source, dossier, horodatage=None: appels.append(1) or Path("patrimoine-xxx.db.enc"),
+    )
+    monkeypatch.setattr(backup_service, "appliquer_retention_chiffree", lambda dossier, retention: [])
+
+    config = scheduler_service.run_job_now(db, scheduler_service.BACKUP_ENCRYPTED)
+
+    assert appels == [1]
+    assert config.job_key == scheduler_service.BACKUP_ENCRYPTED

@@ -13,6 +13,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from .models import ROLE_INVITE, ROLE_MEMBRE
+
 from .services.preferences_service import METHODES_VALIDES
 
 MESSAGE_TICKER_VIDE = "Le ticker ne peut pas être vide"
@@ -847,8 +849,74 @@ class UserOut(BaseModel):
 
     id: int
     username: str
+    role: str
 
 
 class AuthResponse(BaseModel):
     token: str
     user: UserOut
+
+
+class SessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id_session: str
+    created_at: datetime
+    expires_at: datetime
+    derniere_utilisation: datetime
+    ip: str | None
+    user_agent: str | None
+    est_courante: bool = False
+
+
+class AccessLogEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    timestamp: datetime
+    username_saisi: str
+    ip: str | None
+    action: str
+    resultat: str
+    raison: str | None
+
+
+class HouseholdMemberCreate(BaseModel):
+    username: str
+    password: str
+    role: str
+    # Détenteurs auxquels un compte "invite" a accès en lecture (2.L.2) — ignoré
+    # pour un compte "membre" (accès de type par ressource, pas par détenteur).
+    detenteur_ids: list[int] = []
+
+    @field_validator("username")
+    @classmethod
+    def _valider_username(cls, v: str) -> str:
+        v = v.strip()
+        if not (2 <= len(v) <= 32):
+            raise ValueError(MESSAGE_NOM_UTILISATEUR_INVALIDE)
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def _valider_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError(MESSAGE_MOT_DE_PASSE_TROP_COURT)
+        return v
+
+    @field_validator("role")
+    @classmethod
+    def _valider_role(cls, v: str) -> str:
+        if v not in (ROLE_MEMBRE, ROLE_INVITE):
+            raise ValueError("Le rôle doit être 'membre' ou 'invite'")
+        return v
+
+
+class HouseholdMemberOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    role: str
+    created_at: datetime
+    detenteur_ids: list[int] = []

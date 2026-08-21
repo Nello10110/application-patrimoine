@@ -5,7 +5,7 @@ import { AuthContext, type AuthContextValue } from '../contexts/authContextObjec
 import Sidebar from './Sidebar'
 
 const utilisateurFactice: AuthContextValue = {
-  user: { id: 1, username: 'testeur' },
+  user: { id: 1, username: 'testeur', role: 'proprietaire' },
   loading: false,
   login: async () => {},
   register: async () => {},

@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import ORIGINE_MANUEL, Holding, User
+from ..models import ORIGINE_MANUEL, ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Holding, QuotiteHolding, User
 from ..schemas import (
     ColumnMapping,
     HoldingCreate,
@@ -20,7 +20,9 @@ from ..schemas import (
     ImportResult,
     QuotitesUpdate,
 )
-from ..services import analysis_service, csv_import, detenteurs_service, historical_performance_service, holding_detail_service, performance_service, upload_limits
+from ..services import analysis_service, auth_service, csv_import, detenteurs_service, historical_performance_service, holding_detail_service, performance_service, upload_limits
+
+_peut_ecrire = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -70,7 +72,7 @@ def _colonnes_mappees_absentes(mapping: ColumnMapping, colonnes_fichier: list[st
 
 
 @router.post("/import/confirm", response_model=ImportResult)
-def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     try:
         df = csv_import.get_pending(mapping.file_token)
     except KeyError as exc:
@@ -99,7 +101,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
             # au grand livre : les supprimer ici créerait un état incohérent que le
             # prochain import de transactions rétablirait tout seul, sans que
             # l'utilisateur comprenne pourquoi (cf. `models.Holding.origine`).
-            db.query(Holding).filter(Holding.user_id == current_user.id, Holding.origine == ORIGINE_MANUEL).delete()
+            db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user), Holding.origine == ORIGINE_MANUEL).delete()
 
         for idx, row in df.iterrows():
             ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
@@ -112,7 +114,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
 
             db.add(
                 Holding(
-                    user_id=current_user.id,
+                    user_id=auth_service.id_foyer(current_user),
                     ticker=ticker,
                     nom=_cellule_texte(row, mapping.nom_col),
                     quantite=qty_val,
@@ -137,10 +139,25 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     return ImportResult(imported=imported, skipped=skipped, errors=errors)
 
 
+def _holdings_visibles(db: Session, current_user: User):
+    """Toutes les lignes du foyer pour propriétaire/membre ; pour un invité (2.L.2),
+    seulement celles où l'un de ses détenteurs assignés a une quotité — jamais un
+    filtrage côté client uniquement, contournable dans l'onglet réseau."""
+    requete = db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user))
+    if current_user.role == ROLE_INVITE:
+        perimetre = detenteurs_service.perimetre_invite(db, current_user.id)
+        if not perimetre:
+            return []
+        requete = requete.join(QuotiteHolding, QuotiteHolding.holding_id == Holding.id).filter(
+            QuotiteHolding.detenteur_id.in_(perimetre), QuotiteHolding.quotite_pct > 0
+        )
+    return requete.order_by(Holding.ticker).all()
+
+
 @router.get("/holdings", response_model=list[HoldingOut])
 def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    holdings = db.query(Holding).filter(Holding.user_id == current_user.id).order_by(Holding.ticker).all()
-    rendements = performance_service.compute_holding_returns(db, current_user.id)
+    holdings = _holdings_visibles(db, current_user)
+    rendements = performance_service.compute_holding_returns(db, auth_service.id_foyer(current_user))
     # `value_holdings` applique déjà la règle « prix de marché, à défaut prix de
     # revient » ; on la réutilise ici pour ne pas dupliquer ce calcul (LOT 6.7).
     # Elle retombe sur 0 quand aucun prix n'est connu (pratique pour les sommes des
@@ -159,9 +176,18 @@ def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(ge
     return result
 
 
+def _verifier_ticker_visible_invite(db: Session, current_user: User, ticker: str) -> None:
+    if current_user.role != ROLE_INVITE:
+        return
+    tickers_visibles = {h.ticker for h in _holdings_visibles(db, current_user)}
+    if ticker not in tickers_visibles:
+        raise HTTPException(status_code=404, detail="Ligne introuvable")
+
+
 @router.get("/holdings/{ticker}/detail", response_model=HoldingDetail)
 def get_holding_detail(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    detail = holding_detail_service.build_holding_detail(db, ticker, current_user.id)
+    _verifier_ticker_visible_invite(db, current_user, ticker)
+    detail = holding_detail_service.build_holding_detail(db, ticker, auth_service.id_foyer(current_user))
     if detail is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     return HoldingDetail(**detail)
@@ -172,17 +198,17 @@ def set_holding_quotites(
     ticker: str,
     payload: QuotitesUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_peut_ecrire),
 ):
     """Remplace intégralement la répartition (quotités) de cette ligne entre
     détenteurs (backlog 2.L.1). Une liste vide retire toute répartition (retombe à
     100 % foyer implicite)."""
-    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == current_user.id).first()
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     try:
         detenteurs_service.set_quotites_holding(
-            db, current_user.id, holding, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites]
+            db, auth_service.id_foyer(current_user), holding, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites]
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -191,12 +217,13 @@ def set_holding_quotites(
 
 @router.get("/holdings/{ticker}/price-history", response_model=HoldingPriceHistoryResponse)
 def get_holding_price_history(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    result = historical_performance_service.compute_holding_price_history(db, ticker, current_user.id)
+    _verifier_ticker_visible_invite(db, current_user, ticker)
+    result = historical_performance_service.compute_holding_price_history(db, ticker, auth_service.id_foyer(current_user))
     return HoldingPriceHistoryResponse(**result) if result else HoldingPriceHistoryResponse(points=[])
 
 
 @router.post("/holdings", response_model=HoldingOut)
-def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
     donnees = payload.model_dump()
@@ -205,7 +232,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # ici dès qu'une valeur estimée est fournie à la création.
     if donnees.get("valeur_estimee") is not None:
         donnees["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
-    holding = Holding(**donnees, origine=ORIGINE_MANUEL, user_id=current_user.id)
+    holding = Holding(**donnees, origine=ORIGINE_MANUEL, user_id=auth_service.id_foyer(current_user))
     db.add(holding)
     db.commit()
     db.refresh(holding)
@@ -213,9 +240,9 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
 
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingOut)
-def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     holding = db.get(Holding, holding_id)
-    if holding is None or holding.user_id != current_user.id:
+    if holding is None or holding.user_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     updates = payload.model_dump(exclude_unset=True)
     # `date_valeur_estimee` n'avance que si `valeur_estimee` change réellement dans cet
@@ -231,9 +258,9 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
 
 
 @router.delete("/holdings/{holding_id}")
-def delete_holding(holding_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_holding(holding_id: int, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     holding = db.get(Holding, holding_id)
-    if holding is None or holding.user_id != current_user.id:
+    if holding is None or holding.user_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     db.delete(holding)
     db.commit()

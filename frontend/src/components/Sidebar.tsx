@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 import { useSidebarRepliee } from '../hooks/useSidebarRepliee'
 import { routesDuRang } from '../layout/routes'
 import {
@@ -27,6 +28,7 @@ const ICONES = {
  * désormais dans `MenuCompte`. */
 export default function Sidebar() {
   const { repliee, basculer } = useSidebarRepliee()
+  const { user } = useAuth()
 
   return (
     <aside
@@ -51,7 +53,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2" aria-label="Navigation principale">
-        {routesDuRang('consultation').map((r) => {
+        {routesDuRang('consultation', user?.role).map((r) => {
           const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined
           return (
             <NavLink

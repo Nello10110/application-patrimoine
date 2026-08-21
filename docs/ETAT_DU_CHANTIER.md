@@ -136,7 +136,10 @@ Rien ne bloque, mais si le sujet revient :
 - les répartitions de repli par indice (`services/reference_indices.py`) sont des approximations
   figées : elles méritent une relecture annuelle. Le test paramétré qui vérifie que chaque entrée
   somme à 1 protège des fautes de frappe, pas d'une dérive des indices réels ;
-- le script de sauvegarde n'est pas planifié — le brancher sur une tâche planifiée le rendrait
-  vraiment automatique ;
 - la qualité des données géographiques reste le premier levier d'amélioration fonctionnelle, si une
-  source de composition complète devenait accessible.
+  source de composition complète devenait accessible ;
+- **backlog 2.L.2, livré 21/08/2026** : le rôle « membre » n'a qu'une granularité grossière (par type
+  de ressource, pas par quotité individuelle) ; le filtrage serveur de l'invité ne couvre que
+  Patrimoine net/Portefeuille/Emprunts ; TOTP et migration du jeton vers un cookie `Secure`/
+  `SameSite=Strict` restent à faire avant une exposition réellement publique ; HTTPS/reverse proxy
+  restent la responsabilité de l'utilisateur sur son homelab (non documentés en détail ici).
