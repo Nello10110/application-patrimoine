@@ -6,8 +6,8 @@ les routeurs fins et cette logique testable indépendamment de FastAPI.
 
 from sqlalchemy.orm import Session
 
-from ..models import FundComposition, FundCompositionBrute, FundTopHolding, Holding, Transaction
-from . import market_data_service, performance_service, reference_indices
+from ..models import Detenteur, FundComposition, FundCompositionBrute, FundTopHolding, Holding, QuotiteHolding, Transaction
+from . import detenteurs_service, market_data_service, performance_service, reference_indices
 
 
 def _frais_transaction_payes(db: Session, ticker: str, user_id: int) -> float:
@@ -73,6 +73,32 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
     if holding.type_actif == "FUND" and md and md.description:
         resume = md.description
 
+    # Bug corrigé en marge de 2.L.1 : cette valeur ignorait jusqu'ici
+    # `valeur_estimee` (immobilier/SCPI/assurance-vie/PER — `models.TYPES_ACTIF_PATRIMOINE_MANUEL`),
+    # contrairement à `analysis_service.value_holdings` utilisé partout ailleurs —
+    # la fiche détaillée affichait donc `prix_revient_moyen * quantite` (le coût, pas
+    # la valeur estimée) pour ces lignes. Découvert en vérifiant le calcul de part
+    # nette (2.L.1) sur un bien immobilier réel, où l'écart rendait la part nette
+    # fausse — corrigé ici plutôt que silencieusement contourné.
+    valeur = round(holding.valeur_estimee, 2) if holding.valeur_estimee is not None else round((prix or 0) * holding.quantite, 2)
+
+    # Détenteurs (backlog 2.L.1) : quotités saisies sur cette ligne + part détenue/
+    # nette qui en découle. Liste vide si aucune quotité n'a jamais été saisie (100 %
+    # foyer implicite, cf. `detenteurs_service.compute_parts`).
+    parts = detenteurs_service.compute_parts(db, holding, valeur)
+    quotites_saisies = db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).all()
+    noms_detenteurs = {d.id: d.nom for d in db.query(Detenteur).filter(Detenteur.user_id == user_id).all()}
+    quotites = [
+        {
+            "detenteur_id": q.detenteur_id,
+            "detenteur_nom": noms_detenteurs.get(q.detenteur_id, "?"),
+            "quotite_pct": q.quotite_pct,
+            "part_detenue": parts.get(q.detenteur_id, {}).get("part_detenue", 0.0),
+            "part_nette": parts.get(q.detenteur_id, {}).get("part_nette", 0.0),
+        }
+        for q in quotites_saisies
+    ]
+
     return {
         "ticker": holding.ticker,
         "nom": nom_affiche,
@@ -80,7 +106,7 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
         "quantite": holding.quantite,
         "prix_revient_moyen": holding.prix_revient_moyen,
         "prix_actuel": prix_actuel,
-        "valeur": round((prix or 0) * holding.quantite, 2),
+        "valeur": valeur,
         "devise": md.devise if md else None,
         "secteur": md.secteur if md else None,
         "pays": md.pays if md else None,
@@ -95,4 +121,5 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
         "repartition_geo_detaillee": repartition_geo_detaillee,
         "repartition_sector_detaillee": repartition_sector_detaillee,
         "composition_actions": composition_actions,
+        "quotites": quotites,
     }

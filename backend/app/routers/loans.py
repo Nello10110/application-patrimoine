@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Loan, User
+from ..models import Holding, Loan, User
 from ..schemas import LoanCreate, LoanOut, LoanUpdate
 from ..services import loan_service
 
@@ -41,6 +41,13 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: Session = Depends(get_db)
     if loan is None or loan.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Emprunt introuvable")
     updates = payload.model_dump(exclude_unset=True)
+    # Rattachement à un actif (backlog 2.M.2) : vérifie que l'actif visé appartient
+    # bien à l'utilisateur courant (IDOR) — `None` (dérattachement) ne nécessite pas
+    # cette vérification.
+    if "holding_id" in updates and updates["holding_id"] is not None:
+        cible = db.get(Holding, updates["holding_id"])
+        if cible is None or cible.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Actif introuvable")
     # Un recalage manuel du capital restant dû (relevé bancaire réel) horodate
     # `derniere_maj_manuelle` — même logique que `Holding.date_valeur_estimee`
     # (`routers/portfolio.py`) : seul un changement réel du champ concerné avance la

@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { HoldingDetail } from '../api/types'
+import { api } from '../api/client'
+import type { Detenteur, HoldingDetail } from '../api/types'
 import Card from './Card'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import PieChartCard from './PieChartCard'
@@ -13,6 +15,114 @@ const CATEGORY_LABELS: Record<string, string> = {
   CRYPTO: 'Crypto',
   BOND: 'Obligation',
   PRIVATE_FUND: 'Private Equity',
+}
+
+/** Répartition entre détenteurs (backlog 2.L.1) — n'apparaît que si l'utilisateur a
+ * déclaré au moins un détenteur (Réglages). Gère son propre état, indépendant du
+ * `detail` du composant parent : après enregistrement, recharge la fiche pour
+ * obtenir la part détenue/nette à jour sans faire remonter l'état au parent. */
+function DetenteursSection({ ticker, quotitesInitiales }: { ticker: string; quotitesInitiales: HoldingDetail['quotites'] }) {
+  const { montantsMasques } = usePreferencesAffichage()
+  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [saisie, setSaisie] = useState<Record<number, string>>({})
+  const [quotitesEnregistrees, setQuotitesEnregistrees] = useState(quotitesInitiales)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api
+      .listDetenteurs()
+      .then((liste) => {
+        setDetenteurs(liste)
+        const init: Record<number, string> = {}
+        for (const q of quotitesInitiales) init[q.detenteur_id] = String(q.quotite_pct)
+        setSaisie(init)
+      })
+      .catch(() => setDetenteurs([]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `ticker` change = remontage du composant parent (route/modale), pas de resynchronisation nécessaire en cours de vie.
+  }, [ticker])
+
+  if (detenteurs.length === 0) return null
+
+  const total = detenteurs.reduce((somme, d) => somme + (Number(saisie[d.id]) || 0), 0)
+  const repartitionEnCours = detenteurs.some((d) => (Number(saisie[d.id]) || 0) > 0)
+  const totalValide = !repartitionEnCours || Math.abs(total - 100) < 0.01
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      const quotites = detenteurs
+        .map((d) => ({ detenteur_id: d.id, quotite_pct: Number(saisie[d.id]) || 0 }))
+        .filter((q) => q.quotite_pct > 0)
+      await api.setHoldingQuotites(ticker, quotites)
+      const detailFrais = await api.getHoldingDetail(ticker)
+      setQuotitesEnregistrees(detailFrais.quotites)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card title="Détenteurs">
+      <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+        Répartition de cette ligne entre les personnes/sociétés déclarées dans Réglages — la somme doit faire 100 % (ou
+        rester à 0 % pour ne pas répartir, 100 % foyer implicite).
+      </p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            <th className="py-2 pr-4">Détenteur</th>
+            <th className="py-2 pr-4">Quotité</th>
+            <th className="py-2 pr-4 text-right">Part détenue</th>
+            <th className="py-2 pr-4 text-right">Part nette</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+          {detenteurs.map((d) => {
+            const enregistree = quotitesEnregistrees.find((q) => q.detenteur_id === d.id)
+            return (
+              <tr key={d.id}>
+                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">{d.nom}</td>
+                <td className="py-2 pr-4">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="any"
+                    value={saisie[d.id] ?? ''}
+                    onChange={(e) => setSaisie({ ...saisie, [d.id]: e.target.value })}
+                    className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                  />
+                  %
+                </td>
+                <td className="py-2 pr-4 text-right text-slate-700 dark:text-slate-300">
+                  {enregistree ? formatEuro(enregistree.part_detenue, 2, montantsMasques) : '—'}
+                </td>
+                <td className="py-2 pr-4 text-right font-medium text-slate-900 dark:text-slate-100">
+                  {enregistree ? formatEuro(enregistree.part_nette, 2, montantsMasques) : '—'}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={!totalValide || saving}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
+        >
+          Enregistrer
+        </button>
+        {!totalValide && <span className="text-sm text-red-600 dark:text-red-400">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</span>}
+        {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
+      </div>
+    </Card>
+  )
 }
 
 export default function HoldingDetailContent({ detail, titleId }: { detail: HoldingDetail; titleId?: string }) {
@@ -78,6 +188,8 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
       </Card>
 
       <HoldingPriceHistoryChart ticker={detail.ticker} />
+
+      <DetenteursSection ticker={detail.ticker} quotitesInitiales={detail.quotites} />
 
       <Card title="Émetteur, résumé & frais">
         <div className="space-y-3 text-sm">

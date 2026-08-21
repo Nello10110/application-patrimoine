@@ -3,6 +3,7 @@ import { PreferencesAffichageContext, type Lentille } from './preferencesAfficha
 
 const CLE_LENTILLE = 'patrimoine:lentille'
 const CLE_MONTANTS_MASQUES = 'patrimoine:montants-masques'
+const CLE_DETENTEUR = 'patrimoine:detenteur-id'
 const LENTILLES: Lentille[] = ['net', 'brut', 'financier']
 
 function lentilleStockee(): Lentille {
@@ -14,6 +15,13 @@ function lentilleStockee(): Lentille {
 function montantsMasquesStockes(): boolean {
   if (typeof window === 'undefined') return false
   return window.localStorage.getItem(CLE_MONTANTS_MASQUES) === '1'
+}
+
+function detenteurIdStocke(): number | null {
+  if (typeof window === 'undefined') return null
+  const valeur = window.localStorage.getItem(CLE_DETENTEUR)
+  const nombre = valeur === null ? NaN : Number(valeur)
+  return Number.isFinite(nombre) ? nombre : null
 }
 
 function champDeSaisieActif(): boolean {
@@ -33,10 +41,17 @@ function champDeSaisieActif(): boolean {
 export function PreferencesAffichageProvider({ children }: { children: ReactNode }) {
   const [lentille, setLentilleState] = useState<Lentille>(() => lentilleStockee())
   const [montantsMasques, setMontantsMasques] = useState<boolean>(() => montantsMasquesStockes())
+  const [detenteurId, setDetenteurIdState] = useState<number | null>(() => detenteurIdStocke())
 
   const setLentille = useCallback((suivante: Lentille) => {
     setLentilleState(suivante)
     window.localStorage.setItem(CLE_LENTILLE, suivante)
+  }, [])
+
+  const setDetenteurId = useCallback((suivant: number | null) => {
+    setDetenteurIdState(suivant)
+    if (suivant === null) window.localStorage.removeItem(CLE_DETENTEUR)
+    else window.localStorage.setItem(CLE_DETENTEUR, String(suivant))
   }, [])
 
   const toggleMontantsMasques = useCallback(() => {
@@ -63,7 +78,9 @@ export function PreferencesAffichageProvider({ children }: { children: ReactNode
   }, [toggleMontantsMasques])
 
   return (
-    <PreferencesAffichageContext.Provider value={{ lentille, setLentille, montantsMasques, toggleMontantsMasques }}>
+    <PreferencesAffichageContext.Provider
+      value={{ lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId }}
+    >
       {children}
     </PreferencesAffichageContext.Provider>
   )

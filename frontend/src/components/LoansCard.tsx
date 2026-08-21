@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Loan } from '../api/types'
+import type { Holding, Loan } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDateHeure, formatEuro } from '../utils/format'
 import Card from './Card'
@@ -39,6 +39,11 @@ export default function LoansCard() {
   const [confirmSuppression, setConfirmSuppression] = useState<{ id: number; libelle: string } | null>(null)
   const [suppressionEnCours, setSuppressionEnCours] = useState(false)
 
+  // Rattachement à un actif (backlog 2.M.2), nécessaire au calcul de la part nette
+  // par détenteur (2.L.1).
+  const [holdings, setHoldings] = useState<Holding[]>([])
+  const [rattachementSaving, setRattachementSaving] = useState<number | null>(null)
+
   function load() {
     setLoading(true)
     api
@@ -49,6 +54,22 @@ export default function LoansCard() {
   }
 
   useEffect(load, [])
+  useEffect(() => {
+    api.listHoldings().then(setHoldings).catch(() => setHoldings([]))
+  }, [])
+
+  async function handleRattacher(loanId: number, holdingId: number | null) {
+    setRattachementSaving(loanId)
+    setError(null)
+    try {
+      await api.updateLoan(loanId, { holding_id: holdingId })
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setRattachementSaving(null)
+    }
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -128,6 +149,7 @@ export default function LoansCard() {
                 <th className="py-2 pr-4">Taux</th>
                 <th className="py-2 pr-4">Mensualité</th>
                 <th className="py-2 pr-4">Capital restant dû</th>
+                <th className="py-2 pr-4">Actif rattaché</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
@@ -171,6 +193,21 @@ export default function LoansCard() {
                       </div>
                     )}
                   </td>
+                  <td className="py-2 pr-4">
+                    <select
+                      value={loan.holding_id ?? ''}
+                      disabled={rattachementSaving === loan.id}
+                      onChange={(e) => handleRattacher(loan.id, e.target.value === '' ? null : Number(e.target.value))}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    >
+                      <option value="">Aucun</option>
+                      {holdings.map((h) => (
+                        <option key={h.id} value={h.id}>
+                          {h.nom ?? h.ticker}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <td className="py-2 pr-4 text-right">
                     {recalageId !== loan.id && (
                       <div className="flex items-center justify-end gap-2">
@@ -195,6 +232,7 @@ export default function LoansCard() {
                   {loans.length} emprunt{loans.length > 1 ? 's' : ''}
                 </td>
                 <td className="py-2 pr-4">{formatEuro(totalRestantDu, 0, montantsMasques)}</td>
+                <td></td>
                 <td></td>
               </tr>
             </tfoot>

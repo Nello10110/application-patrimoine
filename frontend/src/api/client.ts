@@ -8,6 +8,7 @@ import type {
   CategoryCompositionResponse,
   ColumnMapping,
   CoutGestionConsolide,
+  Detenteur,
   DividendeMois,
   RapportPeriode,
   PortfolioHistoryResponse,
@@ -26,9 +27,11 @@ import type {
   PerformanceSummary,
   Preferences,
   PreferencesUpdateResponse,
+  QuotiteEntree,
   RepartitionComptesResponse,
   ScheduledJob,
   TransactionImportResult,
+  TypeDetenteur,
   ZoneGeographiqueInfo,
 } from './types'
 
@@ -176,5 +179,19 @@ export const api = {
   // calcul FIRE sont calculés côté client (`utils/interetsComposes.ts`), ce
   // patrimoine net actuel n'est plus utilisé que pour préremplir le capital de
   // départ.
-  getPatrimoineNet: () => request<PatrimoineNet>('/patrimoine/net'),
+  getPatrimoineNet: (detenteurId?: number | null) =>
+    request<PatrimoineNet>(`/patrimoine/net${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
+
+  // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
+  listDetenteurs: () => request<Detenteur[]>('/detenteurs'),
+  createDetenteur: (nom: string, type: TypeDetenteur) =>
+    request<Detenteur>('/detenteurs', { method: 'POST', body: JSON.stringify({ nom, type }) }),
+  updateDetenteur: (id: number, payload: { nom?: string; type?: TypeDetenteur }) =>
+    request<Detenteur>(`/detenteurs/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteDetenteur: (id: number) => request<{ ok: boolean }>(`/detenteurs/${id}`, { method: 'DELETE' }),
+  setHoldingQuotites: (ticker: string, quotites: QuotiteEntree[]) =>
+    request<{ ok: boolean }>(`/portfolio/holdings/${encodeURIComponent(ticker)}/quotites`, {
+      method: 'PUT',
+      body: JSON.stringify({ quotites }),
+    }),
 }

@@ -18,8 +18,9 @@ from ..schemas import (
     HoldingUpdate,
     ImportPreviewResponse,
     ImportResult,
+    QuotitesUpdate,
 )
-from ..services import analysis_service, csv_import, historical_performance_service, holding_detail_service, performance_service, upload_limits
+from ..services import analysis_service, csv_import, detenteurs_service, historical_performance_service, holding_detail_service, performance_service, upload_limits
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -164,6 +165,28 @@ def get_holding_detail(ticker: str, db: Session = Depends(get_db), current_user:
     if detail is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     return HoldingDetail(**detail)
+
+
+@router.put("/holdings/{ticker}/quotites")
+def set_holding_quotites(
+    ticker: str,
+    payload: QuotitesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remplace intégralement la répartition (quotités) de cette ligne entre
+    détenteurs (backlog 2.L.1). Une liste vide retire toute répartition (retombe à
+    100 % foyer implicite)."""
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == current_user.id).first()
+    if holding is None:
+        raise HTTPException(status_code=404, detail="Ligne introuvable")
+    try:
+        detenteurs_service.set_quotites_holding(
+            db, current_user.id, holding, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites]
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
 
 
 @router.get("/holdings/{ticker}/price-history", response_model=HoldingPriceHistoryResponse)

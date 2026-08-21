@@ -2,6 +2,8 @@
 `docs/ROADMAP.md`, patrimoine net) — validation des saisies, `capital_restant_du`
 toujours calculé côté serveur, jamais fourni par le client."""
 
+from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, NOM_UTILISATEUR_TEST, basculer_utilisateur, make_holding
+
 
 def _payload(**overrides) -> dict:
     defaults = dict(
@@ -85,3 +87,42 @@ def test_libelle_vide_refuse(client):
 
 def test_duree_nulle_refusee(client):
     assert client.post("/api/loans", json=_payload(duree_mois=0)).status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Rattachement à un actif (backlog 2.M.2)
+# ---------------------------------------------------------------------------
+
+
+def test_rattacher_un_emprunt_a_un_actif(client, db):
+    h = make_holding(db, ticker="MAISON")
+    cree = client.post("/api/loans", json=_payload()).json()
+
+    reponse = client.patch(f"/api/loans/{cree['id']}", json={"holding_id": h.id})
+
+    assert reponse.status_code == 200
+    assert reponse.json()["holding_id"] == h.id
+
+
+def test_derattacher_un_emprunt(client, db):
+    h = make_holding(db, ticker="MAISON")
+    cree = client.post("/api/loans", json=_payload()).json()
+    client.patch(f"/api/loans/{cree['id']}", json={"holding_id": h.id})
+
+    reponse = client.patch(f"/api/loans/{cree['id']}", json={"holding_id": None})
+
+    assert reponse.status_code == 200
+    assert reponse.json()["holding_id"] is None
+
+
+def test_rattacher_un_emprunt_a_lactif_dun_autre_utilisateur_est_refuse(client, db):
+    """IDOR (backlog 2.M.2) : impossible de rattacher son emprunt à l'actif d'un
+    autre compte, même en devinant son id."""
+    cree = client.post("/api/loans", json=_payload()).json()
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+    h_autre_compte = make_holding(db, ticker="MAISON_B", user_id=ID_UTILISATEUR_B)
+    basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
+
+    reponse = client.patch(f"/api/loans/{cree['id']}", json={"holding_id": h_autre_compte.id})
+
+    assert reponse.status_code == 404

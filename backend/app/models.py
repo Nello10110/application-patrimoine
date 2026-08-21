@@ -139,8 +139,65 @@ class Loan(Base):
     duree_mois: Mapped[int] = mapped_column(Integer)
     capital_restant_du_manuel: Mapped[float | None] = mapped_column(Float, nullable=True)
     derniere_maj_manuelle: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Rattachement à un actif (backlog 2.M.2, version minimale — un emprunt vers au
+    # plus un actif, pas encore de clé de répartition multi-actifs) : condition
+    # nécessaire pour que la "part nette" par détenteur (2.L.1) ait un sens, un
+    # emprunt non rattaché ne pouvant être imputé à aucune ligne du patrimoine.
+    # Vraie FK (comme `user_id`) : ce rattachement est une vraie relation CRUD, pas
+    # une correspondance issue de la reconstruction du grand livre (cf. docstring de
+    # module).
+    holding_id: Mapped[int | None] = mapped_column(ForeignKey("holdings.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class Detenteur(Base):
+    """Personne (conjoint, enfant...) ou société (SCI, holding...) du foyer, déclarée
+    une fois et réutilisée pour répartir la propriété des actifs et des emprunts
+    (backlog 2.L.1) — distincte de `User` (compte de connexion) : un enfant mineur
+    peut être détenteur d'une quotité sans jamais avoir de compte."""
+
+    __tablename__ = "detenteurs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    nom: Mapped[str] = mapped_column(String)
+    type: Mapped[str] = mapped_column(String)  # "personne" | "societe"
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class QuotiteHolding(Base):
+    """Quotité de propriété (%) d'un détenteur sur une ligne du portefeuille (backlog
+    2.L.1). L'ensemble des lignes d'un même `holding_id` doit sommer à 100 %
+    (contrôlé côté service, `services/detenteurs_service.py` — pas en base, SQLite ne
+    permettant pas simplement une contrainte inter-lignes). L'absence de toute ligne
+    pour un `holding_id` signifie un actif non réparti, implicitement 100 % foyer
+    (comportement historique inchangé, cf. `patrimoine_service.compute_patrimoine_net`)."""
+
+    __tablename__ = "quotites_holdings"
+    __table_args__ = (UniqueConstraint("holding_id", "detenteur_id", name="uq_quotite_holding_detenteur"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), index=True)
+    detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
+    quotite_pct: Mapped[float] = mapped_column(Float)
+
+
+class QuotiteLoan(Base):
+    """Quotité de propriété (%) d'un détenteur sur un emprunt (backlog 2.L.1) —
+    indépendante de la quotité de l'actif rattaché (`Loan.holding_id`) : un emprunt
+    peut avoir été contracté par un seul conjoint pour un bien détenu à deux. Quand
+    aucune ligne n'existe pour un `loan_id` rattaché, la part nette hérite par défaut
+    des quotités de l'actif (cf. `services/detenteurs_service.compute_parts`)."""
+
+    __tablename__ = "quotites_loans"
+    __table_args__ = (UniqueConstraint("loan_id", "detenteur_id", name="uq_quotite_loan_detenteur"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
+    detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
+    quotite_pct: Mapped[float] = mapped_column(Float)
 
 
 class MarketDataCache(Base):

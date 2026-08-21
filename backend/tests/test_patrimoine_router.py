@@ -10,7 +10,7 @@ from datetime import datetime
 
 from app.models import Loan
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur, make_holding
 
 
 def test_patrimoine_net_vide(client):
@@ -50,3 +50,14 @@ def test_patrimoine_net_actifs_moins_passifs(client, db):
     assert corps["passifs_totaux"] == 120000.0
     assert corps["patrimoine_net"] == 180000.0
     assert corps["repartition_par_classe"] == [{"categorie": "Immobilier", "valeur": 300000.0}]
+
+
+def test_detenteur_id_dun_autre_utilisateur_renvoie_404(client, db):
+    """IDOR (backlog 2.L.1) : impossible de lire le patrimoine filtré sur le
+    détenteur d'un autre compte, même en devinant son id."""
+    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    reponse = client.get(f"/api/patrimoine/net?detenteur_id={id_detenteur_a}")
+
+    assert reponse.status_code == 404

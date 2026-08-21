@@ -109,6 +109,8 @@ export interface Loan {
   capital_restant_du_manuel: number | null
   derniere_maj_manuelle: string | null
   capital_restant_du: number
+  // Rattachement à un actif (backlog 2.M.2).
+  holding_id: number | null
   created_at: string
   updated_at: string
 }
@@ -131,6 +133,7 @@ export interface LoanUpdateInput {
   date_debut?: string
   duree_mois?: number
   capital_restant_du_manuel?: number | null
+  holding_id?: number | null
 }
 
 export interface RepartitionParClasseItem {
@@ -350,6 +353,32 @@ export interface HoldingDetail {
   repartition_geo_detaillee: RepartitionItem[]
   repartition_sector_detaillee: RepartitionItem[]
   composition_actions: FundTopHoldingItem[]
+  // Détenteurs (backlog 2.L.1) : quotités saisies + part détenue/nette calculée.
+  quotites: QuotiteDetenteurItem[]
+}
+
+// Personnes/sociétés du foyer et quotités (backlog 2.L.1).
+export type TypeDetenteur = 'personne' | 'societe'
+
+export interface Detenteur {
+  id: number
+  nom: string
+  type: TypeDetenteur
+  created_at: string
+  updated_at: string
+}
+
+export interface QuotiteDetenteurItem {
+  detenteur_id: number
+  detenteur_nom: string
+  quotite_pct: number
+  part_detenue: number
+  part_nette: number
+}
+
+export interface QuotiteEntree {
+  detenteur_id: number
+  quotite_pct: number
 }
 
 export interface CategoryCompositionItem {

@@ -9,6 +9,9 @@ vi.mock('../api/client', () => ({
   api: {
     getHoldingDetail: vi.fn(),
     getHoldingPriceHistory: vi.fn(),
+    // Détenteurs (backlog 2.L.1) : `HoldingDetailContent` lit `listDetenteurs()` —
+    // non testé ici, résolution neutre.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -44,6 +47,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     repartition_geo_detaillee: [],
     repartition_sector_detaillee: [],
     composition_actions: [],
+    quotites: [],
     ...overrides,
   }
 }

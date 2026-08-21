@@ -1,9 +1,118 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Preferences, ScheduledJob } from '../api/types'
+import type { Detenteur, Preferences, ScheduledJob, TypeDetenteur } from '../api/types'
 import Card from '../components/Card'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure } from '../utils/format'
+
+/** Personnes et sociétés du foyer (backlog 2.L.1) : déclarées une fois ici,
+ * réutilisées ensuite pour répartir la propriété des actifs (quotités, sur la
+ * fiche détaillée de chaque position) et filtrer le patrimoine par détenteur
+ * (barre de contrôles). */
+function DetenteursCard() {
+  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [nom, setNom] = useState('')
+  const [type, setType] = useState<TypeDetenteur>('personne')
+  const [saving, setSaving] = useState(false)
+
+  function load() {
+    setLoading(true)
+    api
+      .listDetenteurs()
+      .then(setDetenteurs)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nom.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      await api.createDetenteur(nom.trim(), type)
+      setNom('')
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(id: number) {
+    setError(null)
+    try {
+      await api.deleteDetenteur(id)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  return (
+    <Card title="Personnes et sociétés">
+      <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+        Déclarées une fois, réutilisées pour répartir la propriété des actifs et des emprunts (quotités, depuis la fiche
+        détaillée de chaque position) et filtrer le patrimoine par détenteur (barre de contrôles, en haut de l'écran).
+      </p>
+
+      {loading ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+      ) : detenteurs.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">Aucun détenteur déclaré.</p>
+      ) : (
+        <ul className="mb-4 divide-y divide-slate-100 dark:divide-slate-700">
+          {detenteurs.map((d) => (
+            <li key={d.id} className="flex items-center justify-between py-2 text-sm">
+              <span className="text-slate-900 dark:text-slate-100">
+                {d.nom} <span className="text-xs text-slate-500 dark:text-slate-400">({d.type === 'personne' ? 'Personne' : 'Société'})</span>
+              </span>
+              <button onClick={() => handleDelete(d.id)} className="text-xs text-red-600 hover:underline dark:text-red-400">
+                Supprimer
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
+        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          Nom
+          <input
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder="Alice"
+            className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+          Type
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as TypeDetenteur)}
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+          >
+            <option value="personne">Personne</option>
+            <option value="societe">Société</option>
+          </select>
+        </label>
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-blue-500"
+        >
+          Ajouter
+        </button>
+      </form>
+      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+    </Card>
+  )
+}
 
 const METHODE_OPTIONS: { value: Preferences['methode_cout']; label: string; description: string }[] = [
   {
@@ -281,6 +390,7 @@ export default function ReglagesPage() {
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       <div className="space-y-4">
+        <DetenteursCard />
         <PreferencesCard />
       </div>
 

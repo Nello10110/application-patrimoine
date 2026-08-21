@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Loan } from '../api/types'
+import type { Holding, Loan } from '../api/types'
 import LoansCard from './LoansCard'
 
 vi.mock('../api/client', () => ({
@@ -10,6 +10,8 @@ vi.mock('../api/client', () => ({
     createLoan: vi.fn(),
     updateLoan: vi.fn(),
     deleteLoan: vi.fn(),
+    // Rattachement à un actif (backlog 2.M.2) — non testé ici, résolution neutre.
+    listHoldings: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -31,8 +33,32 @@ function loan(overrides: Partial<Loan> = {}): Loan {
     capital_restant_du_manuel: null,
     derniere_maj_manuelle: null,
     capital_restant_du: 150000,
+    holding_id: null,
     created_at: '2020-01-01T00:00:00',
     updated_at: '2020-01-01T00:00:00',
+    ...overrides,
+  }
+}
+
+function holding(overrides: Partial<Holding> = {}): Holding {
+  return {
+    id: 1,
+    ticker: 'MAISON',
+    nom: 'Maison',
+    quantite: 1,
+    prix_revient_moyen: 200000,
+    compte: null,
+    devise: null,
+    type_actif: 'REAL_ESTATE',
+    origine: 'manuel',
+    created_at: '2020-01-01T00:00:00',
+    updated_at: '2020-01-01T00:00:00',
+    market_data: null,
+    rendement_depuis_achat_pct: null,
+    rendement_annualise_pct: null,
+    valeur: 300000,
+    valeur_estimee: 300000,
+    date_valeur_estimee: null,
     ...overrides,
   }
 }
@@ -110,5 +136,39 @@ describe('LoansCard', () => {
     fireEvent.click(within(dialogue).getByRole('button', { name: 'Supprimer' }))
 
     await vi.waitFor(() => expect(api.deleteLoan).toHaveBeenCalledWith(1))
+  })
+})
+
+describe('LoansCard — rattachement à un actif (backlog 2.M.2)', () => {
+  it('propose "Aucun" + chaque actif du portefeuille dans le sélecteur de rattachement', async () => {
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, nom: 'Maison' }), holding({ id: 2, ticker: 'AAPL', nom: 'Apple' })])
+    render(<LoansCard />)
+    await screen.findByText('Crédit immobilier')
+
+    const select = await screen.findByDisplayValue('Aucun')
+    expect(within(select).getByRole('option', { name: 'Maison' })).toBeInTheDocument()
+    expect(within(select).getByRole('option', { name: 'Apple' })).toBeInTheDocument()
+  })
+
+  it('choisir un actif appelle updateLoan avec holding_id puis recharge la liste', async () => {
+    vi.mocked(api.listLoans).mockResolvedValueOnce([loan()]).mockResolvedValueOnce([loan({ holding_id: 1 })])
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, nom: 'Maison' })])
+    vi.mocked(api.updateLoan).mockResolvedValue(loan({ holding_id: 1 }))
+    render(<LoansCard />)
+    await screen.findByText('Crédit immobilier')
+    const select = await screen.findByDisplayValue('Aucun')
+
+    fireEvent.change(select, { target: { value: '1' } })
+
+    await vi.waitFor(() => expect(api.updateLoan).toHaveBeenCalledWith(1, { holding_id: 1 }))
+  })
+
+  it('un emprunt déjà rattaché affiche le bon actif présélectionné', async () => {
+    vi.mocked(api.listLoans).mockResolvedValue([loan({ holding_id: 2 })])
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, nom: 'Maison' }), holding({ id: 2, ticker: 'AAPL', nom: 'Apple' })])
+    render(<LoansCard />)
+
+    await screen.findByDisplayValue('Apple')
   })
 })

@@ -25,6 +25,9 @@ vi.mock('./api/client', () => ({
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn().mockResolvedValue(undefined),
+    // Détenteurs (backlog 2.L.1) : `BarreControles` (rendue par `App`) lit
+    // `listDetenteurs()` — non testé ici, résolution neutre.
+    listDetenteurs: vi.fn().mockResolvedValue([]),
   },
 }))
 

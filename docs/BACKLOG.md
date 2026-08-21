@@ -899,7 +899,7 @@ Décision prise le 21/08/2026 : la cible d'usage n'est plus « mono-utilisateur,
 **le foyer, avec exposition depuis le serveur personnel**. Cela rouvre l'authentification, qui
 cesse d'être hors périmètre (§ 3) pour devenir un **préalable bloquant**, comme annoncé.
 
-#### L.1 — `majeur` · `L` · `P0` · `non traité` — Personnes, sociétés et quotités
+#### L.1 — `majeur` · `L` · `P0` · `traité` (21/08/2026) — Personnes, sociétés et quotités
 
 Le modèle actuel ignore la question « à qui appartient quoi ». Or l'immobilier du foyer est détenu
 à 50/50, et le patrimoine réellement disponible pour une personne n'est pas le patrimoine affiché.
@@ -913,6 +913,18 @@ Le modèle actuel ignore la question « à qui appartient quoi ». Or l'immobili
   point de vue d'une personne.
 - Les emprunts existants doivent être **rattachables à un actif** (§ M.2) pour que la part nette
   ait un sens.
+
+**Livré le 21/08/2026** (avec une version minimale de M.2 dans le même incrément, cf. ci-dessous) :
+`Detenteur` (personnes/sociétés), `QuotiteHolding`/`QuotiteLoan` (quotités actif/emprunt, somme
+contrôlée à 100 %, delete-puis-insert), part détenue et part nette calculées côté serveur
+(`services/detenteurs_service.py`), filtre détenteur global branché sur `compute_patrimoine_net` et
+la barre de contrôles K.3 (`BarreControles.tsx`), gestion des détenteurs dans Réglages, éditeur de
+quotités sur la fiche détaillée d'une position, sélecteur de rattachement sur `LoansCard`. Corrige
+au passage un bug préexistant découvert en marge de cet incrément : la fiche détaillée d'une
+position ignorait `valeur_estimee` (immobilier/SCPI/assurance-vie/PER), affichant le coût plutôt
+que la valeur estimée. **Reste hors périmètre** : éditeur dédié d'une quotité d'emprunt distincte
+de celle de l'actif (le calcul backend la supporte déjà — héritage par défaut depuis l'actif — mais
+aucune UI ne permet encore de la saisir explicitement).
 
 #### L.2 — `majeur` · `M` · `P0` · `non traité` — Exposition sécurisée sur le serveur personnel
 
@@ -953,11 +965,16 @@ Par ordre d'utilité décroissante pour le foyer :
 | Titres non cotés / startups | Coût de revient, valorisation au dernier tour | P2 |
 | Objets de valeur (montres, art) | Déjà couvert par « autre actif », à typer proprement | P3 |
 
-#### M.2 — `majeur` · `M` · `P0` · `non traité` — Rattachement emprunt ↔ actif
+#### M.2 — `majeur` · `M` · `P0` · `traité` (version minimale, 21/08/2026) — Rattachement emprunt ↔ actif
 
 Prérequis de la part nette (§ L.1) et de la rentabilité immobilière (§ M.3). Un emprunt se
 rattache à zéro, un ou plusieurs actifs, avec une clé de répartition. Le tableau des passifs affiche
 l'actif financé ; la fiche de l'actif affiche ses emprunts et le capital restant dû.
+
+**Livré le 21/08/2026, en même temps que L.1** : `Loan.holding_id` (rattachement simple, un emprunt
+vers au plus un actif), sélecteur dans `LoansCard.tsx`. **Reste hors périmètre** : rattachement
+d'un même emprunt à plusieurs actifs avec une clé de répartition (aujourd'hui : un emprunt ne peut
+être rattaché qu'à un seul actif à la fois) — à traiter si un besoin réel se présente.
 
 #### M.3 — `majeur` · `M` · `P1` · `non traité` — Fiche immobilier complète
 

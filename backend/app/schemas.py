@@ -472,6 +472,98 @@ class HoldingDetail(BaseModel):
     repartition_geo_detaillee: list[RepartitionItem] = []
     repartition_sector_detaillee: list[RepartitionItem] = []
     composition_actions: list[FundTopHoldingItem] = []
+    # Détenteurs (backlog 2.L.1) : quotités de l'actif + part détenue/nette calculée
+    # par détenteur. Listes vides si l'utilisateur n'a déclaré aucun détenteur, ou si
+    # cette ligne n'a jamais été répartie (100 % foyer implicite).
+    quotites: list["QuotiteDetenteurItem"] = []
+
+
+TYPES_DETENTEUR_VALIDES = {"personne", "societe"}
+
+
+class DetenteurBase(BaseModel):
+    nom: str
+    type: str  # "personne" | "societe"
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Le nom ne peut pas être vide")
+        return v
+
+    @field_validator("type")
+    @classmethod
+    def _valider_type(cls, v: str) -> str:
+        if v not in TYPES_DETENTEUR_VALIDES:
+            raise ValueError(f"Type de détenteur invalide : doit être l'un de {TYPES_DETENTEUR_VALIDES}")
+        return v
+
+
+class DetenteurCreate(DetenteurBase):
+    pass
+
+
+class DetenteurUpdate(BaseModel):
+    nom: str | None = None
+    type: str | None = None
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Le nom ne peut pas être vide")
+        return v
+
+    @field_validator("type")
+    @classmethod
+    def _valider_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in TYPES_DETENTEUR_VALIDES:
+            raise ValueError(f"Type de détenteur invalide : doit être l'un de {TYPES_DETENTEUR_VALIDES}")
+        return v
+
+
+class DetenteurOut(DetenteurBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class QuotiteDetenteurItem(BaseModel):
+    """Une ligne de la répartition d'un actif (backlog 2.L.1) : la quotité saisie,
+    plus la part détenue/nette qui en découle — calculées côté serveur, jamais côté
+    frontend (même discipline que `HoldingOut.valeur`/`LoanOut.capital_restant_du`)."""
+
+    detenteur_id: int
+    detenteur_nom: str
+    quotite_pct: float
+    part_detenue: float
+    part_nette: float
+
+
+class QuotiteEntree(BaseModel):
+    """Une ligne envoyée par le client pour (re)définir la répartition d'un actif ou
+    d'un emprunt — `PUT .../quotites`, remplacement intégral de l'ensemble existant."""
+
+    detenteur_id: int
+    quotite_pct: float
+
+    @field_validator("quotite_pct")
+    @classmethod
+    def _valider_quotite(cls, v: float) -> float:
+        if not (0 < v <= 100):
+            raise ValueError("La quotité doit être strictement comprise entre 0 et 100")
+        return v
+
+
+class QuotitesUpdate(BaseModel):
+    quotites: list[QuotiteEntree]
 
 
 class EtatRafraichissement(BaseModel):
@@ -616,6 +708,11 @@ class LoanUpdate(BaseModel):
     date_debut: datetime | None = None
     duree_mois: int | None = None
     capital_restant_du_manuel: float | None = None
+    # Rattachement à un actif (backlog 2.M.2) — champ à part (pas dans `LoanBase`, non
+    # demandé à la création) : `None` explicite dans le corps de la requête signifie
+    # "dérattacher", absence du champ signifie "ne pas toucher" (cf. `routers/loans.py`,
+    # exclude_unset=True).
+    holding_id: int | None = None
 
     @field_validator("libelle")
     @classmethod
@@ -677,6 +774,7 @@ class LoanOut(LoanBase):
     # `model_validate(loan)` réussisse (`from_attributes=True` exige l'attribut) avant
     # d'être systématiquement écrasée par `routers/loans._vers_loan_out`.
     capital_restant_du: float = 0.0
+    holding_id: int | None = None
 
 
 class RepartitionParClasseItem(BaseModel):

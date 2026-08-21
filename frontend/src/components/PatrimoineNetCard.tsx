@@ -23,11 +23,11 @@ const TUILE_PRINCIPALE = {
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
 export default function PatrimoineNetCard() {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
-  const { lentille, montantsMasques } = usePreferencesAffichage()
+  const { lentille, montantsMasques, detenteurId } = usePreferencesAffichage()
 
   useEffect(() => {
-    api.getPatrimoineNet().then(setPatrimoine).catch(() => setPatrimoine(null))
-  }, [])
+    api.getPatrimoineNet(detenteurId).then(setPatrimoine).catch(() => setPatrimoine(null))
+  }, [detenteurId])
 
   // Rien à montrer tant qu'aucun actif n'a été ajouté nulle part (positions,
   // immobilier, épargne...) — pas de carte vide pour un portefeuille tout neuf.

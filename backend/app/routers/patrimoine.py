@@ -9,12 +9,12 @@ calculés côté client (`frontend/src/utils/interetsComposes.ts`) — ce module
 n'expose donc plus que le patrimoine net lui-même, plus d'endpoint
 `/simulation`/`/fire` dédié."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import User
+from ..models import Detenteur, User
 from ..schemas import PatrimoineNetResponse
 from ..services import patrimoine_service
 
@@ -22,5 +22,13 @@ router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
 
 
 @router.get("/net", response_model=PatrimoineNetResponse)
-def get_patrimoine_net(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return PatrimoineNetResponse(**patrimoine_service.compute_patrimoine_net(db, current_user.id))
+def get_patrimoine_net(
+    detenteur_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if detenteur_id is not None:
+        detenteur = db.get(Detenteur, detenteur_id)
+        if detenteur is None or detenteur.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Détenteur introuvable")
+    return PatrimoineNetResponse(**patrimoine_service.compute_patrimoine_net(db, current_user.id, detenteur_id))

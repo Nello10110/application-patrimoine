@@ -25,9 +25,13 @@ function patrimoine(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
 // Lentille (backlog 2.K.3) : `PatrimoineNetCard` lit `usePreferencesAffichage()`, donc
 // tout rendu doit fournir le contexte — `lentille` par défaut à 'net' (comportement
 // historique de la carte, inchangé pour les tests qui ne portent pas sur K.3).
-function renderCard(lentille: Lentille = 'net') {
+// `detenteurId` (backlog 2.L.1) par défaut à `null` (vue foyer, comportement
+// historique inchangé pour les tests qui ne portent pas sur L.1).
+function renderCard(lentille: Lentille = 'net', detenteurId: number | null = null) {
   return render(
-    <PreferencesAffichageContext.Provider value={{ lentille, setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }}>
+    <PreferencesAffichageContext.Provider
+      value={{ lentille, setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn(), detenteurId, setDetenteurId: vi.fn() }}
+    >
       <PatrimoineNetCard />
     </PreferencesAffichageContext.Provider>,
   )
@@ -108,5 +112,21 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
 
     await screen.findByText('Patrimoine financier')
     expect(screen.getByText('90 000 €')).toBeInTheDocument()
+  })
+})
+
+describe('PatrimoineNetCard — filtre détenteur (backlog 2.L.1)', () => {
+  it('transmet detenteurId à getPatrimoineNet', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1000, patrimoine_net: 1000 }))
+    renderCard('net', 42)
+
+    await vi.waitFor(() => expect(api.getPatrimoineNet).toHaveBeenCalledWith(42))
+  })
+
+  it('detenteurId=null (défaut) appelle getPatrimoineNet sans filtre, comme avant L.1', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine())
+    renderCard('net', null)
+
+    await vi.waitFor(() => expect(api.getPatrimoineNet).toHaveBeenCalledWith(null))
   })
 })
