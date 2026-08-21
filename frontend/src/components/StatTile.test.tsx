@@ -20,12 +20,12 @@ describe('StatTile', () => {
   it('applique la classe de ton correspondante', () => {
     render(<StatTile label="Rendement" value="+12,3%" tone="good" />)
 
-    expect(screen.getByText('+12,3%')).toHaveClass('text-emerald-600')
+    expect(screen.getByText('+12,3%')).toHaveClass('text-positif')
   })
 
   it('utilise le ton neutre par défaut', () => {
     render(<StatTile label="Rendement" value="+12,3%" />)
 
-    expect(screen.getByText('+12,3%')).toHaveClass('text-slate-900')
+    expect(screen.getByText('+12,3%')).toHaveClass('text-texte')
   })
 })

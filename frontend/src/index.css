@@ -53,3 +53,63 @@ body {
 .recharts-pie-label-text {
   fill: var(--color-chart-axis);
 }
+
+/* Système de design (backlog 2.K.1) : jetons sémantiques de couleur + échelle
+   typographique. Même pattern d'indirection que les variables Recharts ci-dessus,
+   mais couplé à `@theme` (Tailwind v4, CSS-first) pour générer des classes
+   utilitaires (`bg-surface`, `text-texte`, `text-display`...) dont la VALEUR reste
+   une variable runtime réévaluée par le navigateur au changement de `.dark` — pas
+   de re-render React nécessaire. */
+@theme {
+  --color-surface: var(--surface);
+  --color-surface-elevee: var(--surface-elevee);
+  --color-bordure: var(--bordure);
+  --color-texte: var(--texte);
+  --color-texte-attenue: var(--texte-attenue);
+  --color-positif: var(--positif);
+  --color-negatif: var(--negatif);
+  --color-accent: var(--accent);
+  --color-avertissement: var(--avertissement);
+
+  --text-display: 2rem;
+  --text-display--line-height: 1.2;
+  --text-display--font-weight: 700;
+  --text-titre: 1.5rem;
+  --text-titre--line-height: 1.3;
+  --text-titre--font-weight: 600;
+  --text-soustitre: 1.125rem;
+  --text-soustitre--line-height: 1.4;
+  --text-soustitre--font-weight: 600;
+  --text-corps: 1rem;
+  --text-corps--line-height: 1.5;
+  --text-petit: 0.875rem;
+  --text-petit--line-height: 1.5;
+  --text-micro: 0.75rem;
+  --text-micro--line-height: 1.4;
+  --text-micro--font-weight: 500;
+  --text-micro--letter-spacing: 0.03em;
+}
+
+:root {
+  --surface: #ffffff;
+  --surface-elevee: #f8fafc; /* slate-50 */
+  --bordure: #e2e8f0; /* slate-200 */
+  --texte: #0f172a; /* slate-900 */
+  --texte-attenue: #64748b; /* slate-500 */
+  --positif: #059669; /* emerald-600 */
+  --negatif: #dc2626; /* red-600 */
+  --accent: #4f46e5; /* indigo-600 */
+  --avertissement: #d97706; /* amber-600 */
+}
+
+.dark {
+  --surface: #1e293b; /* slate-800 */
+  --surface-elevee: #334155; /* slate-700 */
+  --bordure: #334155; /* slate-700 */
+  --texte: #f1f5f9; /* slate-100 */
+  --texte-attenue: #94a3b8; /* slate-400 */
+  --positif: #34d399; /* emerald-400 */
+  --negatif: #f87171; /* red-400 */
+  --accent: #818cf8; /* indigo-400 */
+  --avertissement: #fbbf24; /* amber-400 */
+}

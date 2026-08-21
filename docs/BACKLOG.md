@@ -798,6 +798,15 @@ défauts.
   navigation clavier complète (le chantier d'août avait déjà traité ce point, il ne doit pas
   régresser).
 
+**Incrément pilote livré le 21/08/2026** : les 9 jetons sémantiques de couleur et l'échelle
+typographique à 6 niveaux sont posés dans `frontend/src/index.css` (mécanisme `@theme` de
+Tailwind v4, valeurs indirectes vers des variables `:root`/`.dark` réévaluées par le navigateur au
+changement de thème — même pattern déjà en place pour les couleurs Recharts). Deux composants
+migrés à titre de preuve (`Card.tsx`, `StatTile.tsx`), zéro régression visuelle vérifiée en
+conditions réelles (clair et sombre). **Reste non traité** : la bibliothèque d'icônes, les 7
+composants de base (`Skeleton`, `EtatVide`, `EtatErreur`, `Badge`, `Tooltip`, `SegmentedControl`,
+`Sheet`), et la migration des ~27 fichiers/~630 occurrences `dark:` restantes.
+
 #### K.2 — `majeur` · `M` · `P0` · `non traité` — Navigation : barre latérale et hiérarchie
 
 - **Barre latérale verticale repliable**, avec deux rangs : les écrans de consultation

@@ -15,10 +15,10 @@ export default function Card({
   className?: string
 }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 ${className}`}>
+    <div className={`rounded-xl border border-bordure bg-surface p-5 shadow-sm ${className}`}>
       {title && (
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">{title}</h2>
           {headerActions}
         </div>
       )}
