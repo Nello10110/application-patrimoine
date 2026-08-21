@@ -112,7 +112,7 @@ function DetenteursCard() {
           Ajouter
         </button>
       </form>
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={load} />}
     </Card>
   )
 }
@@ -137,13 +137,17 @@ function PreferencesCard() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
-  useEffect(() => {
+  function chargerPreferences() {
+    setLoading(true)
+    setError(null)
     api
       .getPreferences()
       .then(setPrefs)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(chargerPreferences, [])
 
   async function handleMethodeChange(methode_cout: Preferences['methode_cout']) {
     if (!prefs) return
@@ -182,7 +186,7 @@ function PreferencesCard() {
   }
 
   if (loading) return <SkeletonTexte />
-  if (!prefs) return error ? <EtatErreur message={error} /> : null
+  if (!prefs) return error ? <EtatErreur message={error} onReessayer={chargerPreferences} /> : null
 
   return (
     <>
@@ -432,7 +436,7 @@ function SessionsCard() {
           ))}
         </ul>
       )}
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={load} />}
     </Card>
   )
 }
@@ -445,14 +449,17 @@ function JournalAccesCard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  function charger() {
     setLoading(true)
+    setError(null)
     api
       .getAccessLog(page)
       .then(setEntrees)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [page])
+  }
+
+  useEffect(charger, [page])
 
   return (
     <Card title="Journal d'accès">
@@ -460,7 +467,16 @@ function JournalAccesCard() {
       {loading ? (
         <SkeletonTexte />
       ) : entrees.length === 0 ? (
-        <EtatVide titre={`Aucune entrée${page > 1 ? ' sur cette page' : ''}.`} />
+        <EtatVide
+          titre={`Aucune entrée${page > 1 ? ' sur cette page' : ''}.`}
+          description={
+            page > 1 ? (
+              <button type="button" onClick={() => setPage(1)} className="font-medium text-accent hover:underline">
+                Retourner en page 1
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
         <ul className="divide-y divide-bordure">
           {entrees.map((e) => (
@@ -492,7 +508,7 @@ function JournalAccesCard() {
           Page suivante
         </button>
       </div>
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={charger} />}
     </Card>
   )
 }
@@ -575,7 +591,7 @@ function GestionFoyerCard() {
       {loading ? (
         <SkeletonTexte />
       ) : membres.length === 0 ? (
-        <EtatVide titre="Aucun autre compte dans ce foyer." />
+        <EtatVide titre="Aucun autre compte dans ce foyer." description="Ajoute un membre ou un invité avec le formulaire ci-dessous." />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
           {membres.map((m) => (
@@ -642,7 +658,7 @@ function GestionFoyerCard() {
         </div>
       )}
 
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={load} />}
     </Card>
   )
 }
@@ -652,13 +668,17 @@ export default function ReglagesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  function chargerJobs() {
+    setLoading(true)
+    setError(null)
     api
       .listJobs()
       .then(setJobs)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(chargerJobs, [])
 
   function updateJobInState(updated: ScheduledJob) {
     setJobs((prev) => prev.map((j) => (j.job_key === updated.job_key ? updated : j)))
@@ -669,7 +689,7 @@ export default function ReglagesPage() {
       <h2 className="text-xl font-semibold text-texte">Réglages</h2>
 
       {loading && <SkeletonTexte />}
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={chargerJobs} />}
 
       <div className="space-y-4">
         <DetenteursCard />

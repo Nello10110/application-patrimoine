@@ -873,7 +873,7 @@ L'application est déjà installable (PWA, § H.1) mais n'est pas utilisable au 
 - Cibles tactiles ≥ 44 px, aucune interaction dépendante du survol.
 - Test obligatoire à 390 px (iPhone), 768 px (tablette), 1 440 px et 1 920 px.
 
-#### K.5 — `mineur` · `S` · `P1` · `non traité` — États de chargement, vides et d'erreur
+#### K.5 — `mineur` · `S` · `P1` · `traité` (21/08/2026) — États de chargement, vides et d'erreur
 
 Un traitement uniforme, appliqué à chaque écran et à chaque carte :
 
@@ -883,6 +883,29 @@ Un traitement uniforme, appliqué à chaque écran et à chaque carte :
   Finary (§ 1.2) est le contre-exemple à garder en tête.
 - **Erreur** : cause en français, action de reprise, et jamais la disparition silencieuse d'une
   carte.
+
+**Livré et vérifié le 21/08/2026.** `EtatErreur` gagne une action de reprise optionnelle
+(`onReessayer`, bouton « Réessayer ») — le manque le plus structurel relevé par l'audit initial,
+maintenant câblée sur une vingtaine de sites d'appel existants (chaque fois qu'une fonction de
+chargement nommée existe ou peut en être extraite ; volontairement absente des erreurs de mutation
+pures où le bouton d'origine de l'action reste actionnable juste au-dessus). Les fetches dont
+l'échec réseau était avalé silencieusement (`.catch(() => set(null))`, confondant chargement/erreur/
+absence réelle de données) ont été corrigés : `PatrimoineNetCard` (le cas le plus visible — la carte
+`return null` dans les trois cas à la fois avant cet incrément), les 3 sections indépendantes du
+tableau de bord (rentabilité, coût de gestion, répartition par compte — chacune avec son propre
+squelette/erreur, un échec de l'une n'affecte plus les autres), `HoldingPriceHistoryChart` (erreur
+réseau désormais distincte d'une absence légitime de cotation) et les 2 préchargements optionnels de
+`SimulateurPage` (dégradation non bloquante conservée, mais l'échec devient visible). Trois derniers
+sites en texte brut migrés vers `Skeleton`/`SkeletonTexte`. États vides corrigés : un vrai bug
+(`PortefeuillePage`/`PositionsTable` rendait un tableau vide sans aucun message quand un filtre
+catégorie/compte ne matchait rien) et plusieurs messages trop génériques enrichis d'un « quoi faire »
+(`AllocationChartCard`, `LoansCard`, journal d'accès et comptes du foyer dans Réglages). La bannière
+d'erreur ad hoc de `RepartitionPage` (seul vrai bouton Réessayer du code avant cet incrément) est
+consolidée dans le composant partagé. **Trouvé en vérifiant K.5** (hors périmètre de son propre
+correctif, documenté comme limite assumée) : les 3 sections indépendantes du tableau de bord restent
+imbriquées dans le bloc conditionné par `analysis`/`loading` — si `analysis` échoue alors qu'elles
+réussissent, leur squelette/erreur reste invisible ; les en sortir changerait l'ordre visuel de la
+page, décision de mise en page à trancher séparément.
 
 #### K.6 — `mineur` · `S` · `P1` · `non traité` — Hiérarchie de lecture du tableau de bord
 

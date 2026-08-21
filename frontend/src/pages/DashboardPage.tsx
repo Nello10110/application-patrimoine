@@ -23,11 +23,24 @@ export default function DashboardPage() {
   const [annee, setAnnee] = useState(CURRENT_YEAR)
   const [anneesDisponibles, setAnneesDisponibles] = useState<number[]>([CURRENT_YEAR])
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
-  const [performance, setPerformance] = useState<PerformanceSummary | null>(null)
-  const [comptes, setComptes] = useState<RepartitionComptesResponse | null>(null)
-  const [coutGestion, setCoutGestion] = useState<CoutGestionConsolide | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Rentabilité, répartition par compte et coût de gestion (backlog 2.K.5) : chacun
+  // son propre état chargement/erreur — indépendants de `analysis`/`loading`
+  // ci-dessus, un échec de l'un ne doit ni bloquer ni masquer silencieusement les
+  // deux autres.
+  const [performance, setPerformance] = useState<PerformanceSummary | null>(null)
+  const [chargementPerformance, setChargementPerformance] = useState(true)
+  const [erreurPerformance, setErreurPerformance] = useState<string | null>(null)
+
+  const [comptes, setComptes] = useState<RepartitionComptesResponse | null>(null)
+  const [chargementComptes, setChargementComptes] = useState(true)
+  const [erreurComptes, setErreurComptes] = useState<string | null>(null)
+
+  const [coutGestion, setCoutGestion] = useState<CoutGestionConsolide | null>(null)
+  const [chargementCoutGestion, setChargementCoutGestion] = useState(true)
+  const [erreurCoutGestion, setErreurCoutGestion] = useState<string | null>(null)
   const [modal, setModal] = useState<{ type: 'geo' | 'sector'; categorie: string } | null>(null)
 
   // Années réellement enregistrées (`GET /api/targets/`, cf. LOT 5.3) plutôt qu'une
@@ -49,6 +62,40 @@ export default function DashboardPage() {
   // Recharge l'analyse (dépend de l'année sélectionnée) et la rentabilité (globale,
   // indépendante de l'année) — factorisé pour servir à la fois à l'effet déclenché
   // par le changement d'année et au bouton "Actualiser".
+  function chargerPerformance() {
+    setChargementPerformance(true)
+    setErreurPerformance(null)
+    api
+      .getPerformance()
+      .then(setPerformance)
+      .catch((err) => setErreurPerformance(err.message))
+      .finally(() => setChargementPerformance(false))
+  }
+
+  // Répartition par compte (LOT 5.1) : indépendante de l'année sélectionnée, comme
+  // la rentabilité ci-dessus — pas de blocage de la page si elle échoue.
+  function chargerComptes() {
+    setChargementComptes(true)
+    setErreurComptes(null)
+    api
+      .getRepartitionComptes()
+      .then(setComptes)
+      .catch((err) => setErreurComptes(err.message))
+      .finally(() => setChargementComptes(false))
+  }
+
+  // Coût de gestion consolidé (§ E.3) : indépendant de l'année sélectionnée, même
+  // philosophie que la répartition par compte ci-dessus.
+  function chargerCoutGestion() {
+    setChargementCoutGestion(true)
+    setErreurCoutGestion(null)
+    api
+      .getCoutGestionConsolide()
+      .then(setCoutGestion)
+      .catch((err) => setErreurCoutGestion(err.message))
+      .finally(() => setChargementCoutGestion(false))
+  }
+
   function chargerDonnees() {
     setLoading(true)
     setError(null)
@@ -57,13 +104,9 @@ export default function DashboardPage() {
       .then(setAnalysis)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-    api.getPerformance().then(setPerformance).catch(() => setPerformance(null))
-    // Répartition par compte (LOT 5.1) : indépendante de l'année sélectionnée, comme
-    // la rentabilité ci-dessus — pas de blocage de la page si elle échoue.
-    api.getRepartitionComptes().then(setComptes).catch(() => setComptes(null))
-    // Coût de gestion consolidé (§ E.3) : indépendant de l'année sélectionnée, même
-    // philosophie que la répartition par compte ci-dessus.
-    api.getCoutGestionConsolide().then(setCoutGestion).catch(() => setCoutGestion(null))
+    chargerPerformance()
+    chargerComptes()
+    chargerCoutGestion()
   }
 
   useEffect(chargerDonnees, [annee])
@@ -105,7 +148,7 @@ export default function DashboardPage() {
       <PatrimoineNetCard />
 
       {loading && <SkeletonTexte lignes={4} />}
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={chargerDonnees} />}
 
       {!loading && !error && analysis && (
         <>
@@ -138,7 +181,11 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          {performance && performance.nombre_transactions > 0 && <PerformanceCard performance={performance} />}
+          {chargementPerformance && <SkeletonTexte lignes={2} />}
+          {erreurPerformance && <EtatErreur message={erreurPerformance} onReessayer={chargerPerformance} />}
+          {!chargementPerformance && !erreurPerformance && performance && performance.nombre_transactions > 0 && (
+            <PerformanceCard performance={performance} />
+          )}
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />
@@ -184,9 +231,13 @@ export default function DashboardPage() {
 
           <QualiteDonneesCard qualite={analysis.qualite_donnees} />
 
-          {coutGestion && <CoutGestionCard cout={coutGestion} />}
+          {chargementCoutGestion && <SkeletonTexte lignes={2} />}
+          {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}
+          {!chargementCoutGestion && !erreurCoutGestion && coutGestion && <CoutGestionCard cout={coutGestion} />}
 
-          {comptes && comptes.a_des_comptes_annotes && (
+          {chargementComptes && <SkeletonTexte lignes={2} />}
+          {erreurComptes && <EtatErreur message={erreurComptes} onReessayer={chargerComptes} />}
+          {!chargementComptes && !erreurComptes && comptes && comptes.a_des_comptes_annotes && (
             <Card title="Répartition par compte">
               <ul className="divide-y divide-bordure">
                 {comptes.items.map((item) => (

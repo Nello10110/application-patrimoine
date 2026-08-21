@@ -7,7 +7,7 @@ import { useHoldingDetail } from '../hooks/useHoldingDetail'
 
 export default function HoldingDetailPage() {
   const { ticker } = useParams<{ ticker: string }>()
-  const { detail, loading, error } = useHoldingDetail(ticker)
+  const { detail, loading, error, recharger } = useHoldingDetail(ticker)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -22,7 +22,7 @@ export default function HoldingDetailPage() {
   }
 
   if (loading) return <SkeletonTexte lignes={5} />
-  if (error) return <EtatErreur message={error} />
+  if (error) return <EtatErreur message={error} onReessayer={recharger} />
   if (!detail) return null
 
   return (

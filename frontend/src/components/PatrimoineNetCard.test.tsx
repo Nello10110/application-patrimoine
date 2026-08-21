@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { PatrimoineNet } from '../api/types'
@@ -52,16 +52,49 @@ describe('PatrimoineNetCard', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine())
     const { container } = renderCard()
 
-    await vi.waitFor(() => expect(api.getPatrimoineNet).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
+    // Attend la fin du chargement (le squelette disparaît), pas seulement l'appel
+    // API lui-même — sinon la vérification peut s'exécuter pendant que le squelette
+    // est encore affiché (backlog 2.K.5).
+    await vi.waitFor(() => expect(container).toBeEmptyDOMElement())
   })
 
-  it("n'affiche rien si l'appel API échoue", async () => {
-    vi.mocked(api.getPatrimoineNet).mockRejectedValue(new Error('panne simulée'))
-    const { container } = renderCard()
+  it('affiche un squelette pendant le chargement, jamais une carte vide', () => {
+    vi.mocked(api.getPatrimoineNet).mockReturnValue(new Promise(() => {}))
+    render(
+      <PreferencesAffichageContext.Provider
+        value={{
+          lentille: 'net',
+          setLentille: vi.fn(),
+          montantsMasques: false,
+          toggleMontantsMasques: vi.fn(),
+          detenteurId: null,
+          setDetenteurId: vi.fn(),
+          periode: PERIODE_DEFAUT,
+          setPeriode: vi.fn(),
+        }}
+      >
+        <PatrimoineNetCard />
+      </PreferencesAffichageContext.Provider>,
+    )
 
-    await vi.waitFor(() => expect(api.getPatrimoineNet).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
+  it("affiche EtatErreur + Réessayer si l'appel API échoue, puis les données une fois relancé (backlog 2.K.5)", async () => {
+    vi.mocked(api.getPatrimoineNet).mockClear()
+    vi.mocked(api.getPatrimoineNet).mockRejectedValueOnce(new Error('panne simulée'))
+    renderCard()
+
+    await screen.findByText('panne simulée')
+    const bouton = screen.getByRole('button', { name: 'Réessayer' })
+
+    vi.mocked(api.getPatrimoineNet).mockResolvedValueOnce(
+      patrimoine({ actifs_totaux: 300000, passifs_totaux: 120000, patrimoine_net: 180000 }),
+    )
+    fireEvent.click(bouton)
+
+    await screen.findByText('300 000 €')
+    expect(api.getPatrimoineNet).toHaveBeenCalledTimes(2)
   })
 
   it('affiche les actifs, passifs et le patrimoine net', async () => {

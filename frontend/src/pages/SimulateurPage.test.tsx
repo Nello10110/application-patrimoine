@@ -126,6 +126,19 @@ describe('SimulateurPage', () => {
     expect((await screen.findAllByText(motifEuro(1000, 0))).length).toBeGreaterThanOrEqual(2)
   })
 
+  it("un échec de chargement du patrimoine net affiche une erreur avec action de reprise (backlog 2.K.5)", async () => {
+    vi.mocked(api.getPatrimoineNet).mockRejectedValueOnce(new Error('panne simulée'))
+    render(<SimulateurPage />)
+
+    await screen.findByText(/n'a pas pu être préchargé/)
+    const bouton = screen.getByRole('button', { name: 'Réessayer' })
+
+    vi.mocked(api.getPatrimoineNet).mockResolvedValueOnce(patrimoineNet({ patrimoine_net: 25000 }))
+    fireEvent.click(bouton)
+
+    await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(25000))
+  })
+
   describe('FIRE', () => {
     it("n'affiche aucun résultat tant qu'aucune dépense cible n'est saisie", async () => {
       render(<SimulateurPage />)

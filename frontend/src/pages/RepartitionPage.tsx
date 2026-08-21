@@ -291,25 +291,20 @@ export default function RepartitionPage() {
         </p>
       )}
 
-      {/* Bandeau à fond teinté : même exception que `QualiteDonneesCard` (backlog
-          2.K.1) — hors des 9 jetons sémantiques. */}
       {echecChargement && (
-        <Card className="border-red-200 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10">
-          <p className="text-sm text-red-800 dark:text-red-300">
-            Impossible de charger les objectifs de {annee} : {echecChargement}
-          </p>
-          <p className="mt-1 text-xs text-red-700 dark:text-red-400">
-            La saisie est désactivée tant que les objectifs enregistrés n'ont pas pu être relus — enregistrer
-            maintenant les remplacerait par une répartition vide.
-          </p>
-          <button
-            onClick={() => setCompteurRechargement((n) => n + 1)}
-            type="button"
-            className="mt-3 rounded-md bg-texte px-3 py-1.5 text-xs font-medium text-surface"
-          >
-            Réessayer
-          </button>
-        </Card>
+        <EtatErreur
+          message={
+            <>
+              Impossible de charger les objectifs de {annee} : {echecChargement}
+              <br />
+              <span className="text-xs">
+                La saisie est désactivée tant que les objectifs enregistrés n'ont pas pu être relus — enregistrer
+                maintenant les remplacerait par une répartition vide.
+              </span>
+            </>
+          }
+          onReessayer={() => setCompteurRechargement((n) => n + 1)}
+        />
       )}
 
       {echecChargement ? null : loadingTargets ? (
@@ -324,8 +319,8 @@ export default function RepartitionPage() {
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-texte-attenue">Rééquilibrage</h3>
 
-        {loadingAnalysis && <p className="text-sm text-texte-attenue">Chargement...</p>}
-        {erreurAnalysis && <EtatErreur message={erreurAnalysis} />}
+        {loadingAnalysis && <SkeletonTexte lignes={3} />}
+        {erreurAnalysis && <EtatErreur message={erreurAnalysis} onReessayer={chargerAnalysis} />}
 
         {!loadingAnalysis && !erreurAnalysis && analysis && (
           <div className="space-y-4">

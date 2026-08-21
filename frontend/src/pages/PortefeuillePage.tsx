@@ -59,6 +59,19 @@ export default function PortefeuillePage() {
     })
   }
 
+  // Un seul appel `setSearchParams` (backlog 2.K.5) : deux appels synchrones
+  // successifs (`setCategorie` puis `setFiltreCompte`) partiraient chacun du même
+  // `prev` non encore réévalué par un nouveau rendu, et le second écraserait l'effet
+  // du premier — bug réel constaté sur le bouton "Réinitialiser les filtres".
+  function reinitialiserFiltres() {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('categorie')
+      next.delete('compte')
+      return next
+    })
+  }
+
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -182,7 +195,7 @@ export default function PortefeuillePage() {
         </div>
       </div>
 
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={load} />}
       {erreurRafraichissement && <EtatErreur message={erreurRafraichissement} />}
 
       <Card title="Ajouter une ligne manuellement">
@@ -306,6 +319,15 @@ export default function PortefeuillePage() {
           <SkeletonTexte lignes={5} />
         ) : holdings.length === 0 ? (
           <EtatVide titre="Aucune position. Ajoute une ligne ou importe un fichier." />
+        ) : lignesFiltrees.length === 0 ? (
+          <EtatVide
+            titre="Aucune position ne correspond à ce filtre."
+            description={
+              <button type="button" onClick={reinitialiserFiltres} className="font-medium text-accent hover:underline">
+                Réinitialiser les filtres
+              </button>
+            }
+          />
         ) : (
           <PositionsTable
             rows={lignesFiltrees}

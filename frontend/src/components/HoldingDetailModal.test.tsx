@@ -81,6 +81,29 @@ describe('HoldingDetailModal — lien "Ouvrir en pleine page" (LOT 6.1)', () => 
   })
 })
 
+describe('HoldingDetailModal — erreur avec action de reprise (backlog 2.K.5)', () => {
+  it('Réessayer relance getHoldingDetail après un échec', async () => {
+    vi.mocked(api.getHoldingDetail).mockClear()
+    vi.mocked(api.getHoldingDetail).mockRejectedValueOnce(new Error('panne simulée'))
+    render(
+      <MemoryRouter>
+        <HoldingDetailModal ticker="AAPL" onClose={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('panne simulée')
+
+    vi.mocked(api.getHoldingDetail).mockResolvedValueOnce(detail())
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    // "Apple Inc." apparaît deux fois une fois la fiche chargée (titre de la modale
+    // ET titre du contenu) — `findAllByText` plutôt que `findByText` pour ne pas
+    // lever sur cette ambiguïté déjà présente hors de ce test.
+    expect(await screen.findAllByText('Apple Inc.')).not.toHaveLength(0)
+    expect(api.getHoldingDetail).toHaveBeenCalledTimes(2)
+  })
+})
+
 // LOT 6.12 : composition_actions justETF (2.6) n'a pas de ticker Yahoo distinct — le
 // service pose `symbol === nom` (le nom de l'entreprise dans les deux champs), ce qui
 // ne doit pas afficher un sous-titre redondant comme le fait déjà la composition

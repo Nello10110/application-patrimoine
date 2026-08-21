@@ -4,6 +4,8 @@ import type { PatrimoineNet } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
+import EtatErreur from './EtatErreur'
+import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
 
 // Lentille (backlog 2.K.3) : quelle valeur devient la tuile principale, avec son
@@ -23,14 +25,42 @@ const TUILE_PRINCIPALE = {
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
 export default function PatrimoineNetCard() {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { lentille, montantsMasques, detenteurId } = usePreferencesAffichage()
 
-  useEffect(() => {
-    api.getPatrimoineNet(detenteurId).then(setPatrimoine).catch(() => setPatrimoine(null))
-  }, [detenteurId])
+  function charger() {
+    setLoading(true)
+    setError(null)
+    api
+      .getPatrimoineNet(detenteurId)
+      .then(setPatrimoine)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(charger, [detenteurId])
+
+  if (loading) {
+    return (
+      <Card title="Patrimoine net">
+        <SkeletonTexte lignes={3} />
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card title="Patrimoine net">
+        <EtatErreur message={error} onReessayer={charger} />
+      </Card>
+    )
+  }
 
   // Rien à montrer tant qu'aucun actif n'a été ajouté nulle part (positions,
   // immobilier, épargne...) — pas de carte vide pour un portefeuille tout neuf.
+  // Atteint désormais uniquement sur une vraie absence de données (backlog 2.K.5),
+  // plus jamais sur un chargement ou un échec réseau (couverts ci-dessus).
   if (!patrimoine || (patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0)) return null
 
   const principale = TUILE_PRINCIPALE[lentille](patrimoine)

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { ZoneGeographiqueInfo } from '../api/types'
 import Card from '../components/Card'
+import EtatErreur from '../components/EtatErreur'
+import { SkeletonTexte } from '../components/Skeleton'
 
 // Couleurs distinctes par zone (bordure + badge), choisies pour rester lisibles en
 // clair comme en sombre — purement décoratif, aucun lien avec les couleurs des
@@ -229,12 +231,15 @@ export default function AidePage() {
   const [zones, setZones] = useState<ZoneGeographiqueInfo[] | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
-  useEffect(() => {
+  function charger() {
+    setErreur(null)
     api
       .getZonesGeographiques()
       .then(setZones)
       .catch((err) => setErreur(err.message))
-  }, [])
+  }
+
+  useEffect(charger, [])
 
   return (
     <div className="space-y-6">
@@ -252,8 +257,8 @@ export default function AidePage() {
           l’entreprise (pas le pays où le fonds est domicilié administrativement). Voici les pays connus de chaque zone,
           directement depuis les règles utilisées par l’application.
         </p>
-        {erreur && <p className="text-sm text-negatif">{erreur}</p>}
-        {!zones && !erreur && <p className="text-sm text-texte-attenue">Chargement...</p>}
+        {erreur && <EtatErreur message={erreur} onReessayer={charger} />}
+        {!zones && !erreur && <SkeletonTexte lignes={3} />}
         {zones && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {zones.map((zone) => (

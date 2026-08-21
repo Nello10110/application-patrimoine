@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Detenteur } from '../api/types'
+import type { Detenteur, Session } from '../api/types'
 import ReglagesPage from './ReglagesPage'
 
 // Ce fichier ne verrouille que la section "Personnes et sociétés" (backlog 2.L.1) —
@@ -80,5 +80,42 @@ describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
 
     await screen.findByText('Aucun détenteur déclaré.')
     expect(api.deleteDetenteur).toHaveBeenCalledWith(1)
+  })
+
+  it('Réessayer relance listDetenteurs après un échec', async () => {
+    vi.mocked(api.listDetenteurs).mockRejectedValueOnce(new Error('panne détenteurs'))
+    render(<ReglagesPage />)
+    await screen.findByText('panne détenteurs')
+
+    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Réessayer' })[0])
+
+    await screen.findByText('Alice')
+  })
+})
+
+function session(overrides: Partial<Session> = {}): Session {
+  return {
+    id_session: 'sess-1',
+    created_at: '2026-08-21T09:00:00',
+    expires_at: '2026-09-20T09:00:00',
+    ip: '192.0.2.1',
+    user_agent: 'Firefox',
+    derniere_utilisation: '2026-08-21T10:00:00',
+    est_courante: false,
+    ...overrides,
+  }
+}
+
+describe('ReglagesPage — Sessions actives, erreur avec action de reprise (backlog 2.K.5)', () => {
+  it('Réessayer relance listSessions après un échec', async () => {
+    vi.mocked(api.listSessions).mockRejectedValueOnce(new Error('panne sessions'))
+    render(<ReglagesPage />)
+    await screen.findByText('panne sessions')
+
+    vi.mocked(api.listSessions).mockResolvedValueOnce([session()])
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    await screen.findByText('192.0.2.1')
   })
 })

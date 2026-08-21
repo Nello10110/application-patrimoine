@@ -1,6 +1,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { RepartitionItem } from '../api/types'
 import Card from './Card'
+import EtatVide from './EtatVide'
 import { STYLE_INFOBULLE } from '../utils/chartTheme'
 
 const COLORS = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#db2777', '#4b5563', '#0d9488', '#9333ea', '#ea580c']
@@ -9,7 +10,7 @@ export default function PieChartCard({ title, items }: { title: string; items: R
   if (items.length === 0) {
     return (
       <Card title={title}>
-        <p className="text-sm text-texte-attenue">Titre unique, pas de décomposition interne.</p>
+        <EtatVide titre="Titre unique, pas de décomposition interne." />
       </Card>
     )
   }

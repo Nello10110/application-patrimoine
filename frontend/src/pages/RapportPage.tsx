@@ -68,7 +68,7 @@ export default function RapportPage() {
     mode === 'mensuel' ? bornesDuMois(moisSelectionne) : mode === 'annuel' ? bornesDeLAnnee(anneeSelectionnee) : { dateDebut: dateDebutPerso, dateFin: dateFinPerso }
   const periodeInvalide = mode === 'personnalise' && dateFinPerso < dateDebutPerso
 
-  useEffect(() => {
+  function chargerRapport() {
     if (periodeInvalide) {
       setLoading(false)
       return
@@ -80,7 +80,9 @@ export default function RapportPage() {
       .then(setRapport)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [mode, moisSelectionne, anneeSelectionnee, dateDebutPerso, dateFinPerso, bornes.dateDebut, bornes.dateFin, periodeInvalide])
+  }
+
+  useEffect(chargerRapport, [mode, moisSelectionne, anneeSelectionnee, dateDebutPerso, dateFinPerso, bornes.dateDebut, bornes.dateFin, periodeInvalide])
 
   const libellePeriode =
     mode === 'mensuel'
@@ -151,7 +153,7 @@ export default function RapportPage() {
 
       {periodeInvalide && <EtatErreur message="La date de fin doit être postérieure ou égale à la date de début." />}
       {!periodeInvalide && loading && <SkeletonTexte lignes={4} />}
-      {!periodeInvalide && error && <EtatErreur message={error} />}
+      {!periodeInvalide && error && <EtatErreur message={error} onReessayer={chargerRapport} />}
 
       {!periodeInvalide && rapport && !loading && (
         <>

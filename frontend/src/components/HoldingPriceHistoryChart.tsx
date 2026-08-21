@@ -5,6 +5,7 @@ import type { HoldingPriceHistoryResponse } from '../api/types'
 import Card from './Card'
 import { SkeletonGraphique } from './Skeleton'
 import EtatVide from './EtatVide'
+import EtatErreur from './EtatErreur'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
@@ -13,21 +14,35 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
   const { montantsMasques } = usePreferencesAffichage()
   const [data, setData] = useState<HoldingPriceHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  function charger() {
     setData(null)
     setLoading(true)
+    setError(null)
     api
       .getHoldingPriceHistory(ticker)
       .then(setData)
-      .catch(() => setData(null))
+      .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [ticker])
+  }
+
+  useEffect(charger, [ticker])
 
   if (loading) {
     return (
       <Card title="Performance historique">
         <SkeletonGraphique hauteur={240} />
+      </Card>
+    )
+  }
+
+  // Erreur réseau (backlog 2.K.5) distincte d'une absence légitime de données —
+  // avant, les deux étaient confondues dans le même repli `EtatVide` ci-dessous.
+  if (error) {
+    return (
+      <Card title="Performance historique">
+        <EtatErreur message={error} onReessayer={charger} />
       </Card>
     )
   }

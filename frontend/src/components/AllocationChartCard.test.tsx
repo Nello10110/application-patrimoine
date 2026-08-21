@@ -64,10 +64,11 @@ describe('AllocationChartCard', () => {
     expect(onCategoryClick).toHaveBeenCalledWith('Europe')
   })
 
-  it('sans donnée, affiche un message et masque les contrôles', () => {
+  it('sans donnée, affiche un état vide explicite et masque les contrôles (backlog 2.K.5)', () => {
     render(<AllocationChartCard title="Répartition géographique" items={[]} onCategoryClick={vi.fn()} />)
 
-    expect(screen.getByText('Aucune donnée')).toBeInTheDocument()
+    expect(screen.getByText('Aucune donnée de répartition disponible.')).toBeInTheDocument()
+    expect(screen.getByText(/Ajoute des positions au portefeuille/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Agrandir le graphique' })).not.toBeInTheDocument()
   })
 })

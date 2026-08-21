@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import Card from '../components/Card'
+import EtatErreur from '../components/EtatErreur'
+import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
@@ -55,30 +57,42 @@ export default function SimulateurPage() {
   const [depenseCible, setDepenseCible] = useState('')
   const [tauxRetrait, setTauxRetrait] = useState('4')
 
-  useEffect(() => {
+  const [erreurPatrimoine, setErreurPatrimoine] = useState<string | null>(null)
+  const [erreurInterets, setErreurInterets] = useState<string | null>(null)
+
+  // Dégradé plutôt que bloquant (backlog 2.K.5) : le calculateur reste utilisable en
+  // saisissant un capital de départ à la main si le patrimoine net échoue à
+  // charger — mais l'échec devient visible, avec une action de reprise, au lieu
+  // d'être avalé silencieusement.
+  function chargerPatrimoineNet() {
+    setChargementPatrimoine(true)
+    setErreurPatrimoine(null)
     api
       .getPatrimoineNet()
       .then((p) => {
         setPatrimoineNetActuel(p.patrimoine_net)
         setCapital(String(p.patrimoine_net))
       })
-      .catch(() => {
-        // Dégradé plutôt que bloquant : le calculateur reste utilisable en saisissant
-        // un capital de départ à la main si le patrimoine net échoue à charger.
-      })
+      .catch((err) => setErreurPatrimoine(err.message))
       .finally(() => setChargementPatrimoine(false))
+  }
 
-    // Préremplit « Intérêts déjà obtenus » avec le gain/perte déjà réalisé sur le
-    // portefeuille financier (`GET /api/performance`, déjà utilisé par la carte
-    // Rentabilité du Tableau de bord) — reste un champ facultatif et modifiable,
-    // une moins-value éventuelle (négative) n'a pas de sens ici et devient 0.
+  // Préremplit « Intérêts déjà obtenus » avec le gain/perte déjà réalisé sur le
+  // portefeuille financier (`GET /api/performance`, déjà utilisé par la carte
+  // Rentabilité du Tableau de bord) — reste un champ facultatif et modifiable,
+  // une moins-value éventuelle (négative) n'a pas de sens ici et devient 0. Même
+  // dégradation non bloquante que ci-dessus si l'appel échoue.
+  function chargerInteretsDejaObtenus() {
+    setErreurInterets(null)
     api
       .getPerformance()
       .then((perf) => setInteretsDejaObtenus(String(Math.max(0, perf.gain_perte_total))))
-      .catch(() => {
-        // Dégradé : le champ reste vide (0 par défaut au calcul) si la rentabilité
-        // échoue à charger — jamais bloquant pour le reste du calculateur.
-      })
+      .catch((err) => setErreurInterets(err.message))
+  }
+
+  useEffect(() => {
+    chargerPatrimoineNet()
+    chargerInteretsDejaObtenus()
   }, [])
 
   const capitalNum = Number(capital)
@@ -220,8 +234,22 @@ export default function SimulateurPage() {
           versements — pour un tableau de détail qui distingue les vrais intérêts déjà gagnés des futurs. Préempli avec le
           gain/perte de ton portefeuille financier, librement modifiable ou effaçable.
         </p>
+        {erreurInterets && (
+          <div className="mt-2">
+            <EtatErreur
+              message={`Le gain/perte du portefeuille n'a pas pu être précalculé (${erreurInterets}). Le champ reste modifiable à la main.`}
+              onReessayer={chargerInteretsDejaObtenus}
+            />
+          </div>
+        )}
 
-        {chargementPatrimoine && <p className="mt-3 text-sm text-texte-attenue">Chargement du patrimoine net...</p>}
+        {chargementPatrimoine && <SkeletonTexte lignes={1} />}
+        {!chargementPatrimoine && erreurPatrimoine && (
+          <EtatErreur
+            message={`Le patrimoine net n'a pas pu être préchargé (${erreurPatrimoine}). Le capital de départ reste modifiable à la main ci-dessus.`}
+            onReessayer={chargerPatrimoineNet}
+          />
+        )}
         {!chargementPatrimoine && !valide && (
           <p className="mt-3 text-sm text-negatif">Renseigne des valeurs numériques positives.</p>
         )}

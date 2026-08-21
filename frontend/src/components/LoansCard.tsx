@@ -138,14 +138,14 @@ export default function LoansCard() {
     <Card title="Dettes et emprunts">
       {error && (
         <div className="mb-3">
-          <EtatErreur message={error} />
+          <EtatErreur message={error} onReessayer={load} />
         </div>
       )}
 
       {loading ? (
         <SkeletonTexte />
       ) : loans.length === 0 ? (
-        <EtatVide titre="Aucun emprunt enregistré." />
+        <EtatVide titre="Aucun emprunt enregistré." description="Renseigne un crédit immobilier ou un prêt dans le formulaire ci-dessous." />
       ) : (
         <div className="mb-4 overflow-x-auto">
           <table className="w-full text-sm">

@@ -18,13 +18,17 @@ export default function PortfolioHistoryChart() {
   const [error, setError] = useState<string | null>(null)
   const [stacked, setStacked] = useState(false)
 
-  useEffect(() => {
+  function charger() {
+    setLoading(true)
+    setError(null)
     api
       .getPortfolioHistory()
       .then((res) => setPoints(res.points))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(charger, [])
 
   // Filtrage par la Période transverse (backlog 2.K.3), calculé côté client sur la
   // série complète déjà reçue en un seul appel (`getPortfolioHistory` ne prend
@@ -75,7 +79,7 @@ export default function PortfolioHistoryChart() {
           <SkeletonGraphique />
         </>
       )}
-      {error && <EtatErreur message={error} />}
+      {error && <EtatErreur message={error} onReessayer={charger} />}
       {!loading && !error && data.length === 0 && <EtatVide titre="Pas encore d'historique disponible." />}
 
       {!loading && !error && data.length > 0 && (

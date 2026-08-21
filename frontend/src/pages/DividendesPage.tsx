@@ -59,14 +59,17 @@ export default function DividendesPage() {
   const [calendrier, setCalendrier] = useState<DividendeMois[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  function charger() {
+    setError(null)
     api
       .getDividendCalendar()
       .then(setCalendrier)
       .catch((err) => setError(err.message))
-  }, [])
+  }
 
-  if (error) return <EtatErreur message={error} />
+  useEffect(charger, [])
+
+  if (error) return <EtatErreur message={error} onReessayer={charger} />
   if (!calendrier) return <SkeletonTexte />
 
   const total = calendrier.reduce((acc, m) => acc + m.montant_total, 0)

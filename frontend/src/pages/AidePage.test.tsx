@@ -44,6 +44,18 @@ describe('AidePage', () => {
     await screen.findByText('Panne réseau simulée')
   })
 
+  it('Réessayer relance getZonesGeographiques (backlog 2.K.5)', async () => {
+    vi.mocked(api.getZonesGeographiques).mockRejectedValueOnce(new Error('Panne réseau simulée'))
+    render(<AidePage />)
+    await screen.findByText('Panne réseau simulée')
+
+    vi.mocked(api.getZonesGeographiques).mockResolvedValueOnce(ZONES)
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    await screen.findByText('Amérique du Nord')
+    expect(api.getZonesGeographiques).toHaveBeenCalledTimes(2)
+  })
+
   it('affiche les 11 secteurs (contenu statique, indépendant de l’API)', async () => {
     vi.mocked(api.getZonesGeographiques).mockResolvedValue(ZONES)
     render(<AidePage />)

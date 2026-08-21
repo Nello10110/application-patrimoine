@@ -290,6 +290,25 @@ describe('PortefeuillePage', () => {
     })
   })
 
+  describe('filtre sans résultat (backlog 2.K.5)', () => {
+    it('affiche un message explicite et un bouton de réinitialisation, distinct du vide global', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', compte: 'PEA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+      ])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('1 position')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Private Equity' }))
+
+      expect(await screen.findByText('Aucune position ne correspond à ce filtre.')).toBeInTheDocument()
+      expect(screen.queryByText('Aucune position. Ajoute une ligne ou importe un fichier.')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser les filtres' }))
+
+      await screen.findByText('AAA')
+    })
+  })
+
   describe('édition en ligne (LOT 5.8)', () => {
     function positionUnique() {
       return [holding({ id: 42, ticker: 'AAA', quantite: 10, prix_revient_moyen: 100, compte: 'PEA', type_actif: 'STOCK' })]

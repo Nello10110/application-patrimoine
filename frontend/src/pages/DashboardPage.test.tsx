@@ -146,6 +146,80 @@ describe('DashboardPage — sélecteur d\'année', () => {
   })
 })
 
+describe('DashboardPage — erreurs indépendantes de performance/comptes/coût de gestion (backlog 2.K.5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.listTargetYears).mockResolvedValue([])
+    vi.mocked(api.getAnalysis).mockResolvedValue(analyse(CURRENT_YEAR))
+    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
+      valeur_totale: 0,
+      items: [],
+      a_des_comptes_annotes: false,
+      pas_de_rentabilite_par_compte: '',
+    })
+    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
+      valeur_fonds: 0,
+      valeur_fonds_avec_ter_connu: 0,
+      couverture_pct: 0,
+      cout_annuel_estime: 0,
+    })
+  })
+
+  it("un échec de getPerformance seul n'empêche pas le reste du tableau de bord de s'afficher, et Réessayer relance seulement cet appel", async () => {
+    vi.mocked(api.getPerformance).mockRejectedValueOnce(new Error('panne performance'))
+    const { fireEvent } = await import('@testing-library/react')
+    renderPage()
+
+    await screen.findByText('panne performance')
+    // Le reste de la page (indicateur de rééquilibrage, dépendant de `analysis`) s'affiche normalement.
+    expect(await screen.findByText(/action recommandée/)).toBeInTheDocument()
+
+    vi.mocked(api.getPerformance).mockResolvedValueOnce(null as never)
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    await waitFor(() => expect(api.getPerformance).toHaveBeenCalledTimes(2))
+    expect(api.getAnalysis).toHaveBeenCalledTimes(1)
+  })
+
+  it('un échec de getCoutGestionConsolide affiche EtatErreur avec une action de reprise dédiée', async () => {
+    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
+    vi.mocked(api.getCoutGestionConsolide).mockRejectedValueOnce(new Error('panne cout gestion'))
+    const { fireEvent } = await import('@testing-library/react')
+    renderPage()
+
+    await screen.findByText('panne cout gestion')
+
+    vi.mocked(api.getCoutGestionConsolide).mockResolvedValueOnce({
+      valeur_fonds: 0,
+      valeur_fonds_avec_ter_connu: 0,
+      couverture_pct: 0,
+      cout_annuel_estime: 0,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    await waitFor(() => expect(api.getCoutGestionConsolide).toHaveBeenCalledTimes(2))
+  })
+
+  it('un échec de getRepartitionComptes affiche EtatErreur avec une action de reprise dédiée', async () => {
+    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
+    vi.mocked(api.getRepartitionComptes).mockRejectedValueOnce(new Error('panne comptes'))
+    const { fireEvent } = await import('@testing-library/react')
+    renderPage()
+
+    await screen.findByText('panne comptes')
+
+    vi.mocked(api.getRepartitionComptes).mockResolvedValueOnce({
+      valeur_totale: 0,
+      items: [],
+      a_des_comptes_annotes: false,
+      pas_de_rentabilite_par_compte: '',
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    await waitFor(() => expect(api.getRepartitionComptes).toHaveBeenCalledTimes(2))
+  })
+})
+
 describe('DashboardPage — indicateur de rééquilibrage', () => {
   beforeEach(() => {
     vi.clearAllMocks()

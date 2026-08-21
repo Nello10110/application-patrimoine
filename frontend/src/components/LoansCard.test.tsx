@@ -64,11 +64,23 @@ function holding(overrides: Partial<Holding> = {}): Holding {
 }
 
 describe('LoansCard', () => {
-  it('affiche un message quand aucun emprunt n\'est enregistré', async () => {
+  it('affiche un message quand aucun emprunt n\'est enregistré, avec une invitation à en ajouter un', async () => {
     vi.mocked(api.listLoans).mockResolvedValue([])
     render(<LoansCard />)
 
     await screen.findByText('Aucun emprunt enregistré.')
+    expect(screen.getByText(/Renseigne un crédit immobilier/)).toBeInTheDocument()
+  })
+
+  it('Réessayer relance listLoans après un échec (backlog 2.K.5)', async () => {
+    vi.mocked(api.listLoans).mockRejectedValueOnce(new Error('panne simulée'))
+    render(<LoansCard />)
+    await screen.findByText('panne simulée')
+
+    vi.mocked(api.listLoans).mockResolvedValueOnce([loan()])
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+    await screen.findByText('Crédit immobilier')
   })
 
   it('liste les emprunts avec leur capital restant dû', async () => {

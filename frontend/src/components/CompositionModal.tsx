@@ -29,7 +29,7 @@ export default function CompositionModal({
   const [error, setError] = useState<string | null>(null)
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
 
-  useEffect(() => {
+  function charger() {
     setLoading(true)
     setError(null)
     api
@@ -37,7 +37,9 @@ export default function CompositionModal({
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [type, categorie])
+  }
+
+  useEffect(charger, [type, categorie])
 
   return (
     <>
@@ -57,7 +59,7 @@ export default function CompositionModal({
             </div>
 
             {loading && <SkeletonTexte />}
-            {error && <EtatErreur message={error} />}
+            {error && <EtatErreur message={error} onReessayer={charger} />}
 
             {data && data.lignes.length === 0 && <EtatVide titre="Aucune ligne ne compose cette catégorie." />}
 

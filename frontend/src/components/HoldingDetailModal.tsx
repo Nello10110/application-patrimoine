@@ -7,7 +7,7 @@ import { IconFermer, IconLienExterne } from './icons'
 import Modale from './Modale'
 
 export default function HoldingDetailModal({ ticker, onClose }: { ticker: string; onClose: () => void }) {
-  const { detail, loading, error } = useHoldingDetail(ticker)
+  const { detail, loading, error, recharger } = useHoldingDetail(ticker)
 
   return (
     <Modale onClose={onClose} panelClassName="w-full max-w-3xl rounded-xl bg-surface p-6 shadow-xl">
@@ -39,7 +39,7 @@ export default function HoldingDetailModal({ ticker, onClose }: { ticker: string
           </Link>
 
           {loading && <SkeletonTexte lignes={4} />}
-          {error && <EtatErreur message={error} />}
+          {error && <EtatErreur message={error} onReessayer={recharger} />}
           {detail && <HoldingDetailContent detail={detail} />}
         </>
       )}

@@ -5,6 +5,7 @@ import { formatEuro, formatPct } from '../utils/format'
 import AllocationBarChart from './AllocationBarChart'
 import AllocationPieChart from './AllocationPieChart'
 import Card from './Card'
+import EtatVide from './EtatVide'
 import { IconFermer } from './icons'
 import Modale from './Modale'
 import StatTile from './StatTile'
@@ -125,7 +126,10 @@ export default function AllocationChartCard({
             <AllocationPieChart items={items} onCategoryClick={onCategoryClick} />
           )
         ) : (
-          <p className="text-sm text-texte-attenue">Aucune donnée</p>
+          <EtatVide
+            titre="Aucune donnée de répartition disponible."
+            description="Ajoute des positions au portefeuille, ou vérifie leur classification géographique/sectorielle sur la fiche de chaque titre."
+          />
         )}
         {footnote}
       </Card>
