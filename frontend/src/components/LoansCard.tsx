@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Loan } from '../api/types'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDateHeure, formatEuro } from '../utils/format'
 import Card from './Card'
 import Modale from './Modale'
@@ -23,6 +24,7 @@ const FORM_VIDE: LoanForm = { libelle: '', capital_initial: '', taux_annuel_pct:
  * capital restant dû est toujours calculé côté serveur (`loan_service.py`) — un
  * recalage manuel (relevé bancaire réel) prime sur le calcul théorique. */
 export default function LoansCard() {
+  const { montantsMasques } = usePreferencesAffichage()
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -133,9 +135,9 @@ export default function LoansCard() {
               {loans.map((loan) => (
                 <tr key={loan.id}>
                   <td className="py-2 pr-4 font-medium text-slate-900 dark:text-slate-100">{loan.libelle}</td>
-                  <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{formatEuro(loan.capital_initial, 0)}</td>
+                  <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{formatEuro(loan.capital_initial, 0, montantsMasques)}</td>
                   <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{loan.taux_annuel_pct.toFixed(2)}%</td>
-                  <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{formatEuro(loan.mensualite, 0)}</td>
+                  <td className="py-2 pr-4 text-slate-600 dark:text-slate-300">{formatEuro(loan.mensualite, 0, montantsMasques)}</td>
                   <td className="py-2 pr-4">
                     {recalageId === loan.id ? (
                       <div className="flex items-center gap-2">
@@ -160,7 +162,7 @@ export default function LoansCard() {
                       </div>
                     ) : (
                       <div>
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(loan.capital_restant_du, 0)}</span>
+                        <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
                         {loan.derniere_maj_manuelle && (
                           <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
                             recalé le {formatDateHeure(loan.derniere_maj_manuelle)}
@@ -192,7 +194,7 @@ export default function LoansCard() {
                 <td colSpan={4} className="py-2 pr-4">
                   {loans.length} emprunt{loans.length > 1 ? 's' : ''}
                 </td>
-                <td className="py-2 pr-4">{formatEuro(totalRestantDu, 0)}</td>
+                <td className="py-2 pr-4">{formatEuro(totalRestantDu, 0, montantsMasques)}</td>
                 <td></td>
               </tr>
             </tfoot>

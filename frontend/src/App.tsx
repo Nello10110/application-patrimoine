@@ -1,7 +1,9 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'react-router-dom'
+import BarreControles from './components/BarreControles'
 import Sidebar from './components/Sidebar'
 import { AuthProvider } from './contexts/AuthContext'
+import { PreferencesAffichageProvider } from './contexts/PreferencesAffichageContext'
 import { useAuth } from './hooks/useAuth'
 import { ROUTES } from './layout/routes'
 import LoginPage from './pages/LoginPage'
@@ -59,33 +61,36 @@ function AppAuthentifiee() {
   if (!user) return <LoginPage />
 
   return (
-    <div className="flex min-h-screen bg-surface-elevee">
-      <Sidebar />
+    <PreferencesAffichageProvider>
+      <div className="flex min-h-screen bg-surface-elevee">
+        <Sidebar />
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl px-6 py-8">
-          <Suspense fallback={<p className="text-sm text-texte-attenue">Chargement...</p>}>
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/patrimoine" element={<PortefeuillePage />} />
-              <Route path="/patrimoine/:ticker" element={<HoldingDetailPage />} />
-              <Route path="/analyse" element={<RepartitionPage />} />
-              <Route path="/objectifs" element={<SimulateurPage />} />
-              <Route path="/dividendes" element={<DividendesPage />} />
-              <Route path="/rapport" element={<RapportPage />} />
-              <Route path="/import" element={<ImportPage />} />
-              <Route path="/reglages" element={<ReglagesPage />} />
-              <Route path="/aide" element={<AidePage />} />
+        <main className="flex-1 overflow-y-auto">
+          <BarreControles />
+          <div className="mx-auto max-w-6xl px-6 py-8">
+            <Suspense fallback={<p className="text-sm text-texte-attenue">Chargement...</p>}>
+              <Routes>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/patrimoine" element={<PortefeuillePage />} />
+                <Route path="/patrimoine/:ticker" element={<HoldingDetailPage />} />
+                <Route path="/analyse" element={<RepartitionPage />} />
+                <Route path="/objectifs" element={<SimulateurPage />} />
+                <Route path="/dividendes" element={<DividendesPage />} />
+                <Route path="/rapport" element={<RapportPage />} />
+                <Route path="/import" element={<ImportPage />} />
+                <Route path="/reglages" element={<ReglagesPage />} />
+                <Route path="/aide" element={<AidePage />} />
 
-              <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
-              <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />
-              <Route path="/repartition" element={<Navigate to="/analyse" replace />} />
-              <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
-            </Routes>
-          </Suspense>
-        </div>
-      </main>
-    </div>
+                <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
+                <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />
+                <Route path="/repartition" element={<Navigate to="/analyse" replace />} />
+                <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
+              </Routes>
+            </Suspense>
+          </div>
+        </main>
+      </div>
+    </PreferencesAffichageProvider>
   )
 }
 

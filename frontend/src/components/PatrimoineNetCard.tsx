@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { PatrimoineNet } from '../api/types'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
 import StatTile from './StatTile'
+
+// Lentille (backlog 2.K.3) : quelle valeur devient la tuile principale, avec son
+// libellé et son ton — Net reste le comportement d'origine (tone "good", c'est LE
+// chiffre qui répond à "est-ce que ça monte ?"), Brut/Financier restent neutres
+// (pas de jugement, ce sont des sous-totaux).
+const TUILE_PRINCIPALE = {
+  net: (p: PatrimoineNet) => ({ label: 'Patrimoine net', valeur: p.patrimoine_net, tone: 'good' as const }),
+  brut: (p: PatrimoineNet) => ({ label: 'Patrimoine brut', valeur: p.actifs_totaux, tone: 'neutral' as const }),
+  financier: (p: PatrimoineNet) => ({ label: 'Patrimoine financier', valeur: p.patrimoine_financier, tone: 'neutral' as const }),
+}
 
 /** Patrimoine net global (roadmap Phase 1) — actifs (portefeuille financier +
  * immobilier/SCPI/assurance-vie/PER) moins passifs (emprunts). Carte autonome,
@@ -12,6 +23,7 @@ import StatTile from './StatTile'
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
 export default function PatrimoineNetCard() {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
+  const { lentille, montantsMasques } = usePreferencesAffichage()
 
   useEffect(() => {
     api.getPatrimoineNet().then(setPatrimoine).catch(() => setPatrimoine(null))
@@ -21,12 +33,18 @@ export default function PatrimoineNetCard() {
   // immobilier, épargne...) — pas de carte vide pour un portefeuille tout neuf.
   if (!patrimoine || (patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0)) return null
 
+  const principale = TUILE_PRINCIPALE[lentille](patrimoine)
+
   return (
     <Card title="Patrimoine net">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile label="Actifs totaux" value={formatEuro(patrimoine.actifs_totaux, 0)} />
-        <StatTile label="Passifs (emprunts)" value={formatEuro(patrimoine.passifs_totaux, 0)} tone={patrimoine.passifs_totaux > 0 ? 'warning' : 'neutral'} />
-        <StatTile label="Patrimoine net" value={formatEuro(patrimoine.patrimoine_net, 0)} tone="good" />
+        <StatTile label="Actifs totaux" value={formatEuro(patrimoine.actifs_totaux, 0, montantsMasques)} />
+        <StatTile
+          label="Passifs (emprunts)"
+          value={formatEuro(patrimoine.passifs_totaux, 0, montantsMasques)}
+          tone={patrimoine.passifs_totaux > 0 ? 'warning' : 'neutral'}
+        />
+        <StatTile label={principale.label} value={formatEuro(principale.valeur, 0, montantsMasques)} tone={principale.tone} />
       </div>
 
       {patrimoine.repartition_par_classe.length > 0 && (
@@ -34,7 +52,7 @@ export default function PatrimoineNetCard() {
           {patrimoine.repartition_par_classe.map((item) => (
             <li key={item.categorie} className="flex items-center justify-between py-1.5 text-sm">
               <span className="text-slate-600 dark:text-slate-300">{item.categorie}</span>
-              <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(item.valeur, 0)}</span>
+              <span className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(item.valeur, 0, montantsMasques)}</span>
             </li>
           ))}
         </ul>

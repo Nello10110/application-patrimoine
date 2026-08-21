@@ -145,6 +145,7 @@ export interface PatrimoineNet {
   actifs_totaux: number
   passifs_totaux: number
   patrimoine_net: number
+  patrimoine_financier: number
   repartition_par_classe: RepartitionParClasseItem[]
 }
 

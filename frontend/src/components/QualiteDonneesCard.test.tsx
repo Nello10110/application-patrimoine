@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { QualiteDonnees } from '../api/types'
 import QualiteDonneesCard from './QualiteDonneesCard'
+
+// Contrôles transverses (backlog 2.K.3) : `QualiteDonneesCard` lit
+// `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
 
 function makeQualite(overrides: Partial<QualiteDonnees> = {}): QualiteDonnees {
   return {

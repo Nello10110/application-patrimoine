@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
 import { formatEuro, formatQuantite } from '../utils/format'
 
@@ -64,6 +65,7 @@ interface PositionsTableProps {
 }
 
 export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, onSaved }: PositionsTableProps) {
+  const { montantsMasques } = usePreferencesAffichage()
   const [tri, setTri] = useState<{ cle: CleTri; direction: SensTri } | null>(null)
 
   // Édition en ligne (LOT 5.8) : une seule ligne éditable à la fois, identifiée par
@@ -207,8 +209,8 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                     formatQuantite(h.quantite)
                   )}
                 </td>
-                <td className="py-2 pr-4">{formatEuro(md?.prix_actuel ?? null)}</td>
-                <td className="py-2 pr-4">{formatEuro(h.valeur)}</td>
+                <td className="py-2 pr-4">{formatEuro(md?.prix_actuel ?? null, 2, montantsMasques)}</td>
+                <td className="py-2 pr-4">{formatEuro(h.valeur, 2, montantsMasques)}</td>
                 <td className="py-2 pr-4">
                   <RendementCell value={h.rendement_depuis_achat_pct} />
                 </td>
@@ -313,7 +315,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
             <td colSpan={4} className="py-2 pr-4">
               {rows.length} position{rows.length > 1 ? 's' : ''}
             </td>
-            <td className="py-2 pr-4">{formatEuro(valeurTotaleAffichee)}</td>
+            <td className="py-2 pr-4">{formatEuro(valeurTotaleAffichee, 2, montantsMasques)}</td>
             <td colSpan={5}></td>
           </tr>
         </tfoot>

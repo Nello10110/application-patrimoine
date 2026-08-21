@@ -29,6 +29,12 @@ vi.mock('../components/HoldingDetailModal', () => ({
 // hors de l'objet de ce fichier — testée séparément dans LoansCard.test.tsx.
 vi.mock('../components/LoansCard', () => ({ default: () => <div /> }))
 
+// Contrôles transverses (backlog 2.K.3) : `PositionsTable` (rendue par cette page)
+// lit `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
+
 // `valeur` est calculée côté backend (LOT 6.7) : par défaut, on reproduit ici la
 // même règle (prix de marché, à défaut prix de revient, `null` sinon) à partir des
 // autres champs de la fixture, pour ne pas avoir à la répéter dans chaque appel de

@@ -77,5 +77,18 @@ def test_aucune_donnee_renvoie_des_totaux_nuls(db):
         "actifs_totaux": 0,
         "passifs_totaux": 0,
         "patrimoine_net": 0,
+        "patrimoine_financier": 0,
         "repartition_par_classe": [],
     }
+
+
+def test_patrimoine_financier_exclut_le_patrimoine_manuel(db):
+    """Lentille "financier" (backlog 2.K.3) : réutilise `holdings_financiers`, qui
+    exclut déjà immobilier/SCPI/assurance-vie/PER partout ailleurs dans l'app."""
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+
+    assert resultat["actifs_totaux"] == 1000.0 + 250000.0
+    assert resultat["patrimoine_financier"] == 1000.0

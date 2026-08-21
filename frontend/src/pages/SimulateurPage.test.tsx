@@ -13,8 +13,14 @@ vi.mock('../api/client', () => ({
   },
 }))
 
+// Contrôles transverses (backlog 2.K.3) : `SimulateurPage` lit
+// `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
+
 function patrimoineNet(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
-  return { actifs_totaux: 10000, passifs_totaux: 0, patrimoine_net: 10000, repartition_par_classe: [], ...overrides }
+  return { actifs_totaux: 10000, passifs_totaux: 0, patrimoine_net: 10000, patrimoine_financier: 10000, repartition_par_classe: [], ...overrides }
 }
 
 function performance(overrides: Partial<PerformanceSummary> = {}): PerformanceSummary {

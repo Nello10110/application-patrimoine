@@ -841,6 +841,16 @@ Un quatrième contrôle est indépendant : **masquer les montants** (bascule + r
 remplace chaque valeur par des points sans changer les proportions des graphiques. Utile pour
 ouvrir l'application devant quelqu'un.
 
+**Incrément pilote livré le 21/08/2026** : nouvelle barre de contrôles persistante (en tête de
+`<main>`, visible sur tous les écrans) avec la **lentille** Patrimoine net/brut/financier (backend
+étendu — `patrimoine_service.compute_patrimoine_net` expose désormais les trois vues — branché sur
+`PatrimoineNetCard`) et **masquer les montants** (raccourci `Ctrl/⌘+Maj+M`, couverture complète des
+93 emplacements `formatEuro` sur 19 fichiers via un paramètre explicite plutôt qu'un état global
+caché). **Reste non traité** : Période unifiée sur tous les écrans (3 logiques de période
+incompatibles coexistent encore : Dashboard/Répartition par année, Rapport par plage
+mensuelle/annuelle/personnalisée, graphique d'évolution par fenêtre glissante) et Détenteur
+(bloqué par L.1, non livré).
+
 #### K.4 — `majeur` · `M` · `P1` · `non traité` — Mobile et responsive
 
 L'application est déjà installable (PWA, § H.1) mais n'est pas utilisable au doigt. Cible :

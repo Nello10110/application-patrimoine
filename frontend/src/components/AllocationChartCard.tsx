@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { AllocationBreakdownItem } from '../api/types'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro, formatPct } from '../utils/format'
 import AllocationBarChart from './AllocationBarChart'
 import AllocationPieChart from './AllocationPieChart'
@@ -78,6 +79,7 @@ export default function AllocationChartCard({
   onCategoryClick: (categorie: string) => void
   footnote?: ReactNode
 }) {
+  const { montantsMasques } = usePreferencesAffichage()
   const [mode, setMode] = useState<Mode>('bar')
   const [pleinEcran, setPleinEcran] = useState(false)
 
@@ -154,7 +156,7 @@ export default function AllocationChartCard({
               )}
 
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <StatTile label="Valeur totale" value={formatEuro(totalValeur, 0)} />
+                <StatTile label="Valeur totale" value={formatEuro(totalValeur, 0, montantsMasques)} />
                 {plusSurpondere && (
                   <StatTile
                     label="Le plus surpondéré"
@@ -193,7 +195,7 @@ export default function AllocationChartCard({
                         onClick={() => onCategoryClick(item.categorie)}
                       >
                         <td className="py-2 text-slate-700 dark:text-slate-300">{item.categorie}</td>
-                        <td className="py-2 text-right text-slate-900 dark:text-slate-100">{formatEuro(item.valeur, 0)}</td>
+                        <td className="py-2 text-right text-slate-900 dark:text-slate-100">{formatEuro(item.valeur, 0, montantsMasques)}</td>
                         <td className="py-2 text-right text-slate-900 dark:text-slate-100">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
                         <td className="py-2 text-right text-slate-500 dark:text-slate-400">
                           {item.pourcentage_cible !== null ? `${item.pourcentage_cible.toFixed(1)}%` : '—'}

@@ -14,6 +14,13 @@ vi.mock('../api/client', () => ({
 
 vi.mock('./HoldingPriceHistoryChart', () => ({ default: () => <div /> }))
 
+// Contrôles transverses (backlog 2.K.3) : `HoldingDetailContent` (rendue par cette
+// modale) lit `usePreferencesAffichage()` (montants masqués) — non testé ici, stub
+// neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
+
 function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
   return {
     ticker: 'AAPL',

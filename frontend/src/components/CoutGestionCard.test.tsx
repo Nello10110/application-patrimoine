@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { CoutGestionConsolide } from '../api/types'
 import CoutGestionCard from './CoutGestionCard'
+
+// Contrôles transverses (backlog 2.K.3) : `CoutGestionCard` lit
+// `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
 
 function makeCout(overrides: Partial<CoutGestionConsolide> = {}): CoutGestionConsolide {
   return {

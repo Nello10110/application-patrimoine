@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AllocationBreakdownItem } from '../api/types'
 import AllocationChartCard from './AllocationChartCard'
 
+// Contrôles transverses (backlog 2.K.3) : `AllocationChartCard` lit
+// `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
+
 // Graphiques recharts mis de côté (LOT 6.10) : ce fichier ne verrouille que la
 // bascule barres/camembert, le plein écran et le tableau détaillé — pas le rendu
 // recharts lui-même (déjà couvert ailleurs, cf. `AllocationBarChart`/`AllocationPieChart`).

@@ -13,6 +13,12 @@ vi.mock('../api/client', () => ({
   },
 }))
 
+// Contrôles transverses (backlog 2.K.3) : `LoansCard` lit `usePreferencesAffichage()`
+// (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
+
 function loan(overrides: Partial<Loan> = {}): Loan {
   return {
     id: 1,

@@ -38,6 +38,12 @@ def compute_patrimoine_net(db: Session, user_id: int) -> dict:
     valued = analysis_service.value_holdings(holdings)
     actifs_totaux = sum(v.valeur for v in valued)
 
+    # Lentille "financier" (backlog 2.K.3) : réutilise `holdings_financiers` (déjà la
+    # définition du portefeuille financier ailleurs dans l'app — look-through,
+    # objectifs, rentabilité) plutôt que de dupliquer sa logique d'exclusion.
+    valued_financier = analysis_service.value_holdings(analysis_service.holdings_financiers(db, user_id))
+    patrimoine_financier = sum(v.valeur for v in valued_financier)
+
     loans = db.query(Loan).filter(Loan.user_id == user_id).all()
     passifs_totaux = sum(loan_service.compute_capital_restant_du(loan) for loan in loans)
 
@@ -56,5 +62,6 @@ def compute_patrimoine_net(db: Session, user_id: int) -> dict:
         "actifs_totaux": round(actifs_totaux, 2),
         "passifs_totaux": round(passifs_totaux, 2),
         "patrimoine_net": round(actifs_totaux - passifs_totaux, 2),
+        "patrimoine_financier": round(patrimoine_financier, 2),
         "repartition_par_classe": repartition,
     }

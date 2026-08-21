@@ -113,6 +113,25 @@ export function IconChevron({ className }: IconProps) {
   )
 }
 
+export function IconOeil({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M2.5 10 C4.5 5.5 7 3.5 10 3.5 C13 3.5 15.5 5.5 17.5 10 C15.5 14.5 13 16.5 10 16.5 C7 16.5 4.5 14.5 2.5 10 Z" />
+      <circle cx="10" cy="10" r="2.8" />
+    </svg>
+  )
+}
+
+export function IconOeilBarre({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M2.5 10 C4.5 5.5 7 3.5 10 3.5 C13 3.5 15.5 5.5 17.5 10 C15.5 14.5 13 16.5 10 16.5 C7 16.5 4.5 14.5 2.5 10 Z" />
+      <circle cx="10" cy="10" r="2.8" />
+      <path d="M3.5 16.5 L16.5 3.5" />
+    </svg>
+  )
+}
+
 export function IconDeconnexion({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

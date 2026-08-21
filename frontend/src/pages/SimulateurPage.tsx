@@ -3,6 +3,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { api } from '../api/client'
 import Card from '../components/Card'
 import StatTile from '../components/StatTile'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 import { formatEuro } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel } from '../utils/interetsComposes'
@@ -40,6 +41,7 @@ function libelleMoisAnnee(offset: number): string {
  * 10 000€ à 6% ». Tout le reste (projection, tableau de détail, FIRE) est calculé
  * côté client (`utils/interetsComposes.ts`), avec mise à jour instantanée. */
 export default function SimulateurPage() {
+  const { montantsMasques } = usePreferencesAffichage()
   const [capital, setCapital] = useState('')
   const [patrimoineNetActuel, setPatrimoineNetActuel] = useState<number | null>(null)
   const [chargementPatrimoine, setChargementPatrimoine] = useState(true)
@@ -155,7 +157,7 @@ export default function SimulateurPage() {
                 onClick={() => setCapital(String(patrimoineNetActuel))}
                 className="text-left text-xs font-normal text-slate-400 underline hover:text-slate-600 dark:hover:text-slate-300"
               >
-                Revenir au patrimoine net actuel ({formatEuro(patrimoineNetActuel, 0)})
+                Revenir au patrimoine net actuel ({formatEuro(patrimoineNetActuel, 0, montantsMasques)})
               </button>
             )}
           </label>
@@ -227,9 +229,9 @@ export default function SimulateurPage() {
         {!chargementPatrimoine && valide && (
           <>
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <StatTile label="Valeur finale" value={formatEuro(valeurFinale, 0)} />
-              <StatTile label="Total versé" value={formatEuro(totalVerse, 0)} />
-              <StatTile label="Dont intérêts gagnés" value={formatEuro(gains, 0)} tone="good" />
+              <StatTile label="Valeur finale" value={formatEuro(valeurFinale, 0, montantsMasques)} />
+              <StatTile label="Total versé" value={formatEuro(totalVerse, 0, montantsMasques)} />
+              <StatTile label="Dont intérêts gagnés" value={formatEuro(gains, 0, montantsMasques)} tone="good" />
             </div>
 
             <ResponsiveContainer width="100%" height={280} className="mt-4">
@@ -241,9 +243,9 @@ export default function SimulateurPage() {
                   tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
                   stroke={COULEUR_AXE}
                 />
-                <YAxis tickFormatter={(v) => formatEuro(Number(v), 0)} width={90} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+                <YAxis tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)} width={90} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
                 <Tooltip
-                  formatter={(value) => formatEuro(Number(value), 0)}
+                  formatter={(value) => formatEuro(Number(value), 0, montantsMasques)}
                   labelFormatter={(v) => `Dans ${v} an${Number(v) > 1 ? 's' : ''}`}
                   {...STYLE_INFOBULLE}
                 />
@@ -302,11 +304,11 @@ export default function SimulateurPage() {
                           <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
                             {p.annee === 0 ? 'Départ' : libelleAnnee(p.annee)}
                           </td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versements)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versements, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules, 2, montantsMasques)}</td>
                         </tr>
                       ))
                     : pointsMensuels.map((p) => (
@@ -314,11 +316,11 @@ export default function SimulateurPage() {
                           <td className="py-2 pl-3 pr-4 font-medium text-slate-900 dark:text-slate-100">
                             {p.annee === 0 ? 'Départ' : libelleMoisAnnee(p.moisIndex)}
                           </td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versement)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.versement, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interets, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">{formatEuro(p.capital, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(p.verseCumule, 2, montantsMasques)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{formatEuro(p.interetsCumules, 2, montantsMasques)}</td>
                         </tr>
                       ))}
                 </tbody>
@@ -362,7 +364,7 @@ export default function SimulateurPage() {
 
         {fire && depenseCible && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <StatTile label="Patrimoine nécessaire" value={formatEuro(fire.patrimoineNecessaire, 0)} />
+            <StatTile label="Patrimoine nécessaire" value={formatEuro(fire.patrimoineNecessaire, 0, montantsMasques)} />
             <StatTile
               label="Indépendance financière"
               value={

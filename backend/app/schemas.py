@@ -700,6 +700,10 @@ class PatrimoineNetResponse(BaseModel):
     actifs_totaux: float
     passifs_totaux: float
     patrimoine_net: float
+    # Lentille "financier" (backlog 2.K.3) : valeur du seul portefeuille financier
+    # (actions/ETF/crypto/obligations/private equity — cf. `analysis_service.holdings_financiers`),
+    # sans retrancher les emprunts (aucun rattachement emprunt↔actif n'existe encore, cf. M.2).
+    patrimoine_financier: float
     repartition_par_classe: list[RepartitionParClasseItem]
 
 

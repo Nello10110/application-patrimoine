@@ -3,12 +3,14 @@ import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, T
 import { api } from '../api/client'
 import type { PortfolioHistoryPoint } from '../api/types'
 import Card from './Card'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
 type Range = '1y' | '5y' | 'all'
 
 export default function PortfolioHistoryChart() {
+  const { montantsMasques } = usePreferencesAffichage()
   const [points, setPoints] = useState<PortfolioHistoryPoint[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,8 +99,8 @@ export default function PortfolioHistoryChart() {
             <AreaChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
               <XAxis dataKey="date" tick={{ fontSize: 11, ...STYLE_TICK_AXE }} minTickGap={40} stroke={COULEUR_AXE} />
-              <YAxis tickFormatter={(v) => formatEuro(Number(v), 0)} width={80} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-              <Tooltip formatter={(value) => formatEuro(Number(value), 0)} {...STYLE_INFOBULLE} />
+              <YAxis tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)} width={80} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+              <Tooltip formatter={(value) => formatEuro(Number(value), 0, montantsMasques)} {...STYLE_INFOBULLE} />
               <Area type="monotone" dataKey="Investi" stackId="1" stroke="#94a3b8" fill="#cbd5e1" />
               <Area type="monotone" dataKey="Gains" stackId="1" stroke="#16a34a" fill="#86efac" />
             </AreaChart>
@@ -106,8 +108,8 @@ export default function PortfolioHistoryChart() {
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
               <XAxis dataKey="date" tick={{ fontSize: 11, ...STYLE_TICK_AXE }} minTickGap={40} stroke={COULEUR_AXE} />
-              <YAxis tickFormatter={(v) => formatEuro(Number(v), 0)} width={80} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-              <Tooltip formatter={(value) => formatEuro(Number(value), 0)} {...STYLE_INFOBULLE} />
+              <YAxis tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)} width={80} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+              <Tooltip formatter={(value) => formatEuro(Number(value), 0, montantsMasques)} {...STYLE_INFOBULLE} />
               <Line type="monotone" dataKey="Portefeuille" stroke="#2563eb" dot={false} strokeWidth={2} />
             </LineChart>
           )}

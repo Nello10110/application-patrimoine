@@ -1,5 +1,6 @@
 import type { QualiteDonnees } from '../api/types'
 import Card from './Card'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
 /** Encart de qualité des données (LOT 2.1/2.3) : la comparaison réel vs cible du
@@ -8,23 +9,24 @@ import { formatEuro } from '../utils/format'
  * rien à signaler (portefeuille entièrement couvert par une composition réelle et
  * coté). */
 export default function QualiteDonneesCard({ qualite }: { qualite: QualiteDonnees }) {
+  const { montantsMasques } = usePreferencesAffichage()
   const lignes: string[] = []
 
   if (qualite.pct_estimee_par_indice > 0) {
     lignes.push(
-      `${qualite.pct_estimee_par_indice}% de la valeur du portefeuille (${formatEuro(qualite.valeur_estimee_par_indice, 0)}) a une répartition géographique estimée à partir de l'indice suivi par le fonds, faute de composition détaillée disponible.`,
+      `${qualite.pct_estimee_par_indice}% de la valeur du portefeuille (${formatEuro(qualite.valeur_estimee_par_indice, 0, montantsMasques)}) a une répartition géographique estimée à partir de l'indice suivi par le fonds, faute de composition détaillée disponible.`,
     )
   }
 
   if (qualite.pct_non_categorisee > 0) {
     lignes.push(
-      `${qualite.pct_non_categorisee}% de la valeur du portefeuille (${formatEuro(qualite.valeur_non_categorisee, 0)}) n'a aucune donnée géographique disponible et apparaît en "Non catégorisé".`,
+      `${qualite.pct_non_categorisee}% de la valeur du portefeuille (${formatEuro(qualite.valeur_non_categorisee, 0, montantsMasques)}) n'a aucune donnée géographique disponible et apparaît en "Non catégorisé".`,
     )
   }
 
   if (qualite.valeur_sans_cotation > 0) {
     lignes.push(
-      `${formatEuro(qualite.valeur_sans_cotation, 0)} (${qualite.pct_sans_cotation}%) sont valorisés à leur coût de revient faute de cotation disponible — cette valeur entre telle quelle dans le score de diversification et dans les montants de rééquilibrage en euros.`,
+      `${formatEuro(qualite.valeur_sans_cotation, 0, montantsMasques)} (${qualite.pct_sans_cotation}%) sont valorisés à leur coût de revient faute de cotation disponible — cette valeur entre telle quelle dans le score de diversification et dans les montants de rééquilibrage en euros.`,
     )
   }
 

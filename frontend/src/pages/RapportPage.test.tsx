@@ -10,6 +10,12 @@ vi.mock('../api/client', () => ({
   },
 }))
 
+// Contrôles transverses (backlog 2.K.3) : `RapportPage` lit
+// `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
+
 function rapport(overrides: Partial<RapportPeriode> = {}): RapportPeriode {
   return {
     date_debut: '2026-07-01',

@@ -3,6 +3,7 @@ import type { HoldingDetail } from '../api/types'
 import Card from './Card'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import PieChartCard from './PieChartCard'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro, formatPct, formatQuantite } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
@@ -15,6 +16,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 export default function HoldingDetailContent({ detail, titleId }: { detail: HoldingDetail; titleId?: string }) {
+  const { montantsMasques } = usePreferencesAffichage()
   const gainPositif = (detail.rendement_depuis_achat_pct ?? 0) >= 0
 
   return (
@@ -39,15 +41,15 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Prix de revient</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_revient_moyen)}</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_revient_moyen, 2, montantsMasques)}</p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Prix actuel</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_actuel)}</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.prix_actuel, 2, montantsMasques)}</p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Valeur</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.valeur)}</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{formatEuro(detail.valeur, 2, montantsMasques)}</p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Depuis achat</p>
@@ -96,7 +98,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
             </div>
             <div>
               <p className="text-xs text-slate-500 dark:text-slate-400">Frais de transaction payés (cumulés)</p>
-              <p className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(detail.frais_transaction_payes)}</p>
+              <p className="font-medium text-slate-900 dark:text-slate-100">{formatEuro(detail.frais_transaction_payes, 2, montantsMasques)}</p>
             </div>
           </div>
         </div>

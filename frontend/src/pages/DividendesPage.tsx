@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { api } from '../api/client'
 import type { DividendeMois } from '../api/types'
 import Card from '../components/Card'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
 
@@ -14,6 +15,7 @@ function libelleMois(mois: string): string {
 }
 
 function MoisCard({ mois }: { mois: DividendeMois }) {
+  const { montantsMasques } = usePreferencesAffichage()
   const [ouvert, setOuvert] = useState(false)
 
   return (
@@ -26,7 +28,7 @@ function MoisCard({ mois }: { mois: DividendeMois }) {
       >
         <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{libelleMois(mois.mois)}</span>
         <span className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatEuro(mois.montant_total)}</span>
+          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatEuro(mois.montant_total, 2, montantsMasques)}</span>
           <span className="text-slate-400" aria-hidden="true">
             {ouvert ? '▲' : '▼'}
           </span>
@@ -39,7 +41,7 @@ function MoisCard({ mois }: { mois: DividendeMois }) {
               <tr key={i} className="border-b border-slate-50 last:border-0 dark:border-slate-800">
                 <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{formatDate(ligne.date)}</td>
                 <td className="px-4 py-2 text-slate-700 dark:text-slate-300">{ligne.nom ?? ligne.symbol ?? '—'}</td>
-                <td className="px-4 py-2 text-right font-medium text-slate-900 dark:text-slate-100">{formatEuro(ligne.montant)}</td>
+                <td className="px-4 py-2 text-right font-medium text-slate-900 dark:text-slate-100">{formatEuro(ligne.montant, 2, montantsMasques)}</td>
               </tr>
             ))}
           </tbody>
@@ -50,6 +52,7 @@ function MoisCard({ mois }: { mois: DividendeMois }) {
 }
 
 export default function DividendesPage() {
+  const { montantsMasques } = usePreferencesAffichage()
   const [calendrier, setCalendrier] = useState<DividendeMois[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,7 +83,7 @@ export default function DividendesPage() {
       ) : (
         <>
           <Card title="Total perçu">
-            <p className="text-3xl font-semibold text-emerald-600 dark:text-emerald-400">{formatEuro(total)}</p>
+            <p className="text-3xl font-semibold text-emerald-600 dark:text-emerald-400">{formatEuro(total, 2, montantsMasques)}</p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               sur {calendrier.length} mois, du {libelleMois(calendrier[0].mois)} au {libelleMois(calendrier[calendrier.length - 1].mois)}
             </p>
@@ -90,9 +93,9 @@ export default function DividendesPage() {
             <ResponsiveContainer width="100%" height={hauteurGraphique}>
               <BarChart data={donneesGraphique} layout="vertical" margin={{ left: 24, right: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COULEUR_GRILLE} />
-                <XAxis type="number" stroke={COULEUR_AXE} tick={STYLE_TICK_AXE} tickFormatter={(v) => formatEuro(v, 0)} />
+                <XAxis type="number" stroke={COULEUR_AXE} tick={STYLE_TICK_AXE} tickFormatter={(v) => formatEuro(v, 0, montantsMasques)} />
                 <YAxis type="category" dataKey="mois" width={130} tick={{ fontSize: 12, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-                <Tooltip formatter={(value) => formatEuro(Number(value))} {...STYLE_INFOBULLE} />
+                <Tooltip formatter={(value) => formatEuro(Number(value), 2, montantsMasques)} {...STYLE_INFOBULLE} />
                 <Bar dataKey="montant" fill="#10b981" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

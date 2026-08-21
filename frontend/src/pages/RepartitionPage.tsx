@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { AllocationTargetInput, AnalysisResponse } from '../api/types'
 import Card from '../components/Card'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -100,6 +101,7 @@ function AllocationEditor({
  * déjà le même sélecteur d'année. Après un enregistrement réussi, la partie
  * rééquilibrage se recharge automatiquement pour refléter les nouvelles cibles. */
 export default function RepartitionPage() {
+  const { montantsMasques } = usePreferencesAffichage()
   const [annee, setAnnee] = useState(CURRENT_YEAR)
   const [anneesDisponibles, setAnneesDisponibles] = useState<number[]>([CURRENT_YEAR, CURRENT_YEAR + 1])
   const [nouvelleAnnee, setNouvelleAnnee] = useState('')
@@ -360,7 +362,7 @@ export default function RepartitionPage() {
                         <p
                           className={`text-sm font-semibold ${action.sens === 'reduire' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}
                         >
-                          {action.sens === 'reduire' ? 'Réduire' : 'Augmenter'} de {formatEuro(action.montant_a_ajuster, 0)}
+                          {action.sens === 'reduire' ? 'Réduire' : 'Augmenter'} de {formatEuro(action.montant_a_ajuster, 0, montantsMasques)}
                         </p>
                       </div>
                     </li>

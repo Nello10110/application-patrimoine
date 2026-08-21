@@ -15,6 +15,25 @@ describe('formatEuro', () => {
   })
 })
 
+describe('formatEuro — masquage des montants (backlog 2.K.3)', () => {
+  it('remplace la valeur par un espace réservé fixe quand masque=true', () => {
+    expect(formatEuro(1234.5, 2, true)).toBe('••••••')
+  })
+
+  it('masque même une valeur négative ou nulle : rien ne doit laisser deviner le signe', () => {
+    expect(formatEuro(-98765.4, 0, true)).toBe('••••••')
+    expect(formatEuro(0, 2, true)).toBe('••••••')
+  })
+
+  it('masque aussi une valeur nulle (null) : le masquage prime sur le tiret cadratin', () => {
+    expect(formatEuro(null, 2, true)).toBe('••••••')
+  })
+
+  it('masque=false (par défaut) laisse le comportement existant inchangé', () => {
+    expect(formatEuro(1234.5, 2, false).replace(/\s/g, ' ')).toBe('1 234,50 €')
+  })
+})
+
 describe('formatPct', () => {
   it('affiche un tiret cadratin pour une valeur nulle', () => {
     expect(formatPct(null)).toBe('—')

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { RapportPeriode } from '../api/types'
 import Card from '../components/Card'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro, formatPct } from '../utils/format'
 
 type Mode = 'mensuel' | 'annuel' | 'personnalise'
@@ -41,6 +42,7 @@ function bornesDeLAnnee(annee: number): { dateDebut: string; dateFin: string } {
 }
 
 export default function RapportPage() {
+  const { montantsMasques } = usePreferencesAffichage()
   const [mode, setMode] = useState<Mode>('mensuel')
   const [moisSelectionne, setMoisSelectionne] = useState(moisCourant())
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear())
@@ -159,7 +161,7 @@ export default function RapportPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Card title="Valeur en fin de période">
                   <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                    {rapport.valeur_fin_periode !== null ? formatEuro(rapport.valeur_fin_periode, 0) : '—'}
+                    {rapport.valeur_fin_periode !== null ? formatEuro(rapport.valeur_fin_periode, 0, montantsMasques) : '—'}
                   </p>
                 </Card>
                 <Card title="Évolution sur la période">
@@ -177,7 +179,7 @@ export default function RapportPage() {
                 </Card>
                 <Card title="Dividendes perçus">
                   <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
-                    {formatEuro(rapport.dividendes_percus)}
+                    {formatEuro(rapport.dividendes_percus, 2, montantsMasques)}
                   </p>
                 </Card>
               </div>
@@ -193,7 +195,7 @@ export default function RapportPage() {
                           {formatDate(m.date)} · {m.nom ?? m.symbol ?? '—'}
                         </span>
                         <span className={`font-medium ${m.montant >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                          {formatEuro(m.montant)}
+                          {formatEuro(m.montant, 2, montantsMasques)}
                         </span>
                       </li>
                     ))}

@@ -1,6 +1,11 @@
 /** Formatteurs partagés par toute l'application (locale française). */
 
-export function formatEuro(value: number | null, decimales: 0 | 2 = 2): string {
+// Masquer les montants (backlog 2.K.3) : espace réservé fixe, indépendant du signe
+// et de l'ordre de grandeur — rien ne doit filtrer de la valeur réelle.
+const MONTANT_MASQUE = '••••••'
+
+export function formatEuro(value: number | null, decimales: 0 | 2 = 2, masque = false): string {
+  if (masque) return MONTANT_MASQUE
   if (value === null) return '—'
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',

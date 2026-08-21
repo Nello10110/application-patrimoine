@@ -3,10 +3,12 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { api } from '../api/client'
 import type { HoldingPriceHistoryResponse } from '../api/types'
 import Card from './Card'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
 export default function HoldingPriceHistoryChart({ ticker }: { ticker: string }) {
+  const { montantsMasques } = usePreferencesAffichage()
   const [data, setData] = useState<HoldingPriceHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -43,13 +45,13 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
           <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
           <XAxis dataKey="date" tick={{ fontSize: 11, ...STYLE_TICK_AXE }} minTickGap={40} stroke={COULEUR_AXE} />
           <YAxis
-            tickFormatter={(v) => formatEuro(Number(v))}
+            tickFormatter={(v) => formatEuro(Number(v), 2, montantsMasques)}
             width={80}
             tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
             domain={['auto', 'auto']}
             stroke={COULEUR_AXE}
           />
-          <Tooltip formatter={(value) => formatEuro(Number(value))} {...STYLE_INFOBULLE} />
+          <Tooltip formatter={(value) => formatEuro(Number(value), 2, montantsMasques)} {...STYLE_INFOBULLE} />
           <Line type="monotone" dataKey="prix" stroke="#2563eb" dot={false} strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>

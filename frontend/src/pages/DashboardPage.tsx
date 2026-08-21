@@ -11,11 +11,13 @@ import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
 import StatTile from '../components/StatTile'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
 export default function DashboardPage() {
+  const { montantsMasques } = usePreferencesAffichage()
   const [annee, setAnnee] = useState(CURRENT_YEAR)
   const [anneesDisponibles, setAnneesDisponibles] = useState<number[]>([CURRENT_YEAR])
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
@@ -134,7 +136,7 @@ export default function DashboardPage() {
           {performance && performance.nombre_transactions > 0 && <PerformanceCard performance={performance} />}
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0)} />
+            <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />
             <StatTile
               label="Score de diversification"
               value={`${analysis.risques.score_diversification}/100`}
@@ -186,7 +188,7 @@ export default function DashboardPage() {
                   <li key={item.compte} className="flex items-center justify-between py-2 text-sm">
                     <span className="text-slate-700 dark:text-slate-300">{item.compte}</span>
                     <span className="font-medium text-slate-900 dark:text-slate-100">
-                      {formatEuro(item.valeur, 0)} · {item.pourcentage}%
+                      {formatEuro(item.valeur, 0, montantsMasques)} · {item.pourcentage}%
                     </span>
                   </li>
                 ))}

@@ -27,6 +27,12 @@ vi.mock('../components/CoutGestionCard', () => ({ default: () => <div /> }))
 // de l'objet de ce fichier — testée séparément dans PatrimoineNetCard.test.tsx.
 vi.mock('../components/PatrimoineNetCard', () => ({ default: () => <div /> }))
 
+// Contrôles transverses (backlog 2.K.3) : `DashboardPage` lit
+// `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
+vi.mock('../hooks/usePreferencesAffichage', () => ({
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+}))
+
 const CURRENT_YEAR = new Date().getFullYear()
 
 function analyse(annee: number, overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
