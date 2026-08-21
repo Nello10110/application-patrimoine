@@ -188,10 +188,10 @@ export default function ImportPage() {
             </ul>
           )}
           <button
-            onClick={() => navigate('/portefeuille')}
+            onClick={() => navigate('/patrimoine')}
             className="mt-3 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
-            Voir le portefeuille →
+            Voir le patrimoine →
           </button>
         </Card>
       )}

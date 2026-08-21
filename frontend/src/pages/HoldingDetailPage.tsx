@@ -12,8 +12,8 @@ export default function HoldingDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/portefeuille" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-        ← Retour au portefeuille
+      <Link to="/patrimoine" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+        ← Retour au patrimoine
       </Link>
       <HoldingDetailContent detail={detail} />
     </div>

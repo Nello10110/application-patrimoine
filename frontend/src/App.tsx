@@ -1,8 +1,9 @@
-import { Suspense, lazy } from 'react'
-import { Link, NavLink, Route, Routes } from 'react-router-dom'
+import { Suspense, lazy, useEffect } from 'react'
+import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'react-router-dom'
+import Sidebar from './components/Sidebar'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './hooks/useAuth'
-import { useTheme, type Theme } from './hooks/useTheme'
+import { ROUTES } from './layout/routes'
 import LoginPage from './pages/LoginPage'
 
 // Découpage par route (LOT 4.8) : `recharts` (utilisé par le Tableau de bord et la
@@ -22,72 +23,22 @@ const RepartitionPage = lazy(() => import('./pages/RepartitionPage'))
 const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
 const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
 
-const navItems = [
-  { to: '/', label: 'Tableau de bord', end: true },
-  { to: '/portefeuille', label: 'Portefeuille' },
-  { to: '/repartition', label: 'Répartition' },
-  { to: '/simulateur', label: 'Simulateur' },
-  { to: '/dividendes', label: 'Dividendes' },
-  { to: '/rapport', label: 'Rapport' },
-  { to: '/import', label: 'Import' },
-  { to: '/reglages', label: 'Réglages' },
-  { to: '/aide', label: 'Aide' },
-]
-
-// Bascule discrète du thème (LOT 5.12) : un clic fait cycler clair → sombre →
-// système → clair, plutôt que trois boutons séparés — cohérent avec le reste de
-// l'en-tête (peu d'espace, une seule action à la fois).
-const THEME_SUIVANT: Record<Theme, Theme> = { clair: 'sombre', sombre: 'systeme', systeme: 'clair' }
-const THEME_ICONES: Record<Theme, string> = { clair: '☀️', sombre: '🌙', systeme: '🖥️' }
-const THEME_LABELS: Record<Theme, string> = { clair: 'Clair', sombre: 'Sombre', systeme: 'Système' }
-
-function BasculeTheme() {
-  const { theme, setTheme } = useTheme()
-  return (
-    <button
-      type="button"
-      onClick={() => setTheme(THEME_SUIVANT[theme])}
-      title={`Thème : ${THEME_LABELS[theme]} (cliquer pour changer)`}
-      aria-label={`Thème : ${THEME_LABELS[theme]}. Cliquer pour changer.`}
-      className="ml-auto flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-    >
-      <span aria-hidden="true">{THEME_ICONES[theme]}</span>
-      <span className="hidden sm:inline">{THEME_LABELS[theme]}</span>
-    </button>
-  )
+// Anciennes URL (avant le renommage backlog 2.K.2) : redirigées plutôt que
+// supprimées, pour ne pas casser les marque-pages ou l'historique du navigateur.
+function RedirectionTicker() {
+  const { ticker } = useParams()
+  return <Navigate to={`/patrimoine/${ticker}`} replace />
 }
 
-// Avatar généré (pas d'upload d'image, initiale + couleur dérivée du nom
-// d'utilisateur — déterministe, donc stable d'une connexion à l'autre). Cliquer
-// dessus déconnecte directement : pas de menu déroulant, c'est la seule action
-// proposée ici.
-function couleurAvatar(nom: string): string {
-  let hash = 0
-  for (const c of nom) hash = (hash * 31 + c.charCodeAt(0)) % 360
-  return `hsl(${hash}, 55%, 42%)`
-}
-
-function AvatarUtilisateur() {
-  const { user, logout } = useAuth()
-  if (!user) return null
-  const initiale = user.username.trim().charAt(0).toUpperCase() || '?'
-  return (
-    <button
-      type="button"
-      onClick={logout}
-      title="Se déconnecter"
-      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-    >
-      <span
-        aria-hidden="true"
-        className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold text-white"
-        style={{ backgroundColor: couleurAvatar(user.username) }}
-      >
-        {initiale}
-      </span>
-      <span className="hidden sm:inline">{user.username}</span>
-    </button>
-  )
+// Titre d'onglet dynamique (backlog 2.K.2) : `ROUTES` (`layout/routes.ts`) est la
+// source unique pour l'URL, le libellé de navigation ET le titre d'onglet — évite
+// que les trois divergent au fil des évolutions, comme le relevait l'audit UX.
+function useTitreDocument() {
+  const location = useLocation()
+  useEffect(() => {
+    const route = ROUTES.find((r) => matchPath({ path: r.path, end: true }, location.pathname))
+    document.title = route ? `${route.titre} · Application Patrimoine` : 'Application Patrimoine'
+  }, [location.pathname])
 }
 
 // Multi-utilisateur (Milestone 1) : tant que la connexion n'est pas vérifiée
@@ -96,61 +47,43 @@ function AvatarUtilisateur() {
 // qu'une redirection React Router pour un gate qui couvre TOUTE l'application).
 function AppAuthentifiee() {
   const { user, loading } = useAuth()
+  useTitreDocument()
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>
+      <div className="flex min-h-screen items-center justify-center bg-surface-elevee">
+        <p className="text-sm text-texte-attenue">Chargement...</p>
       </div>
     )
   }
   if (!user) return <LoginPage />
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <header className="border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
-          <Link to="/" className="text-lg font-semibold text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-slate-300">
-            Application Patrimoine
-          </Link>
-          <nav className="flex gap-1">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                      : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-          <BasculeTheme />
-          <AvatarUtilisateur />
-        </div>
-      </header>
+    <div className="flex min-h-screen bg-surface-elevee">
+      <Sidebar />
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <Suspense fallback={<p className="text-sm text-slate-500 dark:text-slate-400">Chargement...</p>}>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/portefeuille" element={<PortefeuillePage />} />
-            <Route path="/portefeuille/:ticker" element={<HoldingDetailPage />} />
-            <Route path="/repartition" element={<RepartitionPage />} />
-            <Route path="/simulateur" element={<SimulateurPage />} />
-            <Route path="/dividendes" element={<DividendesPage />} />
-            <Route path="/rapport" element={<RapportPage />} />
-            <Route path="/import" element={<ImportPage />} />
-            <Route path="/reglages" element={<ReglagesPage />} />
-            <Route path="/aide" element={<AidePage />} />
-          </Routes>
-        </Suspense>
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-6xl px-6 py-8">
+          <Suspense fallback={<p className="text-sm text-texte-attenue">Chargement...</p>}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/patrimoine" element={<PortefeuillePage />} />
+              <Route path="/patrimoine/:ticker" element={<HoldingDetailPage />} />
+              <Route path="/analyse" element={<RepartitionPage />} />
+              <Route path="/objectifs" element={<SimulateurPage />} />
+              <Route path="/dividendes" element={<DividendesPage />} />
+              <Route path="/rapport" element={<RapportPage />} />
+              <Route path="/import" element={<ImportPage />} />
+              <Route path="/reglages" element={<ReglagesPage />} />
+              <Route path="/aide" element={<AidePage />} />
+
+              <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
+              <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />
+              <Route path="/repartition" element={<Navigate to="/analyse" replace />} />
+              <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
+            </Routes>
+          </Suspense>
+        </div>
       </main>
     </div>
   )

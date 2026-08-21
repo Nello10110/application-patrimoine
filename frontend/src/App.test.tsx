@@ -5,8 +5,9 @@ import { api } from './api/client'
 import App from './App'
 
 // Les pages sont chargées à la demande (`React.lazy`, cf. LOT 4.8) et appellent
-// toutes l'API au montage : ce fichier ne teste que l'en-tête (navigation, bouton de
-// thème, déconnexion), donc chaque page est remplacée par un composant vide.
+// toutes l'API au montage : ce fichier ne teste que la barre latérale (navigation,
+// menu du compte, bouton de thème, déconnexion), donc chaque page est remplacée
+// par un composant vide.
 vi.mock('./pages/DashboardPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/DividendesPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/RapportPage', () => ({ default: () => <div /> }))
@@ -27,17 +28,17 @@ vi.mock('./api/client', () => ({
   },
 }))
 
-// Multi-utilisateur (Milestone 1) : `App` n'affiche l'en-tête/les routes qu'une fois
-// connecté (cf. `AuthProvider`). Un jeton factice en `localStorage` + `getMe` qui
-// résout font passer l'app en état "connecté" dès le premier rendu, comme le reste
-// de ce fichier le suppose déjà.
+// Multi-utilisateur (Milestone 1) : `App` n'affiche la barre latérale/les routes
+// qu'une fois connecté (cf. `AuthProvider`). Un jeton factice en `localStorage` +
+// `getMe` qui résout font passer l'app en état "connecté" dès le premier rendu,
+// comme le reste de ce fichier le suppose déjà.
 beforeEach(() => {
   localStorage.setItem('patrimoine_auth_token', 'jeton-de-test')
   vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur' })
 })
 
-describe('App — en-tête', () => {
-  it('le titre "Application Patrimoine" est un lien vers le tableau de bord', async () => {
+describe('App — barre latérale (backlog 2.K.2)', () => {
+  it('le logo "Patrimoine" est un lien vers la synthèse', async () => {
     render(
       <MemoryRouter>
         <App />
@@ -47,7 +48,30 @@ describe('App — en-tête', () => {
     expect(await screen.findByRole('link', { name: 'Application Patrimoine' })).toHaveAttribute('href', '/')
   })
 
-  it("affiche l'avatar et le nom de l'utilisateur connecté, qui déconnecte au clic", async () => {
+  it('affiche les écrans de consultation, mais pas les écrans d\'administration', async () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('link', { name: /Synthèse/ })
+    expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
+    expect(screen.getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
+    expect(screen.getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
+    expect(screen.getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
+    expect(screen.getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
+
+    // Import/Réglages/Aide ne sont plus dans la barre latérale : seulement dans le
+    // menu du compte, fermé par défaut.
+    expect(screen.queryByRole('link', { name: /^Import$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Réglages$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Aide$/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('App — menu du compte (backlog 2.K.2 / 2.K.7)', () => {
+  it('ne déconnecte jamais au clic direct sur l\'avatar : il faut ouvrir le menu puis choisir "Se déconnecter"', async () => {
     render(
       <MemoryRouter>
         <App />
@@ -55,25 +79,60 @@ describe('App — en-tête', () => {
     )
 
     const avatar = await screen.findByRole('button', { name: 'testeur' })
-    expect(avatar).toHaveAttribute('title', 'Se déconnecter')
-
     fireEvent.click(avatar)
+
+    // Le clic sur l'avatar ouvre le menu, il ne déconnecte pas.
+    expect(localStorage.getItem('patrimoine_auth_token')).toBe('jeton-de-test')
+
+    const boutonDeconnexion = await screen.findByRole('menuitem', { name: /Se déconnecter/ })
+    fireEvent.click(boutonDeconnexion)
 
     await waitFor(() => expect(localStorage.getItem('patrimoine_auth_token')).toBeNull())
     expect(await screen.findByLabelText("Nom d'utilisateur")).toBeInTheDocument()
   })
-})
 
-describe('App — bouton de bascule du thème (LOT 5.12)', () => {
-  it("affiche un bouton de bascule dans l'en-tête, qui fait cycler le thème au clic", async () => {
+  it('le menu du compte donne accès à Import, Réglages et Aide', async () => {
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>,
     )
 
+    const avatar = await screen.findByRole('button', { name: 'testeur' })
+    fireEvent.click(avatar)
+
+    expect(await screen.findByRole('menuitem', { name: 'Import' })).toHaveAttribute('href', '/import')
+    expect(screen.getByRole('menuitem', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
+    expect(screen.getByRole('menuitem', { name: 'Aide' })).toHaveAttribute('href', '/aide')
+  })
+
+  it('se ferme avec la touche Échap', async () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    const avatar = await screen.findByRole('button', { name: 'testeur' })
+    fireEvent.click(avatar)
+    await screen.findByRole('menu', { name: 'Menu du compte' })
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() => expect(screen.queryByRole('menu', { name: 'Menu du compte' })).not.toBeInTheDocument())
+  })
+
+  it('contient le bouton de bascule du thème, qui fait cycler le thème au clic (LOT 5.12)', async () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    const avatar = await screen.findByRole('button', { name: 'testeur' })
+    fireEvent.click(avatar)
+
     const bouton = await screen.findByRole('button', { name: /Thème/ })
-    expect(bouton).toBeInTheDocument()
     expect(bouton).toHaveAccessibleName(/Système/)
 
     fireEvent.click(bouton)

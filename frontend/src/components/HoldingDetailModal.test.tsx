@@ -41,7 +41,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
   }
 }
 
-// LOT 6.1 : seul lien de l'application vers `/portefeuille/:ticker` — verrouille sa
+// LOT 6.1 : seul lien de l'application vers `/patrimoine/:ticker` — verrouille sa
 // présence, sa cible, et qu'il referme la modale (pour ne pas la laisser ouverte
 // par-dessus la page de destination).
 describe('HoldingDetailModal — lien "Ouvrir en pleine page" (LOT 6.1)', () => {
@@ -52,16 +52,16 @@ describe('HoldingDetailModal — lien "Ouvrir en pleine page" (LOT 6.1)', () => 
   it('affiche un lien vers la fiche en pleine page et ferme la modale au clic', async () => {
     const onClose = vi.fn()
     render(
-      <MemoryRouter initialEntries={['/portefeuille']}>
+      <MemoryRouter initialEntries={['/patrimoine']}>
         <Routes>
-          <Route path="/portefeuille" element={<HoldingDetailModal ticker="AAPL" onClose={onClose} />} />
-          <Route path="/portefeuille/:ticker" element={<p>Page pleine écran : AAPL</p>} />
+          <Route path="/patrimoine" element={<HoldingDetailModal ticker="AAPL" onClose={onClose} />} />
+          <Route path="/patrimoine/:ticker" element={<p>Page pleine écran : AAPL</p>} />
         </Routes>
       </MemoryRouter>,
     )
 
     const lien = await screen.findByRole('link', { name: /Ouvrir en pleine page/ })
-    expect(lien).toHaveAttribute('href', '/portefeuille/AAPL')
+    expect(lien).toHaveAttribute('href', '/patrimoine/AAPL')
 
     fireEvent.click(lien)
 

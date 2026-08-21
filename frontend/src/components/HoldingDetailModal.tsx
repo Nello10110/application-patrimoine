@@ -24,11 +24,11 @@ export default function HoldingDetailModal({ ticker, onClose }: { ticker: string
           </div>
 
           {/* LOT 6.1 : seul lien de l'application vers la fiche en pleine page
-              (`/portefeuille/:ticker`) — sans lui, cette route n'est atteignable
+              (`/patrimoine/:ticker`) — sans lui, cette route n'est atteignable
               qu'en tapant l'URL. Ferme la modale pour ne pas la laisser ouverte
               par-dessus la page de destination. */}
           <Link
-            to={`/portefeuille/${encodeURIComponent(ticker)}`}
+            to={`/patrimoine/${encodeURIComponent(ticker)}`}
             onClick={onClose}
             className="mb-4 inline-block text-xs text-blue-600 hover:underline dark:text-blue-400"
           >

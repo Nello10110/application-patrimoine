@@ -819,6 +819,14 @@ composants de base (`Skeleton`, `EtatVide`, `EtatErreur`, `Badge`, `Tooltip`, `S
   défilement compris), pas au haut de la liste.
 - **Recherche globale** (`Ctrl/⌘ + K`) : atteindre une position, un bien, un emprunt, un écran.
 
+**Incrément pilote livré le 21/08/2026** : barre latérale repliable (persistée), vocabulaire
+unifié (`/patrimoine`, `/analyse`, `/objectifs` — anciennes URL `/portefeuille`, `/repartition`,
+`/simulateur` redirigées pour ne pas casser les marque-pages), titre d'onglet dynamique par écran
+(source unique `frontend/src/layout/routes.ts`), et menu du compte (voir K.7). Dividendes et
+Rapport restent deux entrées de consultation à part entière en attendant que Budget (Lot 6) existe
+réellement — les y rattacher aujourd'hui aurait été un mauvais mapping. **Reste non traité** : fil
+d'Ariane + retour avec restitution d'état (filtres/défilement), recherche globale `Ctrl/⌘+K`.
+
 #### K.3 — `majeur` · `M` · `P0` · `non traité` — Contrôles transverses persistants
 
 Trois contrôles vivent dans l'en-tête et s'appliquent à **tous** les écrans, avec mémorisation :
@@ -865,11 +873,13 @@ Aujourd'hui les cartes s'empilent sans ordre de lecture. Cible en trois temps :
 3. **Le détail** : répartition, qualité des données, coût de gestion, alertes — sous la ligne de
    flottaison, et repliables.
 
-#### K.7 — `mineur` · `S` · `P2` · `non traité` — Déconnexion accidentelle
+#### K.7 — `mineur` · `S` · `P2` · `traité` (21/08/2026) — Déconnexion accidentelle
 
-Aujourd'hui, **un clic sur l'avatar déconnecte immédiatement**, sans menu ni confirmation
-(`App.tsx`, `AvatarUtilisateur`). L'avatar doit ouvrir un menu (compte, préférences, thème,
-déconnexion), la déconnexion étant une entrée parmi d'autres.
+~~Aujourd'hui, un clic sur l'avatar déconnecte immédiatement, sans menu ni confirmation.~~ Livré
+avec le socle K.2 : l'avatar ouvre désormais `MenuCompte` (Import, Réglages, Aide, thème,
+déconnexion) — la déconnexion exige d'ouvrir le menu (1er clic) puis de choisir l'action (2e
+clic), plus jamais un clic direct sur l'avatar ne déconnecte. Verrouillé par test
+(`App.test.tsx`, `MenuCompte.test.tsx`).
 
 ---
 

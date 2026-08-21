@@ -123,8 +123,8 @@ export default function DashboardPage() {
             <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
               <p className="text-sm text-amber-800 dark:text-amber-200/90">
                 Aucun objectif défini pour {annee}. Va sur la page{' '}
-                <Link to="/repartition" className="font-medium underline">
-                  Répartition
+                <Link to="/analyse" className="font-medium underline">
+                  Analyse
                 </Link>{' '}
                 pour en définir.
               </p>
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               <Link
-                to="/repartition"
+                to="/analyse"
                 className="shrink-0 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
               >
                 Voir le détail
