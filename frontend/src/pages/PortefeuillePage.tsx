@@ -18,10 +18,13 @@ import {
   FILTRE_TOUS_COMPTES,
   SEUIL_PEREMPTION_HEURES,
   TYPE_ACTIF_OPTIONS,
+  TYPES_AVEC_TAUX,
   categorieDe,
   comptesDisponibles,
   correspondAuFiltreCompte,
   coursLePlusAncien,
+  libelleTaux,
+  valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
 import { formatDateHeure, parseDateApi } from '../utils/format'
 
@@ -92,7 +95,15 @@ export default function PortefeuillePage() {
     }
   }, [])
 
-  const [form, setForm] = useState({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '' })
+  const [form, setForm] = useState({
+    ticker: '',
+    quantite: '',
+    prix_revient_moyen: '',
+    compte: '',
+    type_actif: '',
+    valeur_estimee: '',
+    taux_pct: '',
+  })
   const [saving, setSaving] = useState(false)
 
   // Confirmation de suppression (LOT 6.3) : remplace le `confirm()` natif du
@@ -151,8 +162,9 @@ export default function PortefeuillePage() {
         compte: form.compte.trim() || null,
         type_actif: form.type_actif || null,
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
+        taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
       })
-      setForm({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '' })
+      setForm({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '', taux_pct: '' })
       load()
     } catch (err) {
       setError((err as Error).message)
@@ -263,6 +275,19 @@ export default function PortefeuillePage() {
               placeholder="optionnel"
             />
           </label>
+          {TYPES_AVEC_TAUX.has(form.type_actif) && (
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              {libelleTaux(form.type_actif)}
+              <input
+                value={form.taux_pct}
+                onChange={(e) => setForm({ ...form, taux_pct: e.target.value })}
+                type="number"
+                step="any"
+                className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
+              />
+            </label>
+          )}
           <button
             type="submit"
             disabled={saving}
@@ -272,9 +297,22 @@ export default function PortefeuillePage() {
           </button>
         </form>
         <p className="mt-3 text-xs text-texte-attenue">
-          Pour l'immobilier, une SCPI, une assurance-vie ou un PER : laisser Quantité à 1 et renseigner Valeur estimée — elle
-          remplace le calcul prix × quantité et se met à jour à la main, périodiquement.
+          Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant/d'épargne ou un véhicule : laisser
+          Quantité à 1 et renseigner Valeur estimée — elle remplace le calcul prix × quantité et se met à jour à la main,
+          périodiquement.
         </p>
+        {TYPES_AVEC_TAUX.has(form.type_actif) &&
+          valeurProjeteeUnAn(form.valeur_estimee ? Number(form.valeur_estimee) : null, form.taux_pct ? Number(form.taux_pct) : null) !==
+            null && (
+            <p className="mt-1 text-xs text-texte-attenue">
+              Valeur projetée dans 1 an (indicatif, jamais appliqué automatiquement) :{' '}
+              {valeurProjeteeUnAn(Number(form.valeur_estimee), Number(form.taux_pct))?.toLocaleString('fr-FR', {
+                style: 'currency',
+                currency: 'EUR',
+                maximumFractionDigits: 0,
+              })}
+            </p>
+          )}
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

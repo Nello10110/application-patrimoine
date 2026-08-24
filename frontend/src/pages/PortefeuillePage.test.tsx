@@ -59,6 +59,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     valeur: null,
     valeur_estimee: null,
     date_valeur_estimee: null,
+    taux_pct: null,
     ...overrides,
   }
   if (overrides.valeur === undefined) {
@@ -94,6 +95,73 @@ describe('PortefeuillePage', () => {
       termine_le: null,
       statut: null,
       message: null,
+    })
+  })
+
+  describe('Ajouter une ligne manuellement — taux annuel (backlog 2.M.1)', () => {
+    it("le champ « Taux » n'apparaît pas pour un type d'actif sans taux (ex. action)", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      expect(screen.queryByLabelText(/Taux d'intérêt annuel/)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/Décote annuelle/)).not.toBeInTheDocument()
+    })
+
+    it("sélectionner « Épargne réglementée » révèle le champ « Taux d'intérêt annuel »", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REGULATED_SAVINGS' } })
+
+      expect(screen.getByLabelText(/Taux d'intérêt annuel/)).toBeInTheDocument()
+    })
+
+    it("sélectionner « Véhicule » révèle le champ « Décote annuelle », libellé distinct de l'épargne", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
+
+      expect(screen.getByLabelText(/Décote annuelle/)).toBeInTheDocument()
+      expect(screen.queryByLabelText(/Taux d'intérêt annuel/)).not.toBeInTheDocument()
+    })
+
+    it('affiche la valeur projetée à 1 an (indicatif) une fois valeur estimée et taux renseignés', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REGULATED_SAVINGS' } })
+      fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '10000' } })
+      fireEvent.change(screen.getByLabelText(/Taux d'intérêt annuel/), { target: { value: '3' } })
+
+      await screen.findByText(/Valeur projetée dans 1 an/)
+      expect(screen.getByText(/10\s?300/)).toBeInTheDocument()
+    })
+
+    it('soumettre avec un taux renseigné appelle createHolding avec taux_pct', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(
+        holding({ id: 9, ticker: 'LIVRETA', quantite: 1, type_actif: 'REGULATED_SAVINGS', valeur_estimee: 10000, taux_pct: 3 }),
+      )
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'LIVRETA' } })
+      fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REGULATED_SAVINGS' } })
+      fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '10000' } })
+      fireEvent.change(screen.getByLabelText(/Taux d'intérêt annuel/), { target: { value: '3' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() =>
+        expect(api.createHolding).toHaveBeenCalledWith(
+          expect.objectContaining({ ticker: 'LIVRETA', type_actif: 'REGULATED_SAVINGS', valeur_estimee: 10000, taux_pct: 3 }),
+        ),
+      )
     })
   })
 
@@ -356,6 +424,7 @@ describe('PortefeuillePage', () => {
           compte: 'PEA',
           type_actif: 'STOCK',
           valeur_estimee: null,
+          taux_pct: null,
         }),
       )
       await waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))

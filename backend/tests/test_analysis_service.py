@@ -3,9 +3,20 @@ look-through et des indicateurs de risque."""
 
 from datetime import datetime, timezone
 
+import pytest
 from sqlalchemy import event
 
-from app.models import SOURCE_COMPOSITION, SOURCE_INDICE, FundComposition, Holding, MarketDataCache
+from app.models import (
+    SOURCE_COMPOSITION,
+    SOURCE_INDICE,
+    TYPE_ACTIF_CASH_ACCOUNT,
+    TYPE_ACTIF_EMPLOYEE_SAVINGS,
+    TYPE_ACTIF_REGULATED_SAVINGS,
+    TYPE_ACTIF_VEHICLE,
+    FundComposition,
+    Holding,
+    MarketDataCache,
+)
 from app.services import analysis_service
 from app.services.analysis_service import (
     breakdown_with_lookthrough,
@@ -110,6 +121,27 @@ def test_holdings_financiers_exclut_les_types_valorises_manuellement(db):
     # AAA (type financier) et SANS_TYPE (type non renseigné, cas normal du
     # portefeuille financier existant) restent inclus ; MAISON est exclue.
     assert tickers == {"AAA", "SANS_TYPE"}
+
+
+@pytest.mark.parametrize(
+    "type_actif", [TYPE_ACTIF_CASH_ACCOUNT, TYPE_ACTIF_REGULATED_SAVINGS, TYPE_ACTIF_EMPLOYEE_SAVINGS, TYPE_ACTIF_VEHICLE]
+)
+def test_holdings_financiers_exclut_la_taxonomie_elargie(db, type_actif):
+    """Backlog § 2.M.1 : les 4 natures ajoutées (comptes courants, épargne
+    réglementée, épargne salariale, véhicules) suivent le même mécanisme que
+    l'immobilier/SCPI/assurance-vie/PER déjà couverts ci-dessus — exclues du
+    portefeuille FINANCIER, incluses dans le patrimoine net global (§ M.1)."""
+    db.add(Holding(user_id=ID_UTILISATEUR_TEST, ticker="AAA", quantite=1.0, prix_revient_moyen=100.0, type_actif="STOCK"))
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST, ticker="NOUVEAU", quantite=1.0, type_actif=type_actif, valeur_estimee=10000.0, taux_pct=3.0
+        )
+    )
+    db.commit()
+
+    tickers = {h.ticker for h in analysis_service.holdings_financiers(db, ID_UTILISATEUR_TEST)}
+
+    assert tickers == {"AAA"}
 
 
 def test_breakdown_lookthrough_eclate_un_etf_sur_sa_composition(db):

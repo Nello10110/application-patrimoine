@@ -43,6 +43,9 @@ class HoldingBase(BaseModel):
     # un prix par part. `date_valeur_estimee` n'est jamais saisie par le client — posée
     # côté serveur au moment où `valeur_estimee` change (cf. `routers/portfolio.py`).
     valeur_estimee: float | None = None
+    # Taux annuel informatif (backlog § 2.M.1) : positif = intérêt attendu (épargne),
+    # négatif = décote attendue (véhicule) — cf. `models.Holding.taux_pct`.
+    taux_pct: float | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -87,6 +90,7 @@ class HoldingUpdate(BaseModel):
     devise: str | None = None
     type_actif: str | None = None
     valeur_estimee: float | None = None
+    taux_pct: float | None = None
 
     @field_validator("ticker")
     @classmethod

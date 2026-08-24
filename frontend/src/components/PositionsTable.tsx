@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
+import { TYPE_ACTIF_OPTIONS, TYPES_AVEC_TAUX, libelleTaux, valeurProjeteeUnAn } from '../utils/holdingCategories'
 import { formatEuro, formatQuantite } from '../utils/format'
 
 function RendementCell({ value }: { value: number | null }) {
@@ -69,6 +69,7 @@ interface EditForm {
   compte: string
   type_actif: string
   valeur_estimee: string
+  taux_pct: string
 }
 
 interface PositionsTableProps {
@@ -98,7 +99,14 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
   // l'utilisateur taper librement (y compris un champ numérique vidé) sans que
   // `Number('')` (= 0) n'écrase la saisie en cours.
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState<EditForm>({ quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '' })
+  const [editForm, setEditForm] = useState<EditForm>({
+    quantite: '',
+    prix_revient_moyen: '',
+    compte: '',
+    type_actif: '',
+    valeur_estimee: '',
+    taux_pct: '',
+  })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -122,6 +130,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
       compte: h.compte ?? '',
       type_actif: h.type_actif ?? '',
       valeur_estimee: h.valeur_estimee !== null && h.valeur_estimee !== undefined ? String(h.valeur_estimee) : '',
+      taux_pct: h.taux_pct !== null && h.taux_pct !== undefined ? String(h.taux_pct) : '',
     })
     setEditError(null)
   }
@@ -143,6 +152,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
         compte: editForm.compte.trim() || null,
         type_actif: editForm.type_actif || null,
         valeur_estimee: editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
+        taux_pct: editForm.taux_pct ? Number(editForm.taux_pct) : null,
       })
       setEditingId(null)
       onSaved()
@@ -329,7 +339,36 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                       placeholder="optionnel"
                     />
                   </label>
+                  {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
+                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                      {libelleTaux(editForm.type_actif)}
+                      <input
+                        value={editForm.taux_pct}
+                        onChange={(e) => setEditForm({ ...editForm, taux_pct: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                        type="number"
+                        step="any"
+                        aria-label="Taux annuel (édition)"
+                        className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                        placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
+                      />
+                    </label>
+                  )}
                 </div>
+                {TYPES_AVEC_TAUX.has(editForm.type_actif) &&
+                  valeurProjeteeUnAn(
+                    editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
+                    editForm.taux_pct ? Number(editForm.taux_pct) : null,
+                  ) !== null && (
+                    <p className="mt-2 text-xs text-texte-attenue">
+                      Valeur projetée dans 1 an (indicatif) :{' '}
+                      {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString('fr-FR', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        maximumFractionDigits: 0,
+                      })}
+                    </p>
+                  )}
                 {editError && <p className="mt-2 text-xs text-negatif">{editError}</p>}
               </td>
             </tr>

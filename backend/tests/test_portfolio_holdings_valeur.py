@@ -40,3 +40,19 @@ def test_valeur_coherente_avec_value_holdings_ligne_cotee_non_cotee_et_sans_prix
     # Contrairement à `value_holdings` (0 par convention interne), l'API distingue
     # l'absence totale de prix : `None`, pas 0, pour ne pas afficher une valeur fausse.
     assert par_ticker["SANSPRIX"] is None
+
+
+def test_valeur_connue_pour_une_ligne_valorisee_manuellement_sans_prix_de_revient(db, client):
+    """Bug corrigé en marge du backlog § 2.M.1 : un compte courant ou une épargne
+    réglementée n'a normalement PAS de `prix_revient_moyen` (ce n'est pas un achat à
+    un prix donné) — seule `valeur_estimee` est renseignée. `prix_connu` (routeur)
+    l'ignorait avant ce correctif et renvoyait `None` malgré une valeur réellement
+    connue et déjà calculée correctement par `value_holdings`."""
+    make_holding(db, ticker="LIVRETA", quantite=1.0, prix_revient_moyen=None, type_actif="REGULATED_SAVINGS", valeur_estimee=10000.0)
+    db.commit()
+
+    reponse = client.get("/api/portfolio/holdings")
+
+    assert reponse.status_code == 200
+    par_ticker = {h["ticker"]: h["valeur"] for h in reponse.json()}
+    assert par_ticker["LIVRETA"] == 10000.0

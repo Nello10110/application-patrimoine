@@ -60,12 +60,23 @@ TYPE_ACTIF_PENSION = "PENSION"
 # mécanisme de valorisation manuelle que les quatre types ci-dessus, aucune nouvelle
 # logique, juste une catégorie de plus pour ce qui ne rentre dans aucune case.
 TYPE_ACTIF_OTHER_ASSET = "OTHER_ASSET"
+# Taxonomie élargie (roadmap Lot 5, backlog § 2.M.1) : quatre natures qui manquaient
+# au foyer réel — mêmes mécanisme et exclusions que les types ci-dessus (valorisation
+# manuelle via `valeur_estimee`, jamais de cotation automatique).
+TYPE_ACTIF_CASH_ACCOUNT = "CASH_ACCOUNT"  # compte courant (établissement/détenteur : `compte` existant + quotités L.1)
+TYPE_ACTIF_REGULATED_SAVINGS = "REGULATED_SAVINGS"  # Livret A, LDDS, LEP, PEL, CEL...
+TYPE_ACTIF_EMPLOYEE_SAVINGS = "EMPLOYEE_SAVINGS"  # PEE, PERCO, PER entreprise
+TYPE_ACTIF_VEHICLE = "VEHICLE"  # véhicule, décote annuelle via `taux_pct` (négatif)
 TYPES_ACTIF_PATRIMOINE_MANUEL = {
     TYPE_ACTIF_REAL_ESTATE,
     TYPE_ACTIF_SCPI,
     TYPE_ACTIF_LIFE_INSURANCE,
     TYPE_ACTIF_PENSION,
     TYPE_ACTIF_OTHER_ASSET,
+    TYPE_ACTIF_CASH_ACCOUNT,
+    TYPE_ACTIF_REGULATED_SAVINGS,
+    TYPE_ACTIF_EMPLOYEE_SAVINGS,
+    TYPE_ACTIF_VEHICLE,
 }
 
 
@@ -99,6 +110,14 @@ class Holding(Base):
     # toute mise à jour possible.
     valeur_estimee: Mapped[float | None] = mapped_column(Float, nullable=True)
     date_valeur_estimee: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Taux annuel purement informatif (backlog § 2.M.1) : positif = taux d'intérêt
+    # attendu (épargne réglementée/salariale), négatif = décote annuelle attendue
+    # (véhicules). Jamais appliqué automatiquement à `valeur_estimee` — sert
+    # uniquement à calculer une "valeur projetée dans 1 an" affichée côté frontend,
+    # que l'utilisateur reporte lui-même dans `valeur_estimee` s'il le souhaite (même
+    # philosophie que la valorisation immobilière datée : jamais de mutation
+    # silencieuse d'une donnée financière).
+    taux_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

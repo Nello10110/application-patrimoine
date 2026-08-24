@@ -1063,7 +1063,7 @@ Nous couvrons environ 9 natures d'actifs, Finary en propose 18. L'écart n'est p
 volume mais de **ce qui manque au foyer réel** : les liquidités, l'épargne réglementée et
 l'épargne salariale, qui pèsent lourd et qui sont aujourd'hui invisibles.
 
-#### M.1 — `majeur` · `M` · `P1` · `non traité` — Compléter la taxonomie
+#### M.1 — `majeur` · `M` · `P1` · `traité` (natures P1, 24/08/2026) — Compléter la taxonomie
 
 Par ordre d'utilité décroissante pour le foyer :
 
@@ -1077,6 +1077,42 @@ Par ordre d'utilité décroissante pour le foyer :
 | Crowdlending | Capital prêté, échéancier, défauts | P2 |
 | Titres non cotés / startups | Coût de revient, valorisation au dernier tour | P2 |
 | Objets de valeur (montres, art) | Déjà couvert par « autre actif », à typer proprement | P3 |
+
+**Livré le 24/08/2026 (les 4 natures P1)** : quatre nouveaux `type_actif` — `CASH_ACCOUNT`
+(compte courant), `REGULATED_SAVINGS` (Livret A/LDDS/LEP/PEL/CEL...), `EMPLOYEE_SAVINGS`
+(PEE/PERCO/PER entreprise), `VEHICLE` — ajoutés à `TYPES_ACTIF_PATRIMOINE_MANUEL`
+(`backend/app/models.py`) : même mécanisme que l'immobilier/SCPI/assurance-vie/PER déjà en place
+(valorisation manuelle via `valeur_estimee`, exclusion automatique du portefeuille financier et du
+rafraîchissement de cours — aucun code supplémentaire nécessaire dans `analysis_service`/
+`market_data_service`, l'architecture existante généralise directement). « Établissement »/
+« détenteur » (comptes courants) réutilisent `Holding.compte` (annotation déjà existante) et le
+mécanisme de quotités (§ L.1) — aucune nouvelle colonne. « Plafond » (Livret A, LDDS...) documenté
+comme simplification volontaire : pas de suivi/alerte de plafond dans cette livraison, aucune
+conséquence fonctionnelle sans mécanisme d'alerte associé.
+
+Nouveau champ `Holding.taux_pct` (nullable, migration Alembic) : un pourcentage annuel **purement
+informatif**, jamais appliqué automatiquement à `valeur_estimee` — positif pour un taux d'intérêt
+attendu (épargne réglementée/salariale), négatif pour une décote annuelle attendue (véhicule). Sert
+à calculer, côté client (`frontend/src/utils/holdingCategories.ts::valeurProjeteeUnAn`), une « valeur
+projetée dans 1 an » affichée en repère dans le formulaire d'ajout et l'édition en ligne — jamais de
+mutation automatique d'une donnée financière, cohérent avec la philosophie déjà appliquée à la
+valorisation immobilière datée. Satisfait ainsi « intérêts capitalisés annuellement » (épargne
+réglementée) et « décote annuelle paramétrable » (véhicules) sans job planifié ni recalcul silencieux.
+
+**Bug pré-existant trouvé et corrigé en marge de cette livraison** : `GET /api/portfolio/holdings`
+(`routers/portfolio.py::list_holdings`) renvoyait `valeur: null` pour toute ligne valorisée
+manuellement sans `prix_revient_moyen` renseigné — cas qui ne s'était simplement jamais présenté
+avant (l'immobilier/SCPI/assurance-vie/PER ont en pratique presque toujours un prix de revient), mais
+qui devient le cas *normal* d'un compte courant ou d'une épargne réglementée (pas de notion de « prix
+de revient » pour un solde). `value_holdings` calculait pourtant déjà la bonne valeur ; seul le test
+`prix_connu` du routeur l'ignorait. Corrigé (`h.valeur_estimee is not None` ajouté à la condition),
+verrouillé par un nouveau test.
+
+**Reste non traité, reporté** : les 4 natures P2/P3 (métaux précieux, crowdlending, titres non cotés,
+objets de valeur) — `OTHER_ASSET` reste leur seule case aujourd'hui, suffisante en pratique tant
+qu'aucun besoin réel de champs spécifiques (échéancier, cours au gramme...) ne se présente. Suivi de
+plafond (Livret A etc.) et blocage/déblocage anticipé (épargne salariale) : non modélisés, sans
+conséquence fonctionnelle sans mécanisme d'alerte associé — à instruire si le besoin apparaît.
 
 #### M.2 — `majeur` · `M` · `P0` · `traité` (version minimale, 21/08/2026) — Rattachement emprunt ↔ actif
 

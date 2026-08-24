@@ -14,10 +14,20 @@ export const CATEGORY_TABS: { key: Categorie; label: string }[] = [
   { key: 'AUTRES', label: 'Autres' },
 ]
 
-// Immobilier/SCPI/assurance-vie/PER/autre actif (roadmap Phase 1 et 2, patrimoine
-// net) : aucune cotation automatique, valorisés via `Holding.valeur_estimee`. Cf.
-// `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
-const TYPES_PATRIMOINE = new Set(['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'PENSION', 'OTHER_ASSET'])
+// Immobilier/SCPI/assurance-vie/PER/autre actif/taxonomie élargie (roadmap Phase 1
+// et 2, Lot 5 § M.1 — patrimoine net) : aucune cotation automatique, valorisés via
+// `Holding.valeur_estimee`. Cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
+const TYPES_PATRIMOINE = new Set([
+  'REAL_ESTATE',
+  'SCPI',
+  'LIFE_INSURANCE',
+  'PENSION',
+  'OTHER_ASSET',
+  'CASH_ACCOUNT',
+  'REGULATED_SAVINGS',
+  'EMPLOYEE_SAVINGS',
+  'VEHICLE',
+])
 
 // Valeurs acceptées par le backend (cf. `Holding.type_actif` dans `models.py`) : une
 // ligne saisie à la main sans type explicite finit en "Autres" côté filtrage et
@@ -34,8 +44,29 @@ export const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
   { value: 'SCPI', label: 'SCPI' },
   { value: 'LIFE_INSURANCE', label: 'Assurance-vie' },
   { value: 'PENSION', label: 'PER / Épargne retraite' },
+  { value: 'CASH_ACCOUNT', label: 'Compte courant' },
+  { value: 'REGULATED_SAVINGS', label: 'Épargne réglementée (Livret A, LDDS...)' },
+  { value: 'EMPLOYEE_SAVINGS', label: 'Épargne salariale (PEE, PERCO...)' },
+  { value: 'VEHICLE', label: 'Véhicule' },
   { value: 'OTHER_ASSET', label: 'Autre actif' },
 ]
+
+// Types pour lesquels `taux_pct` a un sens (backlog § 2.M.1) : intérêt attendu pour
+// l'épargne, décote attendue pour un véhicule — affiche le libellé et le signe
+// suggéré adaptés au type sélectionné plutôt qu'un champ générique muet.
+export const TYPES_AVEC_TAUX = new Set(['REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS', 'VEHICLE'])
+
+export function libelleTaux(typeActif: string): string {
+  return typeActif === 'VEHICLE' ? 'Décote annuelle (%)' : "Taux d'intérêt annuel (%)"
+}
+
+/** Valeur projetée dans 1 an à partir de `valeur_estimee` et `taux_pct` — purement
+ * indicatif côté client, jamais appliqué automatiquement à `valeur_estimee` (cf.
+ * `models.Holding.taux_pct`, backend). `null` si l'un des deux n'est pas renseigné. */
+export function valeurProjeteeUnAn(valeurEstimee: number | null, tauxPct: number | null): number | null {
+  if (valeurEstimee === null || tauxPct === null) return null
+  return valeurEstimee * (1 + tauxPct / 100)
+}
 
 export function categorieDe(h: Holding): Categorie {
   if (h.type_actif && TYPES_PATRIMOINE.has(h.type_actif)) return 'PATRIMOINE'

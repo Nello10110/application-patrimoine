@@ -153,6 +153,10 @@ export interface Holding {
   // `date_valeur_estimee` n'est jamais saisie par l'utilisateur, posée côté serveur.
   valeur_estimee: number | null
   date_valeur_estimee: string | null
+  // Taux annuel informatif (backlog § 2.M.1) : positif = intérêt attendu (épargne
+  // réglementée/salariale), négatif = décote attendue (véhicule) — jamais appliqué
+  // automatiquement à `valeur_estimee`, cf. `models.Holding.taux_pct` côté backend.
+  taux_pct: number | null
 }
 
 export interface HoldingInput {
@@ -164,6 +168,7 @@ export interface HoldingInput {
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
+  taux_pct?: number | null
 }
 
 // Champs modifiables via `PATCH /api/portfolio/holdings/{id}` (cf. `HoldingUpdate`
@@ -178,6 +183,7 @@ export interface HoldingUpdateInput {
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
+  taux_pct?: number | null
 }
 
 // Types d'actifs valorisés manuellement (roadmap Phase 1, patrimoine net) — aucune

@@ -170,7 +170,17 @@ def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(ge
         r = rendements.get(h.ticker, {})
         out.rendement_depuis_achat_pct = r.get("rendement_depuis_achat_pct")
         out.rendement_annualise_pct = r.get("rendement_annualise_pct")
-        prix_connu = (h.market_data is not None and h.market_data.prix_actuel is not None) or h.prix_revient_moyen is not None
+        # Bug corrigé en marge de 2.M.1 : une ligne valorisée manuellement
+        # (`valeur_estimee`, cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) sans
+        # `prix_revient_moyen` renseigné (cas normal d'un compte courant ou d'une
+        # épargne réglementée, qui n'a pas de "prix de revient") retombait ici sur
+        # `None` malgré une valeur réellement connue — `value_holdings` la calculait
+        # pourtant correctement, seul cet affichage l'ignorait.
+        prix_connu = (
+            (h.market_data is not None and h.market_data.prix_actuel is not None)
+            or h.prix_revient_moyen is not None
+            or h.valeur_estimee is not None
+        )
         out.valeur = v.valeur if prix_connu else None
         result.append(out)
     return result
