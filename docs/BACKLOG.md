@@ -1382,7 +1382,7 @@ importés, versement mensuel du Simulateur préempli avec la valeur observée.
 Le simulateur (§ B.1, B.2) calcule une projection à la volée, mais rien n'est conservé. Un objectif
 suivi dans le temps est une fonctionnalité différente d'une simulation.
 
-#### O.1 — `majeur` · `M` · `P1` · `non traité` — Objectifs suivis
+#### O.1 — `majeur` · `M` · `P1` · `traité` (24/08/2026) — Objectifs suivis
 
 - Objectif = **nom, montant cible, échéance, actifs rattachés, contributeurs**.
 - **Trajectoire** : deux courbes, la trajectoire cible et la trajectoire réelle des versements.
@@ -1392,7 +1392,23 @@ suivi dans le temps est une fonctionnalité différente d'une simulation.
 - Types prédéfinis utiles : indépendance financière (reprend le calcul FIRE existant), épargne de
   précaution, apport immobilier, remboursement anticipé.
 
-#### O.2 — `mineur` · `S` · `P2` · `non traité` — Indicateurs de situation
+**Livré et vérifié le 24/08/2026.** Nouvelles tables `objectifs`, `objectif_actifs`,
+`objectif_contributeurs` (`holding_id`/`detenteur_id` en vraies FK, même choix que
+`QuotiteHolding` — hérite de la même limite déjà connue : un rattachement sur un actif reconstruit
+depuis le grand livre boursier ne survit pas à un ré-import qui recrée les lignes avec de nouveaux
+`id`). **Progression réelle = valeur actuelle des actifs rattachés** (pas un registre de versements
+séparé, réutilise la valorisation déjà en place) ; **trajectoire réelle ancrée sur deux mesures**
+seulement (`valeur_a_la_creation` figée en base + valeur actuelle recalculée à la lecture) — écart
+assumé avec un historique continu, documenté en toutes lettres à l'écran plutôt que présenté comme
+plus fin qu'il ne l'est. Rendement requis et contribution mensuelle nécessaire résolus par formule
+fermée (pas de bissection nécessaire, contrairement au XIRR). Nouveau composant
+`ObjectifsSuivisSection.tsx`, monté en tête de l'écran `/objectifs` (existant, jusqu'ici occupé par
+le seul Simulateur — cohabitent maintenant sur le même écran, l'objectif persisté au-dessus, la
+projection à la volée en dessous, dans cet ordre car c'est l'écran que le backlog désigne comme le
+plus important). Vérifié en conditions réelles : création avec actif rattaché, diagnostic « en
+bonne voie » cohérent avec la progression, suppression.
+
+#### O.2 — `mineur` · `S` · `P2` · `traité` (24/08/2026) — Indicateurs de situation
 
 Trois ratios, calculables à partir de ce que nous aurons alors, à afficher avec leur formule :
 
@@ -1401,6 +1417,16 @@ Trois ratios, calculables à partir de ce que nous aurons alors, à afficher ave
 - **Part du patrimoine immobilisée** : actifs non liquides / patrimoine brut.
 
 Finary les vend dans le module « Profil de l'investisseur » ; ils tiennent en trois divisions.
+
+**Livré et vérifié le 24/08/2026.** « Épargne disponible » = holdings `CASH_ACCOUNT`/
+`REGULATED_SAVINGS` (les deux seuls types immédiatement disponibles sans délai ni pénalité parmi
+`TYPES_ACTIF_PATRIMOINE_MANUEL`, backlog § 2.M.1) ; « dépenses mensuelles »/« revenus nets » moyennés
+sur les 3 derniers mois de mouvements bancaires (même fenêtre que N.2/N.4) ; « actifs non liquides »
+= le reste de `TYPES_ACTIF_PATRIMOINE_MANUEL` ; « patrimoine brut » = `actifs_totaux` déjà calculé
+par `patrimoine_service`. Chaque ratio affiche « — » plutôt qu'un chiffre trompeur quand une donnée
+manque (aucun mouvement bancaire importé, aucun emprunt). Carte affichée juste sous les objectifs
+suivis, sur le même écran `/objectifs`. Vérifié en conditions réelles : les trois ratios calculés
+correctement sur des données réelles (épargne, emprunt, mouvements bancaires).
 
 ---
 
@@ -1531,7 +1557,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
-| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | À lancer |
+| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | En cours — O.1, O.2 livrés (2/5) ; P.1, Q.1, Q.2 restants |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |
 
 **Pourquoi cet ordre.**

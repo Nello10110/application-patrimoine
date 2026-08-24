@@ -29,12 +29,15 @@ import type {
   HouseholdMember,
   HouseholdMemberInput,
   ImportPreview,
+  IndicateursSituation,
   JonctionPatrimoine,
   ImportResult,
   Loan,
   LoanInput,
   LoanUpdateInput,
   MouvementBancaire,
+  ObjectifDetail,
+  ObjectifInput,
   OidcConfig,
   OidcConfigInput,
   OidcStatus,
@@ -294,4 +297,10 @@ export const api = {
   getBudgetRecurrences: () => request<RecurrenceDetectee[]>('/budget/recurrences'),
   getJonctionPatrimoine: (dateDebut: string, dateFin: string) =>
     request<JonctionPatrimoine>(`/budget/jonction-patrimoine?date_debut=${dateDebut}&date_fin=${dateFin}`),
+
+  // Objectifs suivis et indicateurs de situation (backlog 2.O.1/2.O.2)
+  listObjectifs: () => request<ObjectifDetail[]>('/objectifs/'),
+  createObjectif: (payload: ObjectifInput) => request<ObjectifDetail>('/objectifs/', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteObjectif: (id: number) => request<void>(`/objectifs/${id}`, { method: 'DELETE' }),
+  getIndicateursSituation: () => request<IndicateursSituation>('/objectifs/situation/indicateurs'),
 }

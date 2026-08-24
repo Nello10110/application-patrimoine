@@ -93,7 +93,34 @@ Objectifs et rééquilibrage réunis pour une même année sélectionnable — d
   - **Alertes** : sous-ensemble des recommandations dont l'écart dépasse le seuil réglé dans Réglages, mises en avant en haut de la section.
   - **Actions de rééquilibrage recommandées** : liste complète des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster (réduire ou augmenter) pour chaque catégorie.
 
-## Écran Simulateur
+## Écran Objectifs
+
+Deux blocs sur un même écran : les objectifs suivis dans le temps, en haut ; le simulateur, calcul à la volée, en dessous.
+
+### Objectifs suivis (backlog § 2.O.1)
+
+Un objectif = un nom, un montant cible, une échéance, et éventuellement un ou plusieurs **actifs rattachés** — leur valeur cumulée mesure la progression réelle de l'objectif, pas un registre de versements séparé à tenir à jour soi-même. Le formulaire « Nouvel objectif » propose aussi un type prédéfini (indépendance financière, épargne de précaution, apport immobilier, remboursement anticipé, ou personnalisé) et des contributeurs (parmi les personnes/sociétés déclarées dans Réglages, si tu en as créé).
+
+Chaque objectif affiche :
+
+- **Valeur actuelle**, **montant cible**, **progression** en %.
+- **Diagnostic en langage naturel** : « Objectif atteint. », « En bonne voie. », « En retard de X mois au rythme actuel. », « Aucune progression mesurée pour l'instant. », ou « Échéance dépassée... » — comparé à une trajectoire cible qui va linéairement du montant de départ au montant cible entre la création et l'échéance.
+- **Rendement annuel requis** pour atteindre la cible sans versement supplémentaire, et **contribution mensuelle nécessaire** au taux hypothèse renseigné (0 % par défaut, modifiable à la création) pour combler l'écart.
+- Un graphique à deux courbes (cible en pointillés, réelle en trait plein) — la courbe réelle n'a que deux points (création, aujourd'hui), pas un historique complet, c'est indiqué sous le graphique.
+
+Le bouton « Supprimer » d'un objectif demande confirmation avant suppression définitive.
+
+### Indicateurs de situation (backlog § 2.O.2)
+
+Trois ratios, chacun avec sa formule affichée en dessous :
+
+- **Matelas de sécurité** (en mois) : épargne disponible (comptes courants + épargne réglementée) divisée par les dépenses mensuelles moyennes des 3 derniers mois de budget.
+- **Taux d'endettement** : mensualités totales des emprunts divisées par les revenus nets mensuels moyens.
+- **Part du patrimoine immobilisée** : le reste des actifs non boursiers (immobilier, SCPI, assurance-vie, PER...) rapporté au patrimoine brut.
+
+Un ratio affiche « — » plutôt qu'un chiffre trompeur s'il manque une donnée (aucun mouvement bancaire importé pour dépenses/revenus, aucun emprunt).
+
+### Simulateur
 
 Projette un capital dans le temps — une **hypothèse**, pas une promesse : les marchés ne progressent jamais de façon aussi régulière dans la réalité. Le **capital de départ** est préempli avec ton patrimoine net actuel, mais librement modifiable : laisse-le tel quel pour voir où en sera ton patrimoine réel, ou change-le pour tester n'importe quel autre scénario ("et si je plaçais 10 000 € à 6 % ?"). Un lien apparaît sous le champ pour revenir en un clic au patrimoine net actuel dès que tu l'as modifié.
 

@@ -624,6 +624,74 @@ class BudgetCible(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+TYPE_OBJECTIF_FIRE = "fire"
+TYPE_OBJECTIF_PRECAUTION = "precaution"
+TYPE_OBJECTIF_IMMOBILIER = "immobilier"
+TYPE_OBJECTIF_REMBOURSEMENT = "remboursement"
+TYPE_OBJECTIF_PERSONNALISE = "personnalise"
+TYPES_OBJECTIF = {
+    TYPE_OBJECTIF_FIRE,
+    TYPE_OBJECTIF_PRECAUTION,
+    TYPE_OBJECTIF_IMMOBILIER,
+    TYPE_OBJECTIF_REMBOURSEMENT,
+    TYPE_OBJECTIF_PERSONNALISE,
+}
+
+
+class Objectif(Base):
+    """Objectif suivi dans le temps (backlog 2.O.1) — distinct du simulateur
+    (§ B.1/B.2), qui projette à la volée sans rien conserver. `valeur_a_la_creation`
+    est un instantané figé au moment de la création (jamais recalculé) : ancre
+    réelle du début de la « trajectoire réelle », en complément de la valeur
+    actuelle recalculée à chaque lecture (`services/objectifs_service.py`)."""
+
+    __tablename__ = "objectifs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    nom: Mapped[str] = mapped_column(String)
+    type: Mapped[str] = mapped_column(String, default=TYPE_OBJECTIF_PERSONNALISE)
+    montant_cible: Mapped[float] = mapped_column(Float)
+    echeance: Mapped[str] = mapped_column(String)  # "YYYY-MM-DD"
+    # Taux annuel hypothèse (%) utilisé pour la contribution mensuelle nécessaire —
+    # 0 par défaut (le plus conservateur : aucun rendement supposé), librement
+    # modifiable plutôt qu'ajouter un second champ de saisie séparé.
+    rendement_hypothese_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    valeur_a_la_creation: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class ObjectifActif(Base):
+    """Actif(s) du portefeuille rattaché(s) à un objectif — leur valeur actuelle
+    cumulée EST la progression réelle de l'objectif (backlog 2.O.1), pas de
+    registre de versements séparé : réutilise la valorisation déjà en place plutôt
+    que d'en construire une nouvelle. `holding_id` est une vraie FK (même choix que
+    `QuotiteHolding`) : hérite de sa même limite connue, un rattachement sur un
+    actif reconstruit depuis le grand livre (§ 3.1) ne survit pas à un ré-import
+    qui recrée les lignes `origine=reconstruit` avec de nouveaux `id`."""
+
+    __tablename__ = "objectif_actifs"
+    __table_args__ = (UniqueConstraint("objectif_id", "holding_id", name="uq_objectif_actif"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    objectif_id: Mapped[int] = mapped_column(ForeignKey("objectifs.id"), index=True)
+    holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), index=True)
+
+
+class ObjectifContributeur(Base):
+    """Détenteur(s) contributeur(s) d'un objectif (backlog 2.O.1) — purement
+    informatif à ce stade (affiché sur la fiche de l'objectif), ne restreint aucun
+    calcul de progression, qui reste toujours sur la valeur totale des actifs
+    rattachés (pas de quotité par contributeur sur un objectif)."""
+
+    __tablename__ = "objectif_contributeurs"
+    __table_args__ = (UniqueConstraint("objectif_id", "detenteur_id", name="uq_objectif_contributeur"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    objectif_id: Mapped[int] = mapped_column(ForeignKey("objectifs.id"), index=True)
+    detenteur_id: Mapped[int] = mapped_column(ForeignKey("detenteurs.id"), index=True)
+
+
 class AccessLogEntry(Base):
     """Journal d'accès (2.L.2), consultable dans Réglages par le propriétaire —
     alimente aussi le calcul de verrouillage temporaire (`auth_service.verrouillage_actif`),

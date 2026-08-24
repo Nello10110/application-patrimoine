@@ -11,6 +11,13 @@ vi.mock('../api/client', () => ({
     getPatrimoineNet: vi.fn(),
     getPerformance: vi.fn(),
     getJonctionPatrimoine: vi.fn(),
+    // Objectifs suivis (backlog 2.O.1/2.O.2) : `ObjectifsSuivisSection`, montée en
+    // tête de cette page, les appelle au chargement — non testés ici (couverts par
+    // `ObjectifsSuivisSection.test.tsx`), résolution neutre.
+    listObjectifs: vi.fn(),
+    listHoldings: vi.fn(),
+    listDetenteurs: vi.fn(),
+    getIndicateursSituation: vi.fn(),
   },
 }))
 
@@ -84,6 +91,18 @@ describe('SimulateurPage', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoineNet())
     vi.mocked(api.getPerformance).mockResolvedValue(performance())
     vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine())
+    vi.mocked(api.listObjectifs).mockResolvedValue([])
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getIndicateursSituation).mockResolvedValue({
+      matelas_securite_mois: null,
+      taux_endettement_pct: null,
+      part_immobilisee_pct: null,
+      epargne_disponible: 0,
+      depenses_mensuelles_moyennes: null,
+      mensualites_totales: 0,
+      revenus_nets_mensuels_moyens: null,
+    })
   })
 
   it('préremplit le capital de départ avec le patrimoine net actuel', async () => {

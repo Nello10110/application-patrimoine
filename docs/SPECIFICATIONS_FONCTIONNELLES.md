@@ -30,7 +30,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/patrimoine/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
 | Répartition | `/repartition` | Objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable : définition des cibles de répartition géo/sectorielle, puis en dessous le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent — sorti du Tableau de bord pour ne pas y encombrer la vue d'ensemble. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
-| Simulateur | `/simulateur` | Projection d'un capital dans le temps (préempli avec le patrimoine net actuel, librement modifiable) à horizon réglable (5/10/20/30 ans) selon un rendement et un versement mensuel (préempli avec le versement observé sur le budget réel, backlog § 2.N.4) ; tableau de détail annuel/mensuel (versements, intérêts, capital, cumuls) ; calcul d'indépendance financière (FIRE) à partir d'une dépense annuelle cible et d'un taux de retrait. Tout est calculé côté client hormis le patrimoine net initial et le versement suggéré |
+| Objectifs | `/objectifs` (`/simulateur` redirige) | Deux blocs sur un même écran (backlog § 2.O.1) : **Objectifs suivis**, persistés — nom, montant cible, échéance, actifs rattachés dont la valeur cumulée mesure la progression réelle, trajectoire cible/réelle, diagnostic en langage naturel, rendement requis et contribution mensuelle nécessaire — et **indicateurs de situation** (§ 2.O.2, matelas de sécurité, taux d'endettement, part immobilisée) ; puis le **Simulateur**, calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel et le versement mensuel observé sur le budget (§ 2.N.4), horizon réglable (5/10/20/30 ans), tableau de détail annuel/mensuel, indépendance financière (FIRE). Tout le Simulateur est calculé côté client hormis les préremplissages |
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
 | Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements de la période |
@@ -327,6 +327,26 @@ courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires
   indisponible, signalé explicitement plutôt que de produire un chiffre faux. Le Simulateur (§ 3.12)
   préremplit son « Versement mensuel » avec le disponible moyen observé sur les 3 derniers mois de
   budget, librement modifiable ensuite.
+
+### 3.19 Objectifs suivis et indicateurs de situation (backlog § 2.O.1/2.O.2)
+
+Distinct du Simulateur (§ 3.12, calcul à la volée sans rien conserver) : un objectif est persisté.
+
+- **Progression réelle** = valeur actuelle des actifs rattachés (pas de registre de versements
+  séparé — réutilise la valorisation déjà en place). **Trajectoire réelle** ancrée sur deux mesures
+  seulement : `valeur_a_la_creation` (instantané figé au moment de la création) et la valeur
+  actuelle recalculée à la lecture — pas un historique continu.
+- **Diagnostic** : `atteint` (valeur actuelle ≥ cible), `echeance_depassee`, `en_bonne_voie`
+  (valeur actuelle ≥ trajectoire cible linéaire à ce jour), `en_retard` (retard exprimé en mois, au
+  rythme constaté depuis la création), `aucune_progression` (rythme nul ou négatif).
+- **Rendement annuel requis** (sans versement supplémentaire) et **contribution mensuelle
+  nécessaire** (au taux hypothèse renseigné par ligne, 0 % par défaut) : formules fermées, pas de
+  bissection nécessaire (contrairement au XIRR de § 3.5).
+- **Indicateurs de situation** : matelas de sécurité (épargne `CASH_ACCOUNT`/`REGULATED_SAVINGS` /
+  dépenses mensuelles moyennes sur 3 mois de budget), taux d'endettement (mensualités des emprunts /
+  revenus nets mensuels moyens), part du patrimoine immobilisée (le reste de
+  `TYPES_ACTIF_PATRIMOINE_MANUEL` / patrimoine brut). `null` plutôt qu'un chiffre trompeur si une
+  donnée manque (aucun mouvement bancaire importé, aucun emprunt).
 
 ## 4. Modèle de données (tables principales)
 

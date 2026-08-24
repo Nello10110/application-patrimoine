@@ -1220,3 +1220,80 @@ class JonctionPatrimoine(BaseModel):
     versement_mensuel_suggere: float | None
     categorie_epargne_introuvable: bool
     categorie_logement_introuvable: bool
+
+
+# ---------------------------------------------------------------------------
+# Objectifs suivis et indicateurs de situation (backlog 2.O.1/2.O.2)
+# ---------------------------------------------------------------------------
+
+
+class ObjectifCreate(BaseModel):
+    nom: str
+    type: str = "personnalise"
+    montant_cible: float
+    echeance: str
+    rendement_hypothese_pct: float = 0.0
+    holding_ids: list[int] = []
+    detenteur_ids: list[int] = []
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Le nom de l'objectif ne peut pas être vide")
+        return v
+
+    @field_validator("montant_cible")
+    @classmethod
+    def _valider_montant(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Le montant cible doit être strictement positif")
+        return v
+
+
+class ActifRattacheOut(BaseModel):
+    holding_id: int
+    ticker: str
+    nom: str | None = None
+
+
+class ContributeurObjectifOut(BaseModel):
+    id: int
+    nom: str
+
+
+class TrajectoirePoint(BaseModel):
+    date: str
+    valeur: float
+
+
+class ObjectifDetail(BaseModel):
+    id: int
+    nom: str
+    type: str
+    montant_cible: float
+    echeance: str
+    rendement_hypothese_pct: float
+    created_at: datetime
+    valeur_a_la_creation: float
+    valeur_actuelle: float
+    progression_pct: float | None
+    diagnostic: str
+    retard_mois: int | None
+    rendement_requis_pct: float | None
+    contribution_mensuelle_necessaire: float | None
+    trajectoire_cible: list[TrajectoirePoint]
+    trajectoire_reelle: list[TrajectoirePoint]
+    actifs_rattaches: list[ActifRattacheOut]
+    contributeurs: list[ContributeurObjectifOut]
+
+
+class IndicateursSituation(BaseModel):
+    matelas_securite_mois: float | None
+    taux_endettement_pct: float | None
+    part_immobilisee_pct: float | None
+    epargne_disponible: float
+    depenses_mensuelles_moyennes: float | None
+    mensualites_totales: float
+    revenus_nets_mensuels_moyens: float | None

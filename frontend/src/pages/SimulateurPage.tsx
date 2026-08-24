@@ -3,6 +3,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { api } from '../api/client'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
+import ObjectifsSuivisSection from '../components/ObjectifsSuivisSection'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -175,7 +176,9 @@ export default function SimulateurPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <ObjectifsSuivisSection />
+
+      <div className="border-t border-bordure pt-6">
         <h2 className="text-xl font-semibold text-texte">Simulateur</h2>
         <p className="mt-1 text-sm text-texte-attenue">
           Projette un capital dans le temps — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
