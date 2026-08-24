@@ -857,6 +857,10 @@ class AuthResponse(BaseModel):
     user: UserOut
 
 
+class OidcStatus(BaseModel):
+    enabled: bool
+
+
 class SessionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

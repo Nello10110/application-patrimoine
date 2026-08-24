@@ -1,7 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { api } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import LoginPage from './LoginPage'
+
+vi.mock('../api/client', () => ({
+  api: {
+    getOidcStatus: vi.fn(),
+  },
+}))
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: vi.fn(),
@@ -14,6 +21,8 @@ describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login, register, logout: vi.fn() })
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false })
+    window.history.replaceState(null, '', '/login')
   })
 
   it("mode connexion par défaut : soumettre appelle login avec nom d'utilisateur/mot de passe", async () => {
@@ -48,5 +57,41 @@ describe('LoginPage', () => {
     fireEvent.submit(container.querySelector('form')!)
 
     await screen.findByText("Nom d'utilisateur ou mot de passe incorrect.")
+  })
+})
+
+describe('LoginPage — connexion SSO Authentik (backlog SSO Authentik)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login: vi.fn(), register: vi.fn(), logout: vi.fn() })
+    window.history.replaceState(null, '', '/login')
+  })
+
+  it("n'affiche pas le bouton Authentik quand le SSO n'est pas configuré sur ce déploiement", async () => {
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false })
+
+    render(<LoginPage />)
+
+    await vi.waitFor(() => expect(api.getOidcStatus).toHaveBeenCalled())
+    expect(screen.queryByRole('link', { name: /Authentik/ })).not.toBeInTheDocument()
+  })
+
+  it('affiche le bouton Authentik pointant vers /api/auth/oidc/login quand le SSO est configuré', async () => {
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: true })
+
+    render(<LoginPage />)
+
+    const lien = await screen.findByRole('link', { name: /Authentik/ })
+    expect(lien).toHaveAttribute('href', '/api/auth/oidc/login')
+  })
+
+  it("affiche le message d'erreur porté par ?oidc_error= puis nettoie l'URL", async () => {
+    vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false })
+    window.history.replaceState(null, '', '/login?oidc_error=Connexion%20Authentik%20refus%C3%A9e')
+
+    render(<LoginPage />)
+
+    expect(screen.getByText('Connexion Authentik refusée')).toBeInTheDocument()
+    await vi.waitFor(() => expect(window.location.search).toBe(''))
   })
 })

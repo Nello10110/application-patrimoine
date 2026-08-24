@@ -72,6 +72,30 @@ def creer_utilisateur(db: Session, username: str, password: str, *, role: str = 
     return user
 
 
+def creer_utilisateur_oidc(db: Session, username: str, oidc_subject: str, *, role: str = ROLE_PROPRIETAIRE, owner_user_id: int | None = None) -> User:
+    """Miroir de `creer_utilisateur` pour un compte provisionné via Authentik (SSO) —
+    `password_hash=None` : ce compte ne peut jamais se connecter par mot de passe,
+    seulement via `oidc_subject` (cf. `POST /api/auth/login`, qui refuse explicitement
+    un mot de passe sur un compte sans hash)."""
+    user = User(username=username.strip(), password_hash=None, oidc_subject=oidc_subject, role=role, owner_user_id=owner_user_id)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def utilisateur_par_oidc_subject(db: Session, oidc_subject: str) -> User | None:
+    return db.query(User).filter(User.oidc_subject == oidc_subject).first()
+
+
+def lier_oidc(db: Session, user: User, oidc_subject: str) -> None:
+    """Ajoute Authentik comme second moyen de connexion à un compte déjà créé à la
+    main (même `username`) — le mot de passe existant, s'il y en a un, reste utilisable
+    tel quel : lier ne retire jamais un moyen de connexion, seulement en ajoute un."""
+    user.oidc_subject = oidc_subject
+    db.commit()
+
+
 def creer_token(db: Session, user: User, *, ip: str | None = None, user_agent: str | None = None) -> AuthToken:
     maintenant = _maintenant_naif()
     token = AuthToken(

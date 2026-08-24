@@ -26,6 +26,7 @@ import type {
   Loan,
   LoanInput,
   LoanUpdateInput,
+  OidcStatus,
   PatrimoineNet,
   PerformanceSummary,
   Preferences,
@@ -102,6 +103,7 @@ export const api = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getMe: () => request<AuthUser>('/auth/me'),
+  getOidcStatus: () => request<OidcStatus>('/auth/oidc/status'),
 
   // Sessions et journal d'accès (backlog 2.L.2).
   listSessions: () => request<Session[]>('/auth/sessions'),

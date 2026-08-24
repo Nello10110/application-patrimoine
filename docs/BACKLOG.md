@@ -998,6 +998,30 @@ conçue pour un usage `localhost`. L'exposer change la nature du risque.
   (Analyse, Rapport, Objectifs, Transactions, Import n'ont pas de filtrage par détenteur fiable côté
   serveur aujourd'hui — un incrément séparé).
 
+#### L.3 — `mineur` · `S` · `P2` · `traité` (24/08/2026) — Connexion SSO Authentik
+
+L'utilisateur expose déjà l'application derrière un proxy provider Authentik (forward-auth) sur son
+serveur personnel, et souhaite un bouton « Se connecter avec Authentik » — à condition explicite que
+retirer ce proxy un jour n'ouvre aucune brèche.
+
+**Livré le 24/08/2026** : vrai flux OIDC applicatif (Authorization Code + PKCE,
+`backend/app/services/oidc_service.py`), qui ne fait confiance à AUCUN en-tête de proxy — l'échange
+du code et la récupération de l'identité (`userinfo`) se font en direct, serveur à serveur,
+authentifiés par un secret jamais transmis au navigateur. Découverte OIDC standard
+(`.well-known/openid-configuration`, pas d'URL Authentik codée en dur). État anti-CSRF auto-porteur
+(signé HMAC, sans table ni session serveur). Aucune nouvelle dépendance (`requests`/`hashlib`/`hmac`
+déjà présents). `User.password_hash` devient nullable, nouvelle colonne `oidc_subject` (identifiant
+stable de liaison). Provisioning automatique au premier login d'une identité Authentik inconnue —
+`proprietaire` seulement si aucun compte n'existe encore (bootstrap), `membre` sinon ; un compte local
+déjà créé à la main avec le même nom d'utilisateur est lié plutôt que dupliqué, mot de passe existant
+conservé. Vérifié bout en bout avec un faux serveur Authentik protocolaire (le vrai n'étant pas
+accessible depuis l'environnement de développement) : redirection, échange de code, récupération
+d'identité, création de compte, jeton fonctionnel, ré-authentification sans doublon, et les 3 chemins
+d'erreur (refus Authentik, `state` invalide, tentative de mot de passe sur un compte 100 % SSO).
+**Reste à faire par l'utilisateur** : créer le Provider/Application OAuth2 dédié côté Authentik
+(indépendant du proxy provider existant — cf. `docs/MANUEL_EXPLOITATION.md` § 12.1) et définir les 5
+variables d'environnement `AUTHENTIK_*` sur son serveur, seule étape non simulable ici.
+
 ---
 
 ### M. Profondeur du modèle d'actifs (nouveau, 21/08/2026)

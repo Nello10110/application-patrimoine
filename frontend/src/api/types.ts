@@ -13,6 +13,12 @@ export interface AuthResponse {
   user: AuthUser
 }
 
+// Connexion SSO Authentik (OIDC applicatif) — `enabled` reflète simplement si les
+// variables d'environnement du backend sont configurées sur ce déploiement.
+export interface OidcStatus {
+  enabled: boolean
+}
+
 // Sessions et journal d'accès (backlog 2.L.2).
 export interface Session {
   id_session: string

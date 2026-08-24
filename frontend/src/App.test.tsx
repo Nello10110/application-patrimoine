@@ -28,6 +28,9 @@ vi.mock('./api/client', () => ({
     // Détenteurs (backlog 2.L.1) : `BarreControles` (rendue par `App`) lit
     // `listDetenteurs()` — non testé ici, résolution neutre.
     listDetenteurs: vi.fn().mockResolvedValue([]),
+    // SSO Authentik : `LoginPage` (rendue après déconnexion) lit `getOidcStatus()`
+    // — non testé ici, bouton simplement absent.
+    getOidcStatus: vi.fn().mockResolvedValue({ enabled: false }),
   },
 }))
 

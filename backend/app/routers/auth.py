@@ -4,19 +4,21 @@ rester accessibles sans jeton — cf. `main.py`, qui protège tous les autres
 routeurs via `dependencies=[Depends(get_current_user)]`."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_token, get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_PROPRIETAIRE, AuthToken, Detenteur, PerimetreInvite, User
-from ..schemas import AccessLogEntryOut, AuthResponse, HouseholdMemberCreate, HouseholdMemberOut, LoginRequest, RegisterRequest, SessionOut, UserOut
-from ..services import auth_service
+from ..schemas import AccessLogEntryOut, AuthResponse, HouseholdMemberCreate, HouseholdMemberOut, LoginRequest, OidcStatus, RegisterRequest, SessionOut, UserOut
+from ..services import auth_service, oidc_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE = "Ce nom d'utilisateur est déjà pris."
 MESSAGE_IDENTIFIANTS_INVALIDES = "Nom d'utilisateur ou mot de passe incorrect."
 MESSAGE_INSCRIPTION_FERMEE = "L'inscription ouverte est fermée. Demandez à votre propriétaire de foyer de créer votre compte."
+MESSAGE_COMPTE_SSO_SEUL = "Ce compte se connecte uniquement via Authentik."
 
 
 def _adresse_client(request: Request) -> str | None:
@@ -52,12 +54,76 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     if user is None:
         auth_service.journaliser_acces(db, payload.username, None, ip, "echec", "compte_inconnu")
         raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
+    if user.password_hash is None:
+        auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "compte_sso_seul")
+        raise HTTPException(status_code=401, detail=MESSAGE_COMPTE_SSO_SEUL)
     if not auth_service.verify_password(payload.password, user.password_hash):
         auth_service.journaliser_acces(db, payload.username, user.id, ip, "echec", "mot_de_passe_incorrect")
         raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
     token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, payload.username, user.id, ip, "succes", None)
     return AuthResponse(token=token.token, user=UserOut.model_validate(user))
+
+
+# --- Connexion SSO Authentik (OIDC applicatif) -----------------------------------
+#
+# Toutes publiques, comme /register et /login ci-dessus. Ce flux ne fait JAMAIS
+# confiance à un en-tête de proxy — toute la logique de sécurité vit dans
+# `services/oidc_service.py` (docstring de module à lire avant toute modification
+# ici). Ces trois routes ne sont que la tuyauterie HTTP autour de ce service.
+
+
+@router.get("/oidc/status", response_model=OidcStatus)
+def oidc_status():
+    return OidcStatus(enabled=oidc_service.enabled())
+
+
+@router.get("/oidc/login")
+def oidc_login():
+    if not oidc_service.enabled():
+        raise HTTPException(status_code=404, detail="Connexion Authentik non configurée sur ce déploiement.")
+    code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
+    state = oidc_service.construire_state(code_verifier)
+    return RedirectResponse(oidc_service.url_autorisation(state, code_challenge))
+
+
+@router.get("/oidc/callback")
+def oidc_callback(request: Request, db: Session = Depends(get_db)):
+    if not oidc_service.enabled():
+        raise HTTPException(status_code=404, detail="Connexion Authentik non configurée sur ce déploiement.")
+
+    def _redirection_erreur(message: str) -> RedirectResponse:
+        from urllib.parse import quote
+
+        return RedirectResponse(f"{oidc_service.frontend_url()}/?oidc_error={quote(message)}")
+
+    erreur_authentik = request.query_params.get("error")
+    if erreur_authentik:
+        return _redirection_erreur(f"Connexion Authentik refusée ({erreur_authentik}).")
+
+    code = request.query_params.get("code")
+    state_recu = request.query_params.get("state")
+    if not code or not state_recu:
+        return _redirection_erreur("Réponse Authentik incomplète. Réessayez.")
+
+    ip = _adresse_client(request)
+    try:
+        code_verifier = oidc_service.verifier_state(state_recu)
+        jeton_authentik = oidc_service.echanger_code(code, code_verifier)
+        claims = oidc_service.recuperer_identite(jeton_authentik["access_token"])
+        user = oidc_service.resoudre_ou_provisionner_utilisateur(db, claims)
+    except oidc_service.OidcError as err:
+        auth_service.journaliser_acces(db, "?", None, ip, "echec", "oidc_echec")
+        return _redirection_erreur(str(err))
+
+    verrouille_jusqua = auth_service.verrouillage_actif(db, user.username)
+    if verrouille_jusqua is not None:
+        auth_service.journaliser_acces(db, user.username, user.id, ip, "echec", "compte_verrouille")
+        return _redirection_erreur(f"Trop de tentatives. Réessayez après {verrouille_jusqua.strftime('%H:%M UTC')}.")
+
+    token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
+    auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "oidc")
+    return RedirectResponse(f"{oidc_service.frontend_url()}/#token={token.token}")
 
 
 @router.post("/logout", status_code=204)

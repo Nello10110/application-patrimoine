@@ -1,8 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { api } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import Card from '../components/Card'
 
 type Mode = 'connexion' | 'creation'
+
+// Message d'erreur renvoyé par le backend après un échec de connexion Authentik
+// (backlog SSO Authentik) — porté en query param sur la redirection finale du
+// callback OIDC, puisque cette page n'a jamais vu la requête XHR qui a échoué.
+function erreurOidcDepuisUrl(): string | null {
+  return new URLSearchParams(window.location.search).get('oidc_error')
+}
 
 export default function LoginPage() {
   const { login, register } = useAuth()
@@ -10,7 +18,24 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() => erreurOidcDepuisUrl())
+  const [oidcEnabled, setOidcEnabled] = useState(false)
+
+  useEffect(() => {
+    if (erreurOidcDepuisUrl()) {
+      const params = new URLSearchParams(window.location.search)
+      params.delete('oidc_error')
+      const reste = params.toString()
+      window.history.replaceState(null, '', window.location.pathname + (reste ? `?${reste}` : ''))
+    }
+    // Échec silencieux volontaire (backlog 2.K.5) : ce n'est pas une carte de
+    // données qui disparaît, juste une fonctionnalité optionnelle absente sur les
+    // déploiements où Authentik n'est pas configuré — le bouton reste alors caché.
+    api
+      .getOidcStatus()
+      .then((s) => setOidcEnabled(s.enabled))
+      .catch(() => {})
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -92,6 +117,22 @@ export default function LoginPage() {
               {saving ? 'Un instant...' : mode === 'connexion' ? 'Se connecter' : 'Créer mon compte'}
             </button>
           </form>
+
+          {oidcEnabled && (
+            <>
+              <div className="my-4 flex items-center gap-3 text-xs text-texte-attenue">
+                <span className="h-px flex-1 bg-bordure" />
+                ou
+                <span className="h-px flex-1 bg-bordure" />
+              </div>
+              <a
+                href="/api/auth/oidc/login"
+                className="block rounded-md border border-bordure px-4 py-2 text-center text-sm font-medium text-texte hover:bg-surface-elevee"
+              >
+                Se connecter avec Authentik
+              </a>
+            </>
+          )}
         </Card>
       </div>
     </div>

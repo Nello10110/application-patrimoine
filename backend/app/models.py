@@ -423,10 +423,16 @@ class User(Base):
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     # Format `pbkdf2_sha256$<iterations>$<sel>$<hash>` (cf. `services/auth_service.py`) :
     # le nombre d'itérations est stocké dans le hash lui-même, pour pouvoir l'augmenter
-    # plus tard sans invalider les mots de passe déjà enregistrés.
-    password_hash: Mapped[str] = mapped_column(String)
+    # plus tard sans invalider les mots de passe déjà enregistrés. `None` pour un
+    # compte purement SSO (backlog SSO Authentik) : pas de mot de passe local
+    # utilisable, `POST /api/auth/login` le refuse explicitement dans ce cas.
+    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, default=ROLE_PROPRIETAIRE, server_default=ROLE_PROPRIETAIRE)
     owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    # Identifiant stable (`sub`) renvoyé par Authentik une fois ce compte lié à une
+    # identité SSO (backlog SSO Authentik) — jamais le nom d'utilisateur ou l'email,
+    # qui peuvent changer côté Authentik ; seule clé de liaison fiable dans la durée.
+    oidc_subject: Mapped[str | None] = mapped_column(String, nullable=True, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

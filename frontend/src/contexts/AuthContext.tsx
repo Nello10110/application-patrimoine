@@ -19,6 +19,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // Retour de connexion Authentik (backlog SSO Authentik) : le backend redirige
+    // vers la racine du frontend avec `#token=...` — un fragment n'est jamais envoyé
+    // à aucun serveur (ni journalisé par un éventuel proxy intermédiaire), seul le
+    // navigateur le lit. On le capture avant toute autre chose, puis on nettoie
+    // immédiatement l'URL pour qu'un rechargement/partage du lien ne le réexpose pas.
+    if (window.location.hash.startsWith('#token=')) {
+      setToken(decodeURIComponent(window.location.hash.slice('#token='.length)))
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    }
+
     if (!getToken()) {
       setLoading(false)
       return
