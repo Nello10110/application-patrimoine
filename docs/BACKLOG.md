@@ -1125,7 +1125,7 @@ vers au plus un actif), sélecteur dans `LoansCard.tsx`. **Reste hors périmètr
 d'un même emprunt à plusieurs actifs avec une clé de répartition (aujourd'hui : un emprunt ne peut
 être rattaché qu'à un seul actif à la fois) — à traiter si un besoin réel se présente.
 
-#### M.3 — `majeur` · `M` · `P1` · `non traité` — Fiche immobilier complète
+#### M.3 — `majeur` · `M` · `P1` · `traité` (24/08/2026) — Fiche immobilier complète
 
 C'est le domaine où l'écart avec Finary est le plus visible, et c'est aussi le premier poste du
 patrimoine du foyer. À ajouter à la valorisation manuelle existante :
@@ -1147,6 +1147,29 @@ patrimoine du foyer. À ajouter à la valorisation manuelle existante :
 > estimation dont on ne maîtrise ni la méthode ni la fraîcheur. À réétudier seulement si une source
 > gratuite fiable apparaît — les données DVF de la DGFiP sont une piste (prix de mutation réels),
 > à instruire, pas à engager.
+
+**Livré le 24/08/2026** : nouvelle table `HoldingImmobilierDetail` (un par `Holding`, plutôt que
+des colonnes de plus sur `Holding` — ces champs n'ont de sens que pour `REAL_ESTATE`) portant le
+bloc location (type, loyer, charges, frais annuels agrégés) et les caractéristiques (surface,
+pièces, année, DPE), administrable via `PUT /api/portfolio/holdings/{ticker}/immobilier`. Cashflow/
+rentabilité brute/nette/prix au m² calculés côté serveur (`services/immobilier_service.py`) et
+exposés dans `GET /holdings/{ticker}/detail` (`HoldingDetail.immobilier`, `null` tant qu'aucun
+détail n'a été saisi) — cashflow retranche la mensualité de l'emprunt rattaché (`Loan.holding_id`,
+§ M.2) si un emprunt existe, `0` sinon ; rentabilités et cashflow restent `None` sans loyer saisi
+(rien à calculer), le prix au m² reste calculable seul (surface + valeur suffisent). Nouvelle table
+générique `HoldingValuationHistory` (pas seulement pour l'immobilier, même mécanisme que
+`valeur_estimee` elle-même) : chaque changement réel de `Holding.valeur_estimee` (création ou
+modification, jamais un effacement à `None`) ajoute une ligne plutôt que d'écraser la précédente —
+`GET /holdings/{ticker}/immobilier-history` expose l'historique complet, affiché sur la fiche en
+tableau chronologique. `Holding.valeur_estimee`/`date_valeur_estimee` restent la valeur COURANTE
+(comportement inchangé partout ailleurs) ; cette table est l'audit complet, jamais purgée.
+Fiche détaillée (`HoldingDetailContent.tsx`) : nouvelle section pour `type_actif === 'REAL_ESTATE'`
+uniquement (formulaire caractéristiques/location, cashflow/rentabilités avec formule affichée,
+historique daté) — remplace le graphique de cours (sans objet pour un bien non coté). 585 tests
+backend (+17), 261 tests frontend (+5) au vert, vérifié en conditions réelles (backend isolé) :
+cashflow correct avant/après rattachement d'un emprunt (700 € → -100 € avec une mensualité de
+800 €), historique accumule bien 2 points sur 2 changements de valeur sans qu'une modification d'un
+autre champ (nom) n'en ajoute un troisième.
 
 #### M.4 — `mineur` · `M` · `P2` · `non traité` — Fiche d'actif unifiée
 

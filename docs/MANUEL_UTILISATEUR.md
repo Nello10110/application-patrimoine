@@ -45,6 +45,22 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 - **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif, valeur estimée) — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat.
 - **Taux annuel** (épargne réglementée/salariale, véhicule) : champ apparaissant uniquement pour ces types — un pourcentage positif pour un taux d'intérêt attendu (épargne), négatif pour une décote annuelle attendue (véhicule). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
 
+### Fiche immobilier complète
+
+Sur la fiche détaillée d'un bien immobilier (clic sur la ligne dans le tableau), une section dédiée
+remplace le graphique de cours (sans objet, un bien immobilier n'a pas de cotation) :
+
+- **Caractéristiques et location** : type de location (nue, meublée, Pinel, LMNP, saisonnière),
+  loyer mensuel, charges mensuelles, frais annuels (taxe foncière, copropriété, assurance, gestion —
+  un seul total), surface, nombre de pièces, année de construction, DPE. « Enregistrer » valide.
+- **Cashflow et rentabilité** (calculés automatiquement dès qu'un loyer est renseigné) : cashflow
+  mensuel (loyer − charges − frais/12 − mensualité de l'emprunt rattaché, s'il y en a un), rentabilité
+  brute et nette, prix au m² (dès que la surface est renseignée, même sans loyer) — chaque chiffre est
+  affiché avec sa formule.
+- **Historique de valorisation** : chaque changement de la Valeur estimée (formulaire d'ajout ou
+  édition en ligne du Portefeuille) ajoute une ligne datée à ce tableau — l'ancienne estimation n'est
+  **jamais écrasée**, elle reste consultable.
+
 ### Dettes et emprunts
 
 Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Supprimer** retire définitivement un emprunt, après confirmation.

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
-import type { Detenteur, HoldingDetail } from '../api/types'
+import type { Detenteur, HoldingDetail, ValuationHistoryPoint } from '../api/types'
 import Card from './Card'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import PieChartCard from './PieChartCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro, formatPct, formatQuantite } from '../utils/format'
+import { formatDate, formatEuro, formatPct, formatQuantite } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -125,6 +125,258 @@ function DetenteursSection({ ticker, quotitesInitiales }: { ticker: string; quot
   )
 }
 
+const OPTIONS_TYPE_LOCATION = [
+  { value: '', label: 'Non renseigné' },
+  { value: 'nue', label: 'Location nue' },
+  { value: 'meublee', label: 'Location meublée' },
+  { value: 'pinel', label: 'Pinel' },
+  { value: 'lmnp', label: 'LMNP' },
+  { value: 'saisonniere', label: 'Saisonnière' },
+]
+
+interface FormImmobilier {
+  type_location: string
+  loyer_mensuel: string
+  charges_mensuelles: string
+  frais_annuels: string
+  surface_m2: string
+  nb_pieces: string
+  annee_construction: string
+  dpe: string
+}
+
+function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
+  return {
+    type_location: immo?.type_location ?? '',
+    loyer_mensuel: immo?.loyer_mensuel !== null && immo?.loyer_mensuel !== undefined ? String(immo.loyer_mensuel) : '',
+    charges_mensuelles:
+      immo?.charges_mensuelles !== null && immo?.charges_mensuelles !== undefined ? String(immo.charges_mensuelles) : '',
+    frais_annuels: immo?.frais_annuels !== null && immo?.frais_annuels !== undefined ? String(immo.frais_annuels) : '',
+    surface_m2: immo?.surface_m2 !== null && immo?.surface_m2 !== undefined ? String(immo.surface_m2) : '',
+    nb_pieces: immo?.nb_pieces !== null && immo?.nb_pieces !== undefined ? String(immo.nb_pieces) : '',
+    annee_construction:
+      immo?.annee_construction !== null && immo?.annee_construction !== undefined ? String(immo.annee_construction) : '',
+    dpe: immo?.dpe ?? '',
+  }
+}
+
+/** Fiche immobilier complète (backlog 2.M.3) : caractéristiques + bloc location,
+ * cashflow/rentabilité/prix au m² calculés côté serveur (jamais recalculés ici),
+ * et historique daté des valorisations — jamais écrasé, une nouvelle ligne à chaque
+ * changement de `valeur_estimee` (cf. `PositionsTable`/formulaire d'ajout du
+ * Portefeuille, seuls endroits où `valeur_estimee` se modifie). N'apparaît que pour
+ * `type_actif === 'REAL_ESTATE'`. */
+function ImmobilierSection({ ticker, immobilierInitial }: { ticker: string; immobilierInitial: HoldingDetail['immobilier'] }) {
+  const { montantsMasques } = usePreferencesAffichage()
+  const [immobilier, setImmobilier] = useState(immobilierInitial)
+  const [form, setForm] = useState<FormImmobilier>(() => formulaireDepuis(immobilierInitial))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [historique, setHistorique] = useState<ValuationHistoryPoint[]>([])
+
+  useEffect(() => {
+    api
+      .getHoldingValuationHistory(ticker)
+      .then(setHistorique)
+      .catch(() => setHistorique([]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `ticker` change = remontage du composant parent (route/modale).
+  }, [ticker])
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      await api.updateHoldingImmobilier(ticker, {
+        type_location: form.type_location || null,
+        loyer_mensuel: form.loyer_mensuel ? Number(form.loyer_mensuel) : null,
+        charges_mensuelles: form.charges_mensuelles ? Number(form.charges_mensuelles) : null,
+        frais_annuels: form.frais_annuels ? Number(form.frais_annuels) : null,
+        surface_m2: form.surface_m2 ? Number(form.surface_m2) : null,
+        nb_pieces: form.nb_pieces ? Number(form.nb_pieces) : null,
+        annee_construction: form.annee_construction ? Number(form.annee_construction) : null,
+        dpe: form.dpe || null,
+      })
+      // Cashflow/rentabilité/prix au m² sont calculés côté serveur (jamais recalculés
+      // ici) : on relit la fiche complète pour les obtenir à jour, même pattern que
+      // `DetenteursSection` après l'enregistrement d'une quotité.
+      const detailFrais = await api.getHoldingDetail(ticker)
+      setImmobilier(detailFrais.immobilier)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <Card title="Immobilier — caractéristiques et location">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Type de location
+            <select
+              value={form.type_location}
+              onChange={(e) => setForm({ ...form, type_location: e.target.value })}
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            >
+              {OPTIONS_TYPE_LOCATION.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Loyer mensuel (€)
+            <input
+              type="number"
+              step="any"
+              value={form.loyer_mensuel}
+              onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })}
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Charges mensuelles (€)
+            <input
+              type="number"
+              step="any"
+              value={form.charges_mensuelles}
+              onChange={(e) => setForm({ ...form, charges_mensuelles: e.target.value })}
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Frais annuels (taxe foncière, copropriété, assurance, gestion — total)
+            <input
+              type="number"
+              step="any"
+              value={form.frais_annuels}
+              onChange={(e) => setForm({ ...form, frais_annuels: e.target.value })}
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Surface (m²)
+            <input
+              type="number"
+              step="any"
+              value={form.surface_m2}
+              onChange={(e) => setForm({ ...form, surface_m2: e.target.value })}
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Nombre de pièces
+            <input
+              type="number"
+              step="1"
+              value={form.nb_pieces}
+              onChange={(e) => setForm({ ...form, nb_pieces: e.target.value })}
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Année de construction
+            <input
+              type="number"
+              step="1"
+              value={form.annee_construction}
+              onChange={(e) => setForm({ ...form, annee_construction: e.target.value })}
+              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            DPE
+            <input
+              value={form.dpe}
+              onChange={(e) => setForm({ ...form, dpe: e.target.value })}
+              placeholder="A à G"
+              maxLength={2}
+              className="w-20 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        >
+          {saving ? 'Enregistrement...' : 'Enregistrer'}
+        </button>
+        {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
+      </Card>
+
+      {immobilier && (immobilier.cashflow_mensuel !== null || immobilier.prix_m2 !== null) && (
+        <Card title="Cashflow et rentabilité">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {immobilier.cashflow_mensuel !== null && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Cashflow mensuel</p>
+                <p className={`mt-1 text-lg font-semibold ${immobilier.cashflow_mensuel >= 0 ? 'text-positif' : 'text-negatif'}`}>
+                  {formatEuro(immobilier.cashflow_mensuel, 2, montantsMasques)}
+                </p>
+                <p className="mt-1 text-xs text-texte-attenue">loyer − charges − frais/12 − mensualité</p>
+              </div>
+            )}
+            {immobilier.rentabilite_brute_pct !== null && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rentabilité brute</p>
+                <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_brute_pct)}</p>
+                <p className="mt-1 text-xs text-texte-attenue">loyer annuel / prix d'acquisition</p>
+              </div>
+            )}
+            {immobilier.rentabilite_nette_pct !== null && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rentabilité nette</p>
+                <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_nette_pct)}</p>
+                <p className="mt-1 text-xs text-texte-attenue">(loyer − charges − frais) / prix d'acquisition</p>
+              </div>
+            )}
+            {immobilier.prix_m2 !== null && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Prix au m²</p>
+                <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.prix_m2, 2, montantsMasques)}</p>
+              </div>
+            )}
+            {immobilier.emprunt_mensualite !== null && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Mensualité de l'emprunt rattaché</p>
+                <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.emprunt_mensualite, 2, montantsMasques)}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {historique.length > 0 && (
+        <Card title="Historique de valorisation">
+          <p className="mb-3 text-xs text-texte-attenue">
+            Chaque estimation est datée et conservée — l'ancienne n'est jamais écrasée.
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
+                <th className="py-2 pr-4">Date</th>
+                <th className="py-2 pr-4 text-right">Valeur estimée</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-bordure">
+              {[...historique].reverse().map((p, i) => (
+                <tr key={`${p.date_valeur}-${i}`}>
+                  <td className="py-2 pr-4 text-texte">{formatDate(p.date_valeur)}</td>
+                  <td className="py-2 pr-4 text-right font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </>
+  )
+}
+
 export default function HoldingDetailContent({ detail, titleId }: { detail: HoldingDetail; titleId?: string }) {
   const { montantsMasques } = usePreferencesAffichage()
   const gainPositif = (detail.rendement_depuis_achat_pct ?? 0) >= 0
@@ -187,7 +439,11 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
         </div>
       </Card>
 
-      <HoldingPriceHistoryChart ticker={detail.ticker} />
+      {detail.type_actif === 'REAL_ESTATE' ? (
+        <ImmobilierSection ticker={detail.ticker} immobilierInitial={detail.immobilier} />
+      ) : (
+        <HoldingPriceHistoryChart ticker={detail.ticker} />
+      )}
 
       <DetenteursSection ticker={detail.ticker} quotitesInitiales={detail.quotites} />
 

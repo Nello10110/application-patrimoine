@@ -16,6 +16,8 @@ import type {
   EtatRafraichissement,
   Holding,
   HoldingDetail,
+  HoldingImmobilier,
+  HoldingImmobilierInput,
   HoldingInput,
   HoldingPriceHistoryResponse,
   HoldingUpdateInput,
@@ -39,6 +41,7 @@ import type {
   Session,
   TransactionImportResult,
   TypeDetenteur,
+  ValuationHistoryPoint,
   ZoneGeographiqueInfo,
 } from './types'
 
@@ -131,6 +134,14 @@ export const api = {
   getHoldingDetail: (ticker: string) => request<HoldingDetail>(`/portfolio/holdings/${encodeURIComponent(ticker)}/detail`),
   getHoldingPriceHistory: (ticker: string) =>
     request<HoldingPriceHistoryResponse>(`/portfolio/holdings/${encodeURIComponent(ticker)}/price-history`),
+  // Fiche immobilier complète (backlog 2.M.3).
+  updateHoldingImmobilier: (ticker: string, payload: HoldingImmobilierInput) =>
+    request<HoldingImmobilier>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  getHoldingValuationHistory: (ticker: string) =>
+    request<ValuationHistoryPoint[]>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier-history`),
 
   importPreview: (file: File) => {
     const form = new FormData()

@@ -13,14 +13,27 @@ from ..schemas import (
     ColumnMapping,
     HoldingCreate,
     HoldingDetail,
+    HoldingImmobilierOut,
+    HoldingImmobilierUpdate,
     HoldingOut,
     HoldingPriceHistoryResponse,
     HoldingUpdate,
     ImportPreviewResponse,
     ImportResult,
     QuotitesUpdate,
+    ValuationHistoryPoint,
 )
-from ..services import analysis_service, auth_service, csv_import, detenteurs_service, historical_performance_service, holding_detail_service, performance_service, upload_limits
+from ..services import (
+    analysis_service,
+    auth_service,
+    csv_import,
+    detenteurs_service,
+    historical_performance_service,
+    holding_detail_service,
+    immobilier_service,
+    performance_service,
+    upload_limits,
+)
 
 _peut_ecrire = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
 
@@ -203,6 +216,38 @@ def get_holding_detail(ticker: str, db: Session = Depends(get_db), current_user:
     return HoldingDetail(**detail)
 
 
+@router.put("/holdings/{ticker}/immobilier", response_model=HoldingImmobilierOut)
+def update_holding_immobilier(
+    ticker: str,
+    payload: HoldingImmobilierUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_peut_ecrire),
+):
+    """Crée ou remplace le détail immobilier de cette ligne (backlog 2.M.3) — pas
+    restreint à `type_actif == "REAL_ESTATE"` côté serveur (l'UI ne le propose que
+    pour ce type, mais rien n'empêche techniquement un autre usage)."""
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    if holding is None:
+        raise HTTPException(status_code=404, detail="Ligne introuvable")
+    immobilier_service.upsert_detail_immobilier(db, holding.id, **payload.model_dump())
+    detail = holding_detail_service.build_holding_detail(db, ticker, auth_service.id_foyer(current_user))
+    return HoldingImmobilierOut(**detail["immobilier"])
+
+
+@router.get("/holdings/{ticker}/immobilier-history", response_model=list[ValuationHistoryPoint])
+def get_holding_valuation_history(ticker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Historique daté des valorisations manuelles (backlog 2.M.3) — jamais écrasé,
+    contrairement à `Holding.valeur_estimee`/`date_valeur_estimee` (valeur courante
+    seule). Pas réservé à l'immobilier : disponible pour tout type valorisé
+    manuellement, cf. `models.HoldingValuationHistory`."""
+    _verifier_ticker_visible_invite(db, current_user, ticker)
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    if holding is None:
+        raise HTTPException(status_code=404, detail="Ligne introuvable")
+    points = immobilier_service.historique_valorisation(db, holding.id)
+    return [ValuationHistoryPoint(date_valeur=p.date_valeur, valeur=p.valeur) for p in points]
+
+
 @router.put("/holdings/{ticker}/quotites")
 def set_holding_quotites(
     ticker: str,
@@ -246,6 +291,8 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     db.add(holding)
     db.commit()
     db.refresh(holding)
+    if holding.valeur_estimee is not None:
+        immobilier_service.enregistrer_point_historique(db, holding.id, holding.valeur_estimee, holding.date_valeur_estimee)
     return holding
 
 
@@ -264,6 +311,12 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
         setattr(holding, key, value)
     db.commit()
     db.refresh(holding)
+    # Historique daté (backlog 2.M.3) : un nouveau point à chaque changement RÉEL de
+    # `valeur_estimee` — pas quand elle est explicitement effacée (`None`, rien à
+    # enregistrer), ni quand un autre champ change seul (déjà exclu par le `if`
+    # ci-dessus, qui ne pose `date_valeur_estimee` que dans ce même cas).
+    if "valeur_estimee" in updates and holding.valeur_estimee is not None:
+        immobilier_service.enregistrer_point_historique(db, holding.id, holding.valeur_estimee, holding.date_valeur_estimee)
     return holding
 
 

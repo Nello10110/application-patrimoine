@@ -7,7 +7,7 @@ les routeurs fins et cette logique testable indépendamment de FastAPI.
 from sqlalchemy.orm import Session
 
 from ..models import Detenteur, FundComposition, FundCompositionBrute, FundTopHolding, Holding, QuotiteHolding, Transaction
-from . import detenteurs_service, market_data_service, performance_service, reference_indices
+from . import detenteurs_service, immobilier_service, market_data_service, performance_service, reference_indices
 
 
 def _frais_transaction_payes(db: Session, ticker: str, user_id: int) -> float:
@@ -99,6 +99,25 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
         for q in quotites_saisies
     ]
 
+    # Fiche immobilier (backlog 2.M.3) : `None` si aucun détail n'a jamais été saisi
+    # pour cette ligne (l'immense majorité des positions, y compris tout ce qui n'est
+    # pas `REAL_ESTATE`) — pas de requête inutile dans ce cas courant.
+    immo = immobilier_service.detail_immobilier(db, holding.id)
+    immobilier = None
+    if immo is not None:
+        calcul = immobilier_service.calculer_cashflow_et_rentabilite(db, holding, immo, valeur)
+        immobilier = {
+            "type_location": immo.type_location,
+            "loyer_mensuel": immo.loyer_mensuel,
+            "charges_mensuelles": immo.charges_mensuelles,
+            "frais_annuels": immo.frais_annuels,
+            "surface_m2": immo.surface_m2,
+            "nb_pieces": immo.nb_pieces,
+            "annee_construction": immo.annee_construction,
+            "dpe": immo.dpe,
+            **calcul,
+        }
+
     return {
         "ticker": holding.ticker,
         "nom": nom_affiche,
@@ -122,4 +141,5 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
         "repartition_sector_detaillee": repartition_sector_detaillee,
         "composition_actions": composition_actions,
         "quotites": quotites,
+        "immobilier": immobilier,
     }

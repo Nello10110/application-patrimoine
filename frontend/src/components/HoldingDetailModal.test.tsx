@@ -48,6 +48,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     repartition_sector_detaillee: [],
     composition_actions: [],
     quotites: [],
+    immobilier: null,
     ...overrides,
   }
 }

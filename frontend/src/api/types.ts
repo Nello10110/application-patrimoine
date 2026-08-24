@@ -452,6 +452,46 @@ export interface HoldingDetail {
   composition_actions: FundTopHoldingItem[]
   // Détenteurs (backlog 2.L.1) : quotités saisies + part détenue/nette calculée.
   quotites: QuotiteDetenteurItem[]
+  // Fiche immobilier complète (backlog 2.M.3) : `null` tant qu'aucun détail n'a été
+  // saisi pour cette ligne.
+  immobilier: HoldingImmobilier | null
+}
+
+// Fiche immobilier (backlog 2.M.3) : bloc location + caractéristiques saisis par
+// l'utilisateur, cashflow/rentabilité/prix au m² calculés côté serveur (jamais
+// recalculés côté frontend, même discipline que `Holding.valeur`).
+export interface HoldingImmobilier {
+  type_location: string | null
+  loyer_mensuel: number | null
+  charges_mensuelles: number | null
+  frais_annuels: number | null
+  surface_m2: number | null
+  nb_pieces: number | null
+  annee_construction: number | null
+  dpe: string | null
+  cashflow_mensuel: number | null
+  rentabilite_brute_pct: number | null
+  rentabilite_nette_pct: number | null
+  prix_m2: number | null
+  emprunt_mensualite: number | null
+}
+
+export interface HoldingImmobilierInput {
+  type_location?: string | null
+  loyer_mensuel?: number | null
+  charges_mensuelles?: number | null
+  frais_annuels?: number | null
+  surface_m2?: number | null
+  nb_pieces?: number | null
+  annee_construction?: number | null
+  dpe?: string | null
+}
+
+// Un point d'historique de valorisation (backlog 2.M.3) — jamais écrasé, contrairement
+// à `Holding.valeur_estimee`/`date_valeur_estimee` (valeur courante seule).
+export interface ValuationHistoryPoint {
+  date_valeur: string
+  valeur: number
 }
 
 // Personnes/sociétés du foyer et quotités (backlog 2.L.1).

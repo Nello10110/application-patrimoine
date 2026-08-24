@@ -195,6 +195,30 @@ Neuf `type_actif` valorisés **manuellement** (`REAL_ESTATE`, `SCPI`, `LIFE_INSU
 
 **Deux périmètres volontairement distincts.** Le portefeuille FINANCIER (actions, ETF, crypto, obligations, private equity — `analysis_service.holdings_financiers`) reste seul concerné par le look-through géo/sectoriel, les objectifs et la carte Rentabilité boursière (§ 3.2, § 3.4, § 3.5) : y mélanger un bien immobilier n'aurait pas de sens (pas de géographie/secteur boursier, pas de coût de base dans le grand livre de transactions). Le **patrimoine net global** (`GET /api/patrimoine/net`, `services/patrimoine_service.py`) est une vue **additive** : actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER/autre actif, valorisés par la même règle que `value_holdings`) moins passifs totaux (somme des capitaux restants dus), avec une répartition par grande classe d'actif. Il n'écrase ni ne remplace les écrans existants.
 
+**Fiche immobilier complète** (backlog § 2.M.3) : `HoldingImmobilierDetail` (un par `Holding`, table
+séparée — ces champs n'ont de sens que pour `REAL_ESTATE`) porte le bloc location (type, loyer
+mensuel, charges mensuelles, frais annuels agrégés — taxe foncière + copropriété + assurance +
+gestion, un seul total) et les caractéristiques (surface, pièces, année de construction, DPE),
+administré via `PUT /api/portfolio/holdings/{ticker}/immobilier`. `services/immobilier_service.py`
+calcule, côté serveur uniquement (jamais recalculé côté client), `cashflow_mensuel = loyer −
+charges − frais/12 − mensualité de l'emprunt rattaché` (`Loan.holding_id`, 0 si aucun emprunt
+rattaché), `rentabilite_brute_pct = loyer_annuel / prix_revient_moyen × 100`,
+`rentabilite_nette_pct = (loyer_annuel − charges_annuelles − frais_annuels) / prix_revient_moyen ×
+100`, et `prix_m2 = valeur / surface_m2` — ces trois derniers `None` sans `loyer_mensuel` renseigné
+(rien à calculer), `prix_m2` restant calculable seul dès que la surface est connue. Exposés dans
+`GET /holdings/{ticker}/detail` (`HoldingDetail.immobilier`, `null` tant qu'aucun détail n'a été
+saisi).
+
+**Historique de valorisation** (`HoldingValuationHistory`, table générique — pas réservée à
+l'immobilier, même mécanisme que `valeur_estimee` elle-même) : chaque changement RÉEL de
+`Holding.valeur_estimee` (création, ou modification qui la change effectivement — jamais un
+effacement à `None`, ni une modification d'un autre champ seul) ajoute une ligne datée, sans jamais
+écraser la précédente — corrige le défaut relevé chez Finary (§ 1.2) qui présente une plus-value
+immobilière comme un fait alors qu'elle vient d'un algorithme non maîtrisé.
+`Holding.valeur_estimee`/`date_valeur_estimee` restent la valeur COURANTE (accès rapide, comportement
+inchangé partout ailleurs dans l'application) ; `GET /holdings/{ticker}/immobilier-history` expose
+l'historique complet, affiché en tableau chronologique sur la fiche détaillée.
+
 ### 3.12 Simulateur : projection, tableau de détail et indépendance financière
 
 Écran unique (`/simulateur`) fusionnant l'ancien Simulateur (projeté depuis le patrimoine net réel) et l'ancienne page Outils (calculateur générique à capital libre) — les deux ne différaient que par la source du capital de départ, jamais par le calcul lui-même. Le capital de départ est **préempli** avec le patrimoine net actuel (`GET /api/patrimoine/net`, § 3.11 — seul appel réseau de la page) mais reste **librement modifiable**, pour couvrir aussi bien « où en sera mon patrimoine réel » que « et si je plaçais 10 000 € à 6 % ».
@@ -233,6 +257,8 @@ Au-delà du graphique, un **tableau de détail** (bascule Annuelle/Mensuelle) li
 | `transactions` | Grand livre importé (source de vérité), dédoublonné par `transaction_id` |
 | `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de la taxonomie élargie (immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicule, cf. § 3.11) ; `taux_pct` porte le taux annuel informatif (épargne/véhicule, cf. § 3.11) |
 | `loans` | Emprunts (patrimoine net, cf. § 3.11) : capital initial, taux, mensualité, date de début, durée, recalage manuel optionnel du capital restant dû |
+| `holding_immobilier_details` | Fiche immobilier complète (§ 3.11, backlog § 2.M.3) : bloc location + caractéristiques, un par `Holding` |
+| `holding_valuation_history` | Historique daté des valorisations manuelles (§ 3.11, backlog § 2.M.3) — jamais écrasé, générique (pas réservé à l'immobilier) |
 | `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) ; `frais_gestion_pct` (fonds uniquement, mis en cache une seule fois par ticker, cf. § 3.9) |
 | `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques/objectifs). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
 | `fund_composition_brute` | Répartition géo/sectorielle **brute** (non zone-mappée) d'un fonds telle que publiée par justETF, affichage seul sur la fiche détaillée (cf. § 3.4) — jamais utilisée dans un calcul agrégé |

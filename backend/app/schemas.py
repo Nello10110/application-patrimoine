@@ -455,6 +455,83 @@ class FundTopHoldingItem(BaseModel):
     secteur: str | None = None
 
 
+class HoldingImmobilierOut(BaseModel):
+    type_location: str | None = None
+    loyer_mensuel: float | None = None
+    charges_mensuelles: float | None = None
+    frais_annuels: float | None = None
+    surface_m2: float | None = None
+    nb_pieces: int | None = None
+    annee_construction: int | None = None
+    dpe: str | None = None
+    # Calculés côté serveur (`holding_detail_service`), jamais recalculés côté
+    # frontend — même discipline que `HoldingOut.valeur` (LOT 6.7). `None` tant que
+    # `loyer_mensuel` n'est pas renseigné (rien à projeter).
+    cashflow_mensuel: float | None = None
+    rentabilite_brute_pct: float | None = None
+    rentabilite_nette_pct: float | None = None
+    prix_m2: float | None = None
+    emprunt_mensualite: float | None = None
+
+
+MESSAGE_LOYER_NON_NEGATIF = "Le loyer mensuel ne peut pas être négatif"
+MESSAGE_CHARGES_NON_NEGATIVES = "Les charges mensuelles ne peuvent pas être négatives"
+MESSAGE_FRAIS_NON_NEGATIFS = "Les frais annuels ne peuvent pas être négatifs"
+MESSAGE_SURFACE_POSITIVE = "La surface doit être strictement positive"
+MESSAGE_PIECES_POSITIVES = "Le nombre de pièces doit être strictement positif"
+
+
+class HoldingImmobilierUpdate(BaseModel):
+    type_location: str | None = None
+    loyer_mensuel: float | None = None
+    charges_mensuelles: float | None = None
+    frais_annuels: float | None = None
+    surface_m2: float | None = None
+    nb_pieces: int | None = None
+    annee_construction: int | None = None
+    dpe: str | None = None
+
+    @field_validator("loyer_mensuel")
+    @classmethod
+    def _valider_loyer(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_LOYER_NON_NEGATIF)
+        return v
+
+    @field_validator("charges_mensuelles")
+    @classmethod
+    def _valider_charges(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_CHARGES_NON_NEGATIVES)
+        return v
+
+    @field_validator("frais_annuels")
+    @classmethod
+    def _valider_frais(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_FRAIS_NON_NEGATIFS)
+        return v
+
+    @field_validator("surface_m2")
+    @classmethod
+    def _valider_surface(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError(MESSAGE_SURFACE_POSITIVE)
+        return v
+
+    @field_validator("nb_pieces")
+    @classmethod
+    def _valider_pieces(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError(MESSAGE_PIECES_POSITIVES)
+        return v
+
+
+class ValuationHistoryPoint(BaseModel):
+    date_valeur: datetime
+    valeur: float
+
+
 class HoldingDetail(BaseModel):
     ticker: str
     nom: str | None = None
@@ -482,6 +559,11 @@ class HoldingDetail(BaseModel):
     # par détenteur. Listes vides si l'utilisateur n'a déclaré aucun détenteur, ou si
     # cette ligne n'a jamais été répartie (100 % foyer implicite).
     quotites: list["QuotiteDetenteurItem"] = []
+    # Fiche immobilier complète (backlog § 2.M.3) : `None` pour toute ligne qui n'a
+    # jamais reçu de détail immobilier (pas seulement les non-`REAL_ESTATE` — rien
+    # n'empêche techniquement d'en saisir un ailleurs, mais l'UI ne le propose que
+    # pour ce type).
+    immobilier: HoldingImmobilierOut | None = None
 
 
 TYPES_DETENTEUR_VALIDES = {"personne", "societe"}

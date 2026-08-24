@@ -170,6 +170,52 @@ class Loan(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class HoldingImmobilierDetail(Base):
+    """Détail immobilier (backlog § 2.M.3), un par `Holding` — table séparée plutôt
+    que des colonnes de plus sur `Holding` : ces champs (loyer, DPE, surface...)
+    n'ont de sens que pour un `type_actif == "REAL_ESTATE"`, en faire des colonnes de
+    `Holding` aurait pollué les ~9 autres types sans aucun bénéfice. `holding_id`
+    UNIQUE : au plus une fiche immobilière par ligne, créée/mise à jour via
+    `PUT /api/portfolio/holdings/{ticker}/immobilier`."""
+
+    __tablename__ = "holding_immobilier_details"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), unique=True, index=True)
+    type_location: Mapped[str | None] = mapped_column(String, nullable=True)  # nue, meublée, Pinel, LMNP... texte libre
+    loyer_mensuel: Mapped[float | None] = mapped_column(Float, nullable=True)
+    charges_mensuelles: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Agrégat volontaire (taxe foncière + copropriété + assurance + gestion) plutôt
+    # que quatre colonnes séparées : le backlog ne demande qu'un total pour le calcul
+    # de rentabilité, pas un suivi ligne à ligne de chaque poste.
+    frais_annuels: Mapped[float | None] = mapped_column(Float, nullable=True)
+    surface_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    nb_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    annee_construction: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    dpe: Mapped[str | None] = mapped_column(String, nullable=True)  # A à G, texte libre (pas d'enum : tolère "NC" etc.)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class HoldingValuationHistory(Base):
+    """Historique des valorisations manuelles (backlog § 2.M.3) : chaque changement de
+    `Holding.valeur_estimee` ajoute une ligne ICI plutôt que d'écraser la précédente
+    — alimente une courbe de valorisation dans le temps au lieu de présenter une
+    estimation comme un fait figé (défaut relevé chez Finary, cf. backlog § 1.2).
+    `Holding.valeur_estimee`/`date_valeur_estimee` restent la valeur COURANTE (accès
+    rapide, comportement inchangé, cf. `routers/portfolio.py`) ; cette table est
+    l'historique complet, jamais purgée. S'applique à tout type valorisé
+    manuellement (`TYPES_ACTIF_PATRIMOINE_MANUEL`), pas seulement l'immobilier —
+    même mécanisme générique que `valeur_estimee` elle-même."""
+
+    __tablename__ = "holding_valuation_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), index=True)
+    valeur: Mapped[float] = mapped_column(Float)
+    date_valeur: Mapped[datetime] = mapped_column(DateTime)
+
+
 class Detenteur(Base):
     """Personne (conjoint, enfant...) ou société (SCI, holding...) du foyer, déclarée
     une fois et réutilisée pour répartir la propriété des actifs et des emprunts
