@@ -1,8 +1,25 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Detenteur, OidcConfig, Session } from '../api/types'
 import ReglagesPage from './ReglagesPage'
+
+// La page est désormais organisée en onglets (retour utilisateur : trop de cartes
+// empilées sur une seule colonne) — chaque groupe de tests ouvre l'onglet qui
+// contient la carte visée avant d'interagir avec elle. `useSearchParams` (sélection
+// de l'onglet portée par l'URL) exige un routeur.
+function renderReglages() {
+  render(
+    <MemoryRouter>
+      <ReglagesPage />
+    </MemoryRouter>,
+  )
+}
+
+function ouvrirOnglet(nom: string) {
+  fireEvent.click(screen.getByRole('tab', { name: nom }))
+}
 
 // Ce fichier ne verrouille que la section "Personnes et sociétés" (backlog 2.L.1) —
 // le reste de la page (préférences, tâches planifiées, export) est hors de son objet.
@@ -54,14 +71,16 @@ function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
 describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
   it("affiche un message quand aucun détenteur n'est déclaré", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Détenteurs')
 
     await screen.findByText('Aucun détenteur déclaré.')
   })
 
   it('liste les détenteurs déclarés avec leur type', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice', type: 'personne' }), detenteur({ id: 2, nom: 'SCI Famille', type: 'societe' })])
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Détenteurs')
 
     await screen.findByText('Alice')
     expect(screen.getByText('SCI Famille')).toBeInTheDocument()
@@ -70,29 +89,30 @@ describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
   })
 
   it('ajouter un détenteur appelle createDetenteur puis recharge la liste', async () => {
-    // `GestionFoyerCard` (backlog 2.L.2) charge aussi `listDetenteurs` à son montage
-    // (pour son sélecteur de périmètre invité) : un deuxième appel, neutre ici,
-    // s'intercale avant le rechargement déclenché par "Ajouter" — d'où les 3 valeurs
-    // enfilées plutôt que 2.
-    vi.mocked(api.listDetenteurs).mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValue([detenteur({ nom: 'Bob' })])
+    // Onglet "Détenteurs" isolé de "Comptes & sécurité" (`GestionFoyerCard`) : plus
+    // qu'un seul consommateur de `listDetenteurs` monté à la fois, donc 2 valeurs
+    // enfilées (chargement initial, puis rechargement après "Ajouter").
+    vi.mocked(api.listDetenteurs).mockResolvedValueOnce([]).mockResolvedValue([detenteur({ nom: 'Bob' })])
     vi.mocked(api.createDetenteur).mockResolvedValue(detenteur({ nom: 'Bob' }))
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Détenteurs')
     await screen.findByText('Aucun détenteur déclaré.')
 
     fireEvent.change(screen.getByPlaceholderText('Alice'), { target: { value: 'Bob' } })
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ajouter' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
 
     await screen.findByText('Bob')
     expect(api.createDetenteur).toHaveBeenCalledWith('Bob', 'personne')
   })
 
   it('supprimer un détenteur appelle deleteDetenteur puis recharge la liste', async () => {
-    vi.mocked(api.listDetenteurs).mockResolvedValueOnce([detenteur({ nom: 'Alice' })]).mockResolvedValueOnce([detenteur({ nom: 'Alice' })]).mockResolvedValue([])
+    vi.mocked(api.listDetenteurs).mockResolvedValueOnce([detenteur({ nom: 'Alice' })]).mockResolvedValue([])
     vi.mocked(api.deleteDetenteur).mockResolvedValue({ ok: true })
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Détenteurs')
     await screen.findByText('Alice')
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Supprimer' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
 
     await screen.findByText('Aucun détenteur déclaré.')
     expect(api.deleteDetenteur).toHaveBeenCalledWith(1)
@@ -100,11 +120,12 @@ describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
 
   it('Réessayer relance listDetenteurs après un échec', async () => {
     vi.mocked(api.listDetenteurs).mockRejectedValueOnce(new Error('panne détenteurs'))
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Détenteurs')
     await screen.findByText('panne détenteurs')
 
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
-    fireEvent.click(screen.getAllByRole('button', { name: 'Réessayer' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
     await screen.findByText('Alice')
   })
@@ -126,7 +147,8 @@ function session(overrides: Partial<Session> = {}): Session {
 describe('ReglagesPage — Sessions actives, erreur avec action de reprise (backlog 2.K.5)', () => {
   it('Réessayer relance listSessions après un échec', async () => {
     vi.mocked(api.listSessions).mockRejectedValueOnce(new Error('panne sessions'))
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
     await screen.findByText('panne sessions')
 
     vi.mocked(api.listSessions).mockResolvedValueOnce([session()])
@@ -141,7 +163,8 @@ describe('ReglagesPage — Comptes du foyer, affichage nom/email (backlog SSO)',
     vi.mocked(api.listHouseholdMembers).mockResolvedValue([
       { id: 2, username: 'paul.oidc', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [], nom: 'Paul Cartieri', email: 'paul@example.com' },
     ])
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
 
     await screen.findByText('Paul Cartieri')
     expect(screen.getByText('· paul@example.com', { exact: false })).toBeInTheDocument()
@@ -152,7 +175,8 @@ describe('ReglagesPage — Comptes du foyer, affichage nom/email (backlog SSO)',
     vi.mocked(api.listHouseholdMembers).mockResolvedValue([
       { id: 3, username: 'conjoint', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [] },
     ])
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
 
     await screen.findByText('conjoint')
   })
@@ -187,7 +211,8 @@ describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
         display_name: 'Authentik',
       }),
     )
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('SSO / OIDC')
 
     expect(await screen.findByDisplayValue('https://sso.example.com/application/o/patrimoine')).toBeInTheDocument()
     expect(screen.getByDisplayValue('client-abc')).toBeInTheDocument()
@@ -206,7 +231,8 @@ describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
       }),
     )
     vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ secret_configure: true }))
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('SSO / OIDC')
     await screen.findByDisplayValue('client-abc')
 
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
@@ -229,7 +255,8 @@ describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
   it("décocher Activée puis enregistrer envoie enabled: false", async () => {
     vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig({ issuer: 'https://sso.example.com', client_id: 'x', redirect_uri: 'y', frontend_url: 'z' }))
     vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ enabled: false }))
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('SSO / OIDC')
     await screen.findByDisplayValue('https://sso.example.com')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Activée' }))
@@ -241,7 +268,8 @@ describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
   it('un secret saisi est inclus dans updateOidcConfig', async () => {
     vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig())
     vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ secret_configure: true }))
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('SSO / OIDC')
     await screen.findByPlaceholderText('Non configuré')
 
     fireEvent.change(screen.getByLabelText(/Issuer/), {
@@ -267,7 +295,8 @@ describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
       oidcConfig({ issuer: 'https://sso.example.com', client_id: 'x', redirect_uri: 'y', frontend_url: 'z' }),
     )
     vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig())
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('SSO / OIDC')
     await screen.findByDisplayValue('https://sso.example.com')
 
     fireEvent.change(screen.getByLabelText(/Claim → email/), { target: { value: 'mail' } })
@@ -278,7 +307,8 @@ describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
 
   it("affiche un avertissement si PATRIMOINE_SECRET_KEY n'est pas définie côté serveur", async () => {
     vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig({ cle_chiffrement_definie: false }))
-    render(<ReglagesPage />)
+    renderReglages()
+    ouvrirOnglet('SSO / OIDC')
 
     await screen.findByText(/PATRIMOINE_SECRET_KEY/)
   })

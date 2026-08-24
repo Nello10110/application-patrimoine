@@ -208,6 +208,42 @@ export function IconEcran({ className }: IconProps) {
   )
 }
 
+export function IconPersonne({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="10" cy="7" r="3.2" />
+      <path d="M4 16.5 C4 12.9 6.7 11 10 11 C13.3 11 16 12.9 16 16.5" />
+    </svg>
+  )
+}
+
+export function IconBouclier({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M10 3 L16 5.3 V9.5 C16 13.3 13.4 16.2 10 17.3 C6.6 16.2 4 13.3 4 9.5 V5.3 Z" />
+      <path d="M7.5 10 L9.2 11.7 L12.7 8" />
+    </svg>
+  )
+}
+
+export function IconCle({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="6.2" cy="13.8" r="2.8" />
+      <path d="M8.2 11.8 L15.5 4.5 M13 7 L15 9 M15.3 4.7 L17.2 6.6" />
+    </svg>
+  )
+}
+
+export function IconHorloge({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="10" cy="10" r="6.8" />
+      <path d="M10 6 V10 L12.8 12" />
+    </svg>
+  )
+}
+
 export function IconRecherche({ className }: IconProps) {
   return (
     <svg {...base} className={className}>
