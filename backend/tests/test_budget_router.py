@@ -1,6 +1,8 @@
 """Verrouille `routers/budget.py` : catégories, règles, import CSV/OFX/QIF,
 mouvements, cibles, résumé — et l'isolation entre utilisateurs (IDOR)."""
 
+from datetime import date, timedelta
+
 from app.services import budget_categories_service
 
 from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur
@@ -161,3 +163,40 @@ def test_isolation_entre_utilisateurs(client, db):
     # IDOR : renommer/supprimer la catégorie de A depuis B échoue en 404.
     reponse = client.patch(f"/api/budget/categories/{categorie.id}", json={"nom": "Volé"})
     assert reponse.status_code == 404
+
+
+def test_recurrences(client):
+    # Dates relatives à aujourd'hui (pas de paramètre `aujourdhui` exposé par
+    # l'API, à dessein — jamais une fausse date acceptée du client) : un mois pile
+    # et deux mois pile en arrière, pour tomber dans la fenêtre de récence réelle.
+    aujourdhui = date.today()
+    il_y_a_1_mois = aujourdhui - timedelta(days=30)
+    il_y_a_2_mois = aujourdhui - timedelta(days=60)
+    qif = (
+        f"D{il_y_a_2_mois.month:02d}/{il_y_a_2_mois.day:02d}/{il_y_a_2_mois.year}\nT-12.99\nPNetflix\n^\n"
+        f"D{il_y_a_1_mois.month:02d}/{il_y_a_1_mois.day:02d}/{il_y_a_1_mois.year}\nT-12.99\nPNetflix\n^\n"
+    ).encode("utf-8")
+    client.post("/api/budget/import/qif", files={"file": ("r.qif", qif, "text/plain")})
+    reponse = client.get("/api/budget/recurrences")
+    assert reponse.status_code == 200
+    body = reponse.json()
+    assert len(body) == 1
+    assert body[0]["libelle"] == "Netflix"
+    assert body[0]["occurrences"] == 2
+
+
+def test_jonction_patrimoine(client, db):
+    epargne = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Épargne", None)
+    client.post(
+        "/api/budget/import/qif",
+        files={"file": ("r.qif", b"D01/02/2026\nT2000.00\nPSalaire\n^\n", "text/plain")},
+    )
+    mouvement_id = client.get("/api/budget/mouvements").json()[0]["id"]
+    client.patch(f"/api/budget/mouvements/{mouvement_id}", json={"categorie_id": epargne.id})
+
+    reponse = client.get("/api/budget/jonction-patrimoine", params={"date_debut": "2026-02-01", "date_fin": "2026-02-28"})
+    assert reponse.status_code == 200
+    body = reponse.json()
+    assert "taux_epargne_reel_pct" in body
+    assert "reste_a_vivre" in body
+    assert "versement_mensuel_suggere" in body

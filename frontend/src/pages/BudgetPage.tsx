@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { BudgetSummary, CategorieBudget, MouvementBancaire, RegleCategorisation } from '../api/types'
+import type { BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
@@ -388,6 +388,56 @@ function MouvementsSection({
   )
 }
 
+/** Charges récurrentes et abonnements (backlog 2.N.3) : sous-produit de l'import,
+ * sur une fenêtre glissante indépendante de la période affichée à l'écran (un
+ * abonnement mensuel reste un abonnement qu'on regarde 1 mois ou 1 an de budget). */
+function RecurrencesSection({ recurrences, categories }: { recurrences: RecurrenceDetectee[]; categories: CategorieBudget[] }) {
+  const { montantsMasques } = usePreferencesAffichage()
+
+  if (recurrences.length === 0) return null
+
+  return (
+    <Card title="Charges récurrentes et abonnements">
+      <p className="mb-3 text-xs text-texte-attenue">
+        Détecté automatiquement sur les 12 derniers mois — mouvements revenant au moins deux fois sous le même libellé,
+        encore vus au cours des 45 derniers jours.
+      </p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
+            <th className="py-2 pr-4">Libellé</th>
+            <th className="py-2 pr-4">Catégorie</th>
+            <th className="py-2 pr-4">Périodicité</th>
+            <th className="py-2 pr-4 text-right">Occurrences</th>
+            <th className="py-2 pr-4 text-right">Montant</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-bordure">
+          {recurrences.map((r) => {
+            const categorie = categories.find((c) => c.id === r.categorie_id)
+            return (
+              <tr key={r.libelle}>
+                <td className="py-2 pr-4 text-texte">{r.libelle}</td>
+                <td className="py-2 pr-4 text-texte-attenue">{categorie?.nom ?? '—'}</td>
+                <td className="py-2 pr-4 text-texte-attenue">{r.periodicite === 'mensuelle' ? 'Mensuelle' : 'Irrégulière'}</td>
+                <td className="py-2 pr-4 text-right text-texte-attenue">{r.occurrences}</td>
+                <td className="py-2 pr-4 text-right">
+                  <span className="font-medium text-texte">{formatEuro(r.montant_actuel, 2, montantsMasques)}</span>
+                  {r.hausse_prix && (
+                    <span className="ml-2 rounded-full bg-avertissement/15 px-2 py-0.5 text-xs font-medium text-avertissement">
+                      Hausse de prix
+                    </span>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </Card>
+  )
+}
+
 export default function BudgetPage() {
   const { montantsMasques } = usePreferencesAffichage()
 
@@ -401,6 +451,8 @@ export default function BudgetPage() {
   const [mouvements, setMouvements] = useState<MouvementBancaire[]>([])
   const [categories, setCategories] = useState<CategorieBudget[]>([])
   const [regles, setRegles] = useState<RegleCategorisation[]>([])
+  const [recurrences, setRecurrences] = useState<RecurrenceDetectee[]>([])
+  const [jonction, setJonction] = useState<JonctionPatrimoine | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -420,12 +472,19 @@ export default function BudgetPage() {
       api.listMouvementsBancaires({ dateDebut: bornes.dateDebut, dateFin: bornes.dateFin }),
       api.listCategoriesBudget(),
       api.listReglesCategorisation(),
+      // Récurrences (backlog 2.N.3) et jonction patrimoine (2.N.4) : la première ne
+      // dépend pas de la période affichée (fenêtre glissante propre), la seconde si
+      // (taux d'épargne/reste à vivre calculés sur la période sélectionnée).
+      api.getBudgetRecurrences(),
+      api.getJonctionPatrimoine(bornes.dateDebut, bornes.dateFin),
     ])
-      .then(([s, m, c, r]) => {
+      .then(([s, m, c, r, rec, j]) => {
         setSummary(s)
         setMouvements(m)
         setCategories(c)
         setRegles(r)
+        setRecurrences(rec)
+        setJonction(j)
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -532,11 +591,38 @@ export default function BudgetPage() {
                 />
               </div>
 
+              {jonction && (jonction.taux_epargne_reel_pct !== null || jonction.reste_a_vivre !== null) && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {jonction.taux_epargne_reel_pct !== null && (
+                    <StatTile
+                      label="Taux d'épargne réel"
+                      value={`${jonction.taux_epargne_reel_pct.toFixed(1)} %`}
+                      sub="sorties catégorie « Épargne » / entrées"
+                    />
+                  )}
+                  {jonction.reste_a_vivre !== null && (
+                    <StatTile
+                      label="Reste à vivre"
+                      value={formatEuro(jonction.reste_a_vivre, 0, montantsMasques)}
+                      sub="entrées − logement − charges récurrentes"
+                      tone={jonction.reste_a_vivre >= 0 ? 'good' : 'warning'}
+                    />
+                  )}
+                </div>
+              )}
+              {jonction && (jonction.categorie_epargne_introuvable || jonction.categorie_logement_introuvable) && (
+                <p className="text-xs text-texte-attenue">
+                  {jonction.categorie_epargne_introuvable && 'Taux d\'épargne indisponible : crée ou renomme une catégorie « Épargne » ci-dessous. '}
+                  {jonction.categorie_logement_introuvable && 'Reste à vivre indisponible : crée ou renomme une catégorie « Logement » ci-dessous.'}
+                </p>
+              )}
+
               <RepartitionSection summary={summary} onCibleChanged={chargerTout} />
               <MouvementsSection mouvementsPeriode={mouvements} categories={categories} onCategorized={chargerTout} />
             </>
           )}
 
+          <RecurrencesSection recurrences={recurrences} categories={categories} />
           <CategoriesEtReglesSection categories={categories} regles={regles} onChanged={chargerTout} />
         </>
       )}

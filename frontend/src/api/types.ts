@@ -667,3 +667,23 @@ export interface BudgetSummary {
   depenses_recurrentes_mensuelles: number
   repartition_sorties: RepartitionSortieItem[]
 }
+
+export interface RecurrenceDetectee {
+  libelle: string
+  categorie_id: number | null
+  montant_actuel: number
+  montant_precedent: number | null
+  hausse_prix: boolean
+  occurrences: number
+  premiere_date: string
+  derniere_date: string
+  periodicite: 'mensuelle' | 'irreguliere'
+}
+
+export interface JonctionPatrimoine {
+  taux_epargne_reel_pct: number | null
+  reste_a_vivre: number | null
+  versement_mensuel_suggere: number | null
+  categorie_epargne_introuvable: boolean
+  categorie_logement_introuvable: boolean
+}

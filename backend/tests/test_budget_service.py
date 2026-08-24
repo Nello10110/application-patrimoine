@@ -118,3 +118,68 @@ def test_set_cible_met_a_jour_une_cible_existante(db):
     cibles = budget_service.list_cibles(db, ID_UTILISATEUR_TEST)
     assert len(cibles) == 1
     assert cibles[0].montant_mensuel == 150.0
+
+
+class TestJonctionPatrimoine:
+    """Backlog 2.N.4 : taux d'épargne réel, reste à vivre, versement mensuel suggéré."""
+
+    def test_taux_epargne_reel(self, db):
+        epargne = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Épargne", None)
+        make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=2000.0)
+        make_mouvement(db, date="2026-02-05", libelle="Virement Livret A", montant=-400.0, categorie_id=epargne.id)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+
+        assert j["taux_epargne_reel_pct"] == 20.0
+        assert j["categorie_epargne_introuvable"] is False
+
+    def test_taux_epargne_introuvable_si_categorie_absente(self, db):
+        budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Loisirs", None)
+        make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=2000.0)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+
+        assert j["taux_epargne_reel_pct"] is None
+        assert j["categorie_epargne_introuvable"] is True
+
+    def test_taux_epargne_insensible_a_la_casse_du_nom_de_categorie(self, db):
+        epargne = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "épargne", None)
+        make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=1000.0)
+        make_mouvement(db, date="2026-02-05", libelle="Virement", montant=-100.0, categorie_id=epargne.id)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+
+        assert j["taux_epargne_reel_pct"] == 10.0
+
+    def test_reste_a_vivre_retranche_logement_et_charges_recurrentes(self, db):
+        logement = budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Logement", None)
+        make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=3000.0)
+        make_mouvement(db, date="2026-02-03", libelle="Loyer", montant=-1000.0, categorie_id=logement.id)
+        # Abonnement récurrent mensuel (2 occurrences, vu récemment) : retranché du
+        # reste à vivre en plus du logement.
+        make_mouvement(db, date="2026-01-05", libelle="Netflix", montant=-15.0)
+        make_mouvement(db, date="2026-02-05", libelle="Netflix", montant=-15.0)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+
+        assert j["reste_a_vivre"] == 3000.0 - 1000.0 - 15.0
+        assert j["categorie_logement_introuvable"] is False
+
+    def test_reste_a_vivre_introuvable_si_categorie_logement_absente(self, db):
+        budget_categories_service.create_categorie(db, ID_UTILISATEUR_TEST, "Loisirs", None)
+        make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=1000.0)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-02-01", "2026-02-28")
+
+        assert j["reste_a_vivre"] is None
+        assert j["categorie_logement_introuvable"] is True
+
+    def test_versement_mensuel_suggere_divise_le_disponible_par_le_nombre_de_mois(self, db):
+        make_mouvement(db, date="2026-01-01", libelle="Salaire", montant=2000.0)
+        make_mouvement(db, date="2026-02-01", libelle="Salaire", montant=2000.0)
+        make_mouvement(db, date="2026-01-15", libelle="Dépenses", montant=-1000.0)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-02-28")
+
+        # Disponible = 4000 - 1000 = 3000, sur 2 mois calendaires (janvier + février).
+        assert j["versement_mensuel_suggere"] == 1500.0

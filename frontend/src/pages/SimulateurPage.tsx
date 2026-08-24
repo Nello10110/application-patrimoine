@@ -13,6 +13,16 @@ import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTr
 const DUREES = [5, 10, 20, 30] as const
 type Vue = 'annuelle' | 'mensuelle'
 
+/** Bornes des 3 derniers mois glissants, jusqu'à aujourd'hui — même fenêtre que les
+ * autres signaux observés du budget (dépenses récurrentes de l'écran Budget,
+ * backlog 2.N.2/2.N.4), pour que « versement suggéré » corresponde à une période
+ * assez récente pour rester représentative sans dépendre d'un seul mois isolé. */
+function bornesTroisDerniersMois(): { dateDebut: string; dateFin: string } {
+  const fin = new Date()
+  const debut = new Date(fin.getFullYear(), fin.getMonth() - 2, 1)
+  return { dateDebut: debut.toISOString().slice(0, 10), dateFin: fin.toISOString().slice(0, 10) }
+}
+
 /** Année calendaire projetée, `offset` années après aujourd'hui (0 = cette année). */
 function libelleAnnee(offset: number): string {
   return String(new Date().getFullYear() + offset)
@@ -59,6 +69,8 @@ export default function SimulateurPage() {
 
   const [erreurPatrimoine, setErreurPatrimoine] = useState<string | null>(null)
   const [erreurInterets, setErreurInterets] = useState<string | null>(null)
+  const [versementSuggere, setVersementSuggere] = useState<number | null>(null)
+  const [erreurVersement, setErreurVersement] = useState<string | null>(null)
 
   // Dégradé plutôt que bloquant (backlog 2.K.5) : le calculateur reste utilisable en
   // saisissant un capital de départ à la main si le patrimoine net échoue à
@@ -90,9 +102,29 @@ export default function SimulateurPage() {
       .catch((err) => setErreurInterets(err.message))
   }
 
+  // Préremplit « Versement mensuel » avec le versement observé sur le budget réel
+  // des 3 derniers mois (backlog 2.N.4, `GET /api/budget/jonction-patrimoine`) —
+  // remplace l'hypothèse arbitraire par une donnée mesurée, sans empêcher de la
+  // modifier ensuite. `undefined`/erreur/valeur nulle : le champ garde sa valeur
+  // par défaut ('0'), jamais bloquant comme les deux préchargements ci-dessus.
+  function chargerVersementSuggere() {
+    setErreurVersement(null)
+    const { dateDebut, dateFin } = bornesTroisDerniersMois()
+    api
+      .getJonctionPatrimoine(dateDebut, dateFin)
+      .then((j) => {
+        if (j.versement_mensuel_suggere !== null && j.versement_mensuel_suggere > 0) {
+          setVersementSuggere(j.versement_mensuel_suggere)
+          setVersement(String(Math.round(j.versement_mensuel_suggere)))
+        }
+      })
+      .catch((err) => setErreurVersement(err.message))
+  }
+
   useEffect(() => {
     chargerPatrimoineNet()
     chargerInteretsDejaObtenus()
+    chargerVersementSuggere()
   }, [])
 
   const capitalNum = Number(capital)
@@ -207,8 +239,31 @@ export default function SimulateurPage() {
               min={0}
               className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
+            {versementSuggere !== null && versementNum !== Math.round(versementSuggere) && (
+              <button
+                type="button"
+                onClick={() => setVersement(String(Math.round(versementSuggere)))}
+                className="text-left text-xs font-normal text-texte-attenue underline hover:text-texte"
+              >
+                Revenir au versement observé ({formatEuro(versementSuggere, 0, montantsMasques)})
+              </button>
+            )}
           </label>
         </div>
+
+        <p className="mt-3 text-xs text-texte-attenue">
+          « Versement mensuel » (backlog 2.N.4) : préempli avec le versement moyen réellement observé sur le budget des 3
+          derniers mois (entrées − sorties), plutôt qu'une hypothèse saisie à la main — librement modifiable. Nécessite des
+          mouvements bancaires importés (écran Import) pour être calculé ; reste à 0 sinon.
+        </p>
+        {erreurVersement && (
+          <div className="mt-2">
+            <EtatErreur
+              message={`Le versement observé sur le budget n'a pas pu être précalculé (${erreurVersement}). Le champ reste modifiable à la main.`}
+              onReessayer={chargerVersementSuggere}
+            />
+          </div>
+        )}
 
         <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Durée

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { PatrimoineNet, PerformanceSummary } from '../api/types'
+import type { JonctionPatrimoine, PatrimoineNet, PerformanceSummary } from '../api/types'
 import { formatEuro } from '../utils/format'
 import { agregerParAnnee, calculerTrajectoire, calculerTrajectoireMensuelle } from '../utils/interetsComposes'
 import SimulateurPage from './SimulateurPage'
@@ -10,6 +10,7 @@ vi.mock('../api/client', () => ({
   api: {
     getPatrimoineNet: vi.fn(),
     getPerformance: vi.fn(),
+    getJonctionPatrimoine: vi.fn(),
   },
 }))
 
@@ -66,11 +67,23 @@ function motifEuro(valeur: number, decimales: 0 | 2 = 2): RegExp {
   return new RegExp(formatEuro(valeur, decimales).replace(/\s/g, '\\s'))
 }
 
+function jonctionPatrimoine(overrides: Partial<JonctionPatrimoine> = {}): JonctionPatrimoine {
+  return {
+    taux_epargne_reel_pct: null,
+    reste_a_vivre: null,
+    versement_mensuel_suggere: null,
+    categorie_epargne_introuvable: true,
+    categorie_logement_introuvable: true,
+    ...overrides,
+  }
+}
+
 describe('SimulateurPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoineNet())
     vi.mocked(api.getPerformance).mockResolvedValue(performance())
+    vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine())
   })
 
   it('préremplit le capital de départ avec le patrimoine net actuel', async () => {
@@ -234,6 +247,56 @@ describe('SimulateurPage', () => {
       const ligneDepart = within(table).getByText('Départ').closest('tr')!
       expect(within(ligneDepart).getByText(motifEuro(8500))).toBeInTheDocument() // 10000 - 1500 versé
       expect(within(ligneDepart).getByText(motifEuro(1500))).toBeInTheDocument() // 1500 d'intérêts déjà cumulés
+    })
+  })
+
+  describe('Versement mensuel suggéré (backlog 2.N.4)', () => {
+    it('préremplit le versement mensuel avec la suggestion issue du budget observé', async () => {
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: 350 }))
+      render(<SimulateurPage />)
+
+      await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(350))
+    })
+
+    it('ne touche pas au versement (reste à 0) si aucune suggestion disponible', async () => {
+      render(<SimulateurPage />)
+      await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
+
+      expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(0)
+    })
+
+    it('ne préremplit pas avec une suggestion nulle ou négative', async () => {
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: -50 }))
+      render(<SimulateurPage />)
+      await waitFor(() => expect(screen.getByLabelText('Capital de départ (€)')).toHaveValue(10000))
+
+      expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(0)
+    })
+
+    it('un versement modifié fait apparaître un bouton pour revenir au versement observé', async () => {
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(jonctionPatrimoine({ versement_mensuel_suggere: 350 }))
+      render(<SimulateurPage />)
+      await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(350))
+
+      fireEvent.change(screen.getByLabelText('Versement mensuel (€)'), { target: { value: '600' } })
+      const boutonReset = await screen.findByRole('button', { name: /Revenir au versement observé/ })
+
+      fireEvent.click(boutonReset)
+      expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(350)
+      expect(screen.queryByRole('button', { name: /Revenir au versement observé/ })).not.toBeInTheDocument()
+    })
+
+    it("un échec de préchargement du versement observé n'empêche pas d'utiliser le calculateur, avec action de reprise", async () => {
+      vi.mocked(api.getJonctionPatrimoine).mockRejectedValueOnce(new Error('panne simulée'))
+      render(<SimulateurPage />)
+
+      await screen.findByText(/versement observé sur le budget n'a pas pu être précalculé/)
+      expect(screen.getByLabelText('Versement mensuel (€)')).not.toBeDisabled()
+
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValueOnce(jonctionPatrimoine({ versement_mensuel_suggere: 200 }))
+      fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
+
+      await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(200))
     })
   })
 })

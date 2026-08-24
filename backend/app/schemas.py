@@ -1200,3 +1200,23 @@ class BudgetSummary(BaseModel):
     disponible: float
     depenses_recurrentes_mensuelles: float
     repartition_sorties: list[RepartitionSortieItem]
+
+
+class RecurrenceDetecteeOut(BaseModel):
+    libelle: str
+    categorie_id: int | None
+    montant_actuel: float
+    montant_precedent: float | None
+    hausse_prix: bool
+    occurrences: int
+    premiere_date: str
+    derniere_date: str
+    periodicite: str
+
+
+class JonctionPatrimoine(BaseModel):
+    taux_epargne_reel_pct: float | None
+    reste_a_vivre: float | None
+    versement_mensuel_suggere: float | None
+    categorie_epargne_introuvable: bool
+    categorie_logement_introuvable: bool

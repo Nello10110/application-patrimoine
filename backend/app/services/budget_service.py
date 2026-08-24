@@ -138,3 +138,82 @@ def set_cible(db: Session, user_id: int, categorie_id: int, montant_mensuel: flo
 def delete_cible(db: Session, user_id: int, categorie_id: int) -> None:
     db.query(BudgetCible).filter(BudgetCible.categorie_id == categorie_id, BudgetCible.user_id == user_id).delete()
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Jonction budget ↔ patrimoine (backlog 2.N.4)
+# ---------------------------------------------------------------------------
+
+# Noms des catégories par défaut (`budget_categories_service.DEFAULT_CATEGORIES`)
+# utilisés pour repérer "l'épargne" et "le logement" sans nouveau champ sur
+# `CategorieBudget` : recherche par nom (insensible à la casse), racine uniquement.
+# Limite assumée et documentée : si l'utilisateur renomme ces deux catégories, le
+# rapprochement ne les retrouve plus — acceptable pour un item d'effort S, le
+# renommage restant rare pour des catégories aussi structurantes.
+NOM_CATEGORIE_EPARGNE = "épargne"
+NOM_CATEGORIE_LOGEMENT = "logement"
+
+
+def _categorie_racine_par_nom(db: Session, user_id: int, nom: str) -> CategorieBudget | None:
+    # Comparaison normalisée en Python plutôt qu'un `ILIKE` SQL : `LOWER()` de
+    # SQLite ne minuscule que l'ASCII (aucune extension ICU chargée), donc ne
+    # reconnaît pas "Épargne" == "épargne" — `normaliser` (accents retirés) gère ce
+    # cas correctement, comme pour la correspondance des règles de catégorisation.
+    nom_normalise = budget_categories_service.normaliser(nom)
+    racines = db.query(CategorieBudget).filter(CategorieBudget.user_id == user_id, CategorieBudget.parent_id.is_(None)).all()
+    return next((c for c in racines if budget_categories_service.normaliser(c.nom) == nom_normalise), None)
+
+
+def _nombre_mois_periode(date_debut: str, date_fin: str) -> int:
+    d1 = datetime.strptime(date_debut, "%Y-%m-%d").date()
+    d2 = datetime.strptime(date_fin, "%Y-%m-%d").date()
+    return max(1, (d2.year - d1.year) * 12 + (d2.month - d1.month) + 1)
+
+
+def compute_jonction_patrimoine(db: Session, user_id: int, date_debut: str, date_fin: str) -> dict:
+    """Taux d'épargne réel, reste à vivre, et suggestion de versement mensuel pour
+    le Simulateur (backlog 2.N.4) — dérivés du budget réellement observé plutôt que
+    d'une hypothèse saisie à la main."""
+    # Import différé : évite un cycle avec `budget_recurrences_service`, qui importe
+    # ce module pour `list_mouvements`.
+    from . import budget_recurrences_service
+
+    summary = compute_summary(db, user_id, date_debut, date_fin)
+    entrees = summary["entrees"]
+
+    categorie_epargne = _categorie_racine_par_nom(db, user_id, NOM_CATEGORIE_EPARGNE)
+    montant_epargne = None
+    taux_epargne_reel_pct = None
+    if categorie_epargne is not None:
+        montant_epargne = next(
+            (item["montant"] for item in summary["repartition_sorties"] if item["categorie_id"] == categorie_epargne.id), 0.0
+        )
+        taux_epargne_reel_pct = round(montant_epargne / entrees * 100, 1) if entrees > 0 else None
+
+    categorie_logement = _categorie_racine_par_nom(db, user_id, NOM_CATEGORIE_LOGEMENT)
+    montant_logement = None
+    reste_a_vivre = None
+    if categorie_logement is not None:
+        montant_logement = next(
+            (item["montant"] for item in summary["repartition_sorties"] if item["categorie_id"] == categorie_logement.id), 0.0
+        )
+        # `aujourdhui` calé sur la fin de la période demandée (pas la date système) :
+        # sans ça, consulter un mois passé exclurait à tort toute charge récurrente
+        # de cette époque via la fenêtre de récence de `detect_recurrences` (45 jours
+        # glissants depuis "aujourd'hui" réel, non pertinents pour une période révolue).
+        charges_recurrentes_mensuelles = sum(
+            r.montant_actuel
+            for r in budget_recurrences_service.detect_recurrences(db, user_id, aujourdhui=date_cls.fromisoformat(date_fin))
+            if r.periodicite == "mensuelle"
+        )
+        reste_a_vivre = round(entrees - montant_logement - charges_recurrentes_mensuelles, 2)
+
+    versement_mensuel_suggere = round(summary["disponible"] / _nombre_mois_periode(date_debut, date_fin), 2)
+
+    return {
+        "taux_epargne_reel_pct": taux_epargne_reel_pct,
+        "reste_a_vivre": reste_a_vivre,
+        "versement_mensuel_suggere": versement_mensuel_suggere,
+        "categorie_epargne_introuvable": categorie_epargne is None,
+        "categorie_logement_introuvable": categorie_logement is None,
+    }

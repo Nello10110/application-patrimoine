@@ -30,9 +30,9 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/patrimoine/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
 | Répartition | `/repartition` | Objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable : définition des cibles de répartition géo/sectorielle, puis en dessous le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent — sorti du Tableau de bord pour ne pas y encombrer la vue d'ensemble. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
-| Simulateur | `/simulateur` | Projection d'un capital dans le temps (préempli avec le patrimoine net actuel, librement modifiable) à horizon réglable (5/10/20/30 ans) selon un rendement et un versement mensuel ; tableau de détail annuel/mensuel (versements, intérêts, capital, cumuls) ; calcul d'indépendance financière (FIRE) à partir d'une dépense annuelle cible et d'un taux de retrait. Tout est calculé côté client hormis le patrimoine net initial |
+| Simulateur | `/simulateur` | Projection d'un capital dans le temps (préempli avec le patrimoine net actuel, librement modifiable) à horizon réglable (5/10/20/30 ans) selon un rendement et un versement mensuel (préempli avec le versement observé sur le budget réel, backlog § 2.N.4) ; tableau de détail annuel/mensuel (versements, intérêts, capital, cumuls) ; calcul d'indépendance financière (FIRE) à partir d'une dépense annuelle cible et d'un taux de retrait. Tout est calculé côté client hormis le patrimoine net initial et le versement suggéré |
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
-| Budget | `/budget` | (backlog § 2.N.1/2.N.2) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, gestion des catégories et des règles de catégorisation automatique |
+| Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements de la période |
 | Import | `/import` | Import de l'historique de transactions, d'un relevé de positions, ou de mouvements bancaires (CSV mappé, OFX, QIF — backlog § 2.N.1) pour l'écran Budget |
 | Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV et relevé de patrimoine PDF |
@@ -290,11 +290,10 @@ défilement horizontal classique, hors périmètre de cet incrément). Les filtr
 Cibles tactiles ≥ 44 px sur tout le nouveau code mobile, zones de sécurité iOS couvertes
 (`env(safe-area-inset-bottom)`).
 
-### 3.18 Budget : import, catégorisation, indicateurs (backlog § 2.N.1/2.N.2)
+### 3.18 Budget : import, catégorisation, indicateurs, récurrences, jonction patrimoine (backlog § 2.N)
 
 Suivi des mouvements bancaires, **totalement indépendant** du grand livre de transactions du
-courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires` vs `transactions`),
-aucun croisement automatique entre les deux (cf. § 2.N.4, hors périmètre à ce stade).
+courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires` vs `transactions`).
 
 - **Import** : CSV avec mapping manuel de colonnes (réutilise le mécanisme d'aperçu/cache du
   relevé de positions), montant exprimé en une colonne signée ou en deux colonnes débit/crédit
@@ -311,6 +310,23 @@ aucun croisement automatique entre les deux (cf. § 2.N.4, hors périmètre à c
   dépenses récurrentes — un couple (libellé normalisé, montant arrondi à l'euro) revenant sur au
   moins 2 des 3 mois précédant la fin de la période compte comme récurrent.
 - **Budget cible** par catégorie racine, comparé aux sorties réelles de la période (écart affiché).
+- **Charges récurrentes et abonnements** (§ 2.N.3) : regroupement par libellé normalisé seul (pas le
+  montant, contrairement à l'indicateur ci-dessus — pour permettre à un même abonnement de
+  regrouper deux montants différents et révéler une hausse de prix), sur une fenêtre glissante de 12
+  mois, indépendante de la période affichée à l'écran. Un mouvement non revu depuis plus de 45 jours
+  est considéré résilié et n'apparaît plus. Périodicité classée mensuelle (intervalle moyen 20-40
+  jours) ou irrégulière (affichée quand même). Hausse de prix signalée au-delà de 5 % entre les deux
+  dernières occurrences. Pas de détection d'abonnement « inutilisé » (aucun signal d'usage
+  disponible depuis un relevé bancaire) — la liste complète, présentée pour revue, en est
+  l'équivalent honnête.
+- **Jonction budget ↔ patrimoine** (§ 2.N.4) : taux d'épargne réel (sorties de la catégorie racine
+  « Épargne » / entrées de la période), reste à vivre (entrées − sorties « Logement » − charges
+  récurrentes mensuelles détectées ci-dessus). Les deux catégories sont repérées **par leur nom**
+  (comparaison normalisée insensible à la casse/aux accents, pas un champ dédié sur
+  `CategorieBudget`) : un renommage de l'une d'elles rend le rapprochement correspondant
+  indisponible, signalé explicitement plutôt que de produire un chiffre faux. Le Simulateur (§ 3.12)
+  préremplit son « Versement mensuel » avec le disponible moyen observé sur les 3 derniers mois de
+  budget, librement modifiable ensuite.
 
 ## 4. Modèle de données (tables principales)
 

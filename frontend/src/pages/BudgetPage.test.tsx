@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { BudgetSummary, CategorieBudget, MouvementBancaire, RegleCategorisation } from '../api/types'
+import type { BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
 import BudgetPage from './BudgetPage'
 
 vi.mock('../api/client', () => ({
@@ -17,6 +17,8 @@ vi.mock('../api/client', () => ({
     createRegleCategorisation: vi.fn(),
     deleteRegleCategorisation: vi.fn(),
     reappliquerReglesCategorisation: vi.fn(),
+    getBudgetRecurrences: vi.fn(),
+    getJonctionPatrimoine: vi.fn(),
   },
 }))
 
@@ -56,11 +58,48 @@ function regle(overrides: Partial<RegleCategorisation> = {}): RegleCategorisatio
   return { id: 1, motif: 'sncf', categorie_id: 1, ...overrides }
 }
 
-function mockChargement(overrides: { summary?: BudgetSummary; mouvements?: MouvementBancaire[]; categories?: CategorieBudget[]; regles?: RegleCategorisation[] } = {}) {
+function recurrence(overrides: Partial<RecurrenceDetectee> = {}): RecurrenceDetectee {
+  return {
+    libelle: 'Netflix',
+    categorie_id: null,
+    montant_actuel: 12.99,
+    montant_precedent: 12.99,
+    hausse_prix: false,
+    occurrences: 3,
+    premiere_date: '2025-12-05',
+    derniere_date: '2026-02-05',
+    periodicite: 'mensuelle',
+    ...overrides,
+  }
+}
+
+function jonction(overrides: Partial<JonctionPatrimoine> = {}): JonctionPatrimoine {
+  return {
+    taux_epargne_reel_pct: 20,
+    reste_a_vivre: 1500,
+    versement_mensuel_suggere: 400,
+    categorie_epargne_introuvable: false,
+    categorie_logement_introuvable: false,
+    ...overrides,
+  }
+}
+
+function mockChargement(overrides: {
+  summary?: BudgetSummary
+  mouvements?: MouvementBancaire[]
+  categories?: CategorieBudget[]
+  regles?: RegleCategorisation[]
+  recurrences?: RecurrenceDetectee[]
+  jonction?: JonctionPatrimoine
+} = {}) {
   vi.mocked(api.getBudgetSummary).mockResolvedValue(overrides.summary ?? summary())
   vi.mocked(api.listMouvementsBancaires).mockResolvedValue(overrides.mouvements ?? [mouvement()])
   vi.mocked(api.listCategoriesBudget).mockResolvedValue(overrides.categories ?? [categorie()])
   vi.mocked(api.listReglesCategorisation).mockResolvedValue(overrides.regles ?? [regle()])
+  vi.mocked(api.getBudgetRecurrences).mockResolvedValue(overrides.recurrences ?? [])
+  vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
+    overrides.jonction ?? jonction({ taux_epargne_reel_pct: null, reste_a_vivre: null }),
+  )
 }
 
 describe('BudgetPage — indicateurs et répartition (backlog 2.N.2)', () => {
@@ -199,5 +238,73 @@ describe('BudgetPage — catégories et règles (backlog 2.N.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer Transport' }))
 
     await waitFor(() => expect(api.deleteCategorieBudget).toHaveBeenCalledWith(1))
+  })
+})
+
+describe('BudgetPage — récurrences et abonnements (backlog 2.N.3)', () => {
+  it("n'affiche pas la section s'il n'y a aucune récurrence détectée", async () => {
+    mockChargement({ recurrences: [] })
+    render(<BudgetPage />)
+
+    await screen.findByPlaceholderText('Nouvelle catégorie')
+    expect(screen.queryByText('Charges récurrentes et abonnements')).not.toBeInTheDocument()
+  })
+
+  it('liste les récurrences détectées avec leur périodicité et leurs occurrences', async () => {
+    mockChargement({ recurrences: [recurrence()] })
+    render(<BudgetPage />)
+
+    await screen.findByText('Charges récurrentes et abonnements')
+    expect(screen.getByText('Netflix')).toBeInTheDocument()
+    expect(screen.getByText('Mensuelle')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('12,99 €')).toBeInTheDocument()
+    expect(screen.queryByText('Hausse de prix')).not.toBeInTheDocument()
+  })
+
+  it('affiche un badge « Hausse de prix » quand détectée', async () => {
+    mockChargement({ recurrences: [recurrence({ hausse_prix: true, montant_actuel: 14.99, montant_precedent: 12.99 })] })
+    render(<BudgetPage />)
+
+    await screen.findByText('Hausse de prix')
+  })
+
+  it("s'affiche même si la période sélectionnée n'a aucun mouvement (fenêtre indépendante)", async () => {
+    mockChargement({ mouvements: [], recurrences: [recurrence()] })
+    render(<BudgetPage />)
+
+    await screen.findByText('Aucun mouvement bancaire importé pour cette période.')
+    expect(screen.getByText('Charges récurrentes et abonnements')).toBeInTheDocument()
+  })
+})
+
+describe('BudgetPage — jonction budget/patrimoine (backlog 2.N.4)', () => {
+  it("n'affiche pas le taux d'épargne ni le reste à vivre si les catégories n'existent pas", async () => {
+    mockChargement()
+    render(<BudgetPage />)
+
+    await screen.findByPlaceholderText('Nouvelle catégorie')
+    expect(screen.queryByText("Taux d'épargne réel")).not.toBeInTheDocument()
+    expect(screen.queryByText('Reste à vivre')).not.toBeInTheDocument()
+  })
+
+  it("affiche le taux d'épargne réel et le reste à vivre quand disponibles", async () => {
+    mockChargement({ jonction: jonction({ taux_epargne_reel_pct: 25.5, reste_a_vivre: 1200 }) })
+    render(<BudgetPage />)
+
+    await screen.findByText("Taux d'épargne réel")
+    expect(screen.getByText('25.5 %')).toBeInTheDocument()
+    expect(screen.getByText('Reste à vivre')).toBeInTheDocument()
+    expect(screen.getByText('1 200 €')).toBeInTheDocument()
+  })
+
+  it('affiche un message explicatif quand la catégorie Épargne ou Logement est introuvable', async () => {
+    mockChargement({
+      jonction: jonction({ taux_epargne_reel_pct: null, categorie_epargne_introuvable: true, reste_a_vivre: null, categorie_logement_introuvable: true }),
+    })
+    render(<BudgetPage />)
+
+    await screen.findByText(/Taux d'épargne indisponible/)
+    expect(screen.getByText(/Reste à vivre indisponible/)).toBeInTheDocument()
   })
 })

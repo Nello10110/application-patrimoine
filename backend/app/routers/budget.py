@@ -19,13 +19,23 @@ from ..schemas import (
     CategorieBudgetOut,
     CategorieBudgetUpdate,
     ImportPreviewResponse,
+    JonctionPatrimoine,
     MouvementBancaireOut,
     MouvementCategorisationUpdate,
+    RecurrenceDetecteeOut,
     RegleCategorisationCreate,
     RegleCategorisationOut,
     RegleReapplicationResult,
 )
-from ..services import auth_service, budget_categories_service, budget_import_service, budget_service, csv_import, upload_limits
+from ..services import (
+    auth_service,
+    budget_categories_service,
+    budget_import_service,
+    budget_recurrences_service,
+    budget_service,
+    csv_import,
+    upload_limits,
+)
 
 router = APIRouter(prefix="/api/budget", tags=["budget"])
 
@@ -226,3 +236,20 @@ def delete_cible(categorie_id: int, db: Session = Depends(get_db), current_user:
 @router.get("/summary", response_model=BudgetSummary)
 def summary(date_debut: str, date_fin: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return budget_service.compute_summary(db, auth_service.id_foyer(current_user), date_debut, date_fin)
+
+
+# ---------------------------------------------------------------------------
+# Récurrences et jonction patrimoine (backlog 2.N.3/2.N.4)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/recurrences", response_model=list[RecurrenceDetecteeOut])
+def recurrences(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return budget_recurrences_service.detect_recurrences(db, auth_service.id_foyer(current_user))
+
+
+@router.get("/jonction-patrimoine", response_model=JonctionPatrimoine)
+def jonction_patrimoine(
+    date_debut: str, date_fin: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    return budget_service.compute_jonction_patrimoine(db, auth_service.id_foyer(current_user), date_debut, date_fin)

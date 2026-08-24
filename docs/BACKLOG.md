@@ -1326,19 +1326,54 @@ juste après avoir importé). Vérifié en conditions réelles (backend isolé) 
 mouvements réels, recatégorisation manuelle et par règle, réapplication en masse après ajout d'une
 règle, édition d'un budget cible avec recalcul immédiat de l'écart, filtres catégorie/compte.
 
-#### N.3 — `mineur` · `M` · `P2` · `non traité` — Détection des récurrences et des abonnements
+#### N.3 — `mineur` · `M` · `P2` · `traité` (24/08/2026) — Détection des récurrences et des abonnements
 
 Détecter les mouvements qui reviennent (même bénéficiaire, montant stable, périodicité régulière),
 en déduire la charge fixe mensuelle, signaler les hausses de prix et les abonnements inutilisés.
 Finary en a fait un module à part (« Scanner d'abonnements ») ; c'est le sous-produit naturel de
 N.1, pas un chantier séparé.
 
-#### N.4 — `mineur` · `S` · `P2` · `non traité` — Jonction budget ↔ patrimoine
+**Livré et vérifié le 24/08/2026.** Nouveau `services/budget_recurrences_service.py`, regroupe les
+mouvements par **libellé normalisé seul** (contrairement à l'heuristique de N.2 qui inclut le
+montant dans la clé) — nécessaire pour qu'une hausse de prix reste détectable : deux montants
+différents doivent pouvoir appartenir au même groupe. Fenêtre d'observation de 12 mois, fenêtre de
+récence de 45 jours (un mouvement non revu depuis plus longtemps est considéré résilié, pas listé
+comme charge encore due), seuil de hausse de prix à 5 % entre les deux dernières occurrences,
+périodicité classée « mensuelle » si l'intervalle moyen entre occurrences est de 20 à 40 jours,
+« irrégulière » sinon (affiché quand même, pas masqué). Nouvelle section « Charges récurrentes et
+abonnements » sur l'écran Budget, indépendante de la période sélectionnée (une fenêtre glissante
+propre) — reste visible même si le mois affiché n'a aucun mouvement. **« Abonnements inutilisés » du
+texte du backlog, non livré tel quel** : aucune donnée de la banque ne permet de savoir si un
+abonnement encore facturé est réellement utilisé — la liste complète des charges récurrentes,
+présentée pour revue par l'utilisateur, en est l'équivalent honnête (pas de faux signal d'usage
+inventé). Vérifié en conditions réelles (backend isolé, 3 mois de mouvements réels) : Netflix détecté
+avec une hausse de prix (12,99 € → 14,99 €, +15 %) correctement signalée, Loyer et Livret A détectés
+sans hausse, périodicité mensuelle correcte pour les trois.
+
+#### N.4 — `mineur` · `S` · `P2` · `traité` (24/08/2026) — Jonction budget ↔ patrimoine
 
 Le budget n'a d'intérêt ici que s'il rejoint le patrimoine : **taux d'épargne réel** (épargne /
 revenus), **reste à vivre**, et **alimentation automatique du versement mensuel du simulateur** par
 le taux d'épargne observé plutôt qu'une hypothèse saisie à la main. C'est le lien que Finary ne
 fait pas.
+
+**Livré et vérifié le 24/08/2026.** `taux_epargne_reel_pct` = sorties de la catégorie racine
+« Épargne » / entrées, `reste_a_vivre` = entrées − sorties « Logement » − somme des charges
+récurrentes mensuelles (N.3) sur la période. Repérage des catégories « Épargne »/« Logement » **par
+nom** (comparaison normalisée, insensible casse/accents — pas un nouveau champ sur
+`CategorieBudget`) : limite assumée et documentée, un renommage de ces deux catégories par défaut
+rend le rapprochement indisponible (message explicite affiché à l'écran plutôt qu'un chiffre
+silencieusement faux). **Bug corrigé en vérifiant** : la comparaison passait initialement par un
+`ILIKE` SQL, dont le `LOWER()` de SQLite ne minuscule que l'ASCII (aucune extension ICU chargée) —
+« Épargne » ne matchait jamais « épargne » à cause du É accentué non reconnu ; corrigé en comparaison
+Python via `budget_categories_service.normaliser` (déjà utilisée pour les règles de catégorisation).
+Simulateur (`SimulateurPage.tsx`) : « Versement mensuel » préempli avec le versement moyen observé
+sur le budget des 3 derniers mois (`disponible` moyen mensuel, même fenêtre que l'indicateur
+« dépenses récurrentes » de N.2), avec un bouton « Revenir au versement observé » si modifié —
+même patron que le préremplissage déjà en place pour le capital de départ et les intérêts déjà
+obtenus, dégradation non bloquante en cas d'échec (le champ reste modifiable à la main). Vérifié en
+conditions réelles : taux d'épargne et reste à vivre affichés et cohérents avec les mouvements
+importés, versement mensuel du Simulateur préempli avec la valeur observée.
 
 ---
 
@@ -1495,7 +1530,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Phase 3** | C.1, D.1, D.2, E.3, H.1 — dividendes, PDF, rapport, coût consolidé, PWA | Phase 2 | — | **Livré** 20/08/2026 |
 | **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
-| **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | En cours — N.1, N.2 livrés (2/4) ; N.3, N.4 restants |
+| **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | À lancer |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |
 

@@ -29,6 +29,7 @@ import type {
   HouseholdMember,
   HouseholdMemberInput,
   ImportPreview,
+  JonctionPatrimoine,
   ImportResult,
   Loan,
   LoanInput,
@@ -42,6 +43,7 @@ import type {
   Preferences,
   PreferencesUpdateResponse,
   QuotiteEntree,
+  RecurrenceDetectee,
   RegleCategorisation,
   RegleReapplicationResult,
   RepartitionComptesResponse,
@@ -287,4 +289,9 @@ export const api = {
 
   getBudgetSummary: (dateDebut: string, dateFin: string) =>
     request<BudgetSummary>(`/budget/summary?date_debut=${dateDebut}&date_fin=${dateFin}`),
+
+  // Récurrences et jonction patrimoine (backlog 2.N.3/2.N.4)
+  getBudgetRecurrences: () => request<RecurrenceDetectee[]>('/budget/recurrences'),
+  getJonctionPatrimoine: (dateDebut: string, dateFin: string) =>
+    request<JonctionPatrimoine>(`/budget/jonction-patrimoine?date_debut=${dateDebut}&date_fin=${dateFin}`),
 }
