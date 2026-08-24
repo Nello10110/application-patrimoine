@@ -43,3 +43,42 @@ export function bornesPeriode(periode: Periode, maintenant = new Date()): { date
 }
 
 export const PERIODE_DEFAUT: Periode = { type: 'relative', valeur: 'TOUT' }
+
+// Hiérarchie de lecture du tableau de bord (backlog 2.K.6) : phrase en langage
+// naturel accompagnant la variation du portefeuille suivi sur la Période transverse
+// active — volontairement distincte du patrimoine net affiché juste au-dessus (qui
+// inclut aussi l'immobilier/l'épargne/les dettes, sans historique daté disponible) :
+// dire précisément ce qui est mesuré plutôt que de laisser croire à une variation du
+// patrimoine net lui-même.
+export function libellePeriodeEcoulee(periode: Periode): string {
+  if (periode.type === 'personnalisee') return 'sur la période sélectionnée'
+  switch (periode.valeur) {
+    case 'TOUT':
+      return 'depuis le début du suivi'
+    case 'YTD':
+      return 'depuis janvier'
+    case '1M':
+      return 'sur le dernier mois'
+    case '3M':
+      return 'sur les 3 derniers mois'
+    case '6M':
+      return 'sur les 6 derniers mois'
+    case '1A':
+      return 'sur la dernière année'
+    case '3A':
+      return 'sur les 3 dernières années'
+  }
+}
+
+/** Variation en % entre le premier et le dernier point d'une série déjà filtrée sur
+ * la période (cf. `bornesPeriode`) — `null` si moins de 2 points ou si le point de
+ * départ vaut 0 (variation indéfinie). Fonction pure, générique sur `{ valeur }` :
+ * ne dépend pas du type exact des points (réutilisable au-delà de
+ * `PortfolioHistoryPoint`). */
+export function variationSurPeriode(points: { valeur: number }[]): number | null {
+  if (points.length < 2) return null
+  const debut = points[0].valeur
+  const fin = points[points.length - 1].valeur
+  if (debut === 0) return null
+  return ((fin - debut) / debut) * 100
+}

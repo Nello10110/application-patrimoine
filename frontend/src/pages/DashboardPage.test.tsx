@@ -12,6 +12,10 @@ vi.mock('../api/client', () => ({
     getPerformance: vi.fn(),
     getRepartitionComptes: vi.fn(),
     getCoutGestionConsolide: vi.fn(),
+    // Historique du portefeuille (backlog 2.K.6) : remonté ici pour être partagé avec
+    // `PortfolioHistoryChart`/`PatrimoineNetCard` (tous deux mis de côté ci-dessous) —
+    // hors de l'objet de ce fichier, stub neutre.
+    getPortfolioHistory: vi.fn().mockResolvedValue({ points: [] }),
   },
 }))
 
@@ -266,5 +270,49 @@ describe('DashboardPage — indicateur de rééquilibrage', () => {
 
     await screen.findByText(/0 action recommandée/)
     expect(screen.getByText(/Portefeuille bien aligné/)).toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage — hiérarchie de lecture (backlog 2.K.6)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.listTargetYears).mockResolvedValue([])
+    vi.mocked(api.getAnalysis).mockResolvedValue(analyse(CURRENT_YEAR))
+    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
+    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
+      valeur_totale: 0,
+      items: [],
+      a_des_comptes_annotes: false,
+      pas_de_rentabilite_par_compte: '',
+    })
+    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
+      valeur_fonds: 0,
+      valeur_fonds_avec_ter_connu: 0,
+      couverture_pct: 0,
+      cout_annuel_estime: 0,
+    })
+  })
+
+  it('charge un seul historique de portefeuille, partagé entre le chiffre et la courbe', async () => {
+    renderPage()
+
+    await screen.findByText(/action recommandée/)
+    expect(api.getPortfolioHistory).toHaveBeenCalledTimes(1)
+  })
+
+  it('le détail (rééquilibrage, score de diversification...) est ouvert par défaut, et se replie au clic', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    renderPage()
+
+    await screen.findByText(/action recommandée/)
+    expect(screen.getByText('Score de diversification')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Détail' }))
+
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+    // Le lien "Voir le détail" (Rééquilibrage) disparaît aussi, contrairement au
+    // sélecteur d'année / bouton "Actualiser" qui restent toujours visibles.
+    expect(screen.queryByRole('link', { name: 'Voir le détail' })).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
   })
 })

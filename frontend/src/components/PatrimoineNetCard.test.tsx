@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { PatrimoineNet } from '../api/types'
+import type { PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
 import { PreferencesAffichageContext, type Lentille } from '../contexts/preferencesAffichageContextObject'
-import { PERIODE_DEFAUT } from '../utils/periode'
+import { PERIODE_DEFAUT, type Periode } from '../utils/periode'
 import PatrimoineNetCard from './PatrimoineNetCard'
 
 vi.mock('../api/client', () => ({
@@ -28,7 +28,12 @@ function patrimoine(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
 // historique de la carte, inchangé pour les tests qui ne portent pas sur K.3).
 // `detenteurId` (backlog 2.L.1) par défaut à `null` (vue foyer, comportement
 // historique inchangé pour les tests qui ne portent pas sur L.1).
-function renderCard(lentille: Lentille = 'net', detenteurId: number | null = null) {
+function renderCard(
+  lentille: Lentille = 'net',
+  detenteurId: number | null = null,
+  historiquePortefeuille?: { points: PortfolioHistoryPoint[] | null; loading: boolean },
+  periode: Periode = PERIODE_DEFAUT,
+) {
   return render(
     <PreferencesAffichageContext.Provider
       value={{
@@ -38,13 +43,17 @@ function renderCard(lentille: Lentille = 'net', detenteurId: number | null = nul
         toggleMontantsMasques: vi.fn(),
         detenteurId,
         setDetenteurId: vi.fn(),
-        periode: PERIODE_DEFAUT,
+        periode,
         setPeriode: vi.fn(),
       }}
     >
-      <PatrimoineNetCard />
+      <PatrimoineNetCard historiquePortefeuille={historiquePortefeuille} />
     </PreferencesAffichageContext.Provider>,
   )
+}
+
+function point(overrides: Partial<PortfolioHistoryPoint> = {}): PortfolioHistoryPoint {
+  return { date: '2026-01-01', valeur_portefeuille: 0, valeur_investie: 0, valeur_realisee_cumulee: 0, ...overrides }
 }
 
 describe('PatrimoineNetCard', () => {
@@ -171,5 +180,70 @@ describe('PatrimoineNetCard — filtre détenteur (backlog 2.L.1)', () => {
     renderCard('net', null)
 
     await vi.waitFor(() => expect(api.getPatrimoineNet).toHaveBeenCalledWith(null))
+  })
+})
+
+describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
+  it("n'affiche aucune variation quand `historiquePortefeuille` est absent (hors tableau de bord)", async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1500, passifs_totaux: 500, patrimoine_net: 1000 }))
+    renderCard('net', null, undefined)
+
+    await screen.findByText('1 000 €')
+    expect(screen.queryByText(/depuis|derniers?|dernière/)).not.toBeInTheDocument()
+  })
+
+  it("n'affiche aucune variation tant que l'historique est en cours de chargement", async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1500, passifs_totaux: 500, patrimoine_net: 1000 }))
+    renderCard('net', null, { points: null, loading: true })
+
+    await screen.findByText('1 000 €')
+    expect(screen.queryByText(/depuis|derniers?|dernière/)).not.toBeInTheDocument()
+  })
+
+  it('affiche la variation positive et la phrase "depuis le début du suivi" (période TOUT par défaut)', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1600, passifs_totaux: 500, patrimoine_net: 1100 }))
+    renderCard('net', null, {
+      points: [point({ date: '2026-01-01', valeur_portefeuille: 1000 }), point({ date: '2026-06-01', valeur_portefeuille: 1100 })],
+      loading: false,
+    })
+
+    await screen.findByText('+10.0%')
+    expect(screen.getByText(/depuis le début du suivi/)).toBeInTheDocument()
+  })
+
+  it('affiche la variation négative en rouge (texte-negatif), signe "-" inclus', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1400, passifs_totaux: 500, patrimoine_net: 900 }))
+    renderCard('net', null, {
+      points: [point({ date: '2026-01-01', valeur_portefeuille: 1000 }), point({ date: '2026-06-01', valeur_portefeuille: 900 })],
+      loading: false,
+    })
+
+    const variation = await screen.findByText('-10.0%')
+    expect(variation).toHaveClass('text-negatif')
+  })
+
+  it('filtre la série sur la Période transverse active avant de calculer la variation', async () => {
+    // Bornes du dernier point calées sur "aujourd'hui" (pas un mois fixe) pour que
+    // ce test reste vrai toute l'année, y compris en janvier — `bornesPeriode` en
+    // YTD fixe `dateFin` à la date du jour.
+    const anneeEnCours = new Date().getFullYear()
+    const aujourdhui = new Date().toISOString().slice(0, 10)
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1700, passifs_totaux: 500, patrimoine_net: 1200 }))
+    renderCard(
+      'net',
+      null,
+      {
+        points: [
+          point({ date: '2020-01-01', valeur_portefeuille: 100 }), // hors période YTD, ignoré
+          point({ date: `${anneeEnCours}-01-01`, valeur_portefeuille: 1000 }),
+          point({ date: aujourdhui, valeur_portefeuille: 1200 }),
+        ],
+        loading: false,
+      },
+      { type: 'relative', valeur: 'YTD' },
+    )
+
+    await screen.findByText('+20.0%')
+    expect(screen.getByText(/depuis janvier/)).toBeInTheDocument()
   })
 })

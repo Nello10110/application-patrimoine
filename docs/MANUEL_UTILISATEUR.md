@@ -112,16 +112,55 @@ Quel que soit le mode : valeur du portefeuille en fin de période, évolution su
 
 ## Tableau de bord
 
-- **Patrimoine net** : en tout premier sur l'écran, distinct du reste (indépendant de l'année sélectionnée) — actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER), passifs (somme des emprunts), patrimoine net, et une répartition par grande classe d'actif. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
-- **Sélecteur d'année**, en haut à droite : change l'année de comparaison réel/cible sur tout l'écran (répartitions, indicateur de rééquilibrage), sans toucher à la rentabilité globale ni à la répartition par compte, indépendantes de l'année. Le bouton **Actualiser** recharge toutes les données de l'écran.
-- **Évolution du portefeuille** : graphique avec sélecteur d'échelle et un mode étagé qui distingue le capital investi des gains cumulés.
-- **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net), autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits une seconde fois.
-- **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer sur une barre ouvre le détail des lignes qui composent cette catégorie.
-- **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une partie du portefeuille n'est pas mesurée avec certitude — répartition géographique estimée à partir de l'indice suivi par un fonds (faute de composition détaillée), donnée totalement manquante, ou position valorisée à son coût de revient faute de cotation. N'apparaît pas si tout le portefeuille est couvert par une donnée réelle et coté.
-- **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est récupéré qu'une fois par fonds, au fil des rafraîchissements, donc la couverture peut rester partielle un moment après l'ajout d'un nouveau fonds ; le message le rappelle explicitement tant qu'elle n'atteint pas 100 %.
-- **Répartition par compte** : n'apparaît que si au moins une ligne porte une annotation de compte. Rappelle explicitement qu'aucune rentabilité par compte n'est calculable, seule la valeur actuelle l'est (le grand livre importé ne porte aucune information de compte).
-- **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne, concentration géographique.
-- **Rééquilibrage** : indicateur résumé (nombre d'actions recommandées, dont nombre d'alertes) avec un bouton **Voir le détail** vers l'écran dédié — le détail complet (catégorie par catégorie) n'est plus affiché ici.
+Organisé en trois temps, pour aller du plus important au plus accessoire (le chiffre, puis la
+courbe, puis le détail replié) :
+
+1. **Le chiffre** — **Patrimoine net**, en tout premier, affiché en très grand : actifs totaux
+   (portefeuille financier + immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicules), passifs
+   (somme des emprunts), patrimoine net, et une répartition par grande classe d'actif juste en
+   dessous. Sous le chiffre, une ligne de variation (« +10,0 % depuis le début du suivi », ou selon
+   la Période active dans la barre de contrôles) — elle porte sur le **portefeuille suivi** (le même
+   que la courbe ci-dessous), pas sur le patrimoine net lui-même, ce que la ligne précise
+   explicitement. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
+2. **La courbe** — **Évolution du portefeuille** : graphique avec sélecteur d'échelle (via la
+   Période, barre de contrôles) et un mode étagé qui distingue le capital investi des gains cumulés.
+   Reste visible même si le reste de l'écran (répartitions, indicateurs) échoue à charger.
+3. **Le détail** — tout le reste, replié sous un bouton **Détail** (ouvert par défaut, l'état choisi
+   est mémorisé d'une visite à l'autre) :
+   - **Sélecteur d'année**, en haut à droite de l'écran (hors du repliable) : change l'année de
+     comparaison réel/cible (répartitions, indicateur de rééquilibrage), sans toucher à la
+     rentabilité globale ni à la répartition par compte, indépendantes de l'année. Le bouton
+     **Actualiser** recharge toutes les données de l'écran.
+   - **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement
+     associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net),
+     autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à
+     titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits
+     une seconde fois.
+   - **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer
+     sur une barre ouvre le détail des lignes qui composent cette catégorie.
+   - **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une
+     partie du portefeuille n'est pas mesurée avec certitude — répartition géographique estimée à
+     partir de l'indice suivi par un fonds (faute de composition détaillée), donnée totalement
+     manquante, ou position valorisée à son coût de revient faute de cotation. N'apparaît pas si tout
+     le portefeuille est couvert par une donnée réelle et coté.
+   - **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût
+     annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la
+     part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est
+     récupéré qu'une fois par fonds, au fil des rafraîchissements, donc la couverture peut rester
+     partielle un moment après l'ajout d'un nouveau fonds ; le message le rappelle explicitement
+     tant qu'elle n'atteint pas 100 %.
+   - **Répartition par compte** : n'apparaît que si au moins une ligne porte une annotation de
+     compte. Rappelle explicitement qu'aucune rentabilité par compte n'est calculable, seule la
+     valeur actuelle l'est (le grand livre importé ne porte aucune information de compte).
+   - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne,
+     concentration géographique.
+   - **Rééquilibrage** : indicateur résumé (nombre d'actions recommandées, dont nombre d'alertes)
+     avec un bouton **Voir le détail** vers l'écran dédié — le détail complet (catégorie par
+     catégorie) n'est plus affiché ici.
+
+Les deux bandeaux d'accueil (aucune position dans le portefeuille, aucun objectif défini pour
+l'année) restent visibles même si le détail est replié — ce sont des appels à l'action, pas de la
+simple information complémentaire.
 
 ## Écran Réglages
 

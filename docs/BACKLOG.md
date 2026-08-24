@@ -907,7 +907,7 @@ imbriquées dans le bloc conditionné par `analysis`/`loading` — si `analysis`
 réussissent, leur squelette/erreur reste invisible ; les en sortir changerait l'ordre visuel de la
 page, décision de mise en page à trancher séparément.
 
-#### K.6 — `mineur` · `S` · `P1` · `non traité` — Hiérarchie de lecture du tableau de bord
+#### K.6 — `mineur` · `S` · `P1` · `traité` (24/08/2026) — Hiérarchie de lecture du tableau de bord
 
 Aujourd'hui les cartes s'empilent sans ordre de lecture. Cible en trois temps :
 
@@ -917,6 +917,33 @@ Aujourd'hui les cartes s'empilent sans ordre de lecture. Cible en trois temps :
    vente, gros versement).
 3. **Le détail** : répartition, qualité des données, coût de gestion, alertes — sous la ligne de
    flottaison, et repliables.
+
+**Livré le 24/08/2026** : `PatrimoineNetCard` affiche désormais le chiffre principal en très grand
+(`text-display`, jeton K.1) avant la répartition actifs/passifs, avec une variation en % et une
+phrase en langage naturel sous forme "*{signe}{pct}% {libellé période}*" (ex. « +10,0 % depuis le
+début du suivi »). **Écart assumé avec l'exemple du backlog** : la variation porte sur le
+**portefeuille financier suivi** (même série que la courbe juste en dessous), explicitement libellée
+comme telle, et non sur le patrimoine net lui-même — celui-ci inclut l'immobilier/l'épargne/les
+dettes, sans historique daté consolidé disponible pour eux (construire cette consolidation est le
+sujet du futur P.1, Lot 7) ; afficher une fausse précision sur le patrimoine net aurait contredit la
+philosophie de transparence déjà appliquée ailleurs dans l'app. Idem pour l'« attribution » de
+l'exemple (« porté par l'immobilier ») : non implémentée, aurait demandé une décomposition par
+classe d'actif hors de portée d'un item `S`. La courbe (`PortfolioHistoryChart`) et le chiffre
+partagent désormais un seul appel réseau (`GET /api/performance/history`, coûteux — jusqu'à une
+minute), remonté par `DashboardPage` plutôt que chargé en double par les deux composants ; au
+passage, corrige la limite documentée par K.5 (la courbe ne dépend plus de `analysis`/`loading`,
+elle reste visible même si l'analyse géo/sectorielle échoue). Le détail (StatTiles de risque,
+répartitions géo/sectorielles, qualité des données, coût de gestion, répartition par compte,
+rééquilibrage) est regroupé dans un nouveau composant repliable `Disclosure.tsx` (natif `<details>`-
+like, état persisté dans `localStorage` comme `useSidebarRepliee`), ouvert par défaut. Les deux
+bandeaux d'accueil (aucune position/aucun objectif) restent hors du repliable — ce sont des appels à
+l'action, pas de la simple information complémentaire. **Événements annotés sur la courbe** (achat,
+vente, gros versement) : non livrés — nécessiteraient une nouvelle donnée backend (dates/montants des
+mouvements significatifs sur un axe temporel distinct de la grille hebdomadaire du graphique),
+documentés comme extension future si le besoin se confirme. 289 tests frontend (+28), `tsc`/
+`oxlint`/`vite build` propres, vérifié en conditions réelles (backend isolé) : chiffre/courbe/détail
+dans le bon ordre, bandeau d'accueil visible hors du repliable, repli du détail au clic et persistance
+après rechargement de page.
 
 #### K.7 — `mineur` · `S` · `P2` · `traité` (21/08/2026) — Déconnexion accidentelle
 

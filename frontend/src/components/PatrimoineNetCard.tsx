@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
-import type { PatrimoineNet } from '../api/types'
+import type { PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+import { bornesPeriode, libellePeriodeEcoulee, variationSurPeriode } from '../utils/periode'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import { SkeletonTexte } from './Skeleton'
@@ -18,16 +19,41 @@ const TUILE_PRINCIPALE = {
   financier: (p: PatrimoineNet) => ({ label: 'Patrimoine financier', valeur: p.patrimoine_financier, tone: 'neutral' as const }),
 }
 
+interface PatrimoineNetCardProps {
+  /** Historique du portefeuille (backlog 2.K.6), remonté par `DashboardPage` — sert
+   * uniquement à afficher une variation + phrase sous le chiffre principal. Mesure
+   * le portefeuille FINANCIER suivi (courbe déjà affichée juste en dessous), pas le
+   * patrimoine net lui-même (qui inclut aussi l'immobilier/l'épargne/les dettes,
+   * sans historique daté consolidé disponible) — volontairement absent (`undefined`)
+   * pour tout appelant hors tableau de bord : la variation ne s'affiche alors pas,
+   * plutôt que d'afficher un chiffre dont la définition serait ambiguë hors contexte.
+   */
+  historiquePortefeuille?: { points: PortfolioHistoryPoint[] | null; loading: boolean }
+}
+
 /** Patrimoine net global (roadmap Phase 1) — actifs (portefeuille financier +
  * immobilier/SCPI/assurance-vie/PER) moins passifs (emprunts). Carte autonome,
  * indépendante de l'année sélectionnée et du reste du tableau de bord (comme
  * `PerformanceCard`) : chargée et affichée même si l'analyse géo/sectorielle
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
-export default function PatrimoineNetCard() {
+export default function PatrimoineNetCard({ historiquePortefeuille }: PatrimoineNetCardProps = {}) {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { lentille, montantsMasques, detenteurId } = usePreferencesAffichage()
+  const { lentille, montantsMasques, detenteurId, periode } = usePreferencesAffichage()
+
+  // Variation + phrase en langage naturel (backlog 2.K.6) : calculée sur la même
+  // série et le même filtrage de Période transverse que `PortfolioHistoryChart`
+  // (mode ligne, jamais le mode étagé) — les deux composants doivent toujours
+  // raconter la même histoire pour la même période.
+  const variationPct = useMemo(() => {
+    if (!historiquePortefeuille?.points) return null
+    const bornes = bornesPeriode(periode)
+    const filtres = bornes
+      ? historiquePortefeuille.points.filter((p) => p.date >= bornes.dateDebut && p.date <= bornes.dateFin)
+      : historiquePortefeuille.points
+    return variationSurPeriode(filtres.map((p) => ({ valeur: p.valeur_portefeuille })))
+  }, [historiquePortefeuille?.points, periode])
 
   function charger() {
     setLoading(true)
@@ -64,17 +90,36 @@ export default function PatrimoineNetCard() {
   if (!patrimoine || (patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0)) return null
 
   const principale = TUILE_PRINCIPALE[lentille](patrimoine)
+  const toneClassPrincipale = { good: 'text-positif', warning: 'text-avertissement', neutral: 'text-texte' }[principale.tone]
 
   return (
     <Card title="Patrimoine net">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Le chiffre (backlog 2.K.6) : très grand, avec sa variation et une phrase en
+          langage naturel — le premier temps de la hiérarchie de lecture du tableau
+          de bord. */}
+      <div className="mb-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">{principale.label}</p>
+        <p className={`text-display ${toneClassPrincipale}`}>{formatEuro(principale.valeur, 0, montantsMasques)}</p>
+        {variationPct !== null && (
+          <p className="mt-1 text-sm">
+            <span className={variationPct >= 0 ? 'text-positif' : 'text-negatif'}>
+              {variationPct >= 0 ? '+' : ''}
+              {variationPct.toFixed(1)}%
+            </span>{' '}
+            <span className="text-texte-attenue">
+              {libellePeriodeEcoulee(periode)} — portefeuille suivi, hors immobilier/épargne/dettes
+            </span>
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatTile label="Actifs totaux" value={formatEuro(patrimoine.actifs_totaux, 0, montantsMasques)} />
         <StatTile
           label="Passifs (emprunts)"
           value={formatEuro(patrimoine.passifs_totaux, 0, montantsMasques)}
           tone={patrimoine.passifs_totaux > 0 ? 'warning' : 'neutral'}
         />
-        <StatTile label={principale.label} value={formatEuro(principale.valeur, 0, montantsMasques)} tone={principale.tone} />
       </div>
 
       {patrimoine.repartition_par_classe.length > 0 && (

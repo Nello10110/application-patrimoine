@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { api } from '../api/client'
 import type { PortfolioHistoryPoint } from '../api/types'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
@@ -11,24 +10,20 @@ import { formatEuro } from '../utils/format'
 import { bornesPeriode } from '../utils/periode'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
-export default function PortfolioHistoryChart() {
+interface PortfolioHistoryChartProps {
+  /** `null` tant que le chargement n'a pas abouti (cf. `loading`) — remonté par
+   * `DashboardPage` (backlog 2.K.6) plutôt que chargé ici : partagé avec
+   * `PatrimoineNetCard` pour la variation affichée sur le chiffre principal, un
+   * seul appel réseau pour les deux (l'endpoint est coûteux, jusqu'à une minute). */
+  points: PortfolioHistoryPoint[] | null
+  loading: boolean
+  error: string | null
+  onRetry: () => void
+}
+
+export default function PortfolioHistoryChart({ points, loading, error, onRetry }: PortfolioHistoryChartProps) {
   const { montantsMasques, periode } = usePreferencesAffichage()
-  const [points, setPoints] = useState<PortfolioHistoryPoint[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [stacked, setStacked] = useState(false)
-
-  function charger() {
-    setLoading(true)
-    setError(null)
-    api
-      .getPortfolioHistory()
-      .then((res) => setPoints(res.points))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(charger, [])
 
   // Filtrage par la Période transverse (backlog 2.K.3), calculé côté client sur la
   // série complète déjà reçue en un seul appel (`getPortfolioHistory` ne prend
@@ -79,7 +74,7 @@ export default function PortfolioHistoryChart() {
           <SkeletonGraphique />
         </>
       )}
-      {error && <EtatErreur message={error} onReessayer={charger} />}
+      {error && <EtatErreur message={error} onReessayer={onRetry} />}
       {!loading && !error && data.length === 0 && <EtatVide titre="Pas encore d'historique disponible." />}
 
       {!loading && !error && data.length > 0 && (

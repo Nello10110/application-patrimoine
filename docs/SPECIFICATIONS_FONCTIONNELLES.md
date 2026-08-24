@@ -26,7 +26,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Vue d'ensemble : patrimoine net (actifs/passifs/net, répartition par classe d'actif), année sélectionnable, évolution du portefeuille, rentabilité globale, répartition réel vs cible, qualité des données de répartition, coût de gestion consolidé, répartition par compte (si annotée), indicateurs de risque, indicateur de rééquilibrage (compteur, renvoie vers l'écran dédié) |
+| Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (répartition réel vs cible, qualité des données, coût de gestion, répartition par compte, indicateurs de risque, indicateur de rééquilibrage) |
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/portefeuille/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | Détail d'une position : valorisation, rendements, émetteur/résumé, look-through géo/secteur, historique de prix |
 | Répartition | `/repartition` | Objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable : définition des cibles de répartition géo/sectorielle, puis en dessous le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent — sorti du Tableau de bord pour ne pas y encombrer la vue d'ensemble. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
@@ -249,6 +249,30 @@ Aucun nouveau calcul de fond : uniquement une agrégation par mois de données d
 Le frontend est installable comme une application (icône, plein écran) via un manifeste web et un service worker générés par `vite-plugin-pwa` (Workbox) au moment du build — jamais écrits à la main, pour éviter le piège classique d'un service worker maison qui sert indéfiniment une version périmée. L'API (`/api/*`) est explicitement exclue du cache du service worker (`navigateFallbackDenylist`) : les données financières affichées viennent toujours du backend en direct, jamais d'une réponse mise en cache hors-ligne — seuls les fichiers statiques du build (JS, CSS, icônes) bénéficient du cache.
 
 Au-delà du graphique, un **tableau de détail** (bascule Annuelle/Mensuelle) liste, pour chaque période, les versements de la période, les intérêts gagnés sur la période, le capital de fin de période, le versé cumulé et les intérêts cumulés à date. La vue annuelle et la vue mensuelle partagent la même trajectoire mensuelle sous-jacente (`calculerTrajectoireMensuelle`, agrégée par année via `agregerParAnnee` pour la vue annuelle) : les deux vues, ainsi que le graphique et `calculerTrajectoire` lui-même, ne peuvent donc jamais diverger entre elles. Convention de capitalisation : l'intérêt d'un mois se calcule sur le capital **avant** le versement de ce mois — un versement ne produit son premier intérêt qu'au mois suivant.
+
+### 3.16 Hiérarchie de lecture du tableau de bord (backlog § 2.K.6)
+
+Trois temps : **le chiffre** (`PatrimoineNetCard`, patrimoine net en très grand — jeton `text-display`
+du système de design, § 2.K.1 — avec la répartition actifs/passifs juste en dessous), **la courbe**
+(`PortfolioHistoryChart`, évolution du portefeuille financier), **le détail** (tout le reste :
+indicateurs de risque, répartitions réel vs cible, qualité des données, coût de gestion, répartition
+par compte, indicateur de rééquilibrage) regroupé dans un composant repliable générique
+(`Disclosure.tsx`, natif `<details>`-like, état persisté dans `localStorage`), ouvert par défaut. Les
+deux bandeaux d'accueil (aucune position/aucun objectif défini) restent hors du repliable : ce sont
+des appels à l'action, pas de la simple information complémentaire.
+
+**Variation et phrase en langage naturel** sous le chiffre principal (`{signe}{pct}% {libellé
+période}`, ex. « +10,0 % depuis le début du suivi ») : calculée sur le **portefeuille financier
+suivi** (même série que la courbe juste en dessous, filtrée par la Période transverse, § 2.K.3), pas
+sur le patrimoine net lui-même — celui-ci inclut l'immobilier/l'épargne/les dettes, sans historique
+daté consolidé disponible pour eux (le sujet du futur P.1, Lot 7). La phrase le précise explicitement
+(« portefeuille suivi, hors immobilier/épargne/dettes ») plutôt que de laisser croire à une précision
+que le calcul n'a pas — même philosophie de transparence que la qualité des données de répartition
+(§ 3.4) ou la valorisation immobilière datée (§ 3.11). `PatrimoineNetCard` et `PortfolioHistoryChart`
+partagent un seul appel réseau (`GET /api/performance/history`, coûteux — jusqu'à une minute),
+remonté par `DashboardPage` plutôt que chargé en double par les deux composants ; la courbe ne
+dépend plus de l'analyse géo/sectorielle (`analysis`/`loading`), elle reste visible même si celle-ci
+échoue à charger.
 
 ## 4. Modèle de données (tables principales)
 
