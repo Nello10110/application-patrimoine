@@ -75,6 +75,15 @@ export function IconRapport({ className }: IconProps) {
   )
 }
 
+export function IconBudget({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3.5 6.5 A2 2 0 0 1 5.5 4.5 H14.5 A2 2 0 0 1 16.5 6.5 V14.5 A2 2 0 0 1 14.5 16.5 H5.5 A2 2 0 0 1 3.5 14.5 Z" />
+      <path d="M12.5 9.5 H16.5 V12.5 H12.5 A1.5 1.5 0 0 1 12.5 9.5 Z" />
+    </svg>
+  )
+}
+
 export function IconImport({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

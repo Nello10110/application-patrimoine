@@ -32,8 +32,9 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Répartition | `/repartition` | Objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable : définition des cibles de répartition géo/sectorielle, puis en dessous le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent — sorti du Tableau de bord pour ne pas y encombrer la vue d'ensemble. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
 | Simulateur | `/simulateur` | Projection d'un capital dans le temps (préempli avec le patrimoine net actuel, librement modifiable) à horizon réglable (5/10/20/30 ans) selon un rendement et un versement mensuel ; tableau de détail annuel/mensuel (versements, intérêts, capital, cumuls) ; calcul d'indépendance financière (FIRE) à partir d'une dépense annuelle cible et d'un taux de retrait. Tout est calculé côté client hormis le patrimoine net initial |
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
+| Budget | `/budget` | (backlog § 2.N.1/2.N.2) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements de la période |
-| Import | `/import` | Import de l'historique de transactions ou d'un relevé de positions |
+| Import | `/import` | Import de l'historique de transactions, d'un relevé de positions, ou de mouvements bancaires (CSV mappé, OFX, QIF — backlog § 2.N.1) pour l'écran Budget |
 | Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV et relevé de patrimoine PDF |
 
 Un bouton dans l'en-tête bascule le thème clair/sombre (ou suit le système), sur tous les écrans.
@@ -288,6 +289,28 @@ défilement horizontal classique, hors périmètre de cet incrément). Les filtr
 (catégorie, compte) passent dans une feuille glissante sous 768 px au lieu d'une rangée inline.
 Cibles tactiles ≥ 44 px sur tout le nouveau code mobile, zones de sécurité iOS couvertes
 (`env(safe-area-inset-bottom)`).
+
+### 3.18 Budget : import, catégorisation, indicateurs (backlog § 2.N.1/2.N.2)
+
+Suivi des mouvements bancaires, **totalement indépendant** du grand livre de transactions du
+courtier (§ 3.1) — deux domaines de données séparés (`mouvements_bancaires` vs `transactions`),
+aucun croisement automatique entre les deux (cf. § 2.N.4, hors périmètre à ce stade).
+
+- **Import** : CSV avec mapping manuel de colonnes (réutilise le mécanisme d'aperçu/cache du
+  relevé de positions), montant exprimé en une colonne signée ou en deux colonnes débit/crédit
+  séparées selon la banque. OFX et QIF n'ont pas besoin de mapping (structure fixe, parsée sans
+  dépendance tierce).
+- **Déduplication** sur (date, montant, libellé normalisé) — identifiant fourni par la source
+  quand il existe (OFX `FITID`), sinon un hash déterministe en tient lieu. Ne tient pas compte du
+  compte annoté : deux mouvements identiques sur deux comptes différents sont vus comme un seul.
+- **Catégorisation** : arbre de catégories par foyer (un niveau de sous-catégorie), semé une seule
+  fois avec 8 catégories par défaut puis entièrement modifiable — jamais resemé après une
+  suppression volontaire. Règles « le libellé contient un motif → catégorie », appliquées à
+  l'import et réappliquables en masse sans jamais écraser une catégorisation manuelle.
+- **Indicateurs de période** (mensuelle/annuelle/personnalisée) : entrées, sorties, disponible, et
+  dépenses récurrentes — un couple (libellé normalisé, montant arrondi à l'euro) revenant sur au
+  moins 2 des 3 mois précédant la fin de la période compte comme récurrent.
+- **Budget cible** par catégorie racine, comparé aux sorties réelles de la période (écart affiché).
 
 ## 4. Modèle de données (tables principales)
 

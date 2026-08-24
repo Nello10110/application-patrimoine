@@ -545,6 +545,85 @@ class AuthToken(Base):
     user_agent: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
+class CategorieBudget(Base):
+    """Arbre de catégories de dépenses/revenus (backlog 2.N.1), propre à chaque
+    utilisateur (`user_id`) et entièrement modifiable — les catégories par défaut
+    (`services/budget_categories_service.DEFAULT_CATEGORIES`) ne sont que le point de
+    départ suggéré à la première utilisation, jamais recréées après coup. `parent_id`
+    autorise UN niveau de sous-catégorie (ex. "Alimentation" > "Restaurants") ; les
+    indicateurs de l'écran Budget (N.2) et les cibles (`BudgetCible`) portent sur les
+    catégories racines pour rester lisibles — les sous-catégories affinent le tri des
+    mouvements sans complexifier la comparaison cible/réel."""
+
+    __tablename__ = "categories_budget"
+    __table_args__ = (UniqueConstraint("user_id", "nom", "parent_id", name="uq_categorie_budget_user_nom_parent"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    nom: Mapped[str] = mapped_column(String)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class MouvementBancaire(Base):
+    """Un mouvement de compte bancaire importé (backlog 2.N.1) — conceptuellement
+    l'équivalent de `Transaction` (grand livre du courtier) mais pour un relevé
+    bancaire : format libre (CSV mappé à la main, OFX, QIF), montant signé (positif
+    = entrée, négatif = sortie). `transaction_id` est l'identifiant du relevé source
+    quand il en fournit un (OFX `FITID`) ; pour un CSV sans identifiant stable, un
+    hash déterministe de (date, montant, libellé normalisé) en tient lieu — c'est
+    exactement la clé de déduplication demandée par le backlog, portée directement
+    par la contrainte d'unicité plutôt que recalculée à chaque import."""
+
+    __tablename__ = "mouvements_bancaires"
+    __table_args__ = (UniqueConstraint("user_id", "transaction_id", name="uq_mouvement_bancaire_user_txid"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    transaction_id: Mapped[str] = mapped_column(String, index=True)
+    date: Mapped[str] = mapped_column(String, index=True)  # "YYYY-MM-DD"
+    libelle: Mapped[str] = mapped_column(String)
+    montant: Mapped[float] = mapped_column(Float)
+    compte: Mapped[str | None] = mapped_column(String, nullable=True)
+    categorie_id: Mapped[int | None] = mapped_column(ForeignKey("categories_budget.id"), nullable=True, index=True)
+    # Distingue une catégorisation posée par une règle (`RegleCategorisation`, jamais
+    # une garantie définitive) d'une correction manuelle de l'utilisateur — sans ce
+    # drapeau, "réappliquer les règles en masse" écraserait silencieusement les
+    # corrections déjà faites à la main.
+    categorise_manuellement: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class RegleCategorisation(Base):
+    """Règle de catégorisation automatique par mot-clé (backlog 2.N.1) : « le libellé
+    contient `motif` (insensible à la casse/aux accents) → `categorie_id` ». Lisible
+    et corrigeable, délibérément pas une IA — cf. le texte du backlog. Appliquée à
+    l'import et réappliquable en masse (`budget_import_service.reappliquer_regles`)."""
+
+    __tablename__ = "regles_categorisation"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    motif: Mapped[str] = mapped_column(String)
+    categorie_id: Mapped[int] = mapped_column(ForeignKey("categories_budget.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class BudgetCible(Base):
+    """Budget cible mensuel par catégorie racine (backlog 2.N.2) — comparé aux
+    sorties réelles de la période pour afficher un écart. Une ligne par catégorie
+    au plus (`UniqueConstraint`), montant toujours positif (dépense attendue)."""
+
+    __tablename__ = "budget_cibles"
+    __table_args__ = (UniqueConstraint("user_id", "categorie_id", name="uq_budget_cible_user_categorie"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    categorie_id: Mapped[int] = mapped_column(ForeignKey("categories_budget.id"))
+    montant_mensuel: Mapped[float] = mapped_column(Float)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class AccessLogEntry(Base):
     """Journal d'accès (2.L.2), consultable dans Réglages par le propriétaire —
     alimente aussi le calcul de verrouillage temporaire (`auth_service.verrouillage_actif`),

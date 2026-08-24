@@ -28,6 +28,15 @@ Section du haut. Accepte un export CSV au format reconnu automatiquement (format
 
 Le résumé affiché après import indique : nombre de transactions importées, doublons déjà présents ignorés (ré-import sans risque), mouvements hors suivi boursier exclus (carte bancaire, virements bancaires), et positions recalculées. Si le grand livre contient des ventes sans achat correspondant, une anomalie est signalée ici (la position concernée n'apparaît alors pas dans le portefeuille). Si une ligne saisie manuellement portait le même identifiant qu'une position reconstruite par cet import, c'est aussi indiqué : le grand livre fait foi, la ligne manuelle a été remplacée.
 
+### Mouvements bancaires (budget)
+
+Section indépendante du portefeuille boursier ci-dessus — alimente l'écran **Budget**. Deux façons d'importer :
+
+- **OFX ou QIF** : un seul fichier à choisir, aucun mapping à faire (les deux formats ont une structure fixe).
+- **CSV** : comme pour le relevé de positions, un aperçu s'affiche après upload pour associer les colonnes du fichier (Date et Libellé obligatoires) — au choix une seule colonne Montant signée (+/-), ou deux colonnes Débit/Crédit séparées selon ce que la banque exporte. Un champ « Compte » optionnel annote toutes les lignes importées (utile si plusieurs comptes sont importés séparément, pour les filtrer ensuite dans Budget).
+
+Le résumé affiché après import indique : mouvements importés, doublons déjà présents ignorés (ré-import sans risque), lignes illisibles ignorées (date ou montant non reconnu — jamais fondues silencieusement dans le total), et combien ont été catégorisés automatiquement par les règles déjà déclarées.
+
 ### Relevé de positions
 
 Section du bas. Pour un simple export de positions (pas un historique de mouvements). Après upload, un aperçu du fichier s'affiche : associer les colonnes du fichier aux champs attendus (Ticker et Quantité obligatoires ; Nom, Prix de revient, Compte, Devise optionnels), puis confirmer. La case « Remplacer les lignes déjà saisies ou importées manuellement » permet de repartir de zéro sur ces lignes-là uniquement ; les positions issues d'un historique de transactions ne sont jamais touchées par cette case.
@@ -97,6 +106,15 @@ Projette un capital dans le temps — une **hypothèse**, pas une promesse : les
 ## Écran Dividendes
 
 Calendrier des dividendes déjà perçus : un total en tête, un graphique en barres par mois, puis la liste des mois (les plus récents en premier) — cliquer sur un mois déplie le détail des lignes qui l'ont composé (date, titre, montant net). Ne montre que des montants déjà perçus, jamais une projection future.
+
+## Écran Budget
+
+Suivi des mouvements bancaires importés depuis l'écran Import — indépendant du portefeuille boursier. Sélecteur de période en haut (Mensuel/Annuel/Personnalisé, même fonctionnement que l'écran Rapport ci-dessous).
+
+- **Quatre indicateurs** : Entrées, Sorties, Disponible (entrées − sorties), et Dépenses récurrentes/mois — estimées sur les 3 derniers mois glissants (un mouvement qui revient à l'identique, même libellé et même montant à l'euro près, sur au moins deux de ces trois mois compte comme récurrent).
+- **Répartition des sorties** : un tableau par catégorie (les sous-catégories sont regroupées avec leur catégorie parente), avec un champ **Budget cible** éditable directement dans le tableau (Entrée valide, ou clic ailleurs) et l'**écart** qui en découle (vert si le budget est respecté, rouge sinon).
+- **Mouvements** : liste de la période, filtrable par catégorie et par compte (menus au-dessus du tableau) ; chaque ligne a son propre sélecteur de catégorie pour corriger une catégorisation automatique ou catégoriser une ligne restée sans catégorie.
+- **Catégories et règles de catégorisation** (section dépliable en bas de l'écran) : ajouter/supprimer une catégorie ; déclarer une règle (« le libellé contient tel motif → telle catégorie »), appliquée aux futurs imports et réappliquable en masse aux mouvements déjà importés via le bouton dédié — une correction manuelle n'est jamais écrasée par une réapplication.
 
 ## Écran Rapport
 

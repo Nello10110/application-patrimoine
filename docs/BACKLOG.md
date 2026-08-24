@@ -1268,7 +1268,7 @@ dédié. Motif : c'est le dernier écart fonctionnel majeur avec Finary, et le b
 « extraits de dépenses » était déjà exprimé au lancement du projet. Le produit reste un outil de
 **suivi** : aucun virement, aucun ordre, aucune action sur un compte.
 
-#### N.1 — `majeur` · `L` · `P1` · `non traité` — Import et catégorisation des mouvements
+#### N.1 — `majeur` · `L` · `P1` · `traité` (24/08/2026) — Import et catégorisation des mouvements
 
 - **Import** de relevés bancaires : CSV (format par banque, comme pour le courtier) et **OFX/QIF**,
   qui évitent le travail de mise en correspondance des colonnes.
@@ -1281,11 +1281,50 @@ dédié. Motif : c'est le dernier écart fonctionnel majeur avec Finary, et le b
 - **Arbre de catégories** par défaut (logement, transport, alimentation, loisirs, santé, épargne,
   revenus…), entièrement modifiable.
 
-#### N.2 — `majeur` · `M` · `P1` · `non traité` — Écran Budget
+**Livré et vérifié le 24/08/2026.** Nouvelles tables `categories_budget` (un niveau de
+sous-catégorie), `mouvements_bancaires`, `regles_categorisation`, `budget_cibles` — isolées par
+foyer comme le reste du modèle (backlog 2.I.1). CSV : réutilise intégralement le mécanisme de
+mapping manuel existant (`csv_import.py`, aperçu + cache serveur), avec une bascule montant signé /
+débit+crédit séparés (les deux conventions existent selon les banques). OFX (SGML, balises non
+fermées) et QIF parsés par expression régulière/ligne à ligne, sans nouvelle dépendance — même
+philosophie que `justetf_service.py` (`html.parser` plutôt que `lxml`). **Déduplication** : identifiant
+fourni par la source quand il existe (OFX `FITID`), sinon hash déterministe de (date, montant,
+libellé normalisé) — verrouille exactement la clé demandée par le backlog, y compris son corollaire
+assumé : deux mouvements identiques sur deux comptes différents sont vus comme un seul (le backlog
+ne mentionne pas le compte dans la clé). **Catégorisation par règles** : premier motif normalisé
+(casse/accents ignorés) trouvé dans le libellé, réappliquable en masse sans jamais écraser une
+correction manuelle (`categorise_manuellement`, drapeau posé dès qu'un utilisateur choisit une
+catégorie à la main). **Bug corrigé en vérifiant** : les catégories par défaut se resemaient à
+chaque appel si l'utilisateur les avait toutes supprimées (impossible de distinguer « jamais
+utilisé » de « supprimé volontairement ») — corrigé via un drapeau par foyer dans
+`UserParametre`/`preferences_service.py` (seul point d'accès à cette table, convention déjà en
+place, respectée plutôt que contournée). **Bug corrigé en vérifiant (2)** : le format QIF (origine
+Quicken, US) interprétait ses dates en jour/mois plutôt que mois/jour, inversant silencieusement
+les dates à deux chiffres ≤ 12 un mois sur deux — corrigé par une priorité de format dédiée au QIF,
+distincte de celle du CSV (convention française jour/mois).
+
+#### N.2 — `majeur` · `M` · `P1` · `traité` (24/08/2026) — Écran Budget
 
 Reprendre la structure qui fonctionne chez Finary : période (1M/3M/1A/personnalisée), quatre
 indicateurs — **Entrées / Sorties / Disponible / Dépenses récurrentes** — répartition des sorties,
 filtres par catégorie et par compte, et **budget cible par catégorie** avec écart en fin de mois.
+
+**Livré et vérifié le 24/08/2026.** Sélecteur de période mensuel/annuel/personnalisé (même patron
+que `RapportPage`, délibérément indépendant de la Période transverse de K.3 — même raisonnement que
+Rapport/Objectifs). Quatre indicateurs : Entrées, Sorties, Disponible, et **Dépenses récurrentes**
+via une heuristique légère et documentée comme telle (couple libellé normalisé/montant arrondi à
+l'euro revenant sur au moins 2 des 3 mois précédant la fin de la période) — volontairement plus
+simple que la détection complète prévue par N.3 (hausses de prix, abonnements inutilisés), qui
+réutilisera la même clé de correspondance. Répartition des sorties regroupée sur la catégorie
+racine (une sous-catégorie et sa racine ne comptent jamais deux fois), avec édition inline du
+budget cible et écart coloré. **Filtres par catégorie et par compte** sur la liste des mouvements,
+appliqués côté client sur la période déjà chargée (volume d'un budget personnel modeste, évite un
+aller-retour réseau par changement de filtre — même choix que le filtrage catégorie de
+`PortefeuillePage`). Gestion des catégories et règles regroupée dans une section dépliable sur le
+même écran plutôt que dans Réglages, pour rester au plus près du flux d'usage réel (catégoriser
+juste après avoir importé). Vérifié en conditions réelles (backend isolé) : import QIF de 6
+mouvements réels, recatégorisation manuelle et par règle, réapplication en masse après ajout d'une
+règle, édition d'un budget cible avec recalcul immédiat de l'écart, filtres catégorie/compte.
 
 #### N.3 — `mineur` · `M` · `P2` · `non traité` — Détection des récurrences et des abonnements
 
@@ -1456,7 +1495,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Phase 3** | C.1, D.1, D.2, E.3, H.1 — dividendes, PDF, rapport, coût consolidé, PWA | Phase 2 | — | **Livré** 20/08/2026 |
 | **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
-| **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | À lancer |
+| **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | En cours — N.1, N.2 livrés (2/4) ; N.3, N.4 restants |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | À lancer |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |
 

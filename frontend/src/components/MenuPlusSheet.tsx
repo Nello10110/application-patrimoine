@@ -3,13 +3,25 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang, type RouteMeta } from '../layout/routes'
 import BasculeTheme from './BasculeTheme'
-import { IconAide, IconAnalyse, IconDeconnexion, IconDividendes, IconImport, IconObjectifs, IconPlusOptions, IconRapport, IconReglages } from './icons'
+import {
+  IconAide,
+  IconAnalyse,
+  IconBudget,
+  IconDeconnexion,
+  IconDividendes,
+  IconImport,
+  IconObjectifs,
+  IconPlusOptions,
+  IconRapport,
+  IconReglages,
+} from './icons'
 import Modale from './Modale'
 
 const ICONES = {
   Analyse: IconAnalyse,
   Objectifs: IconObjectifs,
   Dividendes: IconDividendes,
+  Budget: IconBudget,
   Rapport: IconRapport,
   Import: IconImport,
   Réglages: IconReglages,

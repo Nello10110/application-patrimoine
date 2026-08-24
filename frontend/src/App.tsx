@@ -17,6 +17,7 @@ import LoginPage from './pages/LoginPage'
 // page à la demande (au moment de la navigation) plutôt que tout d'un bloc au
 // premier chargement de l'application.
 const AidePage = lazy(() => import('./pages/AidePage'))
+const BudgetPage = lazy(() => import('./pages/BudgetPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const DividendesPage = lazy(() => import('./pages/DividendesPage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
@@ -83,6 +84,7 @@ function AppAuthentifiee() {
                 <Route path="/analyse" element={<RepartitionPage />} />
                 <Route path="/objectifs" element={<SimulateurPage />} />
                 <Route path="/dividendes" element={<DividendesPage />} />
+                <Route path="/budget" element={<BudgetPage />} />
                 <Route path="/rapport" element={<RapportPage />} />
                 <Route path="/import" element={<ImportPage />} />
                 <Route path="/reglages" element={<ReglagesPage />} />

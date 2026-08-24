@@ -19,6 +19,7 @@ from ..models import UserParametre
 # Clés de stockage en base (`UserParametre.cle`), jamais exposées en dehors de ce module.
 _CLE_METHODE_COUT = "methode_cout"
 _CLE_SEUIL_ALERTE_ECART_PCT = "seuil_alerte_ecart_pct"
+_CLE_BUDGET_CATEGORIES_INITIALISEES = "budget_categories_initialisees"
 
 # Méthode de calcul du coût de revient (LOT 5.6) : coût moyen pondéré (défaut
 # historique, comportement inchangé) ou FIFO (premier entré, premier sorti), cf.
@@ -66,6 +67,20 @@ def lire_seuil_alerte_ecart_pct(db: Session, user_id: int) -> float:
         return float(valeur)
     except ValueError:
         return SEUIL_ALERTE_ECART_PCT_DEFAUT
+
+
+def budget_categories_initialisees(db: Session, user_id: int) -> bool:
+    """Drapeau posé une fois l'arbre de catégories budget créé pour ce foyer
+    (backlog 2.N.1, `services/budget_categories_service.py`) — distingue "jamais
+    utilisé" (les catégories par défaut doivent être semées) de "tout supprimé
+    volontairement" (elles ne doivent plus jamais réapparaître), les deux se
+    traduisant sinon par une liste vide indiscernable."""
+    return _lire_valeur_brute(db, _CLE_BUDGET_CATEGORIES_INITIALISEES, user_id) is not None
+
+
+def marquer_budget_categories_initialisees(db: Session, user_id: int) -> None:
+    if not budget_categories_initialisees(db, user_id):
+        _ecrire_valeur_brute(db, _CLE_BUDGET_CATEGORIES_INITIALISEES, user_id, "1")
 
 
 def lire_preferences(db: Session, user_id: int) -> dict:

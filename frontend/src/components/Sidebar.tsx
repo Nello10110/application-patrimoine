@@ -4,6 +4,7 @@ import { useSidebarRepliee } from '../hooks/useSidebarRepliee'
 import { routesDuRang } from '../layout/routes'
 import {
   IconAnalyse,
+  IconBudget,
   IconChevron,
   IconDividendes,
   IconObjectifs,
@@ -20,6 +21,7 @@ const ICONES = {
   Analyse: IconAnalyse,
   Objectifs: IconObjectifs,
   Dividendes: IconDividendes,
+  Budget: IconBudget,
   Rapport: IconRapport,
 } as const
 

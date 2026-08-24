@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { ImportPreview, ImportResult, TransactionImportResult } from '../api/types'
+import type { BudgetImportResult, ImportPreview, ImportResult, TransactionImportResult } from '../api/types'
 import Card from '../components/Card'
 import { IconFlecheDroite } from '../components/icons'
 
@@ -67,6 +67,299 @@ function TransactionImportSection() {
           )}
           <button onClick={() => navigate('/')} className="mt-2 inline-flex items-center gap-1 font-medium underline">
             Voir le tableau de bord <IconFlecheDroite className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/** Import de mouvements bancaires (backlog 2.N.1) : OFX/QIF n'ont pas besoin de
+ * mapping (structure fixe, cf. `budget_import_service.py`) — upload direct. Un CSV
+ * de banque varie d'un établissement à l'autre, donc mapping manuel comme pour le
+ * relevé de positions ci-dessous, avec une bascule montant signé / débit+crédit
+ * séparés (les deux formats existent selon les banques). */
+function BankImportSection() {
+  const navigate = useNavigate()
+  const structFileInputRef = useRef<HTMLInputElement>(null)
+  const csvFileInputRef = useRef<HTMLInputElement>(null)
+
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<BudgetImportResult | null>(null)
+
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [dateCol, setDateCol] = useState('')
+  const [libelleCol, setLibelleCol] = useState('')
+  const [modeMontant, setModeMontant] = useState<'signe' | 'debit_credit'>('signe')
+  const [montantCol, setMontantCol] = useState('')
+  const [debitCol, setDebitCol] = useState('')
+  const [creditCol, setCreditCol] = useState('')
+  const [compte, setCompte] = useState('')
+  const [confirming, setConfirming] = useState(false)
+
+  function afficherResultat(res: BudgetImportResult) {
+    setResult(res)
+    setError(null)
+  }
+
+  async function handleFichierStructure(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError(null)
+    setResult(null)
+    setUploading(true)
+    try {
+      const estQif = file.name.toLowerCase().endsWith('.qif')
+      const res = estQif ? await api.importBudgetQif(file) : await api.importBudgetOfx(file)
+      afficherResultat(res)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setUploading(false)
+      if (structFileInputRef.current) structFileInputRef.current.value = ''
+    }
+  }
+
+  async function handleCsvChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError(null)
+    setResult(null)
+    setUploading(true)
+    try {
+      const p = await api.importBudgetCsvPreview(file)
+      setPreview(p)
+      setDateCol('')
+      setLibelleCol('')
+      setMontantCol('')
+      setDebitCol('')
+      setCreditCol('')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleCsvConfirm() {
+    if (!preview || !dateCol || !libelleCol) return
+    setConfirming(true)
+    setError(null)
+    try {
+      const res = await api.importBudgetCsvConfirm({
+        file_token: preview.file_token,
+        date_col: dateCol,
+        libelle_col: libelleCol,
+        montant_col: modeMontant === 'signe' ? montantCol || null : null,
+        debit_col: modeMontant === 'debit_credit' ? debitCol || null : null,
+        credit_col: modeMontant === 'debit_credit' ? creditCol || null : null,
+        compte: compte || null,
+      })
+      afficherResultat(res)
+      setPreview(null)
+      if (csvFileInputRef.current) csvFileInputRef.current.value = ''
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  const csvPret = Boolean(
+    preview && dateCol && libelleCol && (modeMontant === 'signe' ? montantCol : debitCol || creditCol),
+  )
+
+  return (
+    <Card>
+      <h3 className="mb-1 text-sm font-semibold text-texte">Mouvements bancaires (budget)</h3>
+      <p className="mb-3 text-sm text-texte">
+        Relevé de ton compte courant, pour l'écran Budget — indépendant du portefeuille boursier ci-dessus.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          OFX ou QIF (aucun mapping nécessaire)
+          <input
+            ref={structFileInputRef}
+            type="file"
+            accept=".ofx,.qif"
+            onChange={handleFichierStructure}
+            className="text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          CSV (mapping des colonnes)
+          <input ref={csvFileInputRef} type="file" accept=".csv" onChange={handleCsvChange} className="text-sm text-texte" />
+        </label>
+      </div>
+
+      {uploading && <p className="mt-2 text-sm text-texte-attenue">Lecture du fichier...</p>}
+      {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
+
+      {preview && (
+        <div className="mt-4 space-y-4 border-t border-bordure pt-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-bordure text-left text-texte-attenue">
+                  {preview.columns.map((c) => (
+                    <th key={c} className="py-1.5 pr-4 font-medium">
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.rows.slice(0, 5).map((row, i) => (
+                  <tr key={i} className="border-b border-bordure">
+                    {preview.columns.map((c) => (
+                      <td key={c} className="py-1.5 pr-4 text-texte">
+                        {row[c]}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Colonne Date *
+              <select
+                value={dateCol}
+                onChange={(e) => setDateCol(e.target.value)}
+                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              >
+                <option value="">— Choisir —</option>
+                {preview.columns.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Colonne Libellé *
+              <select
+                value={libelleCol}
+                onChange={(e) => setLibelleCol(e.target.value)}
+                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              >
+                <option value="">— Choisir —</option>
+                {preview.columns.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Compte (optionnel, annotation libre)
+              <input
+                value={compte}
+                onChange={(e) => setCompte(e.target.value)}
+                placeholder="Compte courant"
+                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              />
+            </label>
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-medium text-texte-attenue">Le fichier exprime les montants comme :</legend>
+            <div className="flex flex-wrap gap-4 text-sm text-texte">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  checked={modeMontant === 'signe'}
+                  onChange={() => setModeMontant('signe')}
+                />
+                Une seule colonne signée (+/-)
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  checked={modeMontant === 'debit_credit'}
+                  onChange={() => setModeMontant('debit_credit')}
+                />
+                Deux colonnes débit/crédit séparées
+              </label>
+            </div>
+          </fieldset>
+
+          {modeMontant === 'signe' ? (
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue sm:w-1/2">
+              Colonne Montant *
+              <select
+                value={montantCol}
+                onChange={(e) => setMontantCol(e.target.value)}
+                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              >
+                <option value="">— Choisir —</option>
+                {preview.columns.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                Colonne Débit
+                <select
+                  value={debitCol}
+                  onChange={(e) => setDebitCol(e.target.value)}
+                  className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                >
+                  <option value="">— Aucune —</option>
+                  {preview.columns.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                Colonne Crédit
+                <select
+                  value={creditCol}
+                  onChange={(e) => setCreditCol(e.target.value)}
+                  className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                >
+                  <option value="">— Aucune —</option>
+                  {preview.columns.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+
+          <button
+            onClick={handleCsvConfirm}
+            disabled={!csvPret || confirming}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          >
+            {confirming ? 'Import en cours...' : "Confirmer l'import"}
+          </button>
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <p>
+            {result.importees} mouvement(s) importé(s){result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présent(s)`}
+            {result.lignes_ignorees > 0 && `, ${result.lignes_ignorees} ligne(s) illisible(s) ignorée(s)`}.
+          </p>
+          {result.categorisees_automatiquement > 0 && (
+            <p className="mt-1">{result.categorisees_automatiquement} catégorisé(s) automatiquement par tes règles.</p>
+          )}
+          <button onClick={() => navigate('/budget')} className="mt-2 inline-flex items-center gap-1 font-medium underline">
+            Voir le budget <IconFlecheDroite className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
@@ -148,6 +441,14 @@ export default function ImportPage() {
       <h2 className="text-xl font-semibold text-texte">Importer le portefeuille</h2>
 
       <TransactionImportSection />
+
+      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
+        <div className="h-px flex-1 bg-bordure" />
+        ou mouvements bancaires (écran Budget)
+        <div className="h-px flex-1 bg-bordure" />
+      </div>
+
+      <BankImportSection />
 
       <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
         <div className="h-px flex-1 bg-bordure" />

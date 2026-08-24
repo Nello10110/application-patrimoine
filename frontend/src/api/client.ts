@@ -6,6 +6,11 @@ import type {
   AccessLogEntry,
   AuthResponse,
   AuthUser,
+  BudgetCible,
+  BudgetColumnMapping,
+  BudgetImportResult,
+  BudgetSummary,
+  CategorieBudget,
   CategoryCompositionResponse,
   ColumnMapping,
   CoutGestionConsolide,
@@ -28,6 +33,7 @@ import type {
   Loan,
   LoanInput,
   LoanUpdateInput,
+  MouvementBancaire,
   OidcConfig,
   OidcConfigInput,
   OidcStatus,
@@ -36,6 +42,8 @@ import type {
   Preferences,
   PreferencesUpdateResponse,
   QuotiteEntree,
+  RegleCategorisation,
+  RegleReapplicationResult,
   RepartitionComptesResponse,
   ScheduledJob,
   Session,
@@ -227,4 +235,56 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ quotites }),
     }),
+
+  // Budget (backlog 2.N.1/2.N.2)
+  listCategoriesBudget: () => request<CategorieBudget[]>('/budget/categories'),
+  createCategorieBudget: (nom: string, parentId?: number | null) =>
+    request<CategorieBudget>('/budget/categories', { method: 'POST', body: JSON.stringify({ nom, parent_id: parentId ?? null }) }),
+  renameCategorieBudget: (id: number, nom: string) =>
+    request<CategorieBudget>(`/budget/categories/${id}`, { method: 'PATCH', body: JSON.stringify({ nom }) }),
+  deleteCategorieBudget: (id: number) => request<void>(`/budget/categories/${id}`, { method: 'DELETE' }),
+
+  listReglesCategorisation: () => request<RegleCategorisation[]>('/budget/regles'),
+  createRegleCategorisation: (motif: string, categorieId: number) =>
+    request<RegleCategorisation>('/budget/regles', { method: 'POST', body: JSON.stringify({ motif, categorie_id: categorieId }) }),
+  deleteRegleCategorisation: (id: number) => request<void>(`/budget/regles/${id}`, { method: 'DELETE' }),
+  reappliquerReglesCategorisation: () => request<RegleReapplicationResult>('/budget/regles/reappliquer', { method: 'POST' }),
+
+  importBudgetCsvPreview: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<ImportPreview>('/budget/import/csv/preview', { method: 'POST', body: form })
+  },
+  importBudgetCsvConfirm: (mapping: BudgetColumnMapping) =>
+    request<BudgetImportResult>('/budget/import/csv/confirm', { method: 'POST', body: JSON.stringify(mapping) }),
+  importBudgetOfx: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<BudgetImportResult>('/budget/import/ofx', { method: 'POST', body: form })
+  },
+  importBudgetQif: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<BudgetImportResult>('/budget/import/qif', { method: 'POST', body: form })
+  },
+
+  listMouvementsBancaires: (params?: { dateDebut?: string; dateFin?: string; categorieId?: number | null; compte?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.dateDebut) q.set('date_debut', params.dateDebut)
+    if (params?.dateFin) q.set('date_fin', params.dateFin)
+    if (params?.categorieId != null) q.set('categorie_id', String(params.categorieId))
+    if (params?.compte) q.set('compte', params.compte)
+    const suffixe = q.toString() ? `?${q.toString()}` : ''
+    return request<MouvementBancaire[]>(`/budget/mouvements${suffixe}`)
+  },
+  categoriserMouvement: (id: number, categorieId: number | null) =>
+    request<MouvementBancaire>(`/budget/mouvements/${id}`, { method: 'PATCH', body: JSON.stringify({ categorie_id: categorieId }) }),
+
+  listBudgetCibles: () => request<BudgetCible[]>('/budget/cibles'),
+  setBudgetCible: (categorieId: number, montantMensuel: number) =>
+    request<BudgetCible>(`/budget/cibles/${categorieId}`, { method: 'PUT', body: JSON.stringify({ montant_mensuel: montantMensuel }) }),
+  deleteBudgetCible: (categorieId: number) => request<void>(`/budget/cibles/${categorieId}`, { method: 'DELETE' }),
+
+  getBudgetSummary: (dateDebut: string, dateFin: string) =>
+    request<BudgetSummary>(`/budget/summary?date_debut=${dateDebut}&date_fin=${dateFin}`),
 }
