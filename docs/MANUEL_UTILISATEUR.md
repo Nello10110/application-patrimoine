@@ -69,15 +69,11 @@ Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque
 
 ## Fiche détaillée d'une position
 
-Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/portefeuille/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. Affiche :
+Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/patrimoine/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...) :
 
-- valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ;
-- émetteur et résumé d'activité — pour une action (Yahoo Finance) comme pour un fonds (description en français de sa fiche justETF, quand disponible) — frais de gestion annuels et frais de transaction cumulés (pour les fonds) ;
-- graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) ;
-- pour un fonds : deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie) et le tableau des ~10 plus grosses lignes sous-jacentes (nom et poids, via justETF pour un fonds couvert ou Yahoo Finance sinon), quand cette donnée est disponible ;
-- pour un fonds couvert par justETF : une **répartition détaillée** supplémentaire, avec les intitulés exacts publiés par justETF (ex. « Inde » plutôt que « Marchés émergents ») — en complément des deux camemberts par zone/catégorie, pas à leur place.
-
-Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique).
+- **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés, puis l'historique daté de ses valorisations successives ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
+- **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique). En dessous, la répartition entre détenteurs déclarés (Réglages) et la part nette qui en résulte, si au moins un détenteur a été créé ;
+- **Paramètres** : édition des réglages propres à la ligne — aujourd'hui, les caractéristiques et le bloc location d'un bien immobilier (type de location, loyer, charges, surface, DPE...) ; pour toute autre nature, un message indique qu'il n'y a rien à régler pour l'instant.
 
 ## Écran Répartition
 

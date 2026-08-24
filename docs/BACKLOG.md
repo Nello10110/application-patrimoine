@@ -1226,12 +1226,38 @@ cashflow correct avant/après rattachement d'un emprunt (700 € → -100 € av
 800 €), historique accumule bien 2 points sur 2 changements de valeur sans qu'une modification d'un
 autre champ (nom) n'en ajoute un troisième.
 
-#### M.4 — `mineur` · `M` · `P2` · `non traité` — Fiche d'actif unifiée
+#### M.4 — `mineur` · `M` · `P2` · `traité` (24/08/2026) — Fiche d'actif unifiée
 
 Aujourd'hui seules les positions boursières ont une fiche détaillée. Cible : **toute** ligne du
 patrimoine ouvre la même structure à trois onglets — *Aperçu* (valeur, courbe, indicateurs propres
 à la nature), *Analyse* (exposition, détention, part nette), *Paramètres* (édition sectionnée).
 C'est le patron le plus réussi de Finary et il ne coûte rien à reprendre.
+
+**Livré et vérifié le 24/08/2026.** La fiche (`HoldingDetailContent.tsx`, déjà commune à toutes les
+natures d'actif côté backend depuis M.1/M.3) gagne trois onglets réels (`role="tablist"`/`tab`/
+`tabpanel`, *Aperçu* sélectionné par défaut) : **Aperçu** — indicateurs clés (quantité, prix,
+valeur, rendements), puis la courbe de cours (`HoldingPriceHistoryChart`) ou, pour l'immobilier,
+le cashflow/rentabilités/historique de valorisation déjà calculés côté serveur (M.3) — et la carte
+émetteur/résumé/frais. **Analyse** — exposition géographique/sectorielle (camemberts + détail brut
+justETF + composition en actions du fonds) puis détention/part nette (`DetenteursSection`, L.1),
+dans cet ordre pour suivre exactement le libellé du backlog. **Paramètres** — édition sectionnée :
+le formulaire de caractéristiques immobilières (seul formulaire de réglages existant aujourd'hui)
+pour `REAL_ESTATE`, un état vide explicite (« Aucun paramètre modifiable pour cette ligne pour
+l'instant. ») pour toute autre nature — honnête plutôt qu'un onglet qui semblerait cassé. Le badge
+de catégorie sous le titre utilise désormais la liste complète de la taxonomie (`TYPE_ACTIF_OPTIONS`,
+M.1) au lieu d'un sous-ensemble de 5 valeurs codées en dur — corrige au passage un badge manquant
+pour toute ligne SCPI/assurance-vie/PER/compte/épargne/véhicule/autre actif. **Écart assumé** : la
+fiche immobilier existante combinait formulaire ET résultat calculé dans un seul bloc (M.3) ; l'état
+a été extrait en hook (`useImmobilierDetail`) pour scinder son affichage entre les deux onglets sans
+dupliquer la logique de sauvegarde/rechargement. La section Détenteurs reste un seul bloc (saisie de
+quotité + part détenue/nette affichées ensemble) plutôt que scindée entre Analyse et Paramètres — la
+saisie fait partie intégrante de la lecture de la part nette, les séparer aurait cassé cette
+interaction sans bénéfice clair, et « détention, part nette » dans le texte du backlog les regroupe
+déjà. 314 tests frontend (+5), `tsc`/`oxlint`/`vite build` propres, vérifié en conditions réelles
+(backend isolé, 3 natures — action, immobilier, épargne réglementée) : les 3 onglets s'affichent et
+basculent correctement pour chaque nature, l'édition immobilière dans Paramètres met à jour le
+cashflow visible dans Aperçu sans rechargement de page, le badge de catégorie affiche le libellé
+complet pour une nature hors du sous-ensemble boursier historique.
 
 ---
 
@@ -1429,7 +1455,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Phase 2** | B.1, B.2, A.4 — simulateur, FIRE, catégorie libre | Phase 1 | — | **Livré** 19-20/08/2026 |
 | **Phase 3** | C.1, D.1, D.2, E.3, H.1 — dividendes, PDF, rapport, coût consolidé, PWA | Phase 2 | — | **Livré** 20/08/2026 |
 | **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
-| **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | En cours — M.1, M.3, K.4, K.6 livrés (4/5) ; M.4 restant |
+| **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | À lancer |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | À lancer |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |

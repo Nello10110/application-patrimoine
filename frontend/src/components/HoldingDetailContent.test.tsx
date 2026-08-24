@@ -4,9 +4,9 @@ import { api } from '../api/client'
 import type { Detenteur, HoldingDetail, HoldingImmobilier } from '../api/types'
 import HoldingDetailContent from './HoldingDetailContent'
 
-// Ce fichier ne verrouille que la section "Détenteurs" (backlog 2.L.1) et la fiche
-// immobilier (backlog 2.M.3) — le reste du composant (prix, émetteur, look-through...)
-// est hors de son objet.
+// Ce fichier verrouille la section "Détenteurs" (backlog 2.L.1), la fiche immobilier
+// (backlog 2.M.3) et la structure à trois onglets (backlog 2.M.4) — le reste du
+// composant (prix, émetteur, look-through...) est hors de son objet.
 vi.mock('../api/client', () => ({
   api: {
     listDetenteurs: vi.fn(),
@@ -55,10 +55,17 @@ function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
   return { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
+// Fiche à onglets (backlog 2.M.4) : Aperçu est l'onglet par défaut, Analyse (détenteurs,
+// répartitions) et Paramètres (caractéristiques immobilières) demandent un clic.
+function ouvrirOnglet(nom: string) {
+  fireEvent.click(screen.getByRole('tab', { name: nom }))
+}
+
 describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
   it("n'affiche aucune section Détenteurs si l'utilisateur n'a déclaré aucun détenteur", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     render(<HoldingDetailContent detail={detail()} />)
+    ouvrirOnglet('Analyse')
 
     await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
     expect(screen.queryByText('Détenteurs')).not.toBeInTheDocument()
@@ -71,6 +78,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
         detail={detail({ quotites: [{ detenteur_id: 1, detenteur_nom: 'Alice', quotite_pct: 60, part_detenue: 900, part_nette: 900 }] })}
       />,
     )
+    ouvrirOnglet('Analyse')
 
     await screen.findByText('Détenteurs')
     // "900,00 €" apparaît deux fois : part détenue et part nette (identiques, aucun
@@ -83,6 +91,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
   it('le bouton Enregistrer est désactivé tant que la somme des quotités saisies ne fait pas 100 %', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' }), detenteur({ id: 2, nom: 'Bob' })])
     render(<HoldingDetailContent detail={detail()} />)
+    ouvrirOnglet('Analyse')
     await screen.findByText('Détenteurs')
 
     const [champAlice] = screen.getAllByRole('spinbutton')
@@ -104,6 +113,7 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
       }),
     )
     render(<HoldingDetailContent detail={detail()} />)
+    ouvrirOnglet('Analyse')
     await screen.findByText('Détenteurs')
 
     const [champAlice, champBob] = screen.getAllByRole('spinbutton')
@@ -153,6 +163,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it('affiche le formulaire de caractéristiques pour un bien immobilier, vide si aucun détail saisi', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} />)
+    ouvrirOnglet('Paramètres')
 
     await screen.findByText('Immobilier — caractéristiques et location')
     expect(screen.queryByText('Cashflow et rentabilité')).not.toBeInTheDocument()
@@ -174,6 +185,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     vi.mocked(api.updateHoldingImmobilier).mockResolvedValue(immobilier())
     vi.mocked(api.getHoldingDetail).mockResolvedValue(detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() }))
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: null })} />)
+    ouvrirOnglet('Paramètres')
     await screen.findByText('Immobilier — caractéristiques et location')
 
     fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '1000' } })
@@ -186,6 +198,9 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
         expect.objectContaining({ loyer_mensuel: 1000, surface_m2: 50 }),
       ),
     )
+    // Le résultat (cashflow/rentabilités calculés côté serveur) vit dans l'onglet
+    // *Aperçu* (backlog 2.M.4), pas *Paramètres* où vit le formulaire d'édition.
+    ouvrirOnglet('Aperçu')
     await screen.findByText('Cashflow et rentabilité')
   })
 
@@ -201,5 +216,49 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     const lignes = screen.getAllByRole('row').slice(1) // ignore l'en-tête
     expect(within(lignes[0]).getByText('220 000,00 €')).toBeInTheDocument()
     expect(within(lignes[1]).getByText('200 000,00 €')).toBeInTheDocument()
+  })
+})
+
+describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
+  it('affiche les trois onglets, Aperçu sélectionné par défaut', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail()} />)
+
+    const onglets = screen.getAllByRole('tab')
+    expect(onglets.map((o) => o.textContent)).toEqual(['Aperçu', 'Analyse', 'Paramètres'])
+    expect(screen.getByRole('tab', { name: 'Aperçu' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Analyse' })).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it("l'onglet Aperçu affiche les indicateurs clés et la courbe de cours, pas la répartition géographique", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail()} />)
+
+    expect(await screen.findByText('Prix de revient')).toBeInTheDocument()
+    expect(screen.queryByText('Répartition géographique')).not.toBeInTheDocument()
+  })
+
+  it("basculer sur l'onglet Analyse affiche la répartition géographique/sectorielle et masque l'onglet Aperçu", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail()} />)
+    ouvrirOnglet('Analyse')
+
+    expect(await screen.findByText('Répartition géographique')).toBeInTheDocument()
+    expect(screen.queryByText('Prix de revient')).not.toBeInTheDocument()
+  })
+
+  it("l'onglet Paramètres affiche un état vide explicite pour une position sans réglages éditables (ex. une action)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'STOCK' })} />)
+    ouvrirOnglet('Paramètres')
+
+    expect(await screen.findByText('Aucun paramètre modifiable pour cette ligne pour l\'instant.')).toBeInTheDocument()
+  })
+
+  it('affiche le libellé complet de la taxonomie élargie (backlog 2.M.1) dans le badge de catégorie', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REGULATED_SAVINGS' })} />)
+
+    expect(await screen.findByText('Épargne réglementée (Livret A, LDDS...)')).toBeInTheDocument()
   })
 })

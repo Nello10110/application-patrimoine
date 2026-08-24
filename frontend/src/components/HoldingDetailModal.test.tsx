@@ -122,6 +122,8 @@ describe('HoldingDetailModal — sous-titre de la composition en actions (LOT 6.
   it("masque le sous-titre quand symbol et nom sont identiques (justETF, pas de ticker distinct)", async () => {
     render_avec([{ symbol: 'HDFC Bank Ltd.', nom: 'HDFC Bank Ltd.', poids: 0.0679, pays: null, secteur: null }])
 
+    // Fiche à onglets (backlog 2.M.4) : "Composition en actions" vit dans l'onglet Analyse.
+    fireEvent.click(await screen.findByRole('tab', { name: 'Analyse' }))
     await screen.findByText('Composition en actions (10 plus grosses lignes du fonds)')
     // Scopé à la ligne du tableau (le graphique recharts affiche aussi le nom en
     // étiquette d'axe, donc `screen.getAllByText` compterait aussi cette occurrence).
@@ -132,6 +134,7 @@ describe('HoldingDetailModal — sous-titre de la composition en actions (LOT 6.
   it('garde le sous-titre quand symbol et nom diffèrent (yfinance, ticker distinct du nom)', async () => {
     render_avec([{ symbol: 'AAPL', nom: 'Apple Inc.', poids: 0.05, pays: 'États-Unis', secteur: 'Technologie' }])
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Analyse' }))
     await screen.findByText('Composition en actions (10 plus grosses lignes du fonds)')
     const ligne = within(screen.getByRole('table')).getByText('Apple Inc.').closest('tr')!
     expect(within(ligne).getByText('AAPL')).toBeInTheDocument()
