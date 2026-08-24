@@ -706,6 +706,33 @@ export interface PortfolioHistoryResponse {
   points: PortfolioHistoryPoint[]
 }
 
+// Métriques de performance de niveau professionnel (backlog 2.P.2).
+export interface MetriquesAvancees {
+  twr_cumule_pct: number | null
+  twr_annualise_pct: number | null
+  volatilite_annualisee_pct: number | null
+  max_drawdown_pct: number | null
+  drawdown_recupere: boolean | null
+  semaines_recuperation: number | null
+}
+
+export interface BenchmarkOption {
+  key: string
+  label: string
+}
+
+export interface ComparaisonBenchmarkPoint {
+  date: string
+  portefeuille_pct: number | null
+  benchmark_pct: number | null
+}
+
+export interface ComparaisonBenchmark {
+  benchmark_key: string
+  label: string
+  points: ComparaisonBenchmarkPoint[]
+}
+
 export interface HoldingPricePoint {
   date: string
   prix: number

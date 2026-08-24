@@ -9,6 +9,7 @@ import CoutGestionCard from '../components/CoutGestionCard'
 import Disclosure from '../components/Disclosure'
 import EtatErreur from '../components/EtatErreur'
 import { SkeletonTexte } from '../components/Skeleton'
+import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
 import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
@@ -217,7 +218,12 @@ export default function DashboardPage() {
             {chargementPerformance && <SkeletonTexte lignes={2} />}
             {erreurPerformance && <EtatErreur message={erreurPerformance} onReessayer={chargerPerformance} />}
             {!chargementPerformance && !erreurPerformance && performance && performance.nombre_transactions > 0 && (
-              <PerformanceCard performance={performance} />
+              <>
+                <PerformanceCard performance={performance} />
+                <div className="mt-4">
+                  <MetriquesAvanceesCard />
+                </div>
+              </>
             )}
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

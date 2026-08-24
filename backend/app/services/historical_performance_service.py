@@ -249,6 +249,78 @@ def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, P
     return points
 
 
+# Indices de référence proposés pour la comparaison de performance (backlog 2.P.2) —
+# ensemble volontairement restreint et choisi à l'avance (pas de ticker arbitraire
+# saisi par l'utilisateur) : évite toute résolution/validation d'un identifiant
+# quelconque, et garantit que chaque option a été vérifiée manuellement comme
+# disponible sur `yfinance`. Tickers ETF/indice plutôt que "vrais" indices bruts
+# quand plus fiables historiquement sur `yfinance` (ex. `URTH` réplique le MSCI World).
+BENCHMARKS: dict[str, dict[str, str]] = {
+    "MSCI_WORLD": {"label": "MSCI World", "ticker": "URTH"},
+    "SP500": {"label": "S&P 500", "ticker": "^GSPC"},
+    "CAC40": {"label": "CAC 40", "ticker": "^FCHI"},
+    "STOXX600": {"label": "STOXX Europe 600", "ticker": "^STOXX"},
+}
+
+
+def _fetch_benchmark_series(ticker: str) -> TimeSeries:
+    """Historique complet (`period="max"`) d'un indice de référence, mis en cache
+    globalement (`historique_cache.cle_historique_benchmark`) — jamais recalculé par
+    utilisateur ni par période demandée, cf. docstring de cette fonction de clé."""
+    try:
+        ticker_yf = yf.Ticker(ticker)
+        hist = ticker_yf.history(period="max", interval="1wk")
+    except Exception:
+        return []
+    if hist is None or hist.empty:
+        return []
+    devise = _devise_historique_yfinance(ticker_yf)
+    first_date = hist.index[0].to_pydatetime().astimezone(timezone.utc).replace(tzinfo=None)
+    fx_series = _fetch_fx_history(devise, first_date) if devise and devise != "EUR" else None
+    return _history_to_series(hist, fx_series)
+
+
+def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict]) -> dict | None:
+    """Compare la performance du portefeuille à un indice de référence choisi par
+    l'utilisateur (backlog 2.P.2), sur EXACTEMENT les mêmes dates que `points`
+    (`compute_portfolio_history`, déjà calculé par l'appelant — pas de second calcul
+    de grille ici). Les deux séries sont normalisées en pourcentage depuis leur
+    valeur au premier point commun, pour rester comparables quelle que soit l'échelle
+    (un portefeuille de quelques milliers d'euros contre un indice coté en points).
+
+    `None` si `benchmark_key` est inconnu, si moins de 2 points sont fournis, ou si
+    aucune donnée `yfinance` n'est disponible pour cet indice sur la période — jamais
+    une exception propagée jusqu'au routeur."""
+    benchmark = BENCHMARKS.get(benchmark_key)
+    if benchmark is None or len(points) < 2:
+        return None
+
+    cle = historique_cache.cle_historique_benchmark(benchmark_key)
+    en_cache = historique_cache.lire(db, cle)
+    if en_cache is not None:
+        serie = [(datetime.fromisoformat(d), p) for d, p in en_cache]
+    else:
+        serie = _fetch_benchmark_series(benchmark["ticker"])
+        if not serie:
+            return None
+        historique_cache.ecrire(db, cle, [[d.isoformat(), p] for d, p in serie])
+
+    dates = [datetime.fromisoformat(p["date"]) for p in points]
+    prix_base = _value_at(serie, dates[0])
+    if prix_base is None or prix_base == 0:
+        return None
+
+    valeur_base = points[0]["valeur_portefeuille"]
+    comparaison = []
+    for date, point in zip(dates, points):
+        prix_at = _value_at(serie, date)
+        benchmark_pct = round((prix_at / prix_base - 1) * 100, 2) if prix_at is not None else None
+        portefeuille_pct = round((point["valeur_portefeuille"] / valeur_base - 1) * 100, 2) if valeur_base > 0 else None
+        comparaison.append({"date": point["date"], "portefeuille_pct": portefeuille_pct, "benchmark_pct": benchmark_pct})
+
+    return {"benchmark_key": benchmark_key, "label": benchmark["label"], "points": comparaison}
+
+
 def compute_holding_price_history(db: Session, identifiant: str, user_id: int) -> dict | None:
     """Performance historique du titre/fonds lui-même (indépendante de la position de
     l'utilisateur) : série de prix + volatilité annualisée + max drawdown, calculées

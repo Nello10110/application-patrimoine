@@ -26,7 +26,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (répartition réel vs cible, qualité des données, coût de gestion, répartition par compte, indicateurs de risque, indicateur de rééquilibrage) |
+| Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, répartition réel vs cible, qualité des données, coût de gestion, répartition par compte, indicateurs de risque, indicateur de rééquilibrage) |
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/patrimoine/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
 | Répartition (Analyse) | `/repartition` (`/analyse`) | En tête (backlog § 2.P.1) : **exposition consolidée tous actifs** — répartition géo/classe financier ET immobilier/épargne confondus, concentration (plus grosse ligne, top 5, première zone). En dessous, objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable, financiers uniquement : définition des cibles de répartition géo/sectorielle, puis le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
@@ -143,6 +143,32 @@ légitimement inférieure à 100 % du fonds.
 **Autres revenus.** Le grand livre contient des flux d'espèces boursiers en dehors des dividendes et intérêts (cashback/parrainage du courtier, action offerte, bonus, opération promotionnelle, régularisation fiscale...). Ils sont intégrés au résultat via une **liste explicite et fermée** de types de mouvements reconnus (`BENEFITS_SAVEBACK`, `STOCKPERK`, `BONUS`, `PEA_MARKETING`, `GIFT`, `TAX_OPTIMIZATION`) — jamais un `else` fourre-tout, qui capterait tôt ou tard un mouvement non boursier (dépense carte, virement bancaire) et fausserait le résultat sans qu'on s'en rende compte. Un type de mouvement non reconnu reste invisible du calcul plutôt que d'y entrer silencieusement.
 
 **Dividendes et intérêts nets.** Puisque `amount` est le montant brut et que la taxe est une ligne séparée et algébrique, `dividendes_percus`/`interets_percus` (calculés par `amount + fee + tax`) sont, par construction, des montants **nets** d'impôt — cohérent avec le libellé affiché à l'écran (« Dividendes perçus (net) », « Intérêts perçus (net) »).
+
+#### 3.5.1 Métriques de performance avancées (backlog § 2.P.2)
+
+Calculées à partir de la série hebdomadaire déjà produite par
+`historical_performance_service.compute_portfolio_history` (celle du graphique d'évolution) —
+`services/metriques_performance_service.py`, aucun nouvel appel `yfinance`.
+
+- **TWR** (time-weighted return, `GET /api/performance/metriques-avancees`) : chaque semaine de la
+  grille est traitée comme une sous-période — le flux net investi pendant cette semaine (variation de
+  `valeur_investie`, cumulative) est retranché de la valeur de fin avant de calculer le rendement de
+  cette sous-période, neutralisant l'effet du TIMING des versements. Cumulé (produit géométrique des
+  sous-périodes) et annualisé (`(1+cumulé)^(52/n) − 1`). Approximation assumée : un versement en milieu
+  de semaine n'est isolé qu'à la semaine près, même limite de précision que le graphique d'évolution.
+  Distinct du MWR déjà exposé (`performance_service`, XIRR) : le MWR juge la décision de
+  versement, le TWR juge le support.
+- **Volatilité annualisée** : écart-type des rendements hebdomadaires TWR, annualisé par `√52`.
+- **Max drawdown et récupération** : plus forte baisse entre un pic et un creux ultérieur sur la
+  série de `valeur_portefeuille` ; `semaines_recuperation` mesurée depuis CE creux (pas depuis le pic
+  d'origine) jusqu'au premier retour à son niveau — `None`/non récupéré si toujours en dessous.
+- **Comparaison à un indice de référence** (`GET /api/performance/benchmarks`,
+  `GET /api/performance/comparaison-benchmark?benchmark=...`) : liste fermée de 4 indices (MSCI World
+  via le ticker `URTH`, S&P 500, CAC 40, STOXX Europe 600) — jamais un ticker arbitraire saisi par
+  l'utilisateur. Historique complet de l'indice mis en cache globalement
+  (`historique_cache.cle_historique_benchmark`, comme l'historique d'une ligne — une donnée de marché
+  publique, partagée entre tous les foyers). Les deux séries sont normalisées en pourcentage depuis
+  leur valeur au premier point commun.
 
 ### 3.6 Recommandations de rééquilibrage et alertes
 
@@ -456,7 +482,7 @@ sur un grand nombre d'identifiants).
 | `allocation_targets` | Objectifs de répartition géo/sectorielle par année |
 | `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |
 | `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, seuil d'alerte, taux d'imposition déclaré — § 3.22), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
-| `historique_cache` | Cache persistant (24 h) des séries d'historique de prix coûteuses à recalculer (ligne et portefeuille), cf. § 3.9 |
+| `historique_cache` | Cache persistant (24 h) des séries d'historique de prix coûteuses à recalculer (ligne, portefeuille, et indice de référence — § 3.5.1), cf. § 3.9 |
 | `liens_partage` | Liens de partage révocables (§ 3.21, backlog 2.Q.1) : jeton opaque, sections activées, code haché optionnel, expiration, révocation |
 | `partage_acces` | Journal des consultations d'un lien de partage public (§ 3.21) — alimente le verrouillage temporaire par lien |
 

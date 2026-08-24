@@ -483,3 +483,64 @@ def test_le_dernier_point_utilise_la_valorisation_live_pas_le_prix_hebdomadaire(
 
     # 10 parts x 999.0 (live) = 9990, pas 10 x 110.0 (hebdomadaire) = 1100.
     assert dernier_point["valeur_portefeuille"] == pytest.approx(9990.0)
+
+
+# ---------------------------------------------------------------------------
+# 2.P.2 — comparaison à un indice de référence
+# ---------------------------------------------------------------------------
+
+
+def _points_portefeuille():
+    return [
+        {"date": "2024-01-01", "valeur_portefeuille": 1000.0, "valeur_investie": 1000.0, "valeur_realisee_cumulee": 0.0},
+        {"date": "2024-01-08", "valeur_portefeuille": 1050.0, "valeur_investie": 1000.0, "valeur_realisee_cumulee": 0.0},
+        {"date": "2024-01-15", "valeur_portefeuille": 1100.0, "valeur_investie": 1000.0, "valeur_realisee_cumulee": 0.0},
+    ]
+
+
+def test_benchmark_inconnu_renvoie_none(db):
+    assert historical_performance_service.compute_benchmark_history(db, "PAS_UN_INDICE", _points_portefeuille()) is None
+
+
+def test_benchmark_moins_de_deux_points_renvoie_none(db, monkeypatch):
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
+    assert historical_performance_service.compute_benchmark_history(db, "MSCI_WORLD", _points_portefeuille()[:1]) is None
+
+
+def test_benchmark_calcule_le_rendement_relatif_au_premier_point(db, monkeypatch):
+    # _FauxTickerAvecHistorique : 100.0 / 105.0 / 110.0 aux mêmes dates que _points_portefeuille().
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
+
+    resultat = historical_performance_service.compute_benchmark_history(db, "MSCI_WORLD", _points_portefeuille())
+
+    assert resultat is not None
+    assert resultat["label"] == "MSCI World"
+    assert resultat["points"][0] == {"date": "2024-01-01", "portefeuille_pct": 0.0, "benchmark_pct": 0.0}
+    assert resultat["points"][1]["portefeuille_pct"] == 5.0  # 1050/1000 - 1
+    assert resultat["points"][1]["benchmark_pct"] == 5.0  # 105/100 - 1
+    assert resultat["points"][2]["portefeuille_pct"] == 10.0
+    assert resultat["points"][2]["benchmark_pct"] == 10.0
+
+
+def test_benchmark_sans_donnee_yfinance_renvoie_none(db, monkeypatch):
+    class _FauxTickerVide:
+        def __init__(self, *a, **k):
+            self.info = {}
+
+        def history(self, *a, **k):
+            return pd.DataFrame()
+
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerVide)
+
+    assert historical_performance_service.compute_benchmark_history(db, "MSCI_WORLD", _points_portefeuille()) is None
+
+
+def test_benchmark_deuxieme_appel_sert_du_cache_sans_rappeler_yfinance(db, monkeypatch):
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)
+    premier = historical_performance_service.compute_benchmark_history(db, "MSCI_WORLD", _points_portefeuille())
+    assert premier is not None
+
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerQuiEchoue)
+    second = historical_performance_service.compute_benchmark_history(db, "MSCI_WORLD", _points_portefeuille())
+
+    assert second == premier

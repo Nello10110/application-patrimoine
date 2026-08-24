@@ -198,6 +198,12 @@ courbe, puis le détail replié) :
      autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à
      titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits
      une seconde fois.
+   - **Métriques de performance avancées** (backlog § 2.P.2), juste en dessous : le TWR (rendement
+     pondéré par le temps) à côté du rendement money-weighted ci-dessus, avec une explication de ce
+     que chacun mesure — le premier juge le placement lui-même, le second juge vos décisions de
+     versement. Puis la volatilité annualisée et la perte maximale (max drawdown), avec le délai de
+     récupération si elle a été comblée. Un sélecteur permet de comparer l'évolution du portefeuille
+     (en %) à un indice de référence (MSCI World, S&P 500, CAC 40, STOXX Europe 600) sur un graphique.
    - **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer
      sur une barre ouvre le détail des lignes qui composent cette catégorie.
    - **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une

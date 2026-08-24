@@ -403,6 +403,34 @@ class PortfolioHistoryResponse(BaseModel):
     points: list[PortfolioHistoryPoint]
 
 
+class MetriquesAvancees(BaseModel):
+    """Backlog 2.P.2 — `services/metriques_performance_service.compute_metriques_avancees`."""
+
+    twr_cumule_pct: float | None
+    twr_annualise_pct: float | None
+    volatilite_annualisee_pct: float | None
+    max_drawdown_pct: float | None
+    drawdown_recupere: bool | None
+    semaines_recuperation: int | None
+
+
+class ComparaisonBenchmarkPoint(BaseModel):
+    date: str
+    portefeuille_pct: float | None
+    benchmark_pct: float | None
+
+
+class ComparaisonBenchmark(BaseModel):
+    benchmark_key: str
+    label: str
+    points: list[ComparaisonBenchmarkPoint]
+
+
+class BenchmarkOption(BaseModel):
+    key: str
+    label: str
+
+
 class DividendeLigne(BaseModel):
     date: str
     symbol: str | None

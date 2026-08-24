@@ -8,8 +8,16 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
-from ..schemas import DividendeMois, PerformanceSummary, PortfolioHistoryResponse, RapportPeriode
-from ..services import auth_service, historical_performance_service, performance_service, rapport_service
+from ..schemas import (
+    BenchmarkOption,
+    ComparaisonBenchmark,
+    DividendeMois,
+    MetriquesAvancees,
+    PerformanceSummary,
+    PortfolioHistoryResponse,
+    RapportPeriode,
+)
+from ..services import auth_service, historical_performance_service, metriques_performance_service, performance_service, rapport_service
 
 _MOTIF_DATE_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -25,6 +33,34 @@ def get_performance(db: Session = Depends(get_db), current_user: User = Depends(
 def get_portfolio_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     points = historical_performance_service.compute_portfolio_history(db, auth_service.id_foyer(current_user))
     return PortfolioHistoryResponse(points=points)
+
+
+@router.get("/metriques-avancees", response_model=MetriquesAvancees)
+def get_metriques_avancees(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """TWR, volatilité annualisée, max drawdown et récupération (backlog 2.P.2) —
+    calculées sur la même série que `/history`, jamais un second calcul de fond."""
+    points = historical_performance_service.compute_portfolio_history(db, auth_service.id_foyer(current_user))
+    return metriques_performance_service.compute_metriques_avancees(points)
+
+
+@router.get("/benchmarks", response_model=list[BenchmarkOption])
+def list_benchmarks():
+    """Liste fermée d'indices de référence proposés (backlog 2.P.2) — jamais un
+    ticker arbitraire saisi par l'utilisateur."""
+    return [
+        BenchmarkOption(key=key, label=b["label"]) for key, b in historical_performance_service.BENCHMARKS.items()
+    ]
+
+
+@router.get("/comparaison-benchmark", response_model=ComparaisonBenchmark)
+def get_comparaison_benchmark(
+    benchmark: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    points = historical_performance_service.compute_portfolio_history(db, auth_service.id_foyer(current_user))
+    resultat = historical_performance_service.compute_benchmark_history(db, benchmark, points)
+    if resultat is None:
+        raise HTTPException(status_code=404, detail="Indice de référence inconnu, ou aucune donnée disponible pour cette période.")
+    return resultat
 
 
 @router.get("/dividendes", response_model=list[DividendeMois])

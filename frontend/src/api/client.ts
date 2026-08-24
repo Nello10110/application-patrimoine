@@ -17,6 +17,9 @@ import type {
   Detenteur,
   DividendeMois,
   RapportPeriode,
+  BenchmarkOption,
+  ComparaisonBenchmark,
+  MetriquesAvancees,
   PortfolioHistoryResponse,
   EtatRafraichissement,
   Holding,
@@ -219,6 +222,11 @@ export const api = {
   },
   getPerformance: () => request<PerformanceSummary>('/performance'),
   getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
+  // Métriques de performance de niveau professionnel (backlog 2.P.2).
+  getMetriquesAvancees: () => request<MetriquesAvancees>('/performance/metriques-avancees'),
+  listBenchmarks: () => request<BenchmarkOption[]>('/performance/benchmarks'),
+  getComparaisonBenchmark: (benchmark: string) =>
+    request<ComparaisonBenchmark>(`/performance/comparaison-benchmark?benchmark=${encodeURIComponent(benchmark)}`),
   getDividendCalendar: () => request<DividendeMois[]>('/performance/dividendes'),
   getRapportPeriode: (dateDebut: string, dateFin: string) =>
     request<RapportPeriode>(`/performance/rapport?date_debut=${dateDebut}&date_fin=${dateFin}`),

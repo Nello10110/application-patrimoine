@@ -1474,7 +1474,7 @@ bascule `zone_geo` ne s'applique qu'aux actifs valorisés manuellement) ; actif 
 déclarée → Europe par défaut ; actif manuel avec zone déclarée → zone respectée ; concentration et
 `part_estimee_manuelle_pct` recoupés à la main sur un jeu de données de test.
 
-#### P.2 — `mineur` · `M` · `P2` · `non traité` — Métriques de performance de niveau professionnel
+#### P.2 — `mineur` · `M` · `P2` · `traité` (25/08/2026) — Métriques de performance de niveau professionnel
 
 - **TWR** (rendement pondéré par le temps) à côté du **MWR/XIRR** déjà calculé, avec l'explication
   de ce que chacun mesure — l'un juge les décisions, l'autre juge le support.
@@ -1482,6 +1482,31 @@ déclarée → Europe par défaut ; actif manuel avec zone déclarée → zone r
 - **Comparaison à un indice de référence** choisi par l'utilisateur (MSCI World, CAC 40…) sur la
   même période et avec la même méthode.
 - Tout cela sur données locales, sans abonnement.
+
+**Livré et vérifié le 25/08/2026.** Toutes les métriques (TWR, volatilité, max drawdown, récupération)
+sont calculées à partir de la série hebdomadaire DÉJÀ produite par
+`historical_performance_service.compute_portfolio_history` (celle du graphique d'évolution du tableau
+de bord, déjà mise en cache) — nouveau `services/metriques_performance_service.py`, aucun nouvel appel
+`yfinance` pour ces métriques elles-mêmes. Approximation assumée et documentée : chaque semaine de la
+grille est traitée comme une sous-période TWR (le flux net investi pendant cette semaine est retranché
+de la valeur de fin avant de calculer son rendement) — un versement en milieu de semaine n'est isolé
+qu'à la semaine près, la même limite de précision que le graphique d'évolution lui-même. Max drawdown :
+recherche du pic précédant le creux le plus profond, durée de récupération mesurée depuis CE creux
+(pas depuis le pic d'origine) jusqu'au premier retour à son niveau — `null`/« non récupéré à ce jour »
+si le portefeuille reste sous ce niveau.
+
+**Comparaison à un indice de référence** : liste fermée de 4 indices (MSCI World via `URTH`, S&P 500,
+CAC 40, STOXX Europe 600 — jamais un ticker arbitraire saisi par l'utilisateur, pour éviter toute
+résolution/validation d'un identifiant quelconque). Historique complet de l'indice mis en cache
+globalement (`historique_cache.cle_historique_benchmark`, comme l'historique d'une ligne : une donnée
+de marché publique, partagée entre tous les foyers, jamais recalculée par utilisateur). Les deux
+séries (portefeuille et indice) sont normalisées en pourcentage depuis leur valeur au premier point
+commun, pour rester comparables malgré des échelles différentes (euros vs points d'indice).
+
+Frontend : nouvelle `MetriquesAvanceesCard`, sous la carte Rentabilité globale du tableau de bord (le
+TWR apparaît ainsi directement à côté du MWR déjà affiché, comme demandé) — texte explicatif
+MWR vs TWR, sélecteur d'indice avec graphique de comparaison en pourcentage. 14 tests backend
+(métriques pures + comparaison benchmark + routeur) + 6 tests frontend, `tsc`/`oxlint` propres.
 
 #### P.3 — `mineur` · `S` · `P3` · `non traité` — Revenus passifs projetés
 
@@ -1641,7 +1666,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
-| **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |
+| **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2 traité (1/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
 
 **Pourquoi cet ordre.**
 

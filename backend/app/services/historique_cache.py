@@ -35,6 +35,16 @@ def cle_historique_ligne(ticker: str) -> str:
     return f"historique_ligne:{ticker}"
 
 
+def cle_historique_benchmark(benchmark_key: str) -> str:
+    """Clé de cache de l'historique de prix complet (`period="max"`) d'un indice de
+    référence (backlog 2.P.2) — comme `cle_historique_ligne`, jamais scopée par
+    utilisateur : la série d'un indice est une donnée de marché publique, partagée
+    entre tous les foyers. Volontairement sans date de début dans la clé : c'est
+    l'historique COMPLET qui est mis en cache une fois, `historical_performance_service`
+    le découpe ensuite à la période demandée par chaque appelant."""
+    return f"historique_benchmark:{benchmark_key}"
+
+
 def cle_historique_portefeuille(user_id: int) -> str:
     """Clé de cache de l'historique de valeur de tout le portefeuille (4.5), scopée
     par utilisateur (Milestone 2a) — sans `user_id`, le premier utilisateur à
