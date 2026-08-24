@@ -61,3 +61,29 @@ def test_detenteur_id_dun_autre_utilisateur_renvoie_404(client, db):
     reponse = client.get(f"/api/patrimoine/net?detenteur_id={id_detenteur_a}")
 
     assert reponse.status_code == 404
+
+
+def test_exposition_consolidee_vide(client):
+    reponse = client.get("/api/patrimoine/exposition-consolidee")
+
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert corps["valeur_totale"] == 0
+    assert corps["repartition_geo"] == []
+    assert corps["repartition_classe"] == []
+    assert corps["plus_grosse_ligne_ticker"] is None
+    assert corps["part_estimee_manuelle_pct"] == 0
+
+
+def test_exposition_consolidee_combine_financier_et_manuel(client, db):
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=50000.0, valeur_estimee=50000.0)
+
+    reponse = client.get("/api/patrimoine/exposition-consolidee")
+
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert corps["valeur_totale"] == 51000.0
+    par_classe = {item["categorie"]: item["valeur"] for item in corps["repartition_classe"]}
+    assert par_classe["Actions"] == 1000.0
+    assert par_classe["Immobilier"] == 50000.0

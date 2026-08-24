@@ -118,6 +118,16 @@ class Holding(Base):
     # philosophie que la valorisation immobilière datée : jamais de mutation
     # silencieuse d'une donnée financière).
     taux_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1,
+    # exposition consolidée tous actifs) : une des 6 zones de `reference_indices`
+    # (jamais une granularité par pays — cohérent avec le zonage déjà utilisé partout
+    # ailleurs dans l'app). Sans objet pour un actif financier, dont la géographie
+    # vient déjà du look-through/de la cotation (`analysis_service.value_holdings`
+    # ignore ce champ dans ce cas). `None` par défaut : `value_holdings` retombe alors
+    # sur `ZONE_EUROPE` (hypothèse la plus probable pour un immobilier/une
+    # assurance-vie française) plutôt que de laisser un "Non catégorisé" qui rendrait
+    # la fonctionnalité inutilisable sur les lignes déjà saisies avant son ajout.
+    zone_geo: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

@@ -19,6 +19,8 @@ import {
   SEUIL_PEREMPTION_HEURES,
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
+  TYPES_PATRIMOINE,
+  ZONES_GEO,
   categorieDe,
   comptesDisponibles,
   correspondAuFiltreCompte,
@@ -161,6 +163,7 @@ export default function PortefeuillePage() {
     type_actif: '',
     valeur_estimee: '',
     taux_pct: '',
+    zone_geo: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -227,8 +230,18 @@ export default function PortefeuillePage() {
         type_actif: form.type_actif || null,
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
         taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
+        zone_geo: form.zone_geo || null,
       })
-      setForm({ ticker: '', quantite: '', prix_revient_moyen: '', compte: '', type_actif: '', valeur_estimee: '', taux_pct: '' })
+      setForm({
+        ticker: '',
+        quantite: '',
+        prix_revient_moyen: '',
+        compte: '',
+        type_actif: '',
+        valeur_estimee: '',
+        taux_pct: '',
+        zone_geo: '',
+      })
       load()
     } catch (err) {
       setError((err as Error).message)
@@ -350,6 +363,23 @@ export default function PortefeuillePage() {
                 className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
               />
+            </label>
+          )}
+          {TYPES_PATRIMOINE.has(form.type_actif) && (
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Zone géographique
+              <select
+                value={form.zone_geo}
+                onChange={(e) => setForm({ ...form, zone_geo: e.target.value })}
+                className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              >
+                <option value="">Europe (par défaut)</option>
+                {ZONES_GEO.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone}
+                  </option>
+                ))}
+              </select>
             </label>
           )}
           <button

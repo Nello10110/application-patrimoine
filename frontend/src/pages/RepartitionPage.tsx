@@ -7,6 +7,7 @@ import { formatEuro } from '../utils/format'
 import { IconFermer, IconValide } from '../components/icons'
 import EtatErreur from '../components/EtatErreur'
 import { SkeletonTexte } from '../components/Skeleton'
+import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const ANNEE_MIN = 1990
@@ -239,6 +240,8 @@ export default function RepartitionPage() {
 
   return (
     <div className="space-y-6">
+      <ExpositionConsolideeCard />
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-texte">Répartition {annee}</h2>
         <div className="flex items-center gap-3">

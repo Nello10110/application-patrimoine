@@ -61,6 +61,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     valeur_estimee: null,
     date_valeur_estimee: null,
     taux_pct: null,
+    zone_geo: null,
     ...overrides,
   }
   if (overrides.valeur === undefined) {
@@ -162,6 +163,46 @@ describe('PortefeuillePage', () => {
         expect(api.createHolding).toHaveBeenCalledWith(
           expect.objectContaining({ ticker: 'LIVRETA', type_actif: 'REGULATED_SAVINGS', valeur_estimee: 10000, taux_pct: 3 }),
         ),
+      )
+    })
+  })
+
+  describe('Ajouter une ligne manuellement — zone géographique (backlog 2.P.1)', () => {
+    it("le champ « Zone géographique » n'apparaît pas pour un type d'actif financier (ex. action)", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      expect(screen.queryByLabelText('Zone géographique')).not.toBeInTheDocument()
+    })
+
+    it("sélectionner « Immobilier » révèle le champ « Zone géographique »", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+
+      expect(screen.getByLabelText('Zone géographique')).toBeInTheDocument()
+    })
+
+    it('soumettre avec une zone sélectionnée appelle createHolding avec zone_geo', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(
+        holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'REAL_ESTATE', valeur_estimee: 200000, zone_geo: 'Amérique du Nord' }),
+      )
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'MAISON' } })
+      fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '200000' } })
+      fireEvent.change(screen.getByLabelText('Zone géographique'), { target: { value: 'Amérique du Nord' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() =>
+        expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'MAISON', zone_geo: 'Amérique du Nord' })),
       )
     })
   })

@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
     setTargets: vi.fn(),
     listTargetYears: vi.fn(),
     getAnalysis: vi.fn(),
+    getExpositionConsolidee: vi.fn(),
   },
 }))
 
@@ -68,6 +69,17 @@ describe('RepartitionPage — objectifs (échec de chargement)', () => {
     vi.mocked(api.getDefaultTargets).mockResolvedValue(DEFAUTS)
     vi.mocked(api.listTargetYears).mockResolvedValue([])
     vi.mocked(api.getAnalysis).mockResolvedValue(analyse())
+    vi.mocked(api.getExpositionConsolidee).mockResolvedValue({
+      valeur_totale: 0,
+      repartition_geo: [],
+      repartition_classe: [],
+      plus_grosse_ligne_ticker: null,
+      plus_grosse_ligne_pct: null,
+      top5_lignes_pct: null,
+      premiere_zone_geo: null,
+      premiere_zone_geo_pct: null,
+      part_estimee_manuelle_pct: 0,
+    })
   })
 
   it('affiche le motif de l’échec au lieu de deux éditeurs vides et silencieux', async () => {
@@ -120,6 +132,17 @@ describe('RepartitionPage — rééquilibrage', () => {
     vi.mocked(api.getTargets).mockResolvedValue([])
     vi.mocked(api.getDefaultTargets).mockResolvedValue(DEFAUTS)
     vi.mocked(api.listTargetYears).mockResolvedValue([CURRENT_YEAR - 1])
+    vi.mocked(api.getExpositionConsolidee).mockResolvedValue({
+      valeur_totale: 0,
+      repartition_geo: [],
+      repartition_classe: [],
+      plus_grosse_ligne_ticker: null,
+      plus_grosse_ligne_pct: null,
+      top5_lignes_pct: null,
+      premiere_zone_geo: null,
+      premiere_zone_geo_pct: null,
+      part_estimee_manuelle_pct: 0,
+    })
   })
 
   it('affiche les alertes et les recommandations complètes', async () => {

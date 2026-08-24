@@ -6,7 +6,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models import SOURCE_INDICE, TYPES_ACTIF_PATRIMOINE_MANUEL, FundComposition, Holding
-from .reference_indices import NON_CATEGORISE, label_for_sector
+from .reference_indices import NON_CATEGORISE, ZONE_EUROPE, label_for_sector
 
 
 # Libellé affiché pour regrouper les lignes sans compte renseigné (LOT 5.1), plutôt
@@ -63,8 +63,14 @@ def value_holdings(holdings: list[Holding]) -> list[ValuedHolding]:
     valued = []
     for h in holdings:
         if h.valeur_estimee is not None:
+            # `region` alimenté pour l'exposition consolidée tous actifs (backlog
+            # 2.P.1) — sans effet sur les usages existants de `value_holdings`, qui ne
+            # traitent jamais aujourd'hui que le portefeuille financier
+            # (`holdings_financiers`, jamais un actif à `valeur_estimee`).
             valued.append(
-                ValuedHolding(holding=h, valeur=h.valeur_estimee, region=None, pays=None, secteur_label=None, a_des_donnees=True)
+                ValuedHolding(
+                    holding=h, valeur=h.valeur_estimee, region=h.zone_geo or ZONE_EUROPE, pays=None, secteur_label=None, a_des_donnees=True
+                )
             )
             continue
         md = h.market_data

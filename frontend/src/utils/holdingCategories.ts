@@ -17,7 +17,9 @@ export const CATEGORY_TABS: { key: Categorie; label: string }[] = [
 // Immobilier/SCPI/assurance-vie/PER/autre actif/taxonomie élargie (roadmap Phase 1
 // et 2, Lot 5 § M.1 — patrimoine net) : aucune cotation automatique, valorisés via
 // `Holding.valeur_estimee`. Cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
-const TYPES_PATRIMOINE = new Set([
+// Exporté (backlog 2.P.1) : sert aussi à n'afficher le champ Zone géographique que
+// pour ces types dans le formulaire d'ajout manuel.
+export const TYPES_PATRIMOINE = new Set([
   'REAL_ESTATE',
   'SCPI',
   'LIFE_INSURANCE',
@@ -55,6 +57,19 @@ export const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
 // l'épargne, décote attendue pour un véhicule — affiche le libellé et le signe
 // suggéré adaptés au type sélectionné plutôt qu'un champ générique muet.
 export const TYPES_AVEC_TAUX = new Set(['REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS', 'VEHICLE'])
+
+// Les 6 zones de `backend/app/services/reference_indices.py` (jamais une granularité
+// par pays) — utilisées telles quelles comme valeur de `Holding.zone_geo` (backlog
+// 2.P.1). Dupliquées ici en constantes de chaînes plutôt qu'exposées par une route
+// dédiée : la liste est stable et déjà répétée côté backend dans plusieurs modules.
+export const ZONES_GEO = [
+  'Amérique du Nord',
+  'Europe',
+  'Japon',
+  'Asie-Pacifique (hors Japon)',
+  'Marchés émergents',
+  'Autres zones',
+]
 
 export function libelleTaux(typeActif: string): string {
   return typeActif === 'VEHICLE' ? 'Décote annuelle (%)' : "Taux d'intérêt annuel (%)"

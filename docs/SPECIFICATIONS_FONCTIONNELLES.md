@@ -29,7 +29,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (répartition réel vs cible, qualité des données, coût de gestion, répartition par compte, indicateurs de risque, indicateur de rééquilibrage) |
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/patrimoine/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
-| Répartition | `/repartition` | Objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable : définition des cibles de répartition géo/sectorielle, puis en dessous le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent — sorti du Tableau de bord pour ne pas y encombrer la vue d'ensemble. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
+| Répartition (Analyse) | `/repartition` (`/analyse`) | En tête (backlog § 2.P.1) : **exposition consolidée tous actifs** — répartition géo/classe financier ET immobilier/épargne confondus, concentration (plus grosse ligne, top 5, première zone). En dessous, objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable, financiers uniquement : définition des cibles de répartition géo/sectorielle, puis le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
 | Objectifs | `/objectifs` (`/simulateur` redirige) | Deux blocs sur un même écran (backlog § 2.O.1) : **Objectifs suivis**, persistés — nom, montant cible, échéance, actifs rattachés dont la valeur cumulée mesure la progression réelle, trajectoire cible/réelle, diagnostic en langage naturel, rendement requis et contribution mensuelle nécessaire — et **indicateurs de situation** (§ 2.O.2, matelas de sécurité, taux d'endettement, part immobilisée) ; puis le **Simulateur**, calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel et le versement mensuel observé sur le budget (§ 2.N.4), horizon réglable (5/10/20/30 ans), tableau de détail annuel/mensuel, indépendance financière (FIRE). Tout le Simulateur est calculé côté client hormis les préremplissages |
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
 | Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
@@ -348,12 +348,35 @@ Distinct du Simulateur (§ 3.12, calcul à la volée sans rien conserver) : un o
   `TYPES_ACTIF_PATRIMOINE_MANUEL` / patrimoine brut). `null` plutôt qu'un chiffre trompeur si une
   donnée manque (aucun mouvement bancaire importé, aucun emprunt).
 
+### 3.20 Exposition consolidée tous actifs (backlog § 2.P.1)
+
+Distinct du § 3.4 (portefeuille FINANCIER seul) et du § 3.11 (patrimoine net, additif mais sans
+géographie ni concentration) : une seule répartition géo/classe, **financier ET immobilier/épargne
+confondus** (`GET /api/patrimoine/exposition-consolidee`,
+`services/patrimoine_service.compute_exposition_consolidee`) — affichée en tête de l'écran
+Répartition, avant la comparaison objectifs vs réel.
+
+- **Géographie** : réutilise le look-through des fonds (§ 3.4) pour le financier ; un actif valorisé
+  manuellement y contribue via un nouveau champ `Holding.zone_geo` (une des 6 zones de
+  `reference_indices`, jamais une granularité par pays), `None` retombant sur `ZONE_EUROPE`
+  (hypothèse la plus probable pour ce type d'actif français) plutôt que sur « Non catégorisé » — le
+  champ est éditable à la création via le formulaire d'ajout manuel du Portefeuille.
+- **Classe d'actif** : réutilise le dictionnaire de labels déjà étendu par § 3.11 (M.1).
+- **Concentration** : plus grosse ligne (ticker + %), part des 5 plus grosses lignes, première zone
+  géographique — « premier émetteur » interprété comme la plus grosse LIGNE (pas un vrai agrégat
+  multi-fonds par émetteur réel, limite assumée).
+- **`part_estimee_manuelle_pct`** : part du patrimoine dont la géo est déclarée (via `zone_geo`)
+  plutôt que mesurée (look-through) — rappel honnête sans dupliquer l'encart de qualité des données
+  existant (§ 3.4), qui reste affiché tel quel sur l'écran Répartition pour le seul financier.
+- Ouvert propriétaire+membre ; hors du périmètre invité (§ 3.11, seuls Patrimoine net/Portefeuille/
+  Emprunts le sont).
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
 |---|---|
 | `transactions` | Grand livre importé (source de vérité), dédoublonné par `transaction_id` |
-| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de la taxonomie élargie (immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicule, cf. § 3.11) ; `taux_pct` porte le taux annuel informatif (épargne/véhicule, cf. § 3.11) |
+| `holdings` | Portefeuille reconstruit ou saisi manuellement. `origine` (`manuel` \| `reconstruit`) arbitre le conflit entre saisie manuelle et reconstruction (cf. § 3.1) ; `compte` est l'annotation manuelle de compte (cf. § 3.7) ; `valeur_estimee`/`date_valeur_estimee` portent la valorisation manuelle de la taxonomie élargie (immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicule, cf. § 3.11) ; `taux_pct` porte le taux annuel informatif (épargne/véhicule, cf. § 3.11) ; `zone_geo` porte la zone géographique déclarée d'un actif manuel, `None` repliant sur Europe (cf. § 3.20) |
 | `loans` | Emprunts (patrimoine net, cf. § 3.11) : capital initial, taux, mensualité, date de début, durée, recalage manuel optionnel du capital restant dû |
 | `holding_immobilier_details` | Fiche immobilier complète (§ 3.11, backlog § 2.M.3) : bloc location + caractéristiques, un par `Holding` |
 | `holding_valuation_history` | Historique daté des valorisations manuelles (§ 3.11, backlog § 2.M.3) — jamais écrasé, générique (pas réservé à l'immobilier) |

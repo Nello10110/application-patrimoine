@@ -12,13 +12,19 @@ n'expose donc plus que le patrimoine net lui-même, plus d'endpoint
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import ROLE_INVITE, Detenteur, User
-from ..schemas import PatrimoineNetResponse
+from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Detenteur, User
+from ..schemas import ExpositionConsolidee, PatrimoineNetResponse
 from ..services import auth_service, detenteurs_service, patrimoine_service
 
 router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
+
+# Exposition consolidée (backlog 2.P.1) : nouvel écran d'analyse, hors des trois
+# écrans ouverts à l'invité par L.2 (Patrimoine net/Portefeuille/Emprunts) — ce
+# routeur reste `_protegee` dans `main.py` pour `/net`, restreint ici à
+# propriétaire+membre pour cette seule route.
+_pas_invite = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
 
 
 @router.get("/net", response_model=PatrimoineNetResponse)
@@ -38,3 +44,8 @@ def get_patrimoine_net(
         if detenteur_id is None or detenteur_id not in perimetre:
             raise HTTPException(status_code=403, detail="Détenteur hors de votre périmètre")
     return PatrimoineNetResponse(**patrimoine_service.compute_patrimoine_net(db, auth_service.id_foyer(current_user), detenteur_id))
+
+
+@router.get("/exposition-consolidee", response_model=ExpositionConsolidee)
+def get_exposition_consolidee(db: Session = Depends(get_db), current_user: User = Depends(_pas_invite)):
+    return patrimoine_service.compute_exposition_consolidee(db, auth_service.id_foyer(current_user))

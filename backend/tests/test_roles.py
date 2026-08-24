@@ -189,3 +189,20 @@ def test_invite_refuse_sur_les_ecrans_hors_perimetre(client_reel):
 
     assert client_reel.get("/api/analysis/2026", headers=_en_tete(token_invite)).status_code == 403
     assert client_reel.get("/api/performance", headers=_en_tete(token_invite)).status_code == 403
+
+
+def test_invite_refuse_sur_exposition_consolidee(client_reel):
+    """Backlog 2.P.1 : `/api/patrimoine/exposition-consolidee` reste hors du
+    périmètre ouvert à l'invité (Patrimoine net/Portefeuille/Emprunts seulement)."""
+    token_proprio = _fonder_foyer(client_reel)
+    token_invite = _creer_invite(client_reel, token_proprio, [])
+
+    assert client_reel.get("/api/patrimoine/exposition-consolidee", headers=_en_tete(token_invite)).status_code == 403
+
+
+def test_proprietaire_et_membre_accedent_a_exposition_consolidee(client_reel):
+    token_proprio = _fonder_foyer(client_reel)
+    token_membre = _creer_membre(client_reel, token_proprio)
+
+    assert client_reel.get("/api/patrimoine/exposition-consolidee", headers=_en_tete(token_proprio)).status_code == 200
+    assert client_reel.get("/api/patrimoine/exposition-consolidee", headers=_en_tete(token_membre)).status_code == 200

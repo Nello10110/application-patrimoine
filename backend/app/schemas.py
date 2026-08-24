@@ -46,6 +46,9 @@ class HoldingBase(BaseModel):
     # Taux annuel informatif (backlog § 2.M.1) : positif = intérêt attendu (épargne),
     # négatif = décote attendue (véhicule) — cf. `models.Holding.taux_pct`.
     taux_pct: float | None = None
+    # Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1) —
+    # cf. `models.Holding.zone_geo`.
+    zone_geo: str | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -91,6 +94,7 @@ class HoldingUpdate(BaseModel):
     type_actif: str | None = None
     valeur_estimee: float | None = None
     taux_pct: float | None = None
+    zone_geo: str | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -1287,6 +1291,20 @@ class ObjectifDetail(BaseModel):
     trajectoire_reelle: list[TrajectoirePoint]
     actifs_rattaches: list[ActifRattacheOut]
     contributeurs: list[ContributeurObjectifOut]
+
+
+class ExpositionConsolidee(BaseModel):
+    """Backlog 2.P.1 — `services/patrimoine_service.compute_exposition_consolidee`."""
+
+    valeur_totale: float
+    repartition_geo: list[RepartitionParClasseItem]
+    repartition_classe: list[RepartitionParClasseItem]
+    plus_grosse_ligne_ticker: str | None
+    plus_grosse_ligne_pct: float | None
+    top5_lignes_pct: float | None
+    premiere_zone_geo: str | None
+    premiere_zone_geo_pct: float | None
+    part_estimee_manuelle_pct: float
 
 
 class IndicateursSituation(BaseModel):

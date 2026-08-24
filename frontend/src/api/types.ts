@@ -157,6 +157,9 @@ export interface Holding {
   // réglementée/salariale), négatif = décote attendue (véhicule) — jamais appliqué
   // automatiquement à `valeur_estimee`, cf. `models.Holding.taux_pct` côté backend.
   taux_pct: number | null
+  // Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1) —
+  // cf. `models.Holding.zone_geo` côté backend.
+  zone_geo: string | null
 }
 
 export interface HoldingInput {
@@ -169,6 +172,7 @@ export interface HoldingInput {
   type_actif?: string | null
   valeur_estimee?: number | null
   taux_pct?: number | null
+  zone_geo?: string | null
 }
 
 // Champs modifiables via `PATCH /api/portfolio/holdings/{id}` (cf. `HoldingUpdate`
@@ -184,6 +188,7 @@ export interface HoldingUpdateInput {
   type_actif?: string | null
   valeur_estimee?: number | null
   taux_pct?: number | null
+  zone_geo?: string | null
 }
 
 // Types d'actifs valorisés manuellement (roadmap Phase 1, patrimoine net) — aucune
@@ -247,6 +252,21 @@ export interface PatrimoineNet {
   patrimoine_net: number
   patrimoine_financier: number
   repartition_par_classe: RepartitionParClasseItem[]
+}
+
+// Exposition consolidée tous actifs (backlog 2.P.1) — une seule répartition géo/classe
+// financier ET immobilier/épargne confondus, distincte de `AnalysisResponse` (portefeuille
+// financier seul) et de `PatrimoineNet` (pas de vue géo/concentration).
+export interface ExpositionConsolidee {
+  valeur_totale: number
+  repartition_geo: RepartitionParClasseItem[]
+  repartition_classe: RepartitionParClasseItem[]
+  plus_grosse_ligne_ticker: string | null
+  plus_grosse_ligne_pct: number | null
+  top5_lignes_pct: number | null
+  premiere_zone_geo: string | null
+  premiere_zone_geo_pct: number | null
+  part_estimee_manuelle_pct: number
 }
 
 // Simulateur de patrimoine, tableau de détail et indépendance financière (roadmap

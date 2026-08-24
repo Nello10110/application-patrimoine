@@ -1436,7 +1436,7 @@ Les avis convergent : Finary n'offre ni TWR, ni volatilité, ni Sharpe, ni bêta
 fondamentale ([outilsinvestisseur.fr](https://outilsinvestisseur.fr/finary-avis/)). Nous avons déjà
 le XIRR et le look-through audité ; l'écart est court et le différenciateur est net.
 
-#### P.1 — `majeur` · `M` · `P2` · `non traité` — Exposition consolidée tous actifs
+#### P.1 — `majeur` · `M` · `P2` · `traité` (24/08/2026) — Exposition consolidée tous actifs
 
 Le besoin fondateur du projet, jamais complètement servi : **voir la vraie diversification**, en
 combinant le look-through géographique et sectoriel des ETF **avec** l'immobilier, les SCPI et les
@@ -1448,6 +1448,31 @@ diversifié, et aucun écran ne le dit aujourd'hui.
 - **Concentration** : part du premier émetteur, des cinq premières lignes, du premier pays.
 - L'encart de qualité des données existant reste affiché : une exposition estimée n'est jamais
   présentée comme mesurée.
+
+**Livré et vérifié le 24/08/2026.** Nouveau champ `Holding.zone_geo` (nullable, une des 6 zones déjà
+utilisées partout ailleurs dans l'app — jamais une granularité par pays) pour déclarer la zone d'un
+actif valorisé manuellement (immobilier/SCPI/assurance-vie/PER/épargne...) ; `None` retombe sur
+`ZONE_EUROPE` (hypothèse la plus probable pour ce type d'actif français) plutôt que sur "Non
+catégorisé", pour que la fonctionnalité soit utilisable immédiatement sur les lignes déjà saisies
+avant son ajout — champ éditable dès la création via le formulaire d'ajout manuel du Portefeuille
+(pas encore d'édition a posteriori d'une ligne existante, seulement à la création). Nouvelle fonction
+`patrimoine_service.compute_exposition_consolidee` : géo réutilise
+`analysis_service.breakdown_with_lookthrough` (déjà éclaté sur la composition interne des fonds), les
+actifs manuels y contribuent via `zone_geo` ; classe réutilise le dictionnaire de labels déjà étendu
+par M.1. « Premier émetteur » interprété comme la plus grosse LIGNE du portefeuille (pas un vrai
+agrégat multi-fonds par émetteur réel, qui demanderait de recouper le look-through de chaque fonds
+avec les positions détenues en direct — hors de portée pour un item `M`, documenté comme limite
+assumée). `part_estimee_manuelle_pct` (part du patrimoine dont la géo est déclarée plutôt que
+mesurée) sert de rappel honnête sans dupliquer tout l'encart de qualité des données existant, qui
+reste affiché tel quel sur l'écran Répartition pour le seul financier — conforme au dernier point du
+besoin initial. Nouvel écran `ExpositionConsolideeCard` monté en tête de `/analyse` (avant la
+comparaison objectifs vs réel, qui reste financière uniquement). Nouvel endpoint
+`GET /api/patrimoine/exposition-consolidee`, ouvert propriétaire+membre, explicitement hors du
+périmètre invité (seuls Patrimoine net/Portefeuille/Emprunts le sont, cf. L.2). Vérifié en
+conditions réelles : actif financier sans cotation → "Non catégorisé" (comportement inchangé, la
+bascule `zone_geo` ne s'applique qu'aux actifs valorisés manuellement) ; actif manuel sans zone
+déclarée → Europe par défaut ; actif manuel avec zone déclarée → zone respectée ; concentration et
+`part_estimee_manuelle_pct` recoupés à la main sur un jeu de données de test.
 
 #### P.2 — `mineur` · `M` · `P2` · `non traité` — Métriques de performance de niveau professionnel
 
@@ -1557,7 +1582,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
-| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | En cours — O.1, O.2 livrés (2/5) ; P.1, Q.1, Q.2 restants |
+| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | En cours — O.1, O.2, P.1 livrés (3/5) ; Q.1, Q.2 restants |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |
 
 **Pourquoi cet ordre.**

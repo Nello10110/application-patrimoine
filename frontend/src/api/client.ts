@@ -41,6 +41,7 @@ import type {
   OidcConfig,
   OidcConfigInput,
   OidcStatus,
+  ExpositionConsolidee,
   PatrimoineNet,
   PerformanceSummary,
   Preferences,
@@ -227,6 +228,7 @@ export const api = {
   // départ.
   getPatrimoineNet: (detenteurId?: number | null) =>
     request<PatrimoineNet>(`/patrimoine/net${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
+  getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
 
   // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
   listDetenteurs: () => request<Detenteur[]>('/detenteurs'),

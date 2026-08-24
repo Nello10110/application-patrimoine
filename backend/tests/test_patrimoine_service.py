@@ -156,3 +156,69 @@ def test_detenteur_id_filtre_a_la_part_de_ce_detenteur(db):
     assert vue_alice["patrimoine_net"] == 90000.0
     # Alice + Bob (parts symétriques ici) reconstituent exactement la vue foyer.
     assert vue_alice["patrimoine_net"] * 2 == vue_foyer["patrimoine_net"]
+
+
+class TestExpositionConsolidee:
+    """Backlog 2.P.1 : `patrimoine_service.compute_exposition_consolidee`."""
+
+    def test_repartition_classe_couvre_tous_les_types(self, db):
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+        make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        par_nom = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe"]}
+        assert par_nom["Actions"] == 1000.0
+        assert par_nom["Immobilier"] == 200000.0
+        assert resultat["valeur_totale"] == 201000.0
+
+    def test_repartition_geo_utilise_zone_geo_pour_le_manuel_defaut_europe(self, db):
+        make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        par_zone = {item["categorie"]: item["valeur"] for item in resultat["repartition_geo"]}
+        assert par_zone["Europe"] == 200000.0
+
+    def test_repartition_geo_respecte_zone_geo_explicite(self, db):
+        make_holding(
+            db, ticker="APPART_US", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=100000.0, valeur_estimee=100000.0, zone_geo="Amérique du Nord"
+        )
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        par_zone = {item["categorie"]: item["valeur"] for item in resultat["repartition_geo"]}
+        assert par_zone["Amérique du Nord"] == 100000.0
+        assert "Europe" not in par_zone
+
+    def test_concentration_plus_grosse_ligne_et_top5(self, db):
+        make_holding(db, ticker="GROS", type_actif="STOCK", quantite=1, prix_revient_moyen=6000.0)
+        make_holding(db, ticker="PETIT1", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0)
+        make_holding(db, ticker="PETIT2", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0)
+        make_holding(db, ticker="PETIT3", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0)
+        make_holding(db, ticker="PETIT4", type_actif="STOCK", quantite=1, prix_revient_moyen=500.0)
+        make_holding(db, ticker="PETIT5", type_actif="STOCK", quantite=1, prix_revient_moyen=500.0)
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        # Total = 10000. Plus grosse ligne = 6000 (60%). Top5 = 6000+1000+1000+1000+500 = 9500 (95%).
+        assert resultat["plus_grosse_ligne_ticker"] == "GROS"
+        assert resultat["plus_grosse_ligne_pct"] == 60.0
+        assert resultat["top5_lignes_pct"] == 95.0
+
+    def test_part_estimee_manuelle_pct(self, db):
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
+        make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=9000.0, valeur_estimee=9000.0)  # 9000
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        assert resultat["part_estimee_manuelle_pct"] == 90.0
+
+    def test_portefeuille_vide(self, db):
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        assert resultat["valeur_totale"] == 0.0
+        assert resultat["repartition_geo"] == []
+        assert resultat["repartition_classe"] == []
+        assert resultat["plus_grosse_ligne_ticker"] is None
+        assert resultat["part_estimee_manuelle_pct"] == 0.0

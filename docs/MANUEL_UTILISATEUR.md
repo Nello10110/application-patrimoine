@@ -54,6 +54,7 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 - **Supprimer une ligne** : le bouton « Supprimer » ouvre une confirmation avant suppression définitive.
 - **Rafraîchir les cours** relance la récupération des données de marché pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions ») et le tableau se met à jour tout seul une fois terminé, sans bloquer le reste de l'écran.
 - **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif, valeur estimée) — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat.
+- **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée de l'écran Répartition.
 - **Taux annuel** (épargne réglementée/salariale, véhicule) : champ apparaissant uniquement pour ces types — un pourcentage positif pour un taux d'intérêt attendu (épargne), négatif pour une décote annuelle attendue (véhicule). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
 
 ### Fiche immobilier complète
@@ -86,7 +87,22 @@ Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tablea
 
 ## Écran Répartition
 
-Objectifs et rééquilibrage réunis pour une même année sélectionnable — deux vues d'un même sujet plutôt que deux écrans séparés.
+En tête de l'écran, l'**exposition consolidée tous actifs** : une seule vue combinant le portefeuille
+boursier ET l'immobilier/l'épargne, là où le reste de l'écran (objectifs/rééquilibrage) ne regarde que
+le portefeuille financier.
+
+- **Répartition géographique/par classe d'actif consolidée** : deux camemberts, tout le patrimoine
+  confondu. Pour un actif financier (action, ETF...), la géographie vient du look-through habituel.
+  Pour un actif saisi manuellement (immobilier, SCPI, assurance-vie...), elle vient de la **zone
+  géographique** déclarée à l'ajout de la ligne (écran Portefeuille) — Europe par défaut si rien n'a
+  été renseigné.
+- **Concentration** : la plus grosse ligne du patrimoine et son poids, le poids des 5 plus grosses
+  lignes réunies, la première zone géographique et son poids.
+- Une note en bas de section rappelle quelle part du patrimoine a une géographie *déclarée* plutôt
+  que *mesurée* (les actifs manuels) — pour ne jamais confondre une estimation avec une donnée
+  vérifiée.
+
+Puis, en dessous, objectifs et rééquilibrage réunis pour une même année sélectionnable — ces deux vues restent scopées au seul portefeuille financier.
 
 - **Objectifs** : sélectionner une année dans la liste (alimentée par les années réellement enregistrées), ou en ajouter une nouvelle par le champ dédié, puis ajuster les pourcentages cibles de répartition géographique et sectorielle (pré-remplis avec une répartition de référence à la première utilisation d'une année). Chaque catégorie peut être modifiée, supprimée, ou une nouvelle ajoutée. Le total doit sommer à 100 % (indiqué en vert quand c'est le cas). **Enregistrer** sauvegarde les objectifs de l'année sélectionnée et recharge aussitôt le rééquilibrage ci-dessous.
 - **Rééquilibrage** (sous les objectifs) : détail complet des alertes et des actions de rééquilibrage recommandées pour la même année.
