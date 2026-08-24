@@ -38,6 +38,11 @@ vi.mock('../api/client', () => ({
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
     createHouseholdMember: vi.fn(),
     deleteHouseholdMember: vi.fn(),
+    // Liens de partage (backlog 2.Q.1) : hors de l'objet des autres blocs de ce
+    // fichier, stub neutre par défaut (aucun lien existant).
+    listLiensPartage: vi.fn().mockResolvedValue([]),
+    createLienPartage: vi.fn(),
+    revokeLienPartage: vi.fn(),
     // Connexion SSO (backlog 2.L.3) : hors de l'objet des autres blocs de ce
     // fichier, stub neutre par défaut (aucune configuration existante).
     getOidcConfig: vi.fn().mockResolvedValue({
@@ -311,5 +316,92 @@ describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
     ouvrirOnglet('SSO / OIDC')
 
     await screen.findByText(/PATRIMOINE_SECRET_KEY/)
+  })
+})
+
+function lienPartage(overrides: Partial<import('../api/types').LienPartage> = {}): import('../api/types').LienPartage {
+  return {
+    id: 1,
+    token: 'a'.repeat(64),
+    nom: 'Pour la banque',
+    detenteur_id: null,
+    inclure_patrimoine_net: true,
+    inclure_repartition: true,
+    inclure_performance: true,
+    inclure_budget: false,
+    inclure_objectifs: false,
+    masquer_valeurs: false,
+    code_requis: false,
+    created_at: '2026-01-01T00:00:00',
+    expires_at: '2099-01-01T00:00:00',
+    revoked_at: null,
+    ...overrides,
+  }
+}
+
+describe('ReglagesPage — Liens de partage (backlog 2.Q.1)', () => {
+  it("affiche un message quand aucun lien n'est créé", async () => {
+    vi.mocked(api.listLiensPartage).mockResolvedValue([])
+    renderReglages()
+    ouvrirOnglet('Partage')
+
+    await screen.findByText('Aucun lien de partage créé.')
+  })
+
+  it('liste les liens existants avec leur URL publique', async () => {
+    vi.mocked(api.listLiensPartage).mockResolvedValue([lienPartage()])
+    renderReglages()
+    ouvrirOnglet('Partage')
+
+    await screen.findByText('Pour la banque')
+    expect(screen.getByDisplayValue(`http://localhost:3000/partage/${'a'.repeat(64)}`)).toBeInTheDocument()
+  })
+
+  it('un lien révoqué affiche le badge « révoqué » sans URL ni bouton Révoquer', async () => {
+    vi.mocked(api.listLiensPartage).mockResolvedValue([lienPartage({ revoked_at: '2026-01-02T00:00:00' })])
+    renderReglages()
+    ouvrirOnglet('Partage')
+
+    await screen.findByText('révoqué')
+    expect(screen.queryByRole('button', { name: 'Révoquer' })).not.toBeInTheDocument()
+  })
+
+  it('un lien avec code requis affiche le badge correspondant', async () => {
+    vi.mocked(api.listLiensPartage).mockResolvedValue([lienPartage({ code_requis: true })])
+    renderReglages()
+    ouvrirOnglet('Partage')
+
+    await screen.findByText('code requis')
+  })
+
+  it('créer un lien appelle createLienPartage avec les sections cochées puis recharge la liste', async () => {
+    vi.mocked(api.listLiensPartage).mockResolvedValueOnce([]).mockResolvedValue([lienPartage()])
+    vi.mocked(api.createLienPartage).mockResolvedValue(lienPartage())
+    renderReglages()
+    ouvrirOnglet('Partage')
+    await screen.findByText('Aucun lien de partage créé.')
+
+    fireEvent.change(screen.getByPlaceholderText('Pour la banque'), { target: { value: 'Pour la banque' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Budget' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le lien' }))
+
+    await vi.waitFor(() =>
+      expect(api.createLienPartage).toHaveBeenCalledWith(
+        expect.objectContaining({ nom: 'Pour la banque', inclure_budget: true, detenteur_id: null, code: null }),
+      ),
+    )
+  })
+
+  it('révoquer un lien appelle revokeLienPartage puis recharge la liste', async () => {
+    vi.mocked(api.listLiensPartage).mockResolvedValueOnce([lienPartage()]).mockResolvedValue([lienPartage({ revoked_at: '2026-01-02T00:00:00' })])
+    vi.mocked(api.revokeLienPartage).mockResolvedValue(undefined)
+    renderReglages()
+    ouvrirOnglet('Partage')
+    await screen.findByText('Pour la banque')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Révoquer' }))
+
+    await vi.waitFor(() => expect(api.revokeLienPartage).toHaveBeenCalledWith(1))
+    await screen.findByText('révoqué')
   })
 })

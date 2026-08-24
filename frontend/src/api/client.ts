@@ -42,6 +42,10 @@ import type {
   OidcConfigInput,
   OidcStatus,
   ExpositionConsolidee,
+  LienPartage,
+  LienPartageInput,
+  PartageMeta,
+  PartagePayload,
   PatrimoineNet,
   PerformanceSummary,
   Preferences,
@@ -76,12 +80,16 @@ function messageGenerique(status: number, statusText: string): string {
 }
 
 // Routes publiques (Milestone 1, multi-utilisateur) : un 401 y est une erreur de
-// connexion normale (mauvais mot de passe), affichée inline par `LoginPage` — pas
-// une session expirée. Partout ailleurs, un 401 signifie que le jeton stocké n'est
-// plus valide (expiré, ou compte déconnecté d'un autre onglet) : `notifyUnauthorized`
-// prévient `AuthProvider`, qui efface l'état et renvoie vers `/login`.
+// connexion normale (mauvais mot de passe, ou mauvais code de partage — backlog
+// 2.Q.1), affichée inline par `LoginPage`/`PartagePublicPage` — pas une session
+// expirée. Partout ailleurs, un 401 signifie que le jeton stocké n'est plus valide
+// (expiré, ou compte déconnecté d'un autre onglet) : `notifyUnauthorized` prévient
+// `AuthProvider`, qui efface l'état et renvoie vers `/login`. Sans cette exception,
+// un visiteur anonyme qui se trompe de code sur un lien de partage — ou, pire, un
+// propriétaire connecté qui teste son propre lien dans un nouvel onglet — se
+// verrait déconnecté de sa VRAIE session par un 401 qui n'a rien à voir avec elle.
 function estRoutePublique(path: string): boolean {
-  return path.startsWith('/auth/')
+  return path.startsWith('/auth/') || path.startsWith('/partage-public/')
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -229,6 +237,16 @@ export const api = {
   getPatrimoineNet: (detenteurId?: number | null) =>
     request<PatrimoineNet>(`/patrimoine/net${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
   getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
+
+  // Liens de partage révocables (backlog 2.Q.1) : gestion réservée au propriétaire.
+  listLiensPartage: () => request<LienPartage[]>('/partage'),
+  createLienPartage: (input: LienPartageInput) => request<LienPartage>('/partage', { method: 'POST', body: JSON.stringify(input) }),
+  revokeLienPartage: (id: number) => request<void>(`/partage/${id}`, { method: 'DELETE' }),
+  // Consultation publique (aucune authentification) : chemin distinct
+  // `/partage-public/...`, reconnu par `estRoutePublique` ci-dessus.
+  getPartageMeta: (token: string) => request<PartageMeta>(`/partage-public/${token}/meta`),
+  consulterPartage: (token: string, code: string | null) =>
+    request<PartagePayload>(`/partage-public/${token}`, { method: 'POST', body: JSON.stringify({ code }) }),
 
   // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
   listDetenteurs: () => request<Detenteur[]>('/detenteurs'),

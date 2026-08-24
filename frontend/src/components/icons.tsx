@@ -167,6 +167,17 @@ export function IconLienExterne({ className }: IconProps) {
   )
 }
 
+export function IconPartage({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="5" cy="10" r="2.2" />
+      <circle cx="14.5" cy="4.5" r="2.2" />
+      <circle cx="14.5" cy="15.5" r="2.2" />
+      <path d="M7 9 L12.5 5.5 M7 11 L12.5 14.5" />
+    </svg>
+  )
+}
+
 export function IconFlecheGauche({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

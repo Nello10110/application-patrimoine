@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearToken, setToken, setUnauthorizedHandler } from '../auth/tokenStorage'
 import { api } from './client'
 
 // `api.*` passe systématiquement par `request()` : on teste directement via une
@@ -86,5 +87,51 @@ describe('api client — messages d\'erreur (LOT 6.8)', () => {
     mockFetchOnce({ ok: true, status: 200, json: async () => [{ id: 1 }] })
 
     await expect(api.listHoldings()).resolves.toEqual([{ id: 1 }])
+  })
+})
+
+describe('api client — 401 sur une route protégée vs publique (Milestone 1 + backlog 2.Q.1)', () => {
+  const handler = vi.fn()
+
+  beforeEach(() => {
+    setToken('un-jeton-existant')
+    setUnauthorizedHandler(handler)
+    handler.mockClear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    clearToken()
+    setUnauthorizedHandler(null)
+  })
+
+  it('un 401 sur une route protégée efface le jeton et prévient AuthProvider', async () => {
+    mockFetchOnce({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({}) })
+
+    await expect(api.listHoldings()).rejects.toThrow()
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem('patrimoine_auth_token')).toBeNull()
+  })
+
+  it('un 401 sur /auth/login (mauvais mot de passe) ne déconnecte pas la session en cours', async () => {
+    mockFetchOnce({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({ detail: 'Identifiants invalides' }) })
+
+    await expect(api.login('paul', 'mauvais-mot-de-passe')).rejects.toThrow()
+
+    expect(handler).not.toHaveBeenCalled()
+    expect(localStorage.getItem('patrimoine_auth_token')).toBe('un-jeton-existant')
+  })
+
+  it("un 401 sur un lien de partage public (mauvais code) ne déconnecte pas la session en cours", async () => {
+    // Cas réel visé (backlog 2.Q.1) : un propriétaire connecté qui teste son propre
+    // lien de partage dans un nouvel onglet ne doit jamais perdre sa vraie session
+    // parce qu'il s'est trompé de code sur la page publique.
+    mockFetchOnce({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({ detail: 'Code incorrect.' }) })
+
+    await expect(api.consulterPartage('un-token', '0000')).rejects.toThrow('Code incorrect.')
+
+    expect(handler).not.toHaveBeenCalled()
+    expect(localStorage.getItem('patrimoine_auth_token')).toBe('un-jeton-existant')
   })
 })

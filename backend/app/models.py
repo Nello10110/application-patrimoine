@@ -719,3 +719,57 @@ class AccessLogEntry(Base):
     action: Mapped[str] = mapped_column(String)  # "login" | "logout"
     resultat: Mapped[str] = mapped_column(String)  # "succes" | "echec"
     raison: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class LienPartage(Base):
+    """Lien de partage révocable en lecture seule (backlog 2.Q.1) — premier point
+    d'accès PUBLIC de l'application, sans authentification. Surface volontairement
+    restreinte à des sections agrégées (patrimoine net, exposition consolidée,
+    rentabilité, budget, objectifs) : jamais le détail position par position, les
+    transactions, ni les libellés de compte — même un lien deviné/fuité n'expose
+    donc jamais autant qu'un compte `invite` authentifié. Gestion (création/liste/
+    révocation) réservée à `ROLE_PROPRIETAIRE`, comme les autres réglages de
+    sécurité (2.L.2) : un `membre` garde un accès large en lecture/écriture sur les
+    données du foyer mais ne peut pas les exposer publiquement.
+
+    `detenteur_id` (`None` = foyer entier) ne filtre que la section patrimoine net
+    (seul calcul qui le supporte aujourd'hui, cf. `patrimoine_service.compute_patrimoine_net`)
+    — budget/objectifs/exposition consolidée restent toujours vue foyer complète
+    quand activés à côté d'un détenteur, limite assumée et signalée à la création
+    du lien plutôt que silencieuse. `code_hash` (même format `pbkdf2_sha256$...`
+    que `User.password_hash`, cf. `auth_service.hash_password`) : `None` si aucun
+    code n'est exigé pour consulter ce lien."""
+
+    __tablename__ = "liens_partage"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token: Mapped[str] = mapped_column(String, unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    nom: Mapped[str] = mapped_column(String)
+    detenteur_id: Mapped[int | None] = mapped_column(ForeignKey("detenteurs.id"), nullable=True)
+    inclure_patrimoine_net: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    inclure_repartition: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    inclure_performance: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    inclure_budget: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    inclure_objectifs: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    masquer_valeurs: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    code_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class PartageAcces(Base):
+    """Journal des consultations d'un lien de partage public (2.Q.1) — distinct
+    d'`AccessLogEntry` (réservé aux connexions de comptes authentifiés) : alimente
+    le verrouillage temporaire par lien (`services/partage_service.verrouillage_actif`),
+    même mécanique que le verrouillage de connexion mais scopé par lien plutôt que
+    par compte, puisqu'un lien public n'a pas d'identifiant utilisateur à verrouiller."""
+
+    __tablename__ = "partage_acces"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lien_id: Mapped[int] = mapped_column(ForeignKey("liens_partage.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    ip: Mapped[str | None] = mapped_column(String, nullable=True)
+    resultat: Mapped[str] = mapped_column(String)  # "succes" | "code_incorrect" | "verrouille"

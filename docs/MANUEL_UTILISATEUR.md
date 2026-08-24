@@ -270,6 +270,21 @@ Section visible uniquement par le propriétaire du compte.
 
 Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule). Un quatrième bouton télécharge un **relevé de patrimoine au format PDF** : une photographie mise en forme (patrimoine net, répartition par classe d'actif, rentabilité globale, répartition par compte), prête à imprimer ou archiver.
 
+### Liens de partage
+
+Section visible uniquement par le propriétaire du compte — un membre du foyer ne peut pas créer de lien, même s'il peut par ailleurs saisir des positions et des emprunts.
+
+Un lien de partage donne à un tiers (une banque pour un prêt, un notaire, un membre de la famille) une page en lecture seule, accessible sans aucun compte ni mot de passe sur l'application — juste l'URL. Pour créer un lien :
+
+- **Nom** : un repère pour s'y retrouver soi-même dans la liste (« Pour la banque », par exemple) — jamais affiché tel quel comme titre de la page publique, seulement dans cette liste de gestion.
+- **Détenteur** : par défaut, le foyer entier. Restreindre à une personne ne filtre que le patrimoine net — budget, exposition consolidée et objectifs restent affichés pour tout le foyer si activés en même temps qu'un détenteur, un avertissement le rappelle dans le formulaire.
+- **Durée** : entre 1 et 365 jours ; passé ce délai, le lien cesse de fonctionner de lui-même, sans action à faire.
+- **Code d'accès** : optionnel. S'il est renseigné, le visiteur doit le saisir avant de voir quoi que ce soit ; 5 codes incorrects verrouillent temporairement la consultation de ce lien précis pendant 15 minutes.
+- **Sections à inclure** : Patrimoine net, Exposition consolidée, Rentabilité, Budget, Objectifs — chacune indépendante des autres. Ce que l'application montre reste volontairement limité à des chiffres globaux : jamais la liste des positions ligne par ligne, jamais les transactions, jamais les libellés de compte.
+- **Masquer les montants** : remplace chaque montant par son pourcentage dans la répartition — la forme reste visible (« 60 % en immobilier »), pas l'échelle en euros.
+
+Chaque lien créé apparaît dans la liste avec son URL complète (à copier-coller), un badge s'il est révoqué, expiré, ou protégé par un code. **Révoquer** coupe l'accès immédiatement et définitivement — le visiteur qui rouvre le lien voit un message d'indisponibilité, sans plus de détail (impossible de deviner si le lien a expiré, a été révoqué, ou n'a jamais existé).
+
 ## Écran Aide
 
 Pense-bête pour un débutant, sans lien avec les données personnelles du portefeuille (rien n'y dépend d'une position en particulier) :

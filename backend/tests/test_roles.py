@@ -97,6 +97,10 @@ def test_membre_refuse_sur_les_objectifs_et_detenteurs(client_reel):
     assert client_reel.get("/api/targets/2026", headers=_en_tete(token_membre)).status_code == 403
     assert client_reel.get("/api/detenteurs", headers=_en_tete(token_membre)).status_code == 403
     assert client_reel.get("/api/settings/jobs", headers=_en_tete(token_membre)).status_code == 403
+    # Un membre garde un accès large en lecture/écriture sur les données du foyer
+    # mais ne peut pas les exposer publiquement (backlog 2.Q.1).
+    assert client_reel.get("/api/partage", headers=_en_tete(token_membre)).status_code == 403
+    assert client_reel.post("/api/partage", json={"nom": "Test"}, headers=_en_tete(token_membre)).status_code == 403
 
 
 def test_second_foyer_isole(db_vide, client_reel):
@@ -206,3 +210,18 @@ def test_proprietaire_et_membre_accedent_a_exposition_consolidee(client_reel):
 
     assert client_reel.get("/api/patrimoine/exposition-consolidee", headers=_en_tete(token_proprio)).status_code == 200
     assert client_reel.get("/api/patrimoine/exposition-consolidee", headers=_en_tete(token_membre)).status_code == 200
+
+
+def test_lien_de_partage_public_consultable_sans_aucun_jeton(client_reel):
+    """Backlog 2.Q.1 : la consultation publique d'un lien de partage fonctionne
+    RÉELLEMENT sans en-tête `Authorization` (pas seulement via l'override de test
+    `get_current_user` des autres fichiers, qui ne prouverait rien ici puisque ce
+    routeur ne dépend même pas de cette dépendance)."""
+    token_proprio = _fonder_foyer(client_reel)
+    token = client_reel.post("/api/partage", json={"nom": "Public"}, headers=_en_tete(token_proprio)).json()["token"]
+
+    meta = client_reel.get(f"/api/partage-public/{token}/meta")
+    consultation = client_reel.post(f"/api/partage-public/{token}", json={})
+
+    assert meta.status_code == 200
+    assert consultation.status_code == 200

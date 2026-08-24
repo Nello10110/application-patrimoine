@@ -35,7 +35,8 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements de la période |
 | Import | `/import` | Import de l'historique de transactions, d'un relevé de positions, ou de mouvements bancaires (CSV mappé, OFX, QIF — backlog § 2.N.1) pour l'écran Budget |
-| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV et relevé de patrimoine PDF |
+| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV et relevé de patrimoine PDF, gestion des liens de partage (onglet Partage, backlog § 2.Q.1) |
+| Partage public | `/partage/:token` | Consultation PUBLIQUE (aucune authentification, backlog § 2.Q.1) d'un lien de partage — sections agrégées choisies par le propriétaire, code optionnel |
 
 Un bouton dans l'en-tête bascule le thème clair/sombre (ou suit le système), sur tous les écrans.
 
@@ -371,6 +372,43 @@ Répartition, avant la comparaison objectifs vs réel.
 - Ouvert propriétaire+membre ; hors du périmètre invité (§ 3.11, seuls Patrimoine net/Portefeuille/
   Emprunts le sont).
 
+### 3.21 Lien de partage révocable (backlog § 2.Q.1)
+
+Premier point d'accès **public** de toute l'application (aucune authentification) : un lien anonyme,
+révocable à tout moment, donnant à un tiers (banque, notaire, famille) une vue en lecture seule d'un
+sous-ensemble du patrimoine. Gestion (création/liste/révocation) réservée à `ROLE_PROPRIETAIRE`
+(`POST`/`GET`/`DELETE /api/partage`, `services/partage_service.py`) — un membre garde un accès large
+en lecture/écriture sur les données du foyer mais ne peut pas les exposer publiquement.
+
+- **Sections activables indépendamment** : patrimoine net (§ 3.11), exposition consolidée (§ 3.20),
+  rentabilité (§ 3.5), budget (mois en cours, § 3.18), objectifs (§ 3.19). Réutilisent telles quelles
+  les fonctions de calcul déjà servies aux écrans authentifiés — jamais de duplication de logique
+  métier, seulement une conversion vers des schémas dédiés au partage.
+- **Surface volontairement restreinte** : jamais le détail position par position, les transactions, ni
+  les libellés de compte — même un lien deviné/fuité n'expose donc jamais autant qu'un compte
+  `invite` authentifié.
+- **`masquer_valeurs`** convertit chaque montant en pourcentage plutôt que de l'omettre
+  silencieusement (la forme de la répartition reste visible, jamais son échelle) ; les ratios déjà
+  relatifs (rendement, concentration) ne sont jamais masqués.
+- **`detenteur_id`** ne filtre que la section patrimoine net (seul calcul qui le supporte
+  aujourd'hui, § 3.11) — budget/objectifs/exposition consolidée restent vue foyer complète si activés
+  à côté d'un détenteur, limite assumée et signalée à la création du lien.
+- **Code d'accès optionnel** : même hachage `pbkdf2_sha256` que les mots de passe
+  (`auth_service.hash_password`). Verrouillage temporaire par LIEN (pas par compte, un lien public
+  n'en a pas) après 5 échecs en 15 minutes glissantes — même mécanique que le verrouillage de
+  connexion (§ 3.11/2.L.2), nouvelle table `partage_acces` plutôt que `access_log_entries`.
+- **`GET /api/partage-public/{token}/meta`** (code requis ou non, nom du lien) et
+  **`POST /api/partage-public/{token}`** (`{code}` → charge utile complète) : routeur séparé
+  (`routers/partage_public.py`), enregistré sans aucune dépendance d'authentification dans `main.py`
+  — jamais via `_protegee`/`_proprietaire_seul`, pour qu'aucun garde-fou ne puisse s'y glisser par
+  erreur au fil des évolutions futures. Réponse identique (404) pour un jeton absent, expiré, ou
+  révoqué — jamais de distinction qui laisserait deviner lequel des trois s'applique.
+- Frontend : route publique `/partage/:token`, montée en dehors d'`AuthProvider`/
+  `PreferencesAffichageProvider` (`App.tsx`) — aucun composant de cette page ne dépend de ces
+  contextes, un visiteur sans jeton y accède normalement. Un `401` sur `/api/partage-public/*`
+  (mauvais code) n'invalide jamais la session d'un propriétaire déjà connecté qui testerait son
+  propre lien dans un nouvel onglet (même exemption que `/api/auth/*` dans `api/client.ts`).
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
@@ -389,6 +427,8 @@ Répartition, avant la comparaison objectifs vs réel.
 | `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |
 | `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, seuil d'alerte), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
 | `historique_cache` | Cache persistant (24 h) des séries d'historique de prix coûteuses à recalculer (ligne et portefeuille), cf. § 3.9 |
+| `liens_partage` | Liens de partage révocables (§ 3.21, backlog 2.Q.1) : jeton opaque, sections activées, code haché optionnel, expiration, révocation |
+| `partage_acces` | Journal des consultations d'un lien de partage public (§ 3.21) — alimente le verrouillage temporaire par lien |
 
 Aucune vraie clé étrangère : les relations se font par correspondance de `ticker` (identifiant ISIN/symbole), car `holdings` (les lignes d'origine `reconstruit`) est entièrement reconstructible depuis `transactions`. Toute évolution de ce modèle est appliquée automatiquement au démarrage par des migrations non destructives (`ALTER TABLE ADD COLUMN`, `CREATE UNIQUE INDEX`) — voir `MANUEL_EXPLOITATION.md`.
 

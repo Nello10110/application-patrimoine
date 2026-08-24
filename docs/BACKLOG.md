@@ -1495,7 +1495,7 @@ au lieu d'être abandonnée entièrement à cause de sa partie la moins fiable.
 
 ### Q. Partage et restitution (nouveau, 21/08/2026)
 
-#### Q.1 — `mineur` · `M` · `P2` · `non traité` — Lien de partage révocable
+#### Q.1 — `mineur` · `M` · `P2` · `traité` (25/08/2026) — Lien de partage révocable
 
 Remplace et précise le § G.1, jusqu'ici bloqué faute d'authentification — le lot L la débloque. Le
 modèle de Finary est bon, on le reprend tel quel :
@@ -1505,6 +1505,40 @@ modèle de Finary est bon, on le reprend tel quel :
 - Interrupteurs : partager le budget, partager les objectifs, **masquer les valeurs et les
   quantités** (ne montrer que les proportions), **exiger un code**.
 - Lecture seule stricte, journalisée.
+
+**Livré et vérifié le 25/08/2026.** Premier point d'accès **public** (sans authentification) de
+toute l'application — traité avec la même discipline que L.2 (rôles/verrouillage), dont il réutilise
+directement les briques : hachage `pbkdf2_sha256` du code (`auth_service.hash_password`,
+`LienPartage.code_hash`) et verrouillage temporaire par lien après 5 échecs en 15 minutes (nouvelle
+table `partage_acces`, même mécanique que `AccessLogEntry`/`verrouillage_actif` mais scopée par lien
+plutôt que par compte). Deux routeurs délibérément séparés : `routers/partage.py` (gestion,
+réservée `ROLE_PROPRIETAIRE` — un membre garde un accès large en lecture/écriture sur les données du
+foyer mais ne peut pas les exposer publiquement) et `routers/partage_public.py` (consultation, aucune
+dépendance d'authentification), pour qu'aucun garde-fou ne puisse s'y glisser par erreur au fil des
+évolutions futures.
+
+**Surface volontairement restreinte à des sections agrégées** — patrimoine net, exposition
+consolidée (2.P.1), rentabilité, budget (mois en cours), objectifs — jamais le détail position par
+position, les transactions, ni les libellés de compte : même un lien deviné/fuité n'expose donc
+jamais autant qu'un compte `invite` authentifié. `masquer_valeurs` convertit chaque montant en
+pourcentage plutôt que de l'omettre silencieusement (la forme de la répartition reste visible,
+jamais son échelle) ; les ratios/pourcentages déjà relatifs (rendement, concentration) ne sont
+jamais masqués, ce ne sont ni des valeurs ni des quantités. `detenteur_id` ne filtre que la section
+patrimoine net (seul calcul qui le supporte aujourd'hui) — budget/objectifs/exposition consolidée
+restent vue foyer complète si activés à côté d'un détenteur, limite assumée et signalée dans
+l'interface de création plutôt que silencieuse.
+
+Frontend : nouvelle route publique `/partage/:token`, montée en dehors d'`AuthProvider`/
+`PreferencesAffichageProvider` dans `App.tsx` (aucun composant de cette page ne dépend de ces
+contextes) — un visiteur sans jeton y accède normalement. `api/client.ts` : les échecs `401` sur
+`/partage-public/*` (mauvais code) n'invalident plus la session d'un propriétaire déjà connecté qui
+testerait son propre lien dans un nouvel onglet (même exemption déjà en place pour `/auth/*`).
+Gestion des liens depuis un nouvel onglet « Partage » de Réglages.
+
+Vérifié en conditions réelles et par les tests (33 tests service/routeur + tests de rôles) : création/
+liste/révocation par le propriétaire, 403 pour un membre, consultation publique sans aucun jeton
+(vrai flux HTTP, pas seulement l'override de test), verrouillage après 5 codes incorrects, aucune
+fuite de ticker individuel dans la charge publique.
 
 #### Q.2 — `mineur` · `M` · `P2` · `non traité` — Déclaration de patrimoine
 

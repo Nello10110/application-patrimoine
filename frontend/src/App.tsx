@@ -22,6 +22,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const DividendesPage = lazy(() => import('./pages/DividendesPage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('./pages/ImportPage'))
+const PartagePublicPage = lazy(() => import('./pages/PartagePublicPage'))
 const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
 const RapportPage = lazy(() => import('./pages/RapportPage'))
 const RepartitionPage = lazy(() => import('./pages/RepartitionPage'))
@@ -105,11 +106,26 @@ function AppAuthentifiee() {
   )
 }
 
+// `/partage/:token` (backlog 2.Q.1) est une page PUBLIQUE, consultée par un
+// visiteur anonyme sans compte : montée en dehors d'`AuthProvider`, jamais
+// derrière l'écran de connexion — sinon un visiteur sans jeton n'y accéderait
+// jamais. `Suspense` dédié : `AppAuthentifiee` (ci-dessus) n'est pas montée sur
+// cette route, donc son propre `Suspense` ne la couvre pas.
 function App() {
   return (
-    <AuthProvider>
-      <AppAuthentifiee />
-    </AuthProvider>
+    <Suspense fallback={<p className="p-6 text-sm text-texte-attenue">Chargement...</p>}>
+      <Routes>
+        <Route path="/partage/:token" element={<PartagePublicPage />} />
+        <Route
+          path="/*"
+          element={
+            <AuthProvider>
+              <AppAuthentifiee />
+            </AuthProvider>
+          }
+        />
+      </Routes>
+    </Suspense>
   )
 }
 

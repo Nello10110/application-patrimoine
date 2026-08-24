@@ -14,7 +14,7 @@ from .auth import get_current_user, require_role
 from .database import SessionLocal, upgrade_schema
 from .logging_config import configure_logging
 from .models import ROLE_MEMBRE, ROLE_PROPRIETAIRE
-from .routers import analysis, auth, budget, detenteurs, export, loans, market_data, objectifs, patrimoine, performance, portfolio, reference, settings, targets, transactions
+from .routers import analysis, auth, budget, detenteurs, export, loans, market_data, objectifs, partage, partage_public, patrimoine, performance, portfolio, reference, settings, targets, transactions
 from .services import scheduler_service, startup_maintenance
 
 configure_logging()
@@ -76,6 +76,10 @@ async def gestion_erreurs_validation(request: Request, exc: RequestValidationErr
 
 
 app.include_router(auth.router)
+# Consultation d'un lien de partage (backlog 2.Q.1) : aucune authentification,
+# comme `auth.router` — la protection de cette route est le jeton opaque dans
+# l'URL (et le code optionnel), jamais un compte connecté.
+app.include_router(partage_public.router)
 
 # Protégées : toutes exigent un jeton valide (Milestone 1). Au-delà de la simple
 # authentification, les rôles (backlog 2.L.2) restreignent certains routeurs
@@ -102,6 +106,7 @@ app.include_router(patrimoine.router, dependencies=_protegee)
 app.include_router(detenteurs.router, dependencies=_proprietaire_seul)
 app.include_router(budget.router, dependencies=_pas_invite)
 app.include_router(objectifs.router, dependencies=_proprietaire_seul)
+app.include_router(partage.router, dependencies=_proprietaire_seul)
 
 
 @app.get("/api/health")
