@@ -850,6 +850,10 @@ class UserOut(BaseModel):
     id: int
     username: str
     role: str
+    # Métadonnées d'affichage pures (backlog SSO, claim mapping) — `None` pour un
+    # compte mot de passe local, jamais utilisées pour l'authentification.
+    email: str | None = None
+    nom: str | None = None
 
 
 class AuthResponse(BaseModel):
@@ -859,6 +863,9 @@ class AuthResponse(BaseModel):
 
 class OidcStatus(BaseModel):
     enabled: bool
+    # Texte choisi par le propriétaire pour le bouton de connexion (Réglages) — jamais
+    # un nom de fournisseur figé dans le code, cf. `oidc_service.DISPLAY_NAME_PAR_DEFAUT`.
+    display_name: str = "SSO"
 
 
 MESSAGE_CHAMP_OIDC_VIDE = "Ce champ ne peut pas être vide."
@@ -871,6 +878,11 @@ class OidcConfigOut(BaseModel):
     frontend_url: str | None
     secret_configure: bool
     cle_chiffrement_definie: bool
+    enabled: bool
+    display_name: str
+    claim_username: str
+    claim_email: str
+    claim_nom: str
 
 
 class OidcConfigUpdate(BaseModel):
@@ -879,6 +891,11 @@ class OidcConfigUpdate(BaseModel):
     redirect_uri: str
     frontend_url: str
     client_secret: str | None = None
+    enabled: bool = True
+    display_name: str | None = None
+    claim_username: str | None = None
+    claim_email: str | None = None
+    claim_nom: str | None = None
 
     @field_validator("issuer", "client_id", "redirect_uri", "frontend_url")
     @classmethod
@@ -952,3 +969,5 @@ class HouseholdMemberOut(BaseModel):
     role: str
     created_at: datetime
     detenteur_ids: list[int] = []
+    email: str | None = None
+    nom: str | None = None

@@ -155,6 +155,66 @@ def test_effacer_config_supprime_tout(db, config_oidc):
     assert oidc_service.config_admin(db)["secret_configure"] is False
 
 
+# --- Coche d'activation ------------------------------------------------------------
+
+
+def test_charger_config_none_si_desactivee(db, cle_chiffrement):
+    oidc_service.enregistrer_config(
+        db, issuer=ISSUER, client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI, frontend_url=FRONTEND_URL, enabled=False
+    )
+
+    assert oidc_service.charger_config(db) is None
+    assert oidc_service.enabled(db) is False
+
+
+def test_config_admin_reflete_enabled_meme_desactivee(db, cle_chiffrement):
+    oidc_service.enregistrer_config(
+        db, issuer=ISSUER, client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI, frontend_url=FRONTEND_URL, enabled=False
+    )
+
+    admin = oidc_service.config_admin(db)
+
+    assert admin["enabled"] is False
+    assert admin["issuer"] == ISSUER  # les autres champs restent visibles/éditables
+
+
+def test_enregistrer_config_active_par_defaut(db, config_oidc):
+    assert oidc_service.config_admin(db)["enabled"] is True
+
+
+# --- Générisation : display_name + valeurs par défaut du mapping des claims --------
+
+
+def test_config_admin_valeurs_par_defaut_si_non_personnalisees(db, config_oidc):
+    admin = oidc_service.config_admin(db)
+
+    assert admin["display_name"] == oidc_service.DISPLAY_NAME_PAR_DEFAUT
+    assert admin["claim_username"] == oidc_service.CLAIM_USERNAME_PAR_DEFAUT
+    assert admin["claim_email"] == oidc_service.CLAIM_EMAIL_PAR_DEFAUT
+    assert admin["claim_nom"] == oidc_service.CLAIM_NOM_PAR_DEFAUT
+
+
+def test_enregistrer_config_personnalise_display_name_et_claims(db, cle_chiffrement):
+    oidc_service.enregistrer_config(
+        db,
+        issuer=ISSUER,
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri=REDIRECT_URI,
+        frontend_url=FRONTEND_URL,
+        display_name="Authentik",
+        claim_username="upn",
+        claim_email="mail",
+        claim_nom="display_name",
+    )
+
+    config = oidc_service.charger_config(db)
+    assert config.display_name == "Authentik"
+    assert config.claim_username == "upn"
+    assert config.claim_email == "mail"
+    assert config.claim_nom == "display_name"
+
+
 # --- PKCE ----------------------------------------------------------------------
 
 
@@ -333,7 +393,41 @@ def test_recuperer_identite_sans_sub_leve(config_oidc, monkeypatch):
         oidc_service.recuperer_identite(config_oidc, "at-123")
 
 
+# --- Nom d'utilisateur dérivé des claims (mapping configurable) --------------------
+
+
+def test_nom_utilisateur_utilise_le_claim_configure():
+    resultat = oidc_service._nom_utilisateur_depuis_claims({"upn": "alice.upn", "preferred_username": "alice.pu"}, "upn")
+
+    assert resultat == "alice.upn"
+
+
+def test_nom_utilisateur_repli_sur_email_si_claim_configure_absent():
+    resultat = oidc_service._nom_utilisateur_depuis_claims({"email": "carole@example.com"}, "preferred_username")
+
+    assert resultat == "carole"
+
+
 # --- Résolution / provisioning de compte ------------------------------------------
+
+
+def config_defaut(**overrides) -> "oidc_service.OidcConfig":
+    """`OidcConfig` minimal pour les tests de résolution/provisioning — ces tests
+    n'appellent jamais le réseau (`echanger_code`/`recuperer_identite`), seules
+    `claim_username`/`claim_email`/`claim_nom` (mapping) importent réellement ici."""
+    valeurs = dict(
+        issuer=ISSUER,
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri=REDIRECT_URI,
+        frontend_url=FRONTEND_URL,
+        display_name=oidc_service.DISPLAY_NAME_PAR_DEFAUT,
+        claim_username=oidc_service.CLAIM_USERNAME_PAR_DEFAUT,
+        claim_email=oidc_service.CLAIM_EMAIL_PAR_DEFAUT,
+        claim_nom=oidc_service.CLAIM_NOM_PAR_DEFAUT,
+    )
+    valeurs.update(overrides)
+    return oidc_service.OidcConfig(**valeurs)
 
 
 @pytest.fixture
@@ -352,7 +446,7 @@ def test_oidc_subject_deja_lie_renvoie_le_meme_compte(db_vide):
     db_vide.commit()
     db_vide.refresh(existant)
 
-    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, {"sub": "sub-123", "preferred_username": "alice"})
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-123", "preferred_username": "alice"})
 
     assert resultat.id == existant.id
     assert db_vide.query(User).count() == 1
@@ -364,11 +458,11 @@ def test_lie_un_compte_local_existant_non_encore_lie(db_vide):
     db_vide.commit()
     db_vide.refresh(compte_local)
 
-    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, {"sub": "sub-nouveau", "preferred_username": "alice"})
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-nouveau", "preferred_username": "alice"})
 
     assert resultat.id == compte_local.id
     assert resultat.oidc_subject == "sub-nouveau"
-    # Le mot de passe existant reste utilisable : Authentik s'AJOUTE, ne remplace rien.
+    # Le mot de passe existant reste utilisable : le SSO s'AJOUTE, ne remplace rien.
     assert resultat.password_hash == "pbkdf2_sha256$1$sel$hash"
     assert resultat.role == ROLE_PROPRIETAIRE
     assert db_vide.query(User).count() == 1
@@ -377,7 +471,7 @@ def test_lie_un_compte_local_existant_non_encore_lie(db_vide):
 def test_premier_login_oidc_sur_base_vide_devient_proprietaire(db_vide):
     assert db_vide.query(User).count() == 0
 
-    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, {"sub": "sub-1", "preferred_username": "alice"})
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-1", "preferred_username": "alice"})
 
     assert resultat.role == ROLE_PROPRIETAIRE
     assert resultat.oidc_subject == "sub-1"
@@ -391,7 +485,7 @@ def test_login_oidc_suivant_devient_membre_rattache_au_foyer_du_proprietaire(db_
     db_vide.commit()
     db_vide.refresh(proprietaire)
 
-    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, {"sub": "sub-2", "preferred_username": "bob"})
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-2", "preferred_username": "bob"})
 
     assert resultat.role == ROLE_MEMBRE
     assert resultat.username == "bob"
@@ -401,13 +495,13 @@ def test_login_oidc_suivant_devient_membre_rattache_au_foyer_du_proprietaire(db_
 
 
 def test_provisioning_deduplique_le_nom_utilisateur_en_collision(db_vide):
-    # "bob" existe déjà, mais lié à une AUTRE identité Authentik (donc pas de lien
+    # "bob" existe déjà, mais lié à une AUTRE identité SSO (donc pas de lien
     # possible) : le nouveau compte doit prendre un nom distinct plutôt qu'échouer
     # sur la contrainte d'unicité, ou pire, se lier au mauvais compte.
     db_vide.add(User(username="bob", password_hash=None, oidc_subject="sub-autre-personne", role=ROLE_MEMBRE))
     db_vide.commit()
 
-    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, {"sub": "sub-3", "preferred_username": "bob"})
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-3", "preferred_username": "bob"})
 
     assert resultat.username != "bob"
     assert resultat.username.startswith("bob-")
@@ -415,6 +509,63 @@ def test_provisioning_deduplique_le_nom_utilisateur_en_collision(db_vide):
 
 
 def test_provisioning_repli_sur_email_si_pas_de_preferred_username(db_vide):
-    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, {"sub": "sub-4", "email": "carole@example.com"})
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config_defaut(), {"sub": "sub-4", "email": "carole@example.com"})
 
     assert resultat.username == "carole"
+
+
+# --- Claim mapping : email/nom (backlog SSO) ----------------------------------------
+
+
+def test_provisioning_peuple_email_et_nom_depuis_les_claims_mappes(db_vide):
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(
+        db_vide, config_defaut(), {"sub": "sub-5", "preferred_username": "dave", "email": "dave@example.com", "name": "Dave Dupont"}
+    )
+
+    assert resultat.email == "dave@example.com"
+    assert resultat.nom == "Dave Dupont"
+
+
+def test_provisioning_avec_claim_mapping_personnalise(db_vide):
+    config = config_defaut(claim_username="upn", claim_email="mail", claim_nom="display_name")
+
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(
+        db_vide, config, {"sub": "sub-6", "upn": "eve", "mail": "eve@example.com", "display_name": "Eve Martin"}
+    )
+
+    assert resultat.username == "eve"
+    assert resultat.email == "eve@example.com"
+    assert resultat.nom == "Eve Martin"
+
+
+def test_reconnexion_resynchronise_email_et_nom_mais_jamais_username(db_vide):
+    config = config_defaut()
+    premier = oidc_service.resoudre_ou_provisionner_utilisateur(
+        db_vide, config, {"sub": "sub-7", "preferred_username": "frank", "email": "frank@example.com", "name": "Frank"}
+    )
+    assert premier.username == "frank"
+
+    # Reconnexion avec un `preferred_username` ET un nom/email différents côté IdP.
+    second = oidc_service.resoudre_ou_provisionner_utilisateur(
+        db_vide, config, {"sub": "sub-7", "preferred_username": "frank.nouveau", "email": "frank.nouveau@example.com", "name": "Frank N."}
+    )
+
+    assert second.id == premier.id
+    assert second.username == "frank"  # jamais réécrit après la création
+    assert second.email == "frank.nouveau@example.com"  # resynchronisé
+    assert second.nom == "Frank N."  # resynchronisé
+    assert db_vide.query(User).count() == 1
+
+
+def test_reconnexion_claim_absent_ne_supprime_pas_une_valeur_deja_connue(db_vide):
+    config = config_defaut()
+    oidc_service.resoudre_ou_provisionner_utilisateur(
+        db_vide, config, {"sub": "sub-8", "preferred_username": "gabi", "email": "gabi@example.com", "name": "Gabi"}
+    )
+
+    # Reconnexion sans les claims email/name (scope momentanément refusé, IdP mal
+    # configuré...) : ne doit pas effacer ce qui est déjà connu.
+    resultat = oidc_service.resoudre_ou_provisionner_utilisateur(db_vide, config, {"sub": "sub-8", "preferred_username": "gabi"})
+
+    assert resultat.email == "gabi@example.com"
+    assert resultat.nom == "Gabi"

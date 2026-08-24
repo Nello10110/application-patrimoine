@@ -47,6 +47,10 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
 
   if (!user) return null
   const initiale = user.username.trim().charAt(0).toUpperCase() || '?'
+  // Nom affiché (backlog SSO, claim mapping) : `nom` s'il est renseigné (compte SSO
+  // avec un claim mappé), sinon le `username` — jamais l'inverse. L'avatar (initiale
+  // + couleur) reste dérivé de `username`, seul champ stable et toujours présent.
+  const nomAffiche = user.nom || user.username
 
   return (
     <div ref={conteneurRef} className="relative">
@@ -64,7 +68,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
         >
           {initiale}
         </span>
-        {!compact && <span className="truncate">{user.username}</span>}
+        {!compact && <span className="truncate">{nomAffiche}</span>}
       </button>
 
       {ouvert && (
@@ -73,7 +77,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
           aria-label="Menu du compte"
           className="absolute bottom-full left-0 z-10 mb-2 w-56 rounded-lg border border-bordure bg-surface p-1.5 shadow-lg"
         >
-          <p className="px-2.5 py-1.5 text-xs font-medium uppercase tracking-wide text-texte-attenue">{user.username}</p>
+          <p className="px-2.5 py-1.5 text-xs font-medium uppercase tracking-wide text-texte-attenue">{nomAffiche}</p>
 
           {routesDuRang('administration', user.role).map((r) => {
             const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined

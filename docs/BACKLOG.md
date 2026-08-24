@@ -1031,9 +1031,28 @@ seuls) : un compte `membre` auto-provisionné ne recevait jamais de `owner_user_
 propre foyer vide au lieu de rejoindre le patrimoine partagé du propriétaire déjà en place — corrigé
 avant toute mise en production, verrouillé par test.
 
+**Complété le 24/08/2026** (retours utilisateur sur la livraison précédente) : (1) coche **Activée**
+indépendante de « configuré » — désactiver le SSO masque le bouton et fait renvoyer `404` par
+`/oidc/login`/`/oidc/callback` sans effacer la configuration déjà saisie, re-cochable à tout moment ;
+(2) **générisation** — la fonctionnalité et son texte produit ne nomment plus Authentik en dur
+(« Connexion SSO (OIDC) », messages d'erreur génériques), Authentik ne reste que comme exemple concret
+dans la documentation ; un champ **Nom affiché** (`display_name`, défaut « SSO ») laisse le propriétaire
+choisir le texte du bouton (ex. « Authentik » s'il le souhaite) ; (3) **mapping des claims** — 3 champs
+configurables (nom d'utilisateur/email/nom affiché ← quel claim OIDC), défauts
+`preferred_username`/`email`/`name` (claims standard) ; `User` gagne deux vraies colonnes `email`/`nom`
+(migration Alembic), resynchronisées à **chaque** connexion SSO — sauf `username`, jamais réécrit après
+la création (identifiant de connexion unique, décision volontaire documentée dans le code et le manuel
+d'exploitation). Vérifié en conditions réelles (backend isolé + faux serveur Authentik, base séparée de
+la vraie base applicative) : flux complet redirection → échange de code → provisioning fonctionnel avec
+`display_name` personnalisé ; désactivation/réactivation sans perte de configuration (`secret_configure`
+resté `true`) ; reconnexion avec un `preferred_username` différent → `username` local inchangé,
+`email`/`nom` resynchronisés ; claim mappé absent de la réponse de l'IdP → valeur déjà connue conservée
+(pas d'écrasement par une valeur vide). Suite backend complète (559 tests) et frontend (246 tests,
+`tsc -b --noEmit` propre) au vert.
+
 **Reste à faire par l'utilisateur** : créer le Provider/Application OAuth2 dédié côté Authentik
 (indépendant du proxy provider existant — cf. `docs/MANUEL_EXPLOITATION.md` § 12.1) et renseigner ces
-5 valeurs depuis Réglages, puis définir `PATRIMOINE_SECRET_KEY` sur son serveur — seules étapes non
+valeurs depuis Réglages, puis définir `PATRIMOINE_SECRET_KEY` sur son serveur — seules étapes non
 simulables ici.
 
 ---

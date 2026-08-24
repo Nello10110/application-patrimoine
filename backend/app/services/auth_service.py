@@ -72,12 +72,31 @@ def creer_utilisateur(db: Session, username: str, password: str, *, role: str = 
     return user
 
 
-def creer_utilisateur_oidc(db: Session, username: str, oidc_subject: str, *, role: str = ROLE_PROPRIETAIRE, owner_user_id: int | None = None) -> User:
-    """Miroir de `creer_utilisateur` pour un compte provisionné via Authentik (SSO) —
+def creer_utilisateur_oidc(
+    db: Session,
+    username: str,
+    oidc_subject: str,
+    *,
+    role: str = ROLE_PROPRIETAIRE,
+    owner_user_id: int | None = None,
+    email: str | None = None,
+    nom: str | None = None,
+) -> User:
+    """Miroir de `creer_utilisateur` pour un compte provisionné via SSO (OIDC) —
     `password_hash=None` : ce compte ne peut jamais se connecter par mot de passe,
     seulement via `oidc_subject` (cf. `POST /api/auth/login`, qui refuse explicitement
-    un mot de passe sur un compte sans hash)."""
-    user = User(username=username.strip(), password_hash=None, oidc_subject=oidc_subject, role=role, owner_user_id=owner_user_id)
+    un mot de passe sur un compte sans hash). `email`/`nom` : métadonnées d'affichage
+    issues du claim mapping (cf. `services/oidc_service.py`), jamais utilisées pour
+    l'authentification."""
+    user = User(
+        username=username.strip(),
+        password_hash=None,
+        oidc_subject=oidc_subject,
+        role=role,
+        owner_user_id=owner_user_id,
+        email=email,
+        nom=nom,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -88,8 +107,21 @@ def utilisateur_par_oidc_subject(db: Session, oidc_subject: str) -> User | None:
     return db.query(User).filter(User.oidc_subject == oidc_subject).first()
 
 
+def mettre_a_jour_profil_oidc(db: Session, user: User, *, email: str | None, nom: str | None) -> None:
+    """Resynchronise `email`/`nom` à chaque connexion SSO (backlog SSO, claim
+    mapping) — jamais `username`, qui reste l'identifiant de connexion figé après sa
+    création (cf. docstring de `User`). `None` n'efface pas une valeur déjà connue :
+    un claim absent d'une connexion donnée (IdP mal configuré momentanément, scope
+    refusé...) ne doit pas faire disparaître une métadonnée déjà correcte."""
+    if email:
+        user.email = email
+    if nom:
+        user.nom = nom
+    db.commit()
+
+
 def lier_oidc(db: Session, user: User, oidc_subject: str) -> None:
-    """Ajoute Authentik comme second moyen de connexion à un compte déjà créé à la
+    """Ajoute le SSO comme second moyen de connexion à un compte déjà créé à la
     main (même `username`) — le mot de passe existant, s'il y en a un, reste utilisable
     tel quel : lier ne retire jamais un moyen de connexion, seulement en ajoute un."""
     user.oidc_subject = oidc_subject

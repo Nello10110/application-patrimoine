@@ -416,23 +416,31 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Pseudo, pas une adresse email (LOT multi-utilisateur suite) : plus simple à
-    # retenir/afficher (avatar+nom en haut à droite de l'écran) pour une appli locale
-    # entre quelques comptes d'un même foyer, où aucune fonctionnalité (récupération
-    # de mot de passe par email...) n'a jamais dépendu du format email.
+    # Pseudo, pas une adresse email (LOT multi-utilisateur suite) : reste le seul
+    # IDENTIFIANT DE CONNEXION (mot de passe local ET SSO) — plus simple à retenir/
+    # afficher pour une appli locale entre quelques comptes d'un même foyer, où
+    # aucune fonctionnalité (récupération de mot de passe par email...) n'a jamais
+    # dépendu du format email. `email`/`nom` ci-dessous sont de pures métadonnées
+    # d'affichage (backlog SSO — claim mapping), jamais utilisées pour se connecter.
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     # Format `pbkdf2_sha256$<iterations>$<sel>$<hash>` (cf. `services/auth_service.py`) :
     # le nombre d'itérations est stocké dans le hash lui-même, pour pouvoir l'augmenter
     # plus tard sans invalider les mots de passe déjà enregistrés. `None` pour un
-    # compte purement SSO (backlog SSO Authentik) : pas de mot de passe local
-    # utilisable, `POST /api/auth/login` le refuse explicitement dans ce cas.
+    # compte purement SSO (backlog SSO) : pas de mot de passe local utilisable,
+    # `POST /api/auth/login` le refuse explicitement dans ce cas.
     password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, default=ROLE_PROPRIETAIRE, server_default=ROLE_PROPRIETAIRE)
     owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
-    # Identifiant stable (`sub`) renvoyé par Authentik une fois ce compte lié à une
-    # identité SSO (backlog SSO Authentik) — jamais le nom d'utilisateur ou l'email,
-    # qui peuvent changer côté Authentik ; seule clé de liaison fiable dans la durée.
+    # Identifiant stable (`sub`) renvoyé par le fournisseur SSO (OIDC) une fois ce
+    # compte lié à une identité — jamais le nom d'utilisateur ou l'email, qui peuvent
+    # changer côté fournisseur ; seule clé de liaison fiable dans la durée.
     oidc_subject: Mapped[str | None] = mapped_column(String, nullable=True, unique=True, index=True)
+    # Métadonnées d'affichage pures (backlog SSO, claim mapping configurable — cf.
+    # `services/oidc_service.py`), resynchronisées à chaque connexion SSO. `None`
+    # pour un compte mot de passe local, ou si le claim mappé est absent de la
+    # réponse du fournisseur. Jamais uniques, jamais utilisées pour l'authentification.
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
+    nom: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

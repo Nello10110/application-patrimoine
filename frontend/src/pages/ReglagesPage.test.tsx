@@ -21,8 +21,8 @@ vi.mock('../api/client', () => ({
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
     createHouseholdMember: vi.fn(),
     deleteHouseholdMember: vi.fn(),
-    // Connexion SSO Authentik (backlog 2.L.3) : hors de l'objet des autres blocs de
-    // ce fichier, stub neutre par défaut (aucune configuration existante).
+    // Connexion SSO (backlog 2.L.3) : hors de l'objet des autres blocs de ce
+    // fichier, stub neutre par défaut (aucune configuration existante).
     getOidcConfig: vi.fn().mockResolvedValue({
       issuer: null,
       client_id: null,
@@ -30,6 +30,11 @@ vi.mock('../api/client', () => ({
       frontend_url: null,
       secret_configure: false,
       cle_chiffrement_definie: true,
+      enabled: true,
+      display_name: 'SSO',
+      claim_username: 'preferred_username',
+      claim_email: 'email',
+      claim_nom: 'name',
     }),
     updateOidcConfig: vi.fn(),
   },
@@ -131,6 +136,28 @@ describe('ReglagesPage — Sessions actives, erreur avec action de reprise (back
   })
 })
 
+describe('ReglagesPage — Comptes du foyer, affichage nom/email (backlog SSO)', () => {
+  it('affiche le nom (si renseigné) et l’email à côté du rôle', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 2, username: 'paul.oidc', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [], nom: 'Paul Cartieri', email: 'paul@example.com' },
+    ])
+    render(<ReglagesPage />)
+
+    await screen.findByText('Paul Cartieri')
+    expect(screen.getByText('· paul@example.com', { exact: false })).toBeInTheDocument()
+    expect(screen.queryByText('paul.oidc')).not.toBeInTheDocument()
+  })
+
+  it('sans nom, affiche le username (comportement inchangé pour un compte mot de passe)', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 3, username: 'conjoint', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [] },
+    ])
+    render(<ReglagesPage />)
+
+    await screen.findByText('conjoint')
+  })
+})
+
 function oidcConfig(overrides: Partial<OidcConfig> = {}): OidcConfig {
   return {
     issuer: null,
@@ -139,32 +166,39 @@ function oidcConfig(overrides: Partial<OidcConfig> = {}): OidcConfig {
     frontend_url: null,
     secret_configure: false,
     cle_chiffrement_definie: true,
+    enabled: true,
+    display_name: 'SSO',
+    claim_username: 'preferred_username',
+    claim_email: 'email',
+    claim_nom: 'name',
     ...overrides,
   }
 }
 
-describe('ReglagesPage — Connexion Authentik (backlog 2.L.3)', () => {
-  it('préremplit les 4 champs texte depuis la configuration existante, jamais le secret', async () => {
+describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
+  it('préremplit les champs depuis la configuration existante, jamais le secret', async () => {
     vi.mocked(api.getOidcConfig).mockResolvedValue(
       oidcConfig({
-        issuer: 'https://authentik.example.com/application/o/patrimoine',
+        issuer: 'https://sso.example.com/application/o/patrimoine',
         client_id: 'client-abc',
         redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
         frontend_url: 'https://patrimoine.example.com',
         secret_configure: true,
+        display_name: 'Authentik',
       }),
     )
     render(<ReglagesPage />)
 
-    expect(await screen.findByDisplayValue('https://authentik.example.com/application/o/patrimoine')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('https://sso.example.com/application/o/patrimoine')).toBeInTheDocument()
     expect(screen.getByDisplayValue('client-abc')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Authentik')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Laisser vide pour conserver le secret actuel')).toBeInTheDocument()
   })
 
-  it("soumettre appelle updateOidcConfig ; le secret est omis si le champ est laissé vide", async () => {
+  it("soumettre appelle updateOidcConfig avec les champs (dont activation/nom/mapping), le secret omis si le champ est laissé vide", async () => {
     vi.mocked(api.getOidcConfig).mockResolvedValue(
       oidcConfig({
-        issuer: 'https://authentik.example.com/application/o/patrimoine',
+        issuer: 'https://sso.example.com/application/o/patrimoine',
         client_id: 'client-abc',
         redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
         frontend_url: 'https://patrimoine.example.com',
@@ -179,12 +213,29 @@ describe('ReglagesPage — Connexion Authentik (backlog 2.L.3)', () => {
 
     await vi.waitFor(() =>
       expect(api.updateOidcConfig).toHaveBeenCalledWith({
-        issuer: 'https://authentik.example.com/application/o/patrimoine',
+        issuer: 'https://sso.example.com/application/o/patrimoine',
         client_id: 'client-abc',
         redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
         frontend_url: 'https://patrimoine.example.com',
+        enabled: true,
+        display_name: 'SSO',
+        claim_username: 'preferred_username',
+        claim_email: 'email',
+        claim_nom: 'name',
       }),
     )
+  })
+
+  it("décocher Activée puis enregistrer envoie enabled: false", async () => {
+    vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig({ issuer: 'https://sso.example.com', client_id: 'x', redirect_uri: 'y', frontend_url: 'z' }))
+    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ enabled: false }))
+    render(<ReglagesPage />)
+    await screen.findByDisplayValue('https://sso.example.com')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Activée' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() => expect(api.updateOidcConfig).toHaveBeenCalledWith(expect.objectContaining({ enabled: false })))
   })
 
   it('un secret saisi est inclus dans updateOidcConfig', async () => {
@@ -193,8 +244,8 @@ describe('ReglagesPage — Connexion Authentik (backlog 2.L.3)', () => {
     render(<ReglagesPage />)
     await screen.findByPlaceholderText('Non configuré')
 
-    fireEvent.change(screen.getByLabelText('Issuer (URL de l\'application OIDC Authentik)'), {
-      target: { value: 'https://authentik.example.com/application/o/patrimoine' },
+    fireEvent.change(screen.getByLabelText(/Issuer/), {
+      target: { value: 'https://sso.example.com/application/o/patrimoine' },
     })
     fireEvent.change(screen.getByLabelText('Client ID'), { target: { value: 'client-abc' } })
     fireEvent.change(screen.getByLabelText('Client Secret'), { target: { value: 'nouveau-secret' } })
@@ -209,6 +260,20 @@ describe('ReglagesPage — Connexion Authentik (backlog 2.L.3)', () => {
         expect.objectContaining({ client_secret: 'nouveau-secret' }),
       ),
     )
+  })
+
+  it('personnaliser un claim mapping est inclus dans updateOidcConfig', async () => {
+    vi.mocked(api.getOidcConfig).mockResolvedValue(
+      oidcConfig({ issuer: 'https://sso.example.com', client_id: 'x', redirect_uri: 'y', frontend_url: 'z' }),
+    )
+    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig())
+    render(<ReglagesPage />)
+    await screen.findByDisplayValue('https://sso.example.com')
+
+    fireEvent.change(screen.getByLabelText(/Claim → email/), { target: { value: 'mail' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() => expect(api.updateOidcConfig).toHaveBeenCalledWith(expect.objectContaining({ claim_email: 'mail' })))
   })
 
   it("affiche un avertissement si PATRIMOINE_SECRET_KEY n'est pas définie côté serveur", async () => {

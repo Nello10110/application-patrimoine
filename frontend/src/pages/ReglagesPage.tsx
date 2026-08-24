@@ -597,7 +597,8 @@ function GestionFoyerCard() {
           {membres.map((m) => (
             <li key={m.id} className="flex items-center justify-between py-2 text-sm">
               <span className="text-texte">
-                {m.username} <span className="text-xs text-texte-attenue">({ROLE_LABELS[m.role]})</span>
+                {m.nom || m.username} <span className="text-xs text-texte-attenue">({ROLE_LABELS[m.role]})</span>
+                {m.email && <span className="ml-1 text-xs text-texte-attenue">· {m.email}</span>}
               </span>
               <button onClick={() => handleDelete(m.id)} className="text-xs text-negatif hover:underline">
                 Supprimer
@@ -663,25 +664,33 @@ function GestionFoyerCard() {
   )
 }
 
-/** Connexion SSO Authentik (backlog 2.L.3) : configuration administrable ici plutôt
- * qu'en variables d'environnement — 4 champs texte en clair, le `client_secret` est
+/** Connexion SSO / OIDC (backlog 2.L.3) : configuration administrable ici plutôt
+ * qu'en variables d'environnement — champs texte en clair, le `client_secret` est
  * saisissable mais jamais relu (chiffré au repos côté serveur, `secret_configure`
- * indique seulement s'il y en a un). Réservée au propriétaire comme les autres
- * cartes d'administration de cette page (pas de gating de rôle côté frontend : un
+ * indique seulement s'il y en a un). Volontairement générique (pas « Authentik ») :
+ * le fournisseur OIDC utilisé (Authentik ou autre) est un choix de déploiement, pas
+ * un nom figé dans le produit — `display_name` (texte libre) est ce qui apparaît sur
+ * le bouton de connexion. Réservée au propriétaire comme les autres cartes
+ * d'administration de cette page (pas de gating de rôle côté frontend : un
  * non-propriétaire obtient un 403, affiché ci-dessous comme n'importe quelle autre
  * erreur de chargement). */
-function AuthentikCard() {
+function SsoCard() {
   const [config, setConfig] = useState<OidcConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
+  const [enabled, setEnabled] = useState(true)
+  const [displayName, setDisplayName] = useState('')
   const [issuer, setIssuer] = useState('')
   const [clientId, setClientId] = useState('')
   const [redirectUri, setRedirectUri] = useState('')
   const [frontendUrl, setFrontendUrl] = useState('')
   const [clientSecret, setClientSecret] = useState('')
+  const [claimUsername, setClaimUsername] = useState('')
+  const [claimEmail, setClaimEmail] = useState('')
+  const [claimNom, setClaimNom] = useState('')
 
   function charger() {
     setLoading(true)
@@ -690,10 +699,15 @@ function AuthentikCard() {
       .getOidcConfig()
       .then((c) => {
         setConfig(c)
+        setEnabled(c.enabled)
+        setDisplayName(c.display_name)
         setIssuer(c.issuer ?? '')
         setClientId(c.client_id ?? '')
         setRedirectUri(c.redirect_uri ?? '')
         setFrontendUrl(c.frontend_url ?? '')
+        setClaimUsername(c.claim_username)
+        setClaimEmail(c.claim_email)
+        setClaimNom(c.claim_nom)
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -712,6 +726,11 @@ function AuthentikCard() {
         client_id: clientId,
         redirect_uri: redirectUri,
         frontend_url: frontendUrl,
+        enabled,
+        display_name: displayName,
+        claim_username: claimUsername,
+        claim_email: claimEmail,
+        claim_nom: claimNom,
         ...(clientSecret ? { client_secret: clientSecret } : {}),
       })
       setConfig(nouvelleConfig)
@@ -724,29 +743,43 @@ function AuthentikCard() {
     }
   }
 
-  if (loading) return <Card title="Connexion Authentik"><SkeletonTexte /></Card>
-  if (error && !config) return <Card title="Connexion Authentik"><EtatErreur message={error} onReessayer={charger} /></Card>
+  if (loading) return <Card title="Connexion SSO (OIDC)"><SkeletonTexte /></Card>
+  if (error && !config) return <Card title="Connexion SSO (OIDC)"><EtatErreur message={error} onReessayer={charger} /></Card>
 
   return (
-    <Card title="Connexion Authentik">
+    <Card title="Connexion SSO (OIDC)">
       <p className="mb-4 text-sm text-texte">
-        Bouton « Se connecter avec Authentik » sur l'écran de connexion, en plus du mot de passe — vrai flux OIDC
-        (Authorization Code + PKCE), qui ne fait confiance à aucun en-tête de proxy.
+        Bouton de connexion sur l'écran de connexion, en plus du mot de passe — vrai flux OIDC (Authorization Code +
+        PKCE), qui ne fait confiance à aucun en-tête de proxy. Compatible avec n'importe quel fournisseur OIDC
+        (Authentik, Keycloak, Zitadel...).
       </p>
       {config && !config.cle_chiffrement_definie && (
         <p className="mb-4 rounded-md border border-avertissement/40 bg-avertissement/10 p-3 text-sm text-avertissement">
           <code className="font-mono">PATRIMOINE_SECRET_KEY</code> n'est pas définie sur le serveur : impossible
-          d'enregistrer un secret Authentik tant que cette variable d'environnement n'est pas posée (voir le manuel
+          d'enregistrer un secret tant que cette variable d'environnement n'est pas posée (voir le manuel
           d'exploitation).
         </p>
       )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label className="flex items-center gap-2 text-sm text-texte">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+          Activée
+        </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Issuer (URL de l'application OIDC Authentik)
+          Nom affiché sur le bouton de connexion
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="SSO"
+            className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Issuer (URL de l'application OIDC de ton fournisseur SSO)
           <input
             value={issuer}
             onChange={(e) => setIssuer(e.target.value)}
-            placeholder="https://authentik.example.com/application/o/patrimoine"
+            placeholder="https://sso.example.com/application/o/patrimoine"
             required
             className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
           />
@@ -772,7 +805,7 @@ function AuthentikCard() {
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Redirect URI (doit correspondre exactement à celle enregistrée côté Authentik)
+          Redirect URI (doit correspondre exactement à celle enregistrée côté fournisseur SSO)
           <input
             value={redirectUri}
             onChange={(e) => setRedirectUri(e.target.value)}
@@ -791,6 +824,42 @@ function AuthentikCard() {
             className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
           />
         </label>
+
+        <div className="mt-2 border-t border-bordure pt-3">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-texte-attenue">
+            Mapping des claims (facultatif — laisser vide pour les valeurs par défaut)
+          </p>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Claim → nom d'utilisateur
+              <input
+                value={claimUsername}
+                onChange={(e) => setClaimUsername(e.target.value)}
+                placeholder="preferred_username"
+                className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Claim → email
+              <input
+                value={claimEmail}
+                onChange={(e) => setClaimEmail(e.target.value)}
+                placeholder="email"
+                className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Claim → nom affiché
+              <input
+                value={claimNom}
+                onChange={(e) => setClaimNom(e.target.value)}
+                placeholder="name"
+                className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              />
+            </label>
+          </div>
+        </div>
+
         {message && <p className="text-sm text-positif">{message}</p>}
         {error && <EtatErreur message={error} />}
         <button
@@ -839,7 +908,7 @@ export default function ReglagesPage() {
         <GestionFoyerCard />
         <SessionsCard />
         <JournalAccesCard />
-        <AuthentikCard />
+        <SsoCard />
       </div>
 
       <div className="space-y-4">

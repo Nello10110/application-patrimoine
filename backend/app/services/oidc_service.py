@@ -1,14 +1,18 @@
-"""Connexion SSO via Authentik (OIDC applicatif, backlog SSO Authentik).
+"""Connexion SSO via un fournisseur OIDC (backlog SSO) — pas lié à une stack
+particulière : le fournisseur (Authentik, Keycloak, Zitadel, Okta...) est entièrement
+configuré depuis Réglages, jamais codé en dur dans ce module. L'utilisateur de ce
+déploiement utilise Authentik en pratique (mentionné ici et dans la documentation à
+titre d'exemple concret), mais rien dans ce code ne le suppose.
 
 Point de sécurité central de ce module, à ne jamais perdre de vue : il ne fait
-JAMAIS confiance à un en-tête envoyé par un proxy (`X-authentik-*` ou équivalent).
-L'utilisateur expose déjà l'application derrière un proxy provider Authentik
-(forward-auth) pour une protection globale du homelab — mais cette protection peut
-être retirée un jour, et ce module doit rester tout aussi sûr ce jour-là. Toute la
-confiance vient d'un échange direct, serveur à serveur, authentifié par le
-`client_secret` (jamais transmis au navigateur) : l'échange du code d'autorisation
-contre un jeton d'accès, puis l'appel `userinfo` avec ce jeton. Retirer le proxy
-provider n'a donc aucun effet sur la sécurité de ce flux.
+JAMAIS confiance à un en-tête envoyé par un proxy (`X-authentik-*`/`X-forwarded-*`
+ou équivalent). Un proxy provider protège déjà l'application en amont pour certains
+déploiements — mais cette protection peut être retirée un jour, et ce module doit
+rester tout aussi sûr ce jour-là. Toute la confiance vient d'un échange direct,
+serveur à serveur, authentifié par le `client_secret` (jamais transmis au
+navigateur) : l'échange du code d'autorisation contre un jeton d'accès, puis l'appel
+`userinfo` avec ce jeton. Retirer un éventuel proxy en amont n'a donc aucun effet sur
+la sécurité de ce flux.
 
 Configuration administrable depuis Réglages (propriétaire), stockée dans la table
 générique `Parametre` — sauf le `client_secret`, chiffré au repos (Fernet) avec une
@@ -44,13 +48,29 @@ CLE_CLIENT_ID = "oidc_client_id"
 CLE_CLIENT_SECRET_CHIFFRE = "oidc_client_secret_chiffre"
 CLE_REDIRECT_URI = "oidc_redirect_uri"
 CLE_FRONTEND_URL = "oidc_frontend_url"
+CLE_ENABLED = "oidc_config_enabled"
+CLE_DISPLAY_NAME = "oidc_display_name"
+CLE_CLAIM_USERNAME = "oidc_claim_username"
+CLE_CLAIM_EMAIL = "oidc_claim_email"
+CLE_CLAIM_NOM = "oidc_claim_nom"
 CLES_TEXTE = (CLE_ISSUER, CLE_CLIENT_ID, CLE_REDIRECT_URI, CLE_FRONTEND_URL)
-TOUTES_LES_CLES = CLES_TEXTE + (CLE_CLIENT_SECRET_CHIFFRE,)
+# Clés facultatives : jamais requises pour qu'une configuration soit "complète"
+# (`charger_config`), toujours lues avec un repli sensé si absentes.
+CLES_FACULTATIVES = (CLE_ENABLED, CLE_DISPLAY_NAME, CLE_CLAIM_USERNAME, CLE_CLAIM_EMAIL, CLE_CLAIM_NOM)
+TOUTES_LES_CLES = CLES_TEXTE + CLES_FACULTATIVES + (CLE_CLIENT_SECRET_CHIFFRE,)
 
 VARIABLE_CLE_CHIFFREMENT = "PATRIMOINE_SECRET_KEY"
 
-STATE_TTL_SECONDES = 300  # 5 minutes : largement suffisant pour l'aller-retour Authentik
+STATE_TTL_SECONDES = 300  # 5 minutes : largement suffisant pour l'aller-retour vers le fournisseur SSO
 SCOPES = "openid profile email"
+
+DISPLAY_NAME_PAR_DEFAUT = "SSO"
+# Claims standard des scopes OIDC `profile`/`email` (déjà demandés ci-dessus) — repris
+# tels quels par la plupart des fournisseurs, personnalisables depuis Réglages si le
+# fournisseur utilisé s'en écarte.
+CLAIM_USERNAME_PAR_DEFAUT = "preferred_username"
+CLAIM_EMAIL_PAR_DEFAUT = "email"
+CLAIM_NOM_PAR_DEFAUT = "name"
 
 _discovery_cache: dict[str, dict] = {}
 
@@ -83,11 +103,24 @@ class OidcConfig:
     client_secret: str  # déchiffré, jamais journalisé ni renvoyé par l'API
     redirect_uri: str
     frontend_url: str
+    display_name: str
+    claim_username: str
+    claim_email: str
+    claim_nom: str
 
 
 def _lire(db: Session, cle: str) -> str | None:
     parametre = db.get(Parametre, cle)
     return parametre.valeur if parametre else None
+
+
+def _lire_avec_defaut(db: Session, cle: str, defaut: str) -> str:
+    return _lire(db, cle) or defaut
+
+
+def _lire_bool(db: Session, cle: str, defaut: bool) -> bool:
+    valeur = _lire(db, cle)
+    return defaut if valeur is None else valeur == "1"
 
 
 def _ecrire(db: Session, cle: str, valeur: str) -> None:
@@ -100,11 +133,16 @@ def _ecrire(db: Session, cle: str, valeur: str) -> None:
 
 
 def charger_config(db: Session) -> OidcConfig | None:
-    """`None` si un des 4 champs texte manque, si aucun secret n'est enregistré, si
-    `PATRIMOINE_SECRET_KEY` est absente, ou si le déchiffrement échoue (`InvalidToken`
-    — ex. clé tournée depuis l'enregistrement). Jamais d'exception propagée : cette
-    fonction est appelée par `GET /oidc/status`, public et sur le chemin critique de
-    la page de connexion."""
+    """`None` si un des 4 champs texte obligatoires manque, si aucun secret n'est
+    enregistré, si `PATRIMOINE_SECRET_KEY` est absente, si le déchiffrement échoue
+    (`InvalidToken` — ex. clé tournée depuis l'enregistrement), ou si la coche
+    « Activée » est décochée — désactiver revient, du point de vue de cette fonction
+    (et donc de `/oidc/status`/`/oidc/login`/`/oidc/callback`), exactement à une
+    configuration incomplète. Jamais d'exception propagée : cette fonction est
+    appelée par `GET /oidc/status`, public et sur le chemin critique de la page de
+    connexion."""
+    if not _lire_bool(db, CLE_ENABLED, True):
+        return None
     valeurs = {cle: _lire(db, cle) for cle in CLES_TEXTE}
     if any(v is None for v in valeurs.values()):
         return None
@@ -121,6 +159,10 @@ def charger_config(db: Session) -> OidcConfig | None:
         client_secret=secret,
         redirect_uri=valeurs[CLE_REDIRECT_URI],
         frontend_url=valeurs[CLE_FRONTEND_URL],
+        display_name=_lire_avec_defaut(db, CLE_DISPLAY_NAME, DISPLAY_NAME_PAR_DEFAUT),
+        claim_username=_lire_avec_defaut(db, CLE_CLAIM_USERNAME, CLAIM_USERNAME_PAR_DEFAUT),
+        claim_email=_lire_avec_defaut(db, CLE_CLAIM_EMAIL, CLAIM_EMAIL_PAR_DEFAUT),
+        claim_nom=_lire_avec_defaut(db, CLE_CLAIM_NOM, CLAIM_NOM_PAR_DEFAUT),
     )
 
 
@@ -129,8 +171,10 @@ def enabled(db: Session) -> bool:
 
 
 def config_admin(db: Session) -> dict:
-    """Les 4 champs texte + indicateurs booléens — jamais le secret déchiffré, sous
-    aucune forme. Pour `GET /oidc/config` (propriétaire)."""
+    """Les champs texte + indicateurs booléens — jamais le secret déchiffré, sous
+    aucune forme. `enabled` est lu indépendamment du garde de `charger_config`, pour
+    que la coche reflète toujours son état réel même quand elle est décochée (sinon
+    impossible de la recocher depuis Réglages). Pour `GET /oidc/config` (propriétaire)."""
     return {
         "issuer": _lire(db, CLE_ISSUER),
         "client_id": _lire(db, CLE_CLIENT_ID),
@@ -138,20 +182,44 @@ def config_admin(db: Session) -> dict:
         "frontend_url": _lire(db, CLE_FRONTEND_URL),
         "secret_configure": _lire(db, CLE_CLIENT_SECRET_CHIFFRE) is not None,
         "cle_chiffrement_definie": cle_chiffrement_definie(),
+        "enabled": _lire_bool(db, CLE_ENABLED, True),
+        "display_name": _lire_avec_defaut(db, CLE_DISPLAY_NAME, DISPLAY_NAME_PAR_DEFAUT),
+        "claim_username": _lire_avec_defaut(db, CLE_CLAIM_USERNAME, CLAIM_USERNAME_PAR_DEFAUT),
+        "claim_email": _lire_avec_defaut(db, CLE_CLAIM_EMAIL, CLAIM_EMAIL_PAR_DEFAUT),
+        "claim_nom": _lire_avec_defaut(db, CLE_CLAIM_NOM, CLAIM_NOM_PAR_DEFAUT),
     }
 
 
 def enregistrer_config(
-    db: Session, *, issuer: str, client_id: str, redirect_uri: str, frontend_url: str, client_secret: str | None
+    db: Session,
+    *,
+    issuer: str,
+    client_id: str,
+    redirect_uri: str,
+    frontend_url: str,
+    client_secret: str | None,
+    enabled: bool = True,
+    display_name: str | None = None,
+    claim_username: str | None = None,
+    claim_email: str | None = None,
+    claim_nom: str | None = None,
 ) -> None:
-    """Upsert des 4 lignes texte. `client_secret` fourni (non vide) → chiffré et
-    upserté (lève `CleChiffrementAbsenteError` si la clé manque) ; `None`/vide → le
-    secret déjà enregistré est conservé tel quel, pour modifier les 4 autres champs
-    sans avoir à ressaisir le secret à chaque fois."""
+    """Upsert des champs texte + de la coche d'activation. `client_secret` fourni
+    (non vide) → chiffré et upserté (lève `CleChiffrementAbsenteError` si la clé
+    manque) ; `None`/vide → le secret déjà enregistré est conservé tel quel, pour
+    modifier les autres champs sans avoir à ressaisir le secret à chaque fois.
+    `display_name`/`claim_*` vides ou omis → repli sur leur valeur par défaut plutôt
+    que d'enregistrer une chaîne vide (évite un champ Réglages laissé vide par
+    inadvertance qui casserait silencieusement le mapping)."""
     _ecrire(db, CLE_ISSUER, issuer.strip())
     _ecrire(db, CLE_CLIENT_ID, client_id.strip())
     _ecrire(db, CLE_REDIRECT_URI, redirect_uri.strip())
     _ecrire(db, CLE_FRONTEND_URL, frontend_url.strip())
+    _ecrire(db, CLE_ENABLED, "1" if enabled else "0")
+    _ecrire(db, CLE_DISPLAY_NAME, (display_name or "").strip() or DISPLAY_NAME_PAR_DEFAUT)
+    _ecrire(db, CLE_CLAIM_USERNAME, (claim_username or "").strip() or CLAIM_USERNAME_PAR_DEFAUT)
+    _ecrire(db, CLE_CLAIM_EMAIL, (claim_email or "").strip() or CLAIM_EMAIL_PAR_DEFAUT)
+    _ecrire(db, CLE_CLAIM_NOM, (claim_nom or "").strip() or CLAIM_NOM_PAR_DEFAUT)
     if client_secret:
         chiffre = _fernet().encrypt(client_secret.strip().encode("utf-8")).decode("utf-8")
         _ecrire(db, CLE_CLIENT_SECRET_CHIFFRE, chiffre)
@@ -170,10 +238,10 @@ def _issuer_normalise(issuer: str) -> str:
 
 def _discovery(issuer: str) -> dict:
     """Découverte OIDC standard (`.well-known/openid-configuration`) plutôt que des
-    URLs Authentik codées en dur : robuste aux versions et aux schémas d'URL
-    différents d'une instance à l'autre. Mise en cache en mémoire process, clé =
-    issuer — invalidée explicitement par `enregistrer_config`/`effacer_config`
-    (l'issuer peut changer sans redémarrage du process)."""
+    URLs codées en dur pour un fournisseur particulier : robuste aux versions et aux
+    schémas d'URL différents d'un fournisseur à l'autre. Mise en cache en mémoire
+    process, clé = issuer — invalidée explicitement par
+    `enregistrer_config`/`effacer_config` (l'issuer peut changer sans redémarrage)."""
     issuer = _issuer_normalise(issuer)
     if issuer not in _discovery_cache:
         reponse = requests.get(f"{issuer}.well-known/openid-configuration", timeout=10)
@@ -192,17 +260,18 @@ def code_verifier_et_challenge() -> tuple[str, str]:
 
 def _cle_hmac() -> bytes:
     """Réutilise `PATRIMOINE_SECRET_KEY` comme clé HMAC brute pour signer le
-    `state` — préoccupation propre à cette application (pas à Authentik), distincte
-    du chiffrement Fernet du `client_secret` bien qu'utilisant la même variable
-    d'environnement. `construire_state`/`verifier_state` ne sont appelées qu'après le
-    garde `enabled(db)` du routeur, donc la clé est garantie présente ici."""
+    `state` — préoccupation propre à cette application (pas au fournisseur SSO),
+    distincte du chiffrement Fernet du `client_secret` bien qu'utilisant la même
+    variable d'environnement. `construire_state`/`verifier_state` ne sont appelées
+    qu'après le garde `enabled(db)` du routeur, donc la clé est garantie présente ici."""
     return (os.environ.get(VARIABLE_CLE_CHIFFREMENT) or "").encode("utf-8")
 
 
 def construire_state(code_verifier: str) -> str:
     """`state` auto-porteur et signé — aucune table ni session serveur nécessaire
-    pour le vérifier au retour d'Authentik (fonctionne même avec plusieurs workers).
-    Format : `nonce.horodatage.code_verifier.signature`, chaque partie en base64url."""
+    pour le vérifier au retour du fournisseur SSO (fonctionne même avec plusieurs
+    workers). Format : `nonce.horodatage.code_verifier.signature`, chaque partie en
+    base64url."""
     nonce = secrets.token_urlsafe(16)
     horodatage = str(int(time.time()))
     charge = f"{nonce}.{horodatage}.{code_verifier}"
@@ -216,14 +285,14 @@ def verifier_state(state_recu: str) -> str:
     l'échange de code. Lève `OidcError` sinon (jamais de détail technique exposé)."""
     parties = state_recu.split(".")
     if len(parties) != 4:
-        raise OidcError("Connexion Authentik invalide (state malformé). Réessayez.")
+        raise OidcError("Connexion SSO invalide (state malformé). Réessayez.")
     nonce, horodatage, code_verifier, signature_recue = parties
     charge = f"{nonce}.{horodatage}.{code_verifier}"
     signature_attendue = hmac.new(_cle_hmac(), charge.encode("utf-8"), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature_recue, signature_attendue):
-        raise OidcError("Connexion Authentik invalide (state altéré). Réessayez.")
+        raise OidcError("Connexion SSO invalide (state altéré). Réessayez.")
     if time.time() - int(horodatage) > STATE_TTL_SECONDES:
-        raise OidcError("La connexion Authentik a expiré. Réessayez.")
+        raise OidcError("La connexion SSO a expiré. Réessayez.")
     return code_verifier
 
 
@@ -256,10 +325,10 @@ def echanger_code(config: OidcConfig, code: str, code_verifier: str) -> dict:
         timeout=10,
     )
     if reponse.status_code != 200:
-        raise OidcError("Authentik a refusé l'échange du code de connexion. Réessayez.")
+        raise OidcError("Le fournisseur SSO a refusé l'échange du code de connexion. Réessayez.")
     corps = reponse.json()
     if "access_token" not in corps:
-        raise OidcError("Réponse Authentik inattendue (jeton d'accès manquant). Réessayez.")
+        raise OidcError("Réponse du fournisseur SSO inattendue (jeton d'accès manquant). Réessayez.")
     return corps
 
 
@@ -273,41 +342,52 @@ def recuperer_identite(config: OidcConfig, access_token: str) -> dict:
         timeout=10,
     )
     if reponse.status_code != 200:
-        raise OidcError("Impossible de récupérer l'identité depuis Authentik. Réessayez.")
+        raise OidcError("Impossible de récupérer l'identité depuis le fournisseur SSO. Réessayez.")
     claims = reponse.json()
     if not claims.get("sub"):
-        raise OidcError("Réponse Authentik inattendue (identifiant manquant). Réessayez.")
+        raise OidcError("Réponse du fournisseur SSO inattendue (identifiant manquant). Réessayez.")
     return claims
 
 
-def _nom_utilisateur_depuis_claims(claims: dict) -> str:
-    brut = claims.get("preferred_username") or (claims.get("email") or "").split("@")[0] or "utilisateur"
+def _nom_utilisateur_depuis_claims(claims: dict, claim_username: str) -> str:
+    brut = claims.get(claim_username) or (claims.get("email") or "").split("@")[0] or "utilisateur"
     nettoye = "".join(c for c in brut.strip() if c.isalnum() or c in "-_.")
     return (nettoye or "utilisateur")[:32] or "utilisateur"
 
 
-def resoudre_ou_provisionner_utilisateur(db: Session, claims: dict) -> User:
-    """1. `oidc_subject` déjà lié → ce compte, tel quel.
+def resoudre_ou_provisionner_utilisateur(db: Session, config: OidcConfig, claims: dict) -> User:
+    """1. `oidc_subject` déjà lié → ce compte, `email`/`nom` resynchronisés depuis les
+       claims mappés (`config.claim_email`/`config.claim_nom`) à CHAQUE connexion —
+       mais jamais `username`, qui reste l'identifiant de connexion figé après sa
+       création (cf. docstring de `User` : le réécrire silencieusement risquerait une
+       collision avec un autre compte ou une confusion dans "Comptes du foyer").
     2. Sinon, un compte local du même `username` existe et n'a encore aucun
-       `oidc_subject` → on le lie (Authentik devient un second moyen de connexion
-       à un compte déjà créé à la main), rôle et mot de passe inchangés.
-    3. Sinon, auto-provisionne (backlog SSO Authentik, décision utilisateur) :
-       `proprietaire` seulement si aucun compte n'existe encore (bootstrap, même
-       logique que `POST /api/auth/register`), sinon `membre` **rattaché au foyer du
-       propriétaire déjà en place** (`owner_user_id`, même logique que
-       `POST /household-members`) — sans ça, le compte devenait son propre foyer
-       vide, sans accès au patrimoine partagé (bug trouvé en vérification bout en
-       bout, avant toute mise en production). Jamais un rôle plus privilégié
-       auto-attribué à un compte non créé à la main."""
+       `oidc_subject` → on le lie (le SSO devient un second moyen de connexion à un
+       compte déjà créé à la main), rôle et mot de passe inchangés ; `email`/`nom`
+       peuplés au moment de ce premier lien.
+    3. Sinon, auto-provisionne (backlog SSO, décision utilisateur) : `proprietaire`
+       seulement si aucun compte n'existe encore (bootstrap, même logique que
+       `POST /api/auth/register`), sinon `membre` **rattaché au foyer du propriétaire
+       déjà en place** (`owner_user_id`, même logique que `POST /household-members`)
+       — sans ça, le compte devenait son propre foyer vide, sans accès au patrimoine
+       partagé (bug trouvé en vérification bout en bout, avant toute mise en
+       production). Jamais un rôle plus privilégié auto-attribué à un compte non créé
+       à la main. `username` dérivé du claim configuré (`config.claim_username`,
+       une seule fois) ; `email`/`nom` peuplés dès la création."""
     sub = claims["sub"]
+    email = claims.get(config.claim_email)
+    nom = claims.get(config.claim_nom)
+
     existant = auth_service.utilisateur_par_oidc_subject(db, sub)
     if existant is not None:
+        auth_service.mettre_a_jour_profil_oidc(db, existant, email=email, nom=nom)
         return existant
 
-    username_souhaite = _nom_utilisateur_depuis_claims(claims)
+    username_souhaite = _nom_utilisateur_depuis_claims(claims, config.claim_username)
     par_username = auth_service.utilisateur_par_username(db, username_souhaite)
     if par_username is not None and par_username.oidc_subject is None:
         auth_service.lier_oidc(db, par_username, sub)
+        auth_service.mettre_a_jour_profil_oidc(db, par_username, email=email, nom=nom)
         return par_username
 
     proprietaire = db.query(User).filter(User.role == ROLE_PROPRIETAIRE).first()
@@ -318,4 +398,6 @@ def resoudre_ou_provisionner_utilisateur(db: Session, claims: dict) -> User:
     while auth_service.utilisateur_par_username(db, username_final) is not None:
         username_final = f"{username_souhaite[:29]}-{suffixe}"
         suffixe += 1
-    return auth_service.creer_utilisateur_oidc(db, username_final, sub, role=role, owner_user_id=owner_user_id)
+    return auth_service.creer_utilisateur_oidc(
+        db, username_final, sub, role=role, owner_user_id=owner_user_id, email=email, nom=nom
+    )

@@ -290,17 +290,44 @@ def test_login_sur_compte_sans_mot_de_passe_renvoie_401_message_clair(client_ree
     reponse = client_reel.post("/api/auth/login", json={"username": "alice", "password": "peu importe"})
 
     assert reponse.status_code == 401
-    assert "Authentik" in reponse.json()["detail"]
+    assert "SSO" in reponse.json()["detail"]
 
 
 def test_oidc_status_reflete_la_configuration(client_reel, db_vide, monkeypatch):
-    from app.services import oidc_service
-
-    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False}
+    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False, "display_name": "SSO"}
 
     _configurer_oidc(db_vide, monkeypatch)
 
-    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": True}
+    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": True, "display_name": "SSO"}
+
+
+def test_oidc_status_reflete_enabled_a_false_sans_effacer_la_config(client_reel, db_vide, monkeypatch):
+    oidc_service = _configurer_oidc(db_vide, monkeypatch)
+    assert client_reel.get("/api/auth/oidc/status").json()["enabled"] is True
+
+    oidc_service.enregistrer_config(
+        db_vide,
+        issuer="https://authentik.example.com/application/o/patrimoine",
+        client_id="client-abc",
+        client_secret=None,
+        redirect_uri="https://patrimoine.example.com/api/auth/oidc/callback",
+        frontend_url="https://patrimoine.example.com",
+        enabled=False,
+    )
+
+    assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False, "display_name": "SSO"}
+    assert client_reel.get("/api/auth/oidc/login", follow_redirects=False).status_code == 404
+
+    oidc_service.enregistrer_config(
+        db_vide,
+        issuer="https://authentik.example.com/application/o/patrimoine",
+        client_id="client-abc",
+        client_secret=None,
+        redirect_uri="https://patrimoine.example.com/api/auth/oidc/callback",
+        frontend_url="https://patrimoine.example.com",
+        enabled=True,
+    )
+    assert client_reel.get("/api/auth/oidc/status").json()["enabled"] is True
 
 
 def test_oidc_login_404_si_non_configure(client_reel):
@@ -407,6 +434,38 @@ def test_oidc_callback_meme_identite_deux_fois_ne_duplique_pas_le_compte(client_
     assert id_a == id_b
 
 
+def test_oidc_callback_expose_email_et_nom_sur_me_et_household_members(client_reel, db_vide, monkeypatch):
+    oidc_service = _configurer_oidc(db_vide, monkeypatch)
+    monkeypatch.setattr(oidc_service, "echanger_code", lambda config, code, code_verifier: {"access_token": "at-123"})
+
+    def _connecter(claims):
+        verifier, _ = oidc_service.code_verifier_et_challenge()
+        state = oidc_service.construire_state(verifier)
+        monkeypatch.setattr(oidc_service, "recuperer_identite", lambda config, access_token: claims)
+        reponse = client_reel.get(f"/api/auth/oidc/callback?code=un-code&state={state}", follow_redirects=False)
+        return reponse.headers["location"].split("#token=")[1]
+
+    # Premier compte OIDC : bootstrap propriétaire.
+    jeton_proprietaire = _connecter(
+        {"sub": "sub-paul", "preferred_username": "paul", "email": "paul@example.com", "name": "Paul"}
+    )
+    moi = client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {jeton_proprietaire}"}).json()
+    assert moi["email"] == "paul@example.com"
+    assert moi["nom"] == "Paul"
+
+    # Second compte OIDC : membre rattaché au foyer, visible dans "Comptes du foyer"
+    # avec son email/nom exposés.
+    _connecter({"sub": "sub-dave", "preferred_username": "dave", "email": "dave@example.com", "name": "Dave Dupont"})
+
+    membres = client_reel.get(
+        "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
+    ).json()
+    assert len(membres) == 1
+    assert membres[0]["username"] == "dave"
+    assert membres[0]["email"] == "dave@example.com"
+    assert membres[0]["nom"] == "Dave Dupont"
+
+
 # --- Administration de la configuration Authentik depuis Réglages ----------------
 
 
@@ -470,7 +529,7 @@ def test_put_puis_get_oidc_config_ne_renvoie_jamais_le_secret(client_reel, monke
     assert "secret-xyz" not in get_reponse.text
 
     status_reponse = client_reel.get("/api/auth/oidc/status")
-    assert status_reponse.json() == {"enabled": True}
+    assert status_reponse.json() == {"enabled": True, "display_name": "SSO"}
 
 
 def test_put_oidc_config_sans_secret_conserve_le_secret_deja_enregistre(client_reel, monkeypatch):

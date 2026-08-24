@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE = "Ce nom d'utilisateur est déjà pris."
 MESSAGE_IDENTIFIANTS_INVALIDES = "Nom d'utilisateur ou mot de passe incorrect."
 MESSAGE_INSCRIPTION_FERMEE = "L'inscription ouverte est fermée. Demandez à votre propriétaire de foyer de créer votre compte."
-MESSAGE_COMPTE_SSO_SEUL = "Ce compte se connecte uniquement via Authentik."
+MESSAGE_COMPTE_SSO_SEUL = "Ce compte se connecte uniquement via SSO."
 
 
 def _adresse_client(request: Request) -> str | None:
@@ -77,28 +77,31 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     return AuthResponse(token=token.token, user=UserOut.model_validate(user))
 
 
-# --- Connexion SSO Authentik (OIDC applicatif) -----------------------------------
+# --- Connexion SSO (OIDC applicatif) ----------------------------------------------
 #
 # status/login/callback sont publiques, comme /register et /login ci-dessus. Ce flux
 # ne fait JAMAIS confiance à un en-tête de proxy — toute la logique de sécurité vit
 # dans `services/oidc_service.py` (docstring de module à lire avant toute
 # modification ici). Ces routes ne sont que la tuyauterie HTTP autour de ce service.
-# La configuration elle-même (issuer/client id/redirect uri/frontend url/secret) est
-# administrée depuis Réglages, réservée au propriétaire (get/put/delete oidc/config
-# ci-dessous) — jamais en variable d'environnement, hormis la clé de chiffrement du
-# secret (`PATRIMOINE_SECRET_KEY`).
+# La configuration elle-même (issuer/client id/redirect uri/frontend url/secret/
+# activation/mapping des claims) est administrée depuis Réglages, réservée au
+# propriétaire (get/put/delete oidc/config ci-dessous) — jamais en variable
+# d'environnement, hormis la clé de chiffrement du secret (`PATRIMOINE_SECRET_KEY`).
 
 
 @router.get("/oidc/status", response_model=OidcStatus)
 def oidc_status(db: Session = Depends(get_db)):
-    return OidcStatus(enabled=oidc_service.enabled(db))
+    config = oidc_service.charger_config(db)
+    if config is None:
+        return OidcStatus(enabled=False)
+    return OidcStatus(enabled=True, display_name=config.display_name)
 
 
 @router.get("/oidc/login")
 def oidc_login(db: Session = Depends(get_db)):
     config = oidc_service.charger_config(db)
     if config is None:
-        raise HTTPException(status_code=404, detail="Connexion Authentik non configurée sur ce déploiement.")
+        raise HTTPException(status_code=404, detail="Connexion SSO non configurée sur ce déploiement.")
     code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(code_verifier)
     return RedirectResponse(oidc_service.url_autorisation(config, state, code_challenge))
@@ -108,28 +111,28 @@ def oidc_login(db: Session = Depends(get_db)):
 def oidc_callback(request: Request, db: Session = Depends(get_db)):
     config = oidc_service.charger_config(db)
     if config is None:
-        raise HTTPException(status_code=404, detail="Connexion Authentik non configurée sur ce déploiement.")
+        raise HTTPException(status_code=404, detail="Connexion SSO non configurée sur ce déploiement.")
 
     def _redirection_erreur(message: str) -> RedirectResponse:
         from urllib.parse import quote
 
         return RedirectResponse(f"{config.frontend_url}/?oidc_error={quote(message)}")
 
-    erreur_authentik = request.query_params.get("error")
-    if erreur_authentik:
-        return _redirection_erreur(f"Connexion Authentik refusée ({erreur_authentik}).")
+    erreur_fournisseur = request.query_params.get("error")
+    if erreur_fournisseur:
+        return _redirection_erreur(f"Connexion SSO refusée ({erreur_fournisseur}).")
 
     code = request.query_params.get("code")
     state_recu = request.query_params.get("state")
     if not code or not state_recu:
-        return _redirection_erreur("Réponse Authentik incomplète. Réessayez.")
+        return _redirection_erreur("Réponse du fournisseur SSO incomplète. Réessayez.")
 
     ip = _adresse_client(request)
     try:
         code_verifier = oidc_service.verifier_state(state_recu)
-        jeton_authentik = oidc_service.echanger_code(config, code, code_verifier)
-        claims = oidc_service.recuperer_identite(config, jeton_authentik["access_token"])
-        user = oidc_service.resoudre_ou_provisionner_utilisateur(db, claims)
+        jeton_fournisseur = oidc_service.echanger_code(config, code, code_verifier)
+        claims = oidc_service.recuperer_identite(config, jeton_fournisseur["access_token"])
+        user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims)
     except oidc_service.OidcError as err:
         auth_service.journaliser_acces(db, "?", None, ip, "echec", "oidc_echec")
         return _redirection_erreur(str(err))
@@ -161,11 +164,16 @@ def update_oidc_config(
             redirect_uri=payload.redirect_uri,
             frontend_url=payload.frontend_url,
             client_secret=payload.client_secret,
+            enabled=payload.enabled,
+            display_name=payload.display_name,
+            claim_username=payload.claim_username,
+            claim_email=payload.claim_email,
+            claim_nom=payload.claim_nom,
         )
     except oidc_service.CleChiffrementAbsenteError:
         raise HTTPException(
             status_code=400,
-            detail=f"Définis {oidc_service.VARIABLE_CLE_CHIFFREMENT} sur le serveur avant d'enregistrer un secret Authentik.",
+            detail=f"Définis {oidc_service.VARIABLE_CLE_CHIFFREMENT} sur le serveur avant d'enregistrer un secret SSO.",
         )
     return OidcConfigOut(**oidc_service.config_admin(db))
 

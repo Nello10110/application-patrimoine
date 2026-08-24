@@ -5,9 +5,9 @@ import Card from '../components/Card'
 
 type Mode = 'connexion' | 'creation'
 
-// Message d'erreur renvoyé par le backend après un échec de connexion Authentik
-// (backlog SSO Authentik) — porté en query param sur la redirection finale du
-// callback OIDC, puisque cette page n'a jamais vu la requête XHR qui a échoué.
+// Message d'erreur renvoyé par le backend après un échec de connexion SSO (backlog
+// SSO) — porté en query param sur la redirection finale du callback OIDC, puisque
+// cette page n'a jamais vu la requête XHR qui a échoué.
 function erreurOidcDepuisUrl(): string | null {
   return new URLSearchParams(window.location.search).get('oidc_error')
 }
@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(() => erreurOidcDepuisUrl())
   const [oidcEnabled, setOidcEnabled] = useState(false)
+  const [oidcDisplayName, setOidcDisplayName] = useState('SSO')
 
   useEffect(() => {
     if (erreurOidcDepuisUrl()) {
@@ -30,10 +31,14 @@ export default function LoginPage() {
     }
     // Échec silencieux volontaire (backlog 2.K.5) : ce n'est pas une carte de
     // données qui disparaît, juste une fonctionnalité optionnelle absente sur les
-    // déploiements où Authentik n'est pas configuré — le bouton reste alors caché.
+    // déploiements où le SSO n'est pas configuré (ou désactivé) — le bouton reste
+    // alors caché.
     api
       .getOidcStatus()
-      .then((s) => setOidcEnabled(s.enabled))
+      .then((s) => {
+        setOidcEnabled(s.enabled)
+        setOidcDisplayName(s.display_name)
+      })
       .catch(() => {})
   }, [])
 
@@ -129,7 +134,7 @@ export default function LoginPage() {
                 href="/api/auth/oidc/login"
                 className="block rounded-md border border-bordure px-4 py-2 text-center text-sm font-medium text-texte hover:bg-surface-elevee"
               >
-                Se connecter avec Authentik
+                Se connecter avec {oidcDisplayName}
               </a>
             </>
           )}
