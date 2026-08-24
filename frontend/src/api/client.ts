@@ -41,6 +41,7 @@ import type {
   OidcConfig,
   OidcConfigInput,
   OidcStatus,
+  DeclarationPatrimoineInput,
   ExpositionConsolidee,
   LienPartage,
   LienPartageInput,
@@ -92,7 +93,11 @@ function estRoutePublique(path: string): boolean {
   return path.startsWith('/auth/') || path.startsWith('/partage-public/')
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+// Fetch + gestion d'erreur commune à `request` (JSON) et `requestBlob` (PDF
+// généré côté serveur, backlog 2.Q.2) : seule la lecture du corps en cas de succès
+// diffère entre les deux, tout le reste (jeton, 401, message d'erreur) doit rester
+// strictement identique pour ne jamais diverger entre les deux chemins.
+async function fetchApi(path: string, options?: RequestInit): Promise<Response> {
   let res: Response
   const token = getToken()
   const headers: Record<string, string> = options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }
@@ -118,8 +123,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     }
     throw new Error(detail ?? messageGenerique(res.status, res.statusText))
   }
+  return res
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetchApi(path, options)
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
+}
+
+async function requestBlob(path: string, options?: RequestInit): Promise<Blob> {
+  const res = await fetchApi(path, options)
+  return res.blob()
 }
 
 export const api = {
@@ -247,6 +262,11 @@ export const api = {
   getPartageMeta: (token: string) => request<PartageMeta>(`/partage-public/${token}/meta`),
   consulterPartage: (token: string, code: string | null) =>
     request<PartagePayload>(`/partage-public/${token}`, { method: 'POST', body: JSON.stringify({ code }) }),
+
+  // Déclaration de patrimoine PDF paramétrable (backlog 2.Q.2) : réponse binaire,
+  // passe par `requestBlob` plutôt que `request` (JSON).
+  downloadDeclarationPatrimoine: (input: DeclarationPatrimoineInput) =>
+    requestBlob('/export/declaration-patrimoine.pdf', { method: 'POST', body: JSON.stringify(input) }),
 
   // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
   listDetenteurs: () => request<Detenteur[]>('/detenteurs'),

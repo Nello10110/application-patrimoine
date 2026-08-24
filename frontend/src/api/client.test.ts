@@ -134,4 +134,33 @@ describe('api client — 401 sur une route protégée vs publique (Milestone 1 +
     expect(handler).not.toHaveBeenCalled()
     expect(localStorage.getItem('patrimoine_auth_token')).toBe('un-jeton-existant')
   })
+
+  it('un 401 sur la déclaration de patrimoine (route protégée) déconnecte normalement', async () => {
+    mockFetchOnce({ ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({}) })
+
+    await expect(api.downloadDeclarationPatrimoine({})).rejects.toThrow()
+
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('api client — downloadDeclarationPatrimoine (backlog 2.Q.2)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('renvoie un blob sur une réponse réussie', async () => {
+    const pdfBlob = new Blob(['%PDF'], { type: 'application/pdf' })
+    mockFetchOnce({ ok: true, status: 200, blob: async () => pdfBlob } as unknown as Partial<Response> & { ok: boolean; status: number })
+
+    const resultat = await api.downloadDeclarationPatrimoine({ inclure_profil: true })
+
+    expect(resultat).toBe(pdfBlob)
+  })
+
+  it('conserve le message métier sur un échec (ex. détenteur introuvable)', async () => {
+    mockFetchOnce({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({ detail: 'Détenteur introuvable' }) })
+
+    await expect(api.downloadDeclarationPatrimoine({ detenteur_id: 999 })).rejects.toThrow('Détenteur introuvable')
+  })
 })

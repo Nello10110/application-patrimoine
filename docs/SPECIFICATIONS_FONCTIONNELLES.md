@@ -35,7 +35,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements de la période |
 | Import | `/import` | Import de l'historique de transactions, d'un relevé de positions, ou de mouvements bancaires (CSV mappé, OFX, QIF — backlog § 2.N.1) pour l'écran Budget |
-| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV et relevé de patrimoine PDF, gestion des liens de partage (onglet Partage, backlog § 2.Q.1) |
+| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte, taux d'imposition déclaré), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV, relevé de patrimoine PDF et déclaration de patrimoine paramétrable (backlog § 2.Q.2), gestion des liens de partage (onglet Partage, backlog § 2.Q.1) |
 | Partage public | `/partage/:token` | Consultation PUBLIQUE (aucune authentification, backlog § 2.Q.1) d'un lien de partage — sections agrégées choisies par le propriétaire, code optionnel |
 
 Un bouton dans l'en-tête bascule le thème clair/sombre (ou suit le système), sur tous les écrans.
@@ -409,6 +409,36 @@ en lecture/écriture sur les données du foyer mais ne peut pas les exposer publ
   (mauvais code) n'invalide jamais la session d'un propriétaire déjà connecté qui testerait son
   propre lien dans un nouvel onglet (même exemption que `/api/auth/*` dans `api/client.ts`).
 
+### 3.22 Déclaration de patrimoine paramétrable (backlog § 2.Q.2)
+
+Distincte du relevé PDF existant (§ 3.11, D.1, resté inchangé) : un document **paramétrable**,
+destiné à un tiers concret (banque, notaire) — `POST /api/export/declaration-patrimoine.pdf`
+(`services/declaration_patrimoine_service.py`, `POST` plutôt que `GET` : la sélection peut porter
+sur un grand nombre d'identifiants).
+
+- **Sélection actif par actif et emprunt par emprunt** (`holding_ids`/`loan_ids`, `None` = tout le
+  foyer, une liste — même vide — restreint explicitement).
+- **Filtrage par détenteur** (`detenteur_id`) : réutilise `detenteurs_service.compute_parts`, chaque
+  actif valorisé à sa quotité ; un emprunt affiché à sa `part_dette` (`part_detenue − part_nette`) si
+  rattaché à un actif sélectionné — sinon absent de la vue individuelle (même limite que M.2). Les
+  totaux de la synthèse sont la somme EXACTE des lignes affichées, jamais un chiffre d'ensemble
+  susceptible de diverger de la sélection.
+- **Méthode de valorisation par ligne**, toujours explicitée : « Valeur estimée déclarée le
+  JJ/MM/AAAA » (`Holding.valeur_estimee` renseignée), « Cours de marché au JJ/MM/AAAA » (cotation
+  disponible), ou « Prix de revient (non coté) » (repli sans cotation).
+- **Profil emprunteur optionnel** (`inclure_profil`) : revenus nets/dépenses mensuels moyens et taux
+  d'endettement (`objectifs_service.compute_indicateurs_situation`, moyenne glissante 3 mois — même
+  fenêtre que § 3.19/O.2), reste à vivre (`budget_service.compute_jonction_patrimoine`, mois en cours
+  — même fenêtre que § 3.18/N.4), et **taux d'imposition** — un réglage SAISI par l'utilisateur
+  (`Preferences.taux_imposition_pct`, `None` par défaut), repris tel quel, jamais un calcul fiscal
+  (seule exception admise au hors-périmètre fiscalité, cf. § 5).
+- **Pagination** (numéro de page en bas de chaque page) et horodatage de génération — absents du
+  relevé § D.1, qui tient sur une seule page et n'en avait pas besoin.
+- Frontend : `DeclarationPatrimoineModal`, déclenchée depuis Réglages → Général. Téléchargement via
+  blob (`api.downloadDeclarationPatrimoine`, nouvelle fonction `requestBlob` dans `api/client.ts`,
+  factorisée avec `request` — même gestion d'erreur/jeton, seule la lecture du corps de réponse
+  diffère) + `<a download>` généré côté client.
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
@@ -425,7 +455,7 @@ en lecture/écriture sur les données du foyer mais ne peut pas les exposer publ
 | `ticker_resolution` | Cache ISIN/symbole → ticker Yahoo Finance |
 | `allocation_targets` | Objectifs de répartition géo/sectorielle par année |
 | `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |
-| `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, seuil d'alerte), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
+| `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, seuil d'alerte, taux d'imposition déclaré — § 3.22), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
 | `historique_cache` | Cache persistant (24 h) des séries d'historique de prix coûteuses à recalculer (ligne et portefeuille), cf. § 3.9 |
 | `liens_partage` | Liens de partage révocables (§ 3.21, backlog 2.Q.1) : jeton opaque, sections activées, code haché optionnel, expiration, révocation |
 | `partage_acces` | Journal des consultations d'un lien de partage public (§ 3.21) — alimente le verrouillage temporaire par lien |

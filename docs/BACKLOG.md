@@ -1540,7 +1540,7 @@ liste/révocation par le propriétaire, 403 pour un membre, consultation publiqu
 (vrai flux HTTP, pas seulement l'override de test), verrouillage après 5 codes incorrects, aucune
 fuite de ticker individuel dans la charge publique.
 
-#### Q.2 — `mineur` · `M` · `P2` · `non traité` — Déclaration de patrimoine
+#### Q.2 — `mineur` · `M` · `P2` · `traité` (25/08/2026) — Déclaration de patrimoine
 
 Le relevé PDF existant (§ D.1) est monolithique. Cible : un document **paramétrable**, destiné à un
 tiers concret (banque pour un prêt, notaire pour une donation) —
@@ -1553,6 +1553,30 @@ tiers concret (banque pour un prêt, notaire pour une donation) —
 
 C'est un usage réel et récurrent chez l'utilisateur (donation, succession, prêt) — cf.
 `/areas/patrimoine`.
+
+**Livré et vérifié le 25/08/2026.** Nouveau `services/declaration_patrimoine_service.py`, séparé du
+relevé PDF existant (§ D.1, resté inchangé) — ne calcule rien lui-même, réutilise telles quelles
+`analysis_service.value_holdings`, `detenteurs_service.compute_parts`, `loan_service.compute_capital_restant_du`,
+`objectifs_service.compute_indicateurs_situation` (revenus/dépenses/taux d'endettement, moyenne
+glissante 3 mois — même fenêtre que O.2) et `budget_service.compute_jonction_patrimoine` (reste à
+vivre, mois en cours — même fenêtre que N.4) ; les totaux de la synthèse sont la somme EXACTE des
+lignes affichées (jamais un chiffre d'ensemble qui pourrait diverger silencieusement de la sélection).
+Filtrage par détenteur : `part_dette` d'un emprunt dérivée de `compute_parts` (`part_detenue −
+part_nette`) — un emprunt non rattaché à un actif (limite déjà connue de M.2) n'apparaît alors que
+dans la déclaration foyer entier. Méthode de valorisation par ligne : « Valeur estimée déclarée le
+JJ/MM/AAAA » (actif manuel), « Cours de marché au JJ/MM/AAAA » (cotation disponible), ou « Prix de
+revient (non coté) » (repli sans cotation) — jamais un chiffre sans dire d'où il vient. Pagination
+ajoutée (numéro de page en bas, absent du relevé § D.1 qui n'en avait pas besoin sur une page). Nouveau
+réglage `taux_imposition_pct` (Réglages, saisi par l'utilisateur, jamais un calcul fiscal — seule
+exception admise au hors-périmètre fiscalité, cf. § 3), stocké comme les autres préférences par
+utilisateur, `None` par défaut. Nouvel endpoint `POST /api/export/declaration-patrimoine.pdf` (POST,
+pas GET : la sélection peut porter sur de nombreux identifiants). Frontend : nouvelle
+`DeclarationPatrimoineModal` (sélection actif par actif/emprunt par emprunt via cases à cocher, toutes
+cochées par défaut, détenteur/destinataire/profil optionnels), déclenchée depuis Réglages → Général ;
+téléchargement via blob + `<a download>` généré côté client (`requestBlob`, nouvelle fonction
+factorisée avec `request` dans `api/client.ts` — même gestion d'erreur/jeton, seule la lecture du
+corps de réponse diffère). 27 tests backend (service + routeur + préférences étendues) + 7 tests
+frontend, `tsc`/`oxlint` propres.
 
 #### Q.3 — `mineur` · `S` · `P3` · `non traité` — Devise et internationalisation légère
 
@@ -1616,7 +1640,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
-| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | En cours — O.1, O.2, P.1 livrés (3/5) ; Q.1, Q.2 restants |
+| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |
 
 **Pourquoi cet ordre.**

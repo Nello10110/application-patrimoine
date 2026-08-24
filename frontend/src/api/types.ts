@@ -357,6 +357,16 @@ export interface PartageObjectif {
   retard_mois: number | null
 }
 
+// Déclaration de patrimoine PDF paramétrable (backlog 2.Q.2). `null`/absent =
+// toutes les lignes du foyer ; une liste (même vide) restreint explicitement.
+export interface DeclarationPatrimoineInput {
+  holding_ids?: number[] | null
+  loan_ids?: number[] | null
+  detenteur_id?: number | null
+  destinataire?: string | null
+  inclure_profil?: boolean
+}
+
 export interface PartagePayload {
   nom_lien: string
   masque: boolean
@@ -491,6 +501,9 @@ export interface RepartitionComptesResponse {
 export interface Preferences {
   methode_cout: 'cout_moyen_pondere' | 'fifo'
   seuil_alerte_ecart_pct: number
+  // Taux d'imposition SAISI par l'utilisateur (backlog 2.Q.2) : une donnée reprise
+  // telle quelle dans la déclaration de patrimoine, jamais un calcul fiscal.
+  taux_imposition_pct: number | null
 }
 
 export interface PreferencesUpdateResponse extends Preferences {

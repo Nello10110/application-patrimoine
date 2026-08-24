@@ -230,6 +230,7 @@ simple information complémentaire.
 
 - **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
 - **Alertes** : seuil d'écart, en points de pourcentage, au-delà duquel une recommandation de rééquilibrage devient une alerte mise en avant sur l'écran Répartition.
+- **Taux d'imposition** : une valeur saisie ici, jamais calculée par l'application — reprise telle quelle dans la déclaration de patrimoine (ci-dessous) quand son profil emprunteur est inclus. Laisser vide si non pertinent.
 
 ### Rafraîchissement automatique des données de marché
 
@@ -269,6 +270,17 @@ Section visible uniquement par le propriétaire du compte.
 ### Exporter
 
 Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule). Un quatrième bouton télécharge un **relevé de patrimoine au format PDF** : une photographie mise en forme (patrimoine net, répartition par classe d'actif, rentabilité globale, répartition par compte), prête à imprimer ou archiver.
+
+### Déclaration de patrimoine
+
+Contrairement au relevé PDF ci-dessus (figé, tout le patrimoine), la déclaration est **paramétrable** — pensée pour un dossier de prêt, une donation, une succession. Le bouton ouvre une fenêtre de sélection :
+
+- **Destinataire** (optionnel) : un texte libre affiché en en-tête du document (« Banque XYZ »).
+- **Détenteur** (optionnel) : par défaut, le foyer entier. Restreindre à une personne ne montre que ses quotités — un actif jamais réparti entre détenteurs n'apparaît dans aucune déclaration individuelle, seulement dans celle du foyer entier.
+- **Profil emprunteur** (case à cocher) : ajoute une section avec revenus nets et dépenses mensuels moyens, taux d'endettement, reste à vivre, et le taux d'imposition renseigné dans Préférences ci-dessus.
+- **Actifs à inclure** / **Emprunts à inclure** : deux listes à cocher, tout coché par défaut — décocher une ligne l'exclut du document (et donc du total, qui ne compte jamais que ce qui est effectivement affiché).
+
+Chaque ligne du document précise sa méthode de valorisation (cours de marché daté, valeur estimée déclarée, ou prix de revient si aucune cotation n'est disponible) — jamais un chiffre sans dire d'où il vient. Le document généré est paginé et horodaté.
 
 ### Liens de partage
 

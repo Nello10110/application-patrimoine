@@ -20,6 +20,7 @@ from ..models import UserParametre
 _CLE_METHODE_COUT = "methode_cout"
 _CLE_SEUIL_ALERTE_ECART_PCT = "seuil_alerte_ecart_pct"
 _CLE_BUDGET_CATEGORIES_INITIALISEES = "budget_categories_initialisees"
+_CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
 
 # Méthode de calcul du coût de revient (LOT 5.6) : coût moyen pondéré (défaut
 # historique, comportement inchangé) ou FIFO (premier entré, premier sorti), cf.
@@ -69,6 +70,20 @@ def lire_seuil_alerte_ecart_pct(db: Session, user_id: int) -> float:
         return SEUIL_ALERTE_ECART_PCT_DEFAUT
 
 
+def lire_taux_imposition_pct(db: Session, user_id: int) -> float | None:
+    """Taux d'imposition SAISI par l'utilisateur (backlog 2.Q.2, déclaration de
+    patrimoine) — une donnée reprise telle quelle, jamais un calcul fiscal (cf.
+    `docs/BACKLOG.md` § 3, seule exception admise au hors-périmètre fiscalité).
+    `None` par défaut : rien à afficher tant qu'il n'a jamais été renseigné."""
+    valeur = _lire_valeur_brute(db, _CLE_TAUX_IMPOSITION_PCT, user_id)
+    if valeur is None:
+        return None
+    try:
+        return float(valeur)
+    except ValueError:
+        return None
+
+
 def budget_categories_initialisees(db: Session, user_id: int) -> bool:
     """Drapeau posé une fois l'arbre de catégories budget créé pour ce foyer
     (backlog 2.N.1, `services/budget_categories_service.py`) — distingue "jamais
@@ -90,16 +105,25 @@ def lire_preferences(db: Session, user_id: int) -> dict:
     return {
         "methode_cout": lire_methode_cout(db, user_id),
         "seuil_alerte_ecart_pct": lire_seuil_alerte_ecart_pct(db, user_id),
+        "taux_imposition_pct": lire_taux_imposition_pct(db, user_id),
     }
 
 
-def enregistrer_preferences(db: Session, user_id: int, methode_cout: str, seuil_alerte_ecart_pct: float) -> dict:
-    """Écrit les deux réglages de ce compte et renvoie l'ensemble des préférences
-    relu (même forme que `lire_preferences`). La validation des valeurs (méthode
-    autorisée, seuil entre 0 et 100) est déjà faite en amont par
+def enregistrer_preferences(
+    db: Session, user_id: int, methode_cout: str, seuil_alerte_ecart_pct: float, taux_imposition_pct: float | None = None
+) -> dict:
+    """Écrit les réglages de ce compte et renvoie l'ensemble des préférences relu
+    (même forme que `lire_preferences`). La validation des valeurs (méthode
+    autorisée, seuils entre 0 et 100) est déjà faite en amont par
     `schemas.PreferencesUpdate` : ce module ne fait ici que persister, pas que
-    revalider."""
+    revalider. `taux_imposition_pct=None` efface la valeur déjà enregistrée
+    (contrairement aux deux réglages ci-dessus, toujours requis) : un champ de
+    saisie vidé côté client doit pouvoir revenir à "non renseigné"."""
     _ecrire_valeur_brute(db, _CLE_METHODE_COUT, user_id, methode_cout)
     _ecrire_valeur_brute(db, _CLE_SEUIL_ALERTE_ECART_PCT, user_id, str(seuil_alerte_ecart_pct))
+    if taux_imposition_pct is None:
+        db.query(UserParametre).filter(UserParametre.cle == _CLE_TAUX_IMPOSITION_PCT, UserParametre.user_id == user_id).delete()
+    else:
+        _ecrire_valeur_brute(db, _CLE_TAUX_IMPOSITION_PCT, user_id, str(taux_imposition_pct))
     db.commit()
     return lire_preferences(db, user_id)

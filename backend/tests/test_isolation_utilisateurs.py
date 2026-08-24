@@ -267,7 +267,7 @@ def test_preferences_dun_utilisateur_invisibles_pour_un_autre(client, db):
     reponse = client.get("/api/settings/preferences")
 
     assert reponse.status_code == 200
-    assert reponse.json() == {"methode_cout": "cout_moyen_pondere", "seuil_alerte_ecart_pct": 5.0}
+    assert reponse.json() == {"methode_cout": "cout_moyen_pondere", "seuil_alerte_ecart_pct": 5.0, "taux_imposition_pct": None}
 
 
 def test_changer_ses_preferences_ne_reconstruit_que_son_propre_portefeuille(client, db):

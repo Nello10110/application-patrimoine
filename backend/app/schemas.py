@@ -703,11 +703,15 @@ class Preferences(BaseModel):
 
     methode_cout: str  # "cout_moyen_pondere" | "fifo"
     seuil_alerte_ecart_pct: float
+    # Taux d'imposition SAISI (backlog 2.Q.2) : une donnée reprise telle quelle dans
+    # la déclaration de patrimoine, jamais un calcul fiscal — cf. `docs/BACKLOG.md` § 3.
+    taux_imposition_pct: float | None = None
 
 
 class PreferencesUpdate(BaseModel):
     methode_cout: str
     seuil_alerte_ecart_pct: float
+    taux_imposition_pct: float | None = None
 
     @field_validator("methode_cout")
     @classmethod
@@ -721,6 +725,13 @@ class PreferencesUpdate(BaseModel):
     def _valider_seuil(cls, v: float) -> float:
         if not (0 <= v <= 100):
             raise ValueError("Le seuil d'alerte doit être compris entre 0 et 100")
+        return v
+
+    @field_validator("taux_imposition_pct")
+    @classmethod
+    def _valider_taux_imposition(cls, v: float | None) -> float | None:
+        if v is not None and not (0 <= v <= 100):
+            raise ValueError("Le taux d'imposition doit être compris entre 0 et 100")
         return v
 
 
@@ -1448,3 +1459,20 @@ class IndicateursSituation(BaseModel):
     depenses_mensuelles_moyennes: float | None
     mensualites_totales: float
     revenus_nets_mensuels_moyens: float | None
+
+
+class DeclarationPatrimoineRequest(BaseModel):
+    """Backlog 2.Q.2 — `services/declaration_patrimoine_service.generer_pdf_declaration`.
+    `holding_ids`/`loan_ids` à `None` = toutes les lignes du foyer ; une liste (même
+    vide) restreint explicitement la sélection."""
+
+    holding_ids: list[int] | None = None
+    loan_ids: list[int] | None = None
+    detenteur_id: int | None = None
+    destinataire: str | None = None
+    inclure_profil: bool = False
+
+    @field_validator("destinataire")
+    @classmethod
+    def _valider_destinataire(cls, v: str | None) -> str | None:
+        return v.strip() or None if v else None

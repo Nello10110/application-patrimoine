@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Detenteur, OidcConfig, Session } from '../api/types'
 import ReglagesPage from './ReglagesPage'
@@ -31,8 +31,14 @@ vi.mock('../api/client', () => ({
     listDetenteurs: vi.fn(),
     createDetenteur: vi.fn(),
     deleteDetenteur: vi.fn(),
-    getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', seuil_alerte_ecart_pct: 5 }),
+    getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', seuil_alerte_ecart_pct: 5, taux_imposition_pct: null }),
+    updatePreferences: vi.fn(),
     listJobs: vi.fn().mockResolvedValue([]),
+    // Déclaration de patrimoine (backlog 2.Q.2) : hors de l'objet des autres blocs
+    // de ce fichier, stubs neutres par défaut.
+    listHoldings: vi.fn().mockResolvedValue([]),
+    listLoans: vi.fn().mockResolvedValue([]),
+    downloadDeclarationPatrimoine: vi.fn(),
     listSessions: vi.fn().mockResolvedValue([]),
     getAccessLog: vi.fn().mockResolvedValue([]),
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
@@ -403,5 +409,113 @@ describe('ReglagesPage — Liens de partage (backlog 2.Q.1)', () => {
 
     await vi.waitFor(() => expect(api.revokeLienPartage).toHaveBeenCalledWith(1))
     await screen.findByText('révoqué')
+  })
+})
+
+function holdingDeclaration(overrides: Partial<import('../api/types').Holding> = {}): import('../api/types').Holding {
+  return {
+    id: 1,
+    ticker: 'AAA',
+    nom: 'Action A',
+    quantite: 10,
+    prix_revient_moyen: 100,
+    compte: null,
+    devise: 'EUR',
+    type_actif: 'STOCK',
+    origine: 'manuel',
+    created_at: '2026-01-01T00:00:00',
+    updated_at: '2026-01-01T00:00:00',
+    market_data: null,
+    rendement_depuis_achat_pct: null,
+    rendement_annualise_pct: null,
+    valeur: 1000,
+    valeur_estimee: null,
+    date_valeur_estimee: null,
+    taux_pct: null,
+    zone_geo: null,
+    ...overrides,
+  }
+}
+
+function loanDeclaration(overrides: Partial<import('../api/types').Loan> = {}): import('../api/types').Loan {
+  return {
+    id: 1,
+    libelle: 'Crédit immo',
+    capital_initial: 200000,
+    taux_annuel_pct: 1.5,
+    mensualite: 1000,
+    date_debut: '2020-01-01T00:00:00',
+    duree_mois: 200,
+    capital_restant_du_manuel: null,
+    derniere_maj_manuelle: null,
+    holding_id: null,
+    capital_restant_du: 150000,
+    created_at: '2020-01-01T00:00:00',
+    updated_at: '2020-01-01T00:00:00',
+    ...overrides,
+  }
+}
+
+describe('ReglagesPage — Déclaration de patrimoine (backlog 2.Q.2)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('URL', { createObjectURL: vi.fn().mockReturnValue('blob:fake'), revokeObjectURL: vi.fn() })
+  })
+
+  it('ouvre la modale et liste les actifs et emprunts, tous cochés par défaut', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holdingDeclaration()])
+    vi.mocked(api.listLoans).mockResolvedValue([loanDeclaration()])
+    renderReglages()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Déclaration de patrimoine (PDF)' }))
+
+    await screen.findByRole('dialog')
+    expect(screen.getByText('Action A')).toBeInTheDocument()
+    expect(screen.getByText('Crédit immo')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Action A/ })).toBeChecked()
+  })
+
+  it('générer le PDF appelle downloadDeclarationPatrimoine avec la sélection par défaut', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holdingDeclaration()])
+    vi.mocked(api.listLoans).mockResolvedValue([loanDeclaration()])
+    vi.mocked(api.downloadDeclarationPatrimoine).mockResolvedValue(new Blob(['%PDF'], { type: 'application/pdf' }))
+    renderReglages()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Déclaration de patrimoine (PDF)' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Générer le PDF' }))
+
+    await vi.waitFor(() =>
+      expect(api.downloadDeclarationPatrimoine).toHaveBeenCalledWith(
+        expect.objectContaining({ holding_ids: [1], loan_ids: [1], detenteur_id: null, inclure_profil: false }),
+      ),
+    )
+  })
+
+  it('décocher un actif le retire de la sélection envoyée', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holdingDeclaration()])
+    vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.downloadDeclarationPatrimoine).mockResolvedValue(new Blob(['%PDF'], { type: 'application/pdf' }))
+    renderReglages()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Déclaration de patrimoine (PDF)' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Action A/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Générer le PDF' }))
+
+    await vi.waitFor(() => expect(api.downloadDeclarationPatrimoine).toHaveBeenCalledWith(expect.objectContaining({ holding_ids: [] })))
+  })
+
+  it("affiche un message d'erreur si la génération échoue, sans fermer la modale", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([])
+    vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.downloadDeclarationPatrimoine).mockRejectedValue(new Error('Détenteur introuvable'))
+    renderReglages()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Déclaration de patrimoine (PDF)' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Générer le PDF' }))
+
+    await screen.findByText('Détenteur introuvable')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { AccessLogEntry, Detenteur, HouseholdMember, LienPartage, OidcConfig, Preferences, Role, ScheduledJob, Session, TypeDetenteur } from '../api/types'
 import Card from '../components/Card'
+import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { IconBouclier, IconCle, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
@@ -374,8 +375,12 @@ function PreferencesCard() {
     setError(null)
     setMessage(null)
     try {
-      const resultat = await api.updatePreferences({ methode_cout, seuil_alerte_ecart_pct: prefs.seuil_alerte_ecart_pct })
-      setPrefs({ methode_cout: resultat.methode_cout, seuil_alerte_ecart_pct: resultat.seuil_alerte_ecart_pct })
+      const resultat = await api.updatePreferences({
+        methode_cout,
+        seuil_alerte_ecart_pct: prefs.seuil_alerte_ecart_pct,
+        taux_imposition_pct: prefs.taux_imposition_pct,
+      })
+      setPrefs(resultat)
       if (resultat.positions_recalculees !== null) {
         setMessage(
           `${resultat.positions_recalculees} position${resultat.positions_recalculees > 1 ? 's' : ''} du portefeuille recalculée${
@@ -395,8 +400,30 @@ function PreferencesCard() {
     setSaving(true)
     setError(null)
     try {
-      const resultat = await api.updatePreferences({ methode_cout: prefs.methode_cout, seuil_alerte_ecart_pct })
-      setPrefs({ methode_cout: resultat.methode_cout, seuil_alerte_ecart_pct: resultat.seuil_alerte_ecart_pct })
+      const resultat = await api.updatePreferences({
+        methode_cout: prefs.methode_cout,
+        seuil_alerte_ecart_pct,
+        taux_imposition_pct: prefs.taux_imposition_pct,
+      })
+      setPrefs(resultat)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleTauxImpositionChange(taux_imposition_pct: number | null) {
+    if (!prefs) return
+    setSaving(true)
+    setError(null)
+    try {
+      const resultat = await api.updatePreferences({
+        methode_cout: prefs.methode_cout,
+        seuil_alerte_ecart_pct: prefs.seuil_alerte_ecart_pct,
+        taux_imposition_pct,
+      })
+      setPrefs(resultat)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -460,6 +487,34 @@ function PreferencesCard() {
             className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
           points
+        </label>
+      </Card>
+
+      <Card title="Déclaration de patrimoine">
+        <p className="mb-4 text-sm text-texte">
+          Taux d'imposition saisi ici, repris tel quel dans la déclaration de patrimoine (onglet Exporter) — l'application ne
+          réalise aucun calcul fiscal, cette valeur est celle que tu renseignes.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-texte">
+          Taux d'imposition
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="0.5"
+            defaultValue={prefs.taux_imposition_pct ?? ''}
+            disabled={saving}
+            placeholder="non renseigné"
+            onBlur={(e) => {
+              const brut = e.target.value.trim()
+              const valeur = brut === '' ? null : Number(brut)
+              if (valeur === null || !Number.isNaN(valeur)) {
+                if (valeur !== prefs.taux_imposition_pct) handleTauxImpositionChange(valeur)
+              }
+            }}
+            className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          />
+          %
         </label>
       </Card>
     </>
@@ -1130,6 +1185,7 @@ export default function ReglagesPage() {
   const [jobs, setJobs] = useState<ScheduledJob[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [declarationOuverte, setDeclarationOuverte] = useState(false)
 
   function chargerJobs() {
     setLoading(true)
@@ -1208,6 +1264,18 @@ export default function ReglagesPage() {
             >
               Relevé de patrimoine (PDF)
             </a>
+
+            <p className="mb-4 mt-6 text-sm text-texte">
+              Déclaration de patrimoine (backlog 2.Q.2) : un document paramétrable pour un tiers concret (banque pour un prêt,
+              notaire pour une donation) — sélection actif par actif, filtrage par détenteur, profil emprunteur optionnel.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeclarationOuverte(true)}
+              className="inline-block rounded-md border border-texte px-4 py-2 text-sm font-medium text-texte"
+            >
+              Déclaration de patrimoine (PDF)
+            </button>
           </Card>
         </div>
       )}
@@ -1248,6 +1316,8 @@ export default function ReglagesPage() {
           ))}
         </div>
       )}
+
+      {declarationOuverte && <DeclarationPatrimoineModal onClose={() => setDeclarationOuverte(false)} />}
     </div>
   )
 }

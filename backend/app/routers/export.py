@@ -7,14 +7,15 @@ aplatir artificiellement."""
 
 from datetime import date as date_
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Holding, Transaction, User
-from ..services import analysis_service, auth_service, pdf_export_service, performance_service
+from ..models import Detenteur, Holding, Transaction, User
+from ..schemas import DeclarationPatrimoineRequest
+from ..services import analysis_service, auth_service, declaration_patrimoine_service, pdf_export_service, performance_service
 from ..services.csv_export import construire_csv, formater_horodatage, formater_nombre
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -177,4 +178,31 @@ def export_patrimoine_pdf(db: Session = Depends(get_db), current_user: User = De
     et de la rentabilité globale, cf. `services/pdf_export_service.py`."""
     contenu = pdf_export_service.generer_pdf_patrimoine(db, auth_service.id_foyer(current_user))
     nom_fichier = f"patrimoine-{date_.today().isoformat()}.pdf"
+    return Response(content=contenu, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nom_fichier}"'})
+
+
+@router.post("/declaration-patrimoine.pdf")
+def export_declaration_patrimoine_pdf(
+    payload: DeclarationPatrimoineRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """Déclaration de patrimoine PDF paramétrable (backlog 2.Q.2) — sélection actif
+    par actif, filtrage par détenteur, reprise du profil pour un tiers concret
+    (banque, notaire). `POST` (pas `GET`) : la sélection peut porter sur un grand
+    nombre d'identifiants, mal adapté à une chaîne de requête."""
+    user_id = auth_service.id_foyer(current_user)
+    if payload.detenteur_id is not None:
+        detenteur = db.get(Detenteur, payload.detenteur_id)
+        if detenteur is None or detenteur.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Détenteur introuvable")
+
+    contenu = declaration_patrimoine_service.generer_pdf_declaration(
+        db,
+        user_id,
+        holding_ids=payload.holding_ids,
+        loan_ids=payload.loan_ids,
+        detenteur_id=payload.detenteur_id,
+        destinataire=payload.destinataire,
+        inclure_profil=payload.inclure_profil,
+    )
+    nom_fichier = f"declaration-patrimoine-{date_.today().isoformat()}.pdf"
     return Response(content=contenu, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nom_fichier}"'})
