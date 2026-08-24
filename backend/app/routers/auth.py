@@ -10,7 +10,19 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_token, get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_PROPRIETAIRE, AuthToken, Detenteur, PerimetreInvite, User
-from ..schemas import AccessLogEntryOut, AuthResponse, HouseholdMemberCreate, HouseholdMemberOut, LoginRequest, OidcStatus, RegisterRequest, SessionOut, UserOut
+from ..schemas import (
+    AccessLogEntryOut,
+    AuthResponse,
+    HouseholdMemberCreate,
+    HouseholdMemberOut,
+    LoginRequest,
+    OidcConfigOut,
+    OidcConfigUpdate,
+    OidcStatus,
+    RegisterRequest,
+    SessionOut,
+    UserOut,
+)
 from ..services import auth_service, oidc_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -67,35 +79,41 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 # --- Connexion SSO Authentik (OIDC applicatif) -----------------------------------
 #
-# Toutes publiques, comme /register et /login ci-dessus. Ce flux ne fait JAMAIS
-# confiance à un en-tête de proxy — toute la logique de sécurité vit dans
-# `services/oidc_service.py` (docstring de module à lire avant toute modification
-# ici). Ces trois routes ne sont que la tuyauterie HTTP autour de ce service.
+# status/login/callback sont publiques, comme /register et /login ci-dessus. Ce flux
+# ne fait JAMAIS confiance à un en-tête de proxy — toute la logique de sécurité vit
+# dans `services/oidc_service.py` (docstring de module à lire avant toute
+# modification ici). Ces routes ne sont que la tuyauterie HTTP autour de ce service.
+# La configuration elle-même (issuer/client id/redirect uri/frontend url/secret) est
+# administrée depuis Réglages, réservée au propriétaire (get/put/delete oidc/config
+# ci-dessous) — jamais en variable d'environnement, hormis la clé de chiffrement du
+# secret (`PATRIMOINE_SECRET_KEY`).
 
 
 @router.get("/oidc/status", response_model=OidcStatus)
-def oidc_status():
-    return OidcStatus(enabled=oidc_service.enabled())
+def oidc_status(db: Session = Depends(get_db)):
+    return OidcStatus(enabled=oidc_service.enabled(db))
 
 
 @router.get("/oidc/login")
-def oidc_login():
-    if not oidc_service.enabled():
+def oidc_login(db: Session = Depends(get_db)):
+    config = oidc_service.charger_config(db)
+    if config is None:
         raise HTTPException(status_code=404, detail="Connexion Authentik non configurée sur ce déploiement.")
     code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(code_verifier)
-    return RedirectResponse(oidc_service.url_autorisation(state, code_challenge))
+    return RedirectResponse(oidc_service.url_autorisation(config, state, code_challenge))
 
 
 @router.get("/oidc/callback")
 def oidc_callback(request: Request, db: Session = Depends(get_db)):
-    if not oidc_service.enabled():
+    config = oidc_service.charger_config(db)
+    if config is None:
         raise HTTPException(status_code=404, detail="Connexion Authentik non configurée sur ce déploiement.")
 
     def _redirection_erreur(message: str) -> RedirectResponse:
         from urllib.parse import quote
 
-        return RedirectResponse(f"{oidc_service.frontend_url()}/?oidc_error={quote(message)}")
+        return RedirectResponse(f"{config.frontend_url}/?oidc_error={quote(message)}")
 
     erreur_authentik = request.query_params.get("error")
     if erreur_authentik:
@@ -109,8 +127,8 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
     ip = _adresse_client(request)
     try:
         code_verifier = oidc_service.verifier_state(state_recu)
-        jeton_authentik = oidc_service.echanger_code(code, code_verifier)
-        claims = oidc_service.recuperer_identite(jeton_authentik["access_token"])
+        jeton_authentik = oidc_service.echanger_code(config, code, code_verifier)
+        claims = oidc_service.recuperer_identite(config, jeton_authentik["access_token"])
         user = oidc_service.resoudre_ou_provisionner_utilisateur(db, claims)
     except oidc_service.OidcError as err:
         auth_service.journaliser_acces(db, "?", None, ip, "echec", "oidc_echec")
@@ -123,7 +141,38 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
 
     token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "oidc")
-    return RedirectResponse(f"{oidc_service.frontend_url()}/#token={token.token}")
+    return RedirectResponse(f"{config.frontend_url}/#token={token.token}")
+
+
+@router.get("/oidc/config", response_model=OidcConfigOut)
+def get_oidc_config(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+    return OidcConfigOut(**oidc_service.config_admin(db))
+
+
+@router.put("/oidc/config", response_model=OidcConfigOut)
+def update_oidc_config(
+    payload: OidcConfigUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))
+):
+    try:
+        oidc_service.enregistrer_config(
+            db,
+            issuer=payload.issuer,
+            client_id=payload.client_id,
+            redirect_uri=payload.redirect_uri,
+            frontend_url=payload.frontend_url,
+            client_secret=payload.client_secret,
+        )
+    except oidc_service.CleChiffrementAbsenteError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Définis {oidc_service.VARIABLE_CLE_CHIFFREMENT} sur le serveur avant d'enregistrer un secret Authentik.",
+        )
+    return OidcConfigOut(**oidc_service.config_admin(db))
+
+
+@router.delete("/oidc/config", status_code=204)
+def delete_oidc_config(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+    oidc_service.effacer_config(db)
 
 
 @router.post("/logout", status_code=204)

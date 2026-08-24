@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { AccessLogEntry, Detenteur, HouseholdMember, Preferences, Role, ScheduledJob, Session, TypeDetenteur } from '../api/types'
+import type { AccessLogEntry, Detenteur, HouseholdMember, OidcConfig, Preferences, Role, ScheduledJob, Session, TypeDetenteur } from '../api/types'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
@@ -663,6 +663,148 @@ function GestionFoyerCard() {
   )
 }
 
+/** Connexion SSO Authentik (backlog 2.L.3) : configuration administrable ici plutôt
+ * qu'en variables d'environnement — 4 champs texte en clair, le `client_secret` est
+ * saisissable mais jamais relu (chiffré au repos côté serveur, `secret_configure`
+ * indique seulement s'il y en a un). Réservée au propriétaire comme les autres
+ * cartes d'administration de cette page (pas de gating de rôle côté frontend : un
+ * non-propriétaire obtient un 403, affiché ci-dessous comme n'importe quelle autre
+ * erreur de chargement). */
+function AuthentikCard() {
+  const [config, setConfig] = useState<OidcConfig | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const [issuer, setIssuer] = useState('')
+  const [clientId, setClientId] = useState('')
+  const [redirectUri, setRedirectUri] = useState('')
+  const [frontendUrl, setFrontendUrl] = useState('')
+  const [clientSecret, setClientSecret] = useState('')
+
+  function charger() {
+    setLoading(true)
+    setError(null)
+    api
+      .getOidcConfig()
+      .then((c) => {
+        setConfig(c)
+        setIssuer(c.issuer ?? '')
+        setClientId(c.client_id ?? '')
+        setRedirectUri(c.redirect_uri ?? '')
+        setFrontendUrl(c.frontend_url ?? '')
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(charger, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    setMessage(null)
+    try {
+      const nouvelleConfig = await api.updateOidcConfig({
+        issuer,
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        frontend_url: frontendUrl,
+        ...(clientSecret ? { client_secret: clientSecret } : {}),
+      })
+      setConfig(nouvelleConfig)
+      setClientSecret('')
+      setMessage('Configuration enregistrée.')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <Card title="Connexion Authentik"><SkeletonTexte /></Card>
+  if (error && !config) return <Card title="Connexion Authentik"><EtatErreur message={error} onReessayer={charger} /></Card>
+
+  return (
+    <Card title="Connexion Authentik">
+      <p className="mb-4 text-sm text-texte">
+        Bouton « Se connecter avec Authentik » sur l'écran de connexion, en plus du mot de passe — vrai flux OIDC
+        (Authorization Code + PKCE), qui ne fait confiance à aucun en-tête de proxy.
+      </p>
+      {config && !config.cle_chiffrement_definie && (
+        <p className="mb-4 rounded-md border border-avertissement/40 bg-avertissement/10 p-3 text-sm text-avertissement">
+          <code className="font-mono">PATRIMOINE_SECRET_KEY</code> n'est pas définie sur le serveur : impossible
+          d'enregistrer un secret Authentik tant que cette variable d'environnement n'est pas posée (voir le manuel
+          d'exploitation).
+        </p>
+      )}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Issuer (URL de l'application OIDC Authentik)
+          <input
+            value={issuer}
+            onChange={(e) => setIssuer(e.target.value)}
+            placeholder="https://authentik.example.com/application/o/patrimoine"
+            required
+            className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Client ID
+          <input
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            required
+            className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Client Secret
+          <input
+            type="password"
+            value={clientSecret}
+            onChange={(e) => setClientSecret(e.target.value)}
+            placeholder={config?.secret_configure ? 'Laisser vide pour conserver le secret actuel' : 'Non configuré'}
+            autoComplete="off"
+            className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Redirect URI (doit correspondre exactement à celle enregistrée côté Authentik)
+          <input
+            value={redirectUri}
+            onChange={(e) => setRedirectUri(e.target.value)}
+            placeholder="https://patrimoine.example.com/api/auth/oidc/callback"
+            required
+            className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          URL publique du frontend (retour du navigateur après connexion)
+          <input
+            value={frontendUrl}
+            onChange={(e) => setFrontendUrl(e.target.value)}
+            placeholder="https://patrimoine.example.com"
+            required
+            className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          />
+        </label>
+        {message && <p className="text-sm text-positif">{message}</p>}
+        {error && <EtatErreur message={error} />}
+        <button
+          type="submit"
+          disabled={saving}
+          className="mt-1 self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        >
+          {saving ? 'Enregistrement...' : 'Enregistrer'}
+        </button>
+      </form>
+    </Card>
+  )
+}
+
 export default function ReglagesPage() {
   const [jobs, setJobs] = useState<ScheduledJob[]>([])
   const [loading, setLoading] = useState(true)
@@ -697,6 +839,7 @@ export default function ReglagesPage() {
         <GestionFoyerCard />
         <SessionsCard />
         <JournalAccesCard />
+        <AuthentikCard />
       </div>
 
       <div className="space-y-4">

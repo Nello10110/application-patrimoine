@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Detenteur, Session } from '../api/types'
+import type { Detenteur, OidcConfig, Session } from '../api/types'
 import ReglagesPage from './ReglagesPage'
 
 // Ce fichier ne verrouille que la section "Personnes et sociétés" (backlog 2.L.1) —
@@ -21,6 +21,17 @@ vi.mock('../api/client', () => ({
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
     createHouseholdMember: vi.fn(),
     deleteHouseholdMember: vi.fn(),
+    // Connexion SSO Authentik (backlog 2.L.3) : hors de l'objet des autres blocs de
+    // ce fichier, stub neutre par défaut (aucune configuration existante).
+    getOidcConfig: vi.fn().mockResolvedValue({
+      issuer: null,
+      client_id: null,
+      redirect_uri: null,
+      frontend_url: null,
+      secret_configure: false,
+      cle_chiffrement_definie: true,
+    }),
+    updateOidcConfig: vi.fn(),
   },
 }))
 
@@ -117,5 +128,93 @@ describe('ReglagesPage — Sessions actives, erreur avec action de reprise (back
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
     await screen.findByText('192.0.2.1')
+  })
+})
+
+function oidcConfig(overrides: Partial<OidcConfig> = {}): OidcConfig {
+  return {
+    issuer: null,
+    client_id: null,
+    redirect_uri: null,
+    frontend_url: null,
+    secret_configure: false,
+    cle_chiffrement_definie: true,
+    ...overrides,
+  }
+}
+
+describe('ReglagesPage — Connexion Authentik (backlog 2.L.3)', () => {
+  it('préremplit les 4 champs texte depuis la configuration existante, jamais le secret', async () => {
+    vi.mocked(api.getOidcConfig).mockResolvedValue(
+      oidcConfig({
+        issuer: 'https://authentik.example.com/application/o/patrimoine',
+        client_id: 'client-abc',
+        redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
+        frontend_url: 'https://patrimoine.example.com',
+        secret_configure: true,
+      }),
+    )
+    render(<ReglagesPage />)
+
+    expect(await screen.findByDisplayValue('https://authentik.example.com/application/o/patrimoine')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('client-abc')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Laisser vide pour conserver le secret actuel')).toBeInTheDocument()
+  })
+
+  it("soumettre appelle updateOidcConfig ; le secret est omis si le champ est laissé vide", async () => {
+    vi.mocked(api.getOidcConfig).mockResolvedValue(
+      oidcConfig({
+        issuer: 'https://authentik.example.com/application/o/patrimoine',
+        client_id: 'client-abc',
+        redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
+        frontend_url: 'https://patrimoine.example.com',
+        secret_configure: true,
+      }),
+    )
+    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ secret_configure: true }))
+    render(<ReglagesPage />)
+    await screen.findByDisplayValue('client-abc')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() =>
+      expect(api.updateOidcConfig).toHaveBeenCalledWith({
+        issuer: 'https://authentik.example.com/application/o/patrimoine',
+        client_id: 'client-abc',
+        redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
+        frontend_url: 'https://patrimoine.example.com',
+      }),
+    )
+  })
+
+  it('un secret saisi est inclus dans updateOidcConfig', async () => {
+    vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig())
+    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ secret_configure: true }))
+    render(<ReglagesPage />)
+    await screen.findByPlaceholderText('Non configuré')
+
+    fireEvent.change(screen.getByLabelText('Issuer (URL de l\'application OIDC Authentik)'), {
+      target: { value: 'https://authentik.example.com/application/o/patrimoine' },
+    })
+    fireEvent.change(screen.getByLabelText('Client ID'), { target: { value: 'client-abc' } })
+    fireEvent.change(screen.getByLabelText('Client Secret'), { target: { value: 'nouveau-secret' } })
+    fireEvent.change(screen.getByLabelText(/Redirect URI/), {
+      target: { value: 'https://patrimoine.example.com/api/auth/oidc/callback' },
+    })
+    fireEvent.change(screen.getByLabelText(/URL publique du frontend/), { target: { value: 'https://patrimoine.example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() =>
+      expect(api.updateOidcConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ client_secret: 'nouveau-secret' }),
+      ),
+    )
+  })
+
+  it("affiche un avertissement si PATRIMOINE_SECRET_KEY n'est pas définie côté serveur", async () => {
+    vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig({ cle_chiffrement_definie: false }))
+    render(<ReglagesPage />)
+
+    await screen.findByText(/PATRIMOINE_SECRET_KEY/)
   })
 })

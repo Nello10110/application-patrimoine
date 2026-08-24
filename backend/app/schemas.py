@@ -861,6 +861,34 @@ class OidcStatus(BaseModel):
     enabled: bool
 
 
+MESSAGE_CHAMP_OIDC_VIDE = "Ce champ ne peut pas être vide."
+
+
+class OidcConfigOut(BaseModel):
+    issuer: str | None
+    client_id: str | None
+    redirect_uri: str | None
+    frontend_url: str | None
+    secret_configure: bool
+    cle_chiffrement_definie: bool
+
+
+class OidcConfigUpdate(BaseModel):
+    issuer: str
+    client_id: str
+    redirect_uri: str
+    frontend_url: str
+    client_secret: str | None = None
+
+    @field_validator("issuer", "client_id", "redirect_uri", "frontend_url")
+    @classmethod
+    def _valider_non_vide(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError(MESSAGE_CHAMP_OIDC_VIDE)
+        return v
+
+
 class SessionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

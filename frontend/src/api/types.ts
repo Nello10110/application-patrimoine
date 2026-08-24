@@ -13,10 +13,32 @@ export interface AuthResponse {
   user: AuthUser
 }
 
-// Connexion SSO Authentik (OIDC applicatif) — `enabled` reflète simplement si les
-// variables d'environnement du backend sont configurées sur ce déploiement.
+// Connexion SSO Authentik (OIDC applicatif) — `enabled` reflète si la configuration
+// (Réglages → Connexion Authentik, propriétaire) est complète sur ce déploiement.
 export interface OidcStatus {
   enabled: boolean
+}
+
+// Administration de la configuration (propriétaire) — `client_secret` n'apparaît
+// jamais dans une réponse, seulement `secret_configure` (une valeur est enregistrée
+// ou non). `cle_chiffrement_definie` reflète `PATRIMOINE_SECRET_KEY` côté serveur :
+// sans elle, aucun secret ne peut être chiffré, donc enregistré.
+export interface OidcConfig {
+  issuer: string | null
+  client_id: string | null
+  redirect_uri: string | null
+  frontend_url: string | null
+  secret_configure: boolean
+  cle_chiffrement_definie: boolean
+}
+
+export interface OidcConfigInput {
+  issuer: string
+  client_id: string
+  redirect_uri: string
+  frontend_url: string
+  // Omis ou vide : le secret déjà enregistré est conservé tel quel.
+  client_secret?: string
 }
 
 // Sessions et journal d'accès (backlog 2.L.2).

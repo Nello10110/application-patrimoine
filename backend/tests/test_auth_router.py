@@ -293,16 +293,12 @@ def test_login_sur_compte_sans_mot_de_passe_renvoie_401_message_clair(client_ree
     assert "Authentik" in reponse.json()["detail"]
 
 
-def test_oidc_status_reflete_la_configuration(client_reel, monkeypatch):
+def test_oidc_status_reflete_la_configuration(client_reel, db_vide, monkeypatch):
     from app.services import oidc_service
 
     assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": False}
 
-    monkeypatch.setenv(oidc_service.VAR_ISSUER, "https://authentik.example.com/application/o/patrimoine")
-    monkeypatch.setenv(oidc_service.VAR_CLIENT_ID, "client-abc")
-    monkeypatch.setenv(oidc_service.VAR_CLIENT_SECRET, "secret-xyz")
-    monkeypatch.setenv(oidc_service.VAR_REDIRECT_URI, "https://patrimoine.example.com/api/auth/oidc/callback")
-    monkeypatch.setenv(oidc_service.VAR_FRONTEND_URL, "https://patrimoine.example.com")
+    _configurer_oidc(db_vide, monkeypatch)
 
     assert client_reel.get("/api/auth/oidc/status").json() == {"enabled": True}
 
@@ -313,23 +309,29 @@ def test_oidc_login_404_si_non_configure(client_reel):
     assert reponse.status_code == 404
 
 
-def _configurer_oidc(monkeypatch):
+def _configurer_oidc(db_vide, monkeypatch):
+    from cryptography.fernet import Fernet
+
     from app.services import oidc_service
 
-    monkeypatch.setenv(oidc_service.VAR_ISSUER, "https://authentik.example.com/application/o/patrimoine")
-    monkeypatch.setenv(oidc_service.VAR_CLIENT_ID, "client-abc")
-    monkeypatch.setenv(oidc_service.VAR_CLIENT_SECRET, "secret-xyz")
-    monkeypatch.setenv(oidc_service.VAR_REDIRECT_URI, "https://patrimoine.example.com/api/auth/oidc/callback")
-    monkeypatch.setenv(oidc_service.VAR_FRONTEND_URL, "https://patrimoine.example.com")
+    monkeypatch.setenv(oidc_service.VARIABLE_CLE_CHIFFREMENT, Fernet.generate_key().decode("utf-8"))
+    oidc_service.enregistrer_config(
+        db_vide,
+        issuer="https://authentik.example.com/application/o/patrimoine",
+        client_id="client-abc",
+        client_secret="secret-xyz",
+        redirect_uri="https://patrimoine.example.com/api/auth/oidc/callback",
+        frontend_url="https://patrimoine.example.com",
+    )
     return oidc_service
 
 
-def test_oidc_login_redirige_vers_authentik(client_reel, monkeypatch):
-    oidc_service = _configurer_oidc(monkeypatch)
+def test_oidc_login_redirige_vers_authentik(client_reel, db_vide, monkeypatch):
+    oidc_service = _configurer_oidc(db_vide, monkeypatch)
     monkeypatch.setattr(
         oidc_service,
         "_discovery",
-        lambda: {"authorization_endpoint": "https://authentik.example.com/application/o/patrimoine/authorize/"},
+        lambda issuer: {"authorization_endpoint": "https://authentik.example.com/application/o/patrimoine/authorize/"},
     )
 
     reponse = client_reel.get("/api/auth/oidc/login", follow_redirects=False)
@@ -338,8 +340,8 @@ def test_oidc_login_redirige_vers_authentik(client_reel, monkeypatch):
     assert reponse.headers["location"].startswith("https://authentik.example.com/application/o/patrimoine/authorize/")
 
 
-def test_oidc_callback_erreur_authentik_redirige_avec_message(client_reel, monkeypatch):
-    _configurer_oidc(monkeypatch)
+def test_oidc_callback_erreur_authentik_redirige_avec_message(client_reel, db_vide, monkeypatch):
+    _configurer_oidc(db_vide, monkeypatch)
 
     reponse = client_reel.get("/api/auth/oidc/callback?error=access_denied", follow_redirects=False)
 
@@ -348,8 +350,8 @@ def test_oidc_callback_erreur_authentik_redirige_avec_message(client_reel, monke
     assert reponse.headers["location"].startswith("https://patrimoine.example.com/")
 
 
-def test_oidc_callback_state_invalide_redirige_avec_message(client_reel, monkeypatch):
-    _configurer_oidc(monkeypatch)
+def test_oidc_callback_state_invalide_redirige_avec_message(client_reel, db_vide, monkeypatch):
+    _configurer_oidc(db_vide, monkeypatch)
 
     reponse = client_reel.get("/api/auth/oidc/callback?code=abc&state=nimportequoi", follow_redirects=False)
 
@@ -357,15 +359,15 @@ def test_oidc_callback_state_invalide_redirige_avec_message(client_reel, monkeyp
     assert "oidc_error=" in reponse.headers["location"]
 
 
-def test_oidc_callback_succes_cree_le_compte_et_redirige_avec_un_jeton(client_reel, monkeypatch):
-    oidc_service = _configurer_oidc(monkeypatch)
+def test_oidc_callback_succes_cree_le_compte_et_redirige_avec_un_jeton(client_reel, db_vide, monkeypatch):
+    oidc_service = _configurer_oidc(db_vide, monkeypatch)
     verifier, challenge = oidc_service.code_verifier_et_challenge()
     state = oidc_service.construire_state(verifier)
-    monkeypatch.setattr(oidc_service, "echanger_code", lambda code, code_verifier: {"access_token": "at-123"})
+    monkeypatch.setattr(oidc_service, "echanger_code", lambda config, code, code_verifier: {"access_token": "at-123"})
     monkeypatch.setattr(
         oidc_service,
         "recuperer_identite",
-        lambda access_token: {"sub": "sub-1", "preferred_username": "alice"},
+        lambda config, access_token: {"sub": "sub-1", "preferred_username": "alice"},
     )
 
     reponse = client_reel.get(f"/api/auth/oidc/callback?code=un-code&state={state}", follow_redirects=False)
@@ -383,13 +385,13 @@ def test_oidc_callback_succes_cree_le_compte_et_redirige_avec_un_jeton(client_re
     assert moi.json()["role"] == "proprietaire"
 
 
-def test_oidc_callback_meme_identite_deux_fois_ne_duplique_pas_le_compte(client_reel, monkeypatch):
-    oidc_service = _configurer_oidc(monkeypatch)
-    monkeypatch.setattr(oidc_service, "echanger_code", lambda code, code_verifier: {"access_token": "at-123"})
+def test_oidc_callback_meme_identite_deux_fois_ne_duplique_pas_le_compte(client_reel, db_vide, monkeypatch):
+    oidc_service = _configurer_oidc(db_vide, monkeypatch)
+    monkeypatch.setattr(oidc_service, "echanger_code", lambda config, code, code_verifier: {"access_token": "at-123"})
     monkeypatch.setattr(
         oidc_service,
         "recuperer_identite",
-        lambda access_token: {"sub": "sub-1", "preferred_username": "alice"},
+        lambda config, access_token: {"sub": "sub-1", "preferred_username": "alice"},
     )
 
     def _connecter():
@@ -403,6 +405,103 @@ def test_oidc_callback_meme_identite_deux_fois_ne_duplique_pas_le_compte(client_
     id_a = client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {jeton_a}"}).json()["id"]
     id_b = client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {jeton_b}"}).json()["id"]
     assert id_a == id_b
+
+
+# --- Administration de la configuration Authentik depuis Réglages ----------------
+
+
+def _payload_config_oidc(**overrides):
+    payload = {
+        "issuer": "https://authentik.example.com/application/o/patrimoine",
+        "client_id": "client-abc",
+        "redirect_uri": "https://patrimoine.example.com/api/auth/oidc/callback",
+        "frontend_url": "https://patrimoine.example.com",
+        "client_secret": "secret-xyz",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_get_oidc_config_refuse_a_un_non_proprietaire(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_paul}"},
+    )
+    token_membre = client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mot-de-passe-solide"}).json()["token"]
+
+    reponse = client_reel.get("/api/auth/oidc/config", headers={"Authorization": f"Bearer {token_membre}"})
+
+    assert reponse.status_code == 403
+
+
+def test_put_oidc_config_sans_cle_chiffrement_renvoie_400(client_reel, monkeypatch):
+    from app.services import oidc_service
+
+    monkeypatch.delenv(oidc_service.VARIABLE_CLE_CHIFFREMENT, raising=False)
+    token_paul = _inscrire(client_reel).json()["token"]
+
+    reponse = client_reel.put(
+        "/api/auth/oidc/config", json=_payload_config_oidc(), headers={"Authorization": f"Bearer {token_paul}"}
+    )
+
+    assert reponse.status_code == 400
+    assert "PATRIMOINE_SECRET_KEY" in reponse.json()["detail"]
+
+
+def test_put_puis_get_oidc_config_ne_renvoie_jamais_le_secret(client_reel, monkeypatch):
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("PATRIMOINE_SECRET_KEY", Fernet.generate_key().decode("utf-8"))
+    token_paul = _inscrire(client_reel).json()["token"]
+    en_tete = {"Authorization": f"Bearer {token_paul}"}
+
+    put_reponse = client_reel.put("/api/auth/oidc/config", json=_payload_config_oidc(), headers=en_tete)
+    assert put_reponse.status_code == 200
+    corps_put = put_reponse.json()
+    assert corps_put["secret_configure"] is True
+    assert "client_secret" not in corps_put
+    assert "secret-xyz" not in put_reponse.text
+
+    get_reponse = client_reel.get("/api/auth/oidc/config", headers=en_tete)
+    assert get_reponse.status_code == 200
+    assert get_reponse.json()["issuer"] == "https://authentik.example.com/application/o/patrimoine"
+    assert "secret-xyz" not in get_reponse.text
+
+    status_reponse = client_reel.get("/api/auth/oidc/status")
+    assert status_reponse.json() == {"enabled": True}
+
+
+def test_put_oidc_config_sans_secret_conserve_le_secret_deja_enregistre(client_reel, monkeypatch):
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("PATRIMOINE_SECRET_KEY", Fernet.generate_key().decode("utf-8"))
+    token_paul = _inscrire(client_reel).json()["token"]
+    en_tete = {"Authorization": f"Bearer {token_paul}"}
+    client_reel.put("/api/auth/oidc/config", json=_payload_config_oidc(), headers=en_tete)
+
+    payload_sans_secret = _payload_config_oidc(frontend_url="https://autre.example.com")
+    del payload_sans_secret["client_secret"]
+    reponse = client_reel.put("/api/auth/oidc/config", json=payload_sans_secret, headers=en_tete)
+
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert corps["secret_configure"] is True
+    assert corps["frontend_url"] == "https://autre.example.com"
+
+
+def test_put_oidc_config_champ_vide_rejete(client_reel, monkeypatch):
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("PATRIMOINE_SECRET_KEY", Fernet.generate_key().decode("utf-8"))
+    token_paul = _inscrire(client_reel).json()["token"]
+
+    reponse = client_reel.put(
+        "/api/auth/oidc/config", json=_payload_config_oidc(issuer=""), headers={"Authorization": f"Bearer {token_paul}"}
+    )
+
+    assert reponse.status_code == 400
 
 
 def test_creer_un_membre_du_foyer_refuse_a_un_non_proprietaire(client_reel):

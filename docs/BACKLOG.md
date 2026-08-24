@@ -1018,9 +1018,23 @@ conservé. Vérifié bout en bout avec un faux serveur Authentik protocolaire (l
 accessible depuis l'environnement de développement) : redirection, échange de code, récupération
 d'identité, création de compte, jeton fonctionnel, ré-authentification sans doublon, et les 3 chemins
 d'erreur (refus Authentik, `state` invalide, tentative de mot de passe sur un compte 100 % SSO).
+**Complété le 24/08/2026** : configuration entièrement administrable depuis `Réglages → Connexion
+Authentik` (propriétaire) plutôt qu'en variables d'environnement — 4 champs texte (issuer, client id,
+redirect URI, URL du frontend) modifiables à chaud, sans redémarrage. Le `client_secret` est
+**saisissable mais jamais relisible** une fois enregistré (chiffré au repos, Fernet, avec une clé —
+`PATRIMOINE_SECRET_KEY` — qui, elle seule, reste en variable d'environnement, distincte de
+`PATRIMOINE_BACKUP_KEY`) : même pattern que sur le Dockhand de l'utilisateur, principe général repris
+sans lire le code source d'un tiers (README explicitement hostile au traitement par un agent IA,
+signalé et respecté). Table `Parametre` déjà existante réutilisée telle quelle (aucune migration
+Alembic nécessaire). **Bug réel trouvé en vérification bout en bout** (pas par les tests unitaires
+seuls) : un compte `membre` auto-provisionné ne recevait jamais de `owner_user_id`, devenant son
+propre foyer vide au lieu de rejoindre le patrimoine partagé du propriétaire déjà en place — corrigé
+avant toute mise en production, verrouillé par test.
+
 **Reste à faire par l'utilisateur** : créer le Provider/Application OAuth2 dédié côté Authentik
-(indépendant du proxy provider existant — cf. `docs/MANUEL_EXPLOITATION.md` § 12.1) et définir les 5
-variables d'environnement `AUTHENTIK_*` sur son serveur, seule étape non simulable ici.
+(indépendant du proxy provider existant — cf. `docs/MANUEL_EXPLOITATION.md` § 12.1) et renseigner ces
+5 valeurs depuis Réglages, puis définir `PATRIMOINE_SECRET_KEY` sur son serveur — seules étapes non
+simulables ici.
 
 ---
 

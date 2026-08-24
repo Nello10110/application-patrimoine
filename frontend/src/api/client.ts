@@ -26,6 +26,8 @@ import type {
   Loan,
   LoanInput,
   LoanUpdateInput,
+  OidcConfig,
+  OidcConfigInput,
   OidcStatus,
   PatrimoineNet,
   PerformanceSummary,
@@ -104,6 +106,9 @@ export const api = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getMe: () => request<AuthUser>('/auth/me'),
   getOidcStatus: () => request<OidcStatus>('/auth/oidc/status'),
+  getOidcConfig: () => request<OidcConfig>('/auth/oidc/config'),
+  updateOidcConfig: (input: OidcConfigInput) => request<OidcConfig>('/auth/oidc/config', { method: 'PUT', body: JSON.stringify(input) }),
+  deleteOidcConfig: () => request<void>('/auth/oidc/config', { method: 'DELETE' }),
 
   // Sessions et journal d'accès (backlog 2.L.2).
   listSessions: () => request<Session[]>('/auth/sessions'),
