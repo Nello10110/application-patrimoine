@@ -26,7 +26,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, répartition réel vs cible, qualité des données, coût de gestion, répartition par compte, indicateurs de risque, indicateur de rééquilibrage) |
+| Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, revenus passifs projetés certain/estimé — § 2.P.3, répartition réel vs cible, qualité des données, coût de gestion, répartition par compte, indicateurs de risque, indicateur de rééquilibrage) |
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
 | Fiche détaillée | `/patrimoine/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
 | Répartition (Analyse) | `/repartition` (`/analyse`) | En tête (backlog § 2.P.1) : **exposition consolidée tous actifs** — répartition géo/classe financier ET immobilier/épargne confondus, concentration (plus grosse ligne, top 5, première zone). En dessous, objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable, financiers uniquement : définition des cibles de répartition géo/sectorielle, puis le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
@@ -169,6 +169,24 @@ Calculées à partir de la série hebdomadaire déjà produite par
   (`historique_cache.cle_historique_benchmark`, comme l'historique d'une ligne — une donnée de marché
   publique, partagée entre tous les foyers). Les deux séries sont normalisées en pourcentage depuis
   leur valeur au premier point commun.
+
+#### 3.5.2 Revenus passifs projetés (backlog § 2.P.3, absorbe § 2.C.2)
+
+`GET /api/performance/revenus-passifs` (`services/revenus_passifs_service.py`) — rendement courant
+du patrimoine et projection à 12 mois, **distinguant ce qui est certain de ce qui est estimé** plutôt
+que d'abandonner la projection à cause de sa partie la moins fiable (le blocage originel de C.2 :
+`dividendRate` de `yfinance`, peu fiable pour les ETF). Aucun appel `yfinance`.
+
+- **Certain** : loyers nets annuels (`HoldingImmobilierDetail.loyer_mensuel × 12 − charges annuelles
+  − frais annuels` — sans retrancher la mensualité d'un emprunt rattaché : un revenu locatif, pas un
+  cashflow après emprunt, contrairement à `cashflow_mensuel` de la fiche immobilier, § 3.11) et
+  intérêts de livrets (`Holding.taux_pct × valeur_estimee` pour `REGULATED_SAVINGS`/`EMPLOYEE_SAVINGS`
+  — même champ informatif que § 3.11/M.1).
+- **Estimé** : dividendes et intérêts de courtage RÉELLEMENT perçus sur les 12 derniers mois glissants
+  (requête directe sur `Transaction`), extrapolés tels quels sur les 12 prochains — jamais un taux
+  théorique par titre, toujours une observation directe du grand livre de ce portefeuille.
+- Réponse : détail des 4 composantes, `revenu_certain_annuel`, `revenu_estime_annuel`,
+  `revenu_total_projete_annuel`/`_mensuel`.
 
 ### 3.6 Recommandations de rééquilibrage et alertes
 

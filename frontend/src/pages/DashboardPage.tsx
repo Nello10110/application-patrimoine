@@ -11,6 +11,7 @@ import EtatErreur from '../components/EtatErreur'
 import { SkeletonTexte } from '../components/Skeleton'
 import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
+import RevenusPassifsCard from '../components/RevenusPassifsCard'
 import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
@@ -225,6 +226,13 @@ export default function DashboardPage() {
                 </div>
               </>
             )}
+
+            {/* Indépendant de l'historique de transactions (backlog 2.P.3) : un
+                foyer sans aucun achat boursier peut quand même avoir des loyers ou
+                une épargne à taux — jamais gardé derrière `nombre_transactions > 0`. */}
+            <div className="mt-4">
+              <RevenusPassifsCard />
+            </div>
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />

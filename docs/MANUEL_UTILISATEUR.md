@@ -204,6 +204,12 @@ courbe, puis le détail replié) :
      versement. Puis la volatilité annualisée et la perte maximale (max drawdown), avec le délai de
      récupération si elle a été comblée. Un sélecteur permet de comparer l'évolution du portefeuille
      (en %) à un indice de référence (MSCI World, S&P 500, CAC 40, STOXX Europe 600) sur un graphique.
+   - **Revenus passifs projetés** (backlog § 2.P.3) : projection à 12 mois, en deux blocs. **Certain**
+     (loyers nets déclarés sur une fiche immobilière, intérêts d'une épargne à taux déclaré) : des
+     montants déjà connus. **Estimé** (dividendes, intérêts de courtage) : extrapolation des 12
+     derniers mois réellement perçus — jamais une promesse pour les 12 prochains, la nuance est
+     rappelée explicitement sous l'encart. N'apparaît vide que si aucune de ces quatre sources n'est
+     détectée sur le patrimoine.
    - **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer
      sur une barre ouvre le détail des lignes qui composent cette catégorie.
    - **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une

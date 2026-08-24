@@ -16,8 +16,16 @@ from ..schemas import (
     PerformanceSummary,
     PortfolioHistoryResponse,
     RapportPeriode,
+    RevenusPassifsProjetes,
 )
-from ..services import auth_service, historical_performance_service, metriques_performance_service, performance_service, rapport_service
+from ..services import (
+    auth_service,
+    historical_performance_service,
+    metriques_performance_service,
+    performance_service,
+    rapport_service,
+    revenus_passifs_service,
+)
 
 _MOTIF_DATE_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -61,6 +69,14 @@ def get_comparaison_benchmark(
     if resultat is None:
         raise HTTPException(status_code=404, detail="Indice de référence inconnu, ou aucune donnée disponible pour cette période.")
     return resultat
+
+
+@router.get("/revenus-passifs", response_model=RevenusPassifsProjetes)
+def get_revenus_passifs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Revenus passifs projetés à 12 mois (backlog 2.P.3, absorbe C.2) — certain
+    (loyers nets, intérêts de livrets) vs estimé (dividendes/intérêts de courtage,
+    extrapolés depuis les 12 derniers mois réellement perçus)."""
+    return revenus_passifs_service.compute_revenus_passifs(db, auth_service.id_foyer(current_user))
 
 
 @router.get("/dividendes", response_model=list[DividendeMois])

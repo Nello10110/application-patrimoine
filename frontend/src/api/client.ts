@@ -21,6 +21,7 @@ import type {
   ComparaisonBenchmark,
   MetriquesAvancees,
   PortfolioHistoryResponse,
+  RevenusPassifsProjetes,
   EtatRafraichissement,
   Holding,
   HoldingDetail,
@@ -227,6 +228,8 @@ export const api = {
   listBenchmarks: () => request<BenchmarkOption[]>('/performance/benchmarks'),
   getComparaisonBenchmark: (benchmark: string) =>
     request<ComparaisonBenchmark>(`/performance/comparaison-benchmark?benchmark=${encodeURIComponent(benchmark)}`),
+  // Revenus passifs projetés (backlog 2.P.3, absorbe C.2).
+  getRevenusPassifs: () => request<RevenusPassifsProjetes>('/performance/revenus-passifs'),
   getDividendCalendar: () => request<DividendeMois[]>('/performance/dividendes'),
   getRapportPeriode: (dateDebut: string, dateFin: string) =>
     request<RapportPeriode>(`/performance/rapport?date_debut=${dateDebut}&date_fin=${dateFin}`),

@@ -721,6 +721,18 @@ export interface BenchmarkOption {
   label: string
 }
 
+// Revenus passifs projetés à 12 mois (backlog 2.P.3, absorbe C.2).
+export interface RevenusPassifsProjetes {
+  loyers_nets_annuels: number
+  interets_livrets_annuels: number
+  revenu_certain_annuel: number
+  dividendes_estimes_annuels: number
+  interets_courtage_estimes_annuels: number
+  revenu_estime_annuel: number
+  revenu_total_projete_annuel: number
+  revenu_total_projete_mensuel: number
+}
+
 export interface ComparaisonBenchmarkPoint {
   date: string
   portefeuille_pct: number | null

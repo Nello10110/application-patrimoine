@@ -431,6 +431,19 @@ class BenchmarkOption(BaseModel):
     label: str
 
 
+class RevenusPassifsProjetes(BaseModel):
+    """Backlog 2.P.3 (absorbe C.2) — `services/revenus_passifs_service.compute_revenus_passifs`."""
+
+    loyers_nets_annuels: float
+    interets_livrets_annuels: float
+    revenu_certain_annuel: float
+    dividendes_estimes_annuels: float
+    interets_courtage_estimes_annuels: float
+    revenu_estime_annuel: float
+    revenu_total_projete_annuel: float
+    revenu_total_projete_mensuel: float
+
+
 class DividendeLigne(BaseModel):
     date: str
     symbol: str | None

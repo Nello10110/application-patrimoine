@@ -242,7 +242,7 @@ l'existant. Nouveau `performance_service.compute_dividend_calendar` (regroupemen
 (Visa, Johnson & Johnson, Microsoft, Qualcomm, Nintendo pour juin 2025). Tests dans
 `test_performance_service.py`, build frontend propre.
 
-#### C.2 — `mineur` · `M` · `P2` · `non traité` — Projection des dividendes à 12 mois
+#### C.2 — `mineur` · `M` · `P2` · `traité (absorbé par P.3)` (25/08/2026) — Projection des dividendes à 12 mois
 
 Plus délicat : extrapoler les dividendes futurs suppose de connaître la régularité de versement de
 chaque ligne (annuel, trimestriel...) et le montant par part, que `yfinance` expose partiellement
@@ -253,8 +253,13 @@ la qualité des données géographiques déjà en place), pas une promesse de mo
 **Non traité le 20/08/2026** (volontairement, pas oublié) : en implémentant C.1/D.1/D.2/E.3/H.1 dans
 la même session, ce point a été délibérément écarté — la fiabilité insuffisante de `dividendRate`
 pour les ETF (déjà signalée ci-dessus) entre en tension directe avec l'exigence de l'application de
-ne jamais afficher un chiffre financier dont la fiabilité n'est pas établie. Reste à cadrer avec
-l'utilisateur avant tout développement (quelle marge d'erreur est acceptable, comment l'afficher).
+ne jamais afficher un chiffre financier dont la fiabilité n'est pas établie.
+
+**Résolu le 25/08/2026 par § 2.P.3** : le blocage (fiabilité de `dividendRate`) est contourné plutôt
+que cadré — la projection des dividendes n'utilise plus aucune donnée `yfinance` théorique, elle
+extrapole les dividendes RÉELLEMENT perçus sur les 12 derniers mois glissants (grand livre de CE
+portefeuille), toujours étiquetée « estimé », jamais confondue avec la part certaine (loyers,
+intérêts de livrets) — cf. § 2.P.3 pour le détail livré.
 
 ### D. Rapports et exports
 
@@ -1508,13 +1513,25 @@ TWR apparaît ainsi directement à côté du MWR déjà affiché, comme demandé
 MWR vs TWR, sélecteur d'indice avec graphique de comparaison en pourcentage. 14 tests backend
 (métriques pures + comparaison benchmark + routeur) + 6 tests frontend, `tsc`/`oxlint` propres.
 
-#### P.3 — `mineur` · `S` · `P3` · `non traité` — Revenus passifs projetés
+#### P.3 — `mineur` · `S` · `P3` · `traité` (25/08/2026) — Revenus passifs projetés
 
 Rendement courant du patrimoine (dividendes + coupons + loyers nets + intérêts) et projection à
 12 mois. Reprend le point C.2 (projection des dividendes, écarté le 20/08/2026 pour fiabilité
 insuffisante des données `yfinance`), mais l'élargit : les loyers et les intérêts de livrets sont,
 eux, parfaitement connus. La projection doit **distinguer ce qui est certain de ce qui est estimé**,
 au lieu d'être abandonnée entièrement à cause de sa partie la moins fiable.
+
+**Livré et vérifié le 25/08/2026, absorbe C.2.** Nouveau `services/revenus_passifs_service.py`,
+`GET /api/performance/revenus-passifs` — aucun appel `yfinance`, contrairement à ce qu'exigeait C.2
+(justement ce qui l'avait fait écarter). **Certain** : loyers nets annuels (`HoldingImmobilierDetail.loyer_mensuel`
+− charges − frais, sans retrancher la mensualité d'emprunt — un revenu locatif, pas un cashflow après
+emprunt) + intérêts de livrets (taux déclaré § 2.M.1 × `valeur_estimee`). **Estimé** : dividendes et
+intérêts de courtage réellement perçus sur les 12 DERNIERS mois glissants (`Transaction`), extrapolés
+tels quels sur les 12 prochains — jamais un `dividendRate` théorique par titre (le problème de
+fiabilité originel de C.2), toujours une observation directe du grand livre de CE portefeuille.
+Nouvelle `RevenusPassifsCard` sur le tableau de bord, indépendante de l'historique de transactions
+(un foyer sans aucun achat boursier peut avoir des loyers/une épargne à taux). 8 tests backend + 3
+tests frontend, `tsc`/`oxlint` propres.
 
 ---
 
@@ -1603,10 +1620,22 @@ factorisée avec `request` dans `api/client.ts` — même gestion d'erreur/jeton
 corps de réponse diffère). 27 tests backend (service + routeur + préférences étendues) + 7 tests
 frontend, `tsc`/`oxlint` propres.
 
-#### Q.3 — `mineur` · `S` · `P3` · `non traité` — Devise et internationalisation légère
+#### Q.3 — `mineur` · `S` · `P3` · `en attente d'arbitrage` (25/08/2026) — Devise et internationalisation légère
 
 Une devise de référence paramétrable (aujourd'hui l'euro est câblé), et la conversion des actifs
 libellés dans une autre devise au cours du jour, avec l'effet de change isolé dans la performance.
+
+**Mis de côté le 25/08/2026** (décision à prendre avec l'utilisateur, pas un blocage technique) :
+un écart significatif est apparu entre l'effort affiché (`S`) et la portée d'une lecture littérale
+de l'énoncé. Aujourd'hui, l'euro est câblé en dur dans des dizaines de fichiers (`formatEuro` seul,
+sans paramètre de devise), et le portefeuille réel de l'utilisateur ne contient aujourd'hui AUCUN
+actif réellement libellé hors euro (l'export Trade Republic est déjà entièrement converti en EUR à
+la source, cf. § 2 increment 1). Une « devise de référence paramétrable pour tout le patrimoine »
+au sens plein toucherait donc quasiment tous les écrans de l'application pour un besoin non observé
+dans les données réelles à ce jour — un chantier bien au-delà d'un effort `S`. Deux lectures bien
+plus contenues existent (permettre d'ajouter UN actif dans une devise étrangère, converti en EUR à
+la cotation — l'euro restant la seule devise d'affichage — ou une vraie bascule de devise de
+référence pour tout le patrimoine). Arbitrage à demander à l'utilisateur avant tout développement.
 
 ---
 ## 3. Hors périmètre (assumé)
@@ -1666,7 +1695,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
-| **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2 traité (1/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
+| **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2, P.3 traités (2/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
 
 **Pourquoi cet ordre.**
 

@@ -26,6 +26,7 @@ vi.mock('../components/AllocationBarChart', () => ({ default: () => <div /> }))
 vi.mock('../components/CompositionModal', () => ({ default: () => <div /> }))
 vi.mock('../components/PerformanceCard', () => ({ default: () => <div /> }))
 vi.mock('../components/MetriquesAvanceesCard', () => ({ default: () => <div /> }))
+vi.mock('../components/RevenusPassifsCard', () => ({ default: () => <div /> }))
 vi.mock('../components/QualiteDonneesCard', () => ({ default: () => <div /> }))
 vi.mock('../components/CoutGestionCard', () => ({ default: () => <div /> }))
 // Patrimoine net (roadmap Phase 1) : carte autonome avec son propre appel API, hors
