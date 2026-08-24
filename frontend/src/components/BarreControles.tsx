@@ -29,7 +29,7 @@ export default function BarreControles() {
   }, [])
 
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-bordure bg-surface px-6 py-2.5">
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-bordure bg-surface px-3 py-2.5 md:px-6">
       <span className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Vue</span>
       <div className="flex gap-0.5 rounded-md bg-surface-elevee p-0.5">
         {OPTIONS_LENTILLE.map((option) => (

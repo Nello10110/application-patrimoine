@@ -18,6 +18,8 @@ Un bouton en haut à droite de chaque écran bascule l'apparence entre thème cl
 
 **Installer l'application** : depuis un navigateur compatible (Chrome, Edge, ou Safari via « Ajouter à l'écran d'accueil » sur iPhone/iPad), l'icône d'installation dans la barre d'adresse (ou le menu du navigateur) ajoute l'application comme une icône dédiée, ouverte en plein écran — pas de store, pas d'installation à maintenir, juste le navigateur qui la sert comme une application native.
 
+**Sur mobile** (écran étroit, sous 768 px) : la barre latérale est remplacée par une barre de navigation en bas d'écran avec les routes principales et un bouton **« Plus »** (menu, réglages, thème, déconnexion). Les tableaux de positions et d'emprunts s'affichent sous forme de cartes plutôt que de tableaux à défiler horizontalement, et les filtres du Portefeuille s'ouvrent dans une feuille glissante via le bouton « Filtrer ».
+
 ## Écran Import
 
 ### Historique de transactions

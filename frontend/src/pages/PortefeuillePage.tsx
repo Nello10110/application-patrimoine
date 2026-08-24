@@ -33,6 +33,64 @@ import { formatDateHeure, parseDateApi } from '../utils/format'
 // `PositionsTable`, un état de la session en cours, pas une préférence durable.
 const CLE_DEFILEMENT = 'patrimoine:portefeuille-defilement'
 
+/** Onglets de catégorie — factorisés (backlog 2.K.4) : rendus à l'identique dans la
+ * barre desktop inline et dans la feuille glissante mobile, un seul état source
+ * (`categorie`, porté par l'URL, cf. composant parent). */
+function CategorieTabs({ categorie, setCategorie }: { categorie: Categorie; setCategorie: (c: Categorie) => void }) {
+  return (
+    <>
+      {CATEGORY_TABS.map((tab) => (
+        <button
+          key={tab.key}
+          onClick={() => setCategorie(tab.key)}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            categorie === tab.key ? 'bg-texte text-surface' : 'bg-surface text-texte-attenue hover:bg-surface-elevee'
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </>
+  )
+}
+
+/** Sélecteur de compte — factorisé (backlog 2.K.4), même raison que `CategorieTabs`.
+ * Association implicite label/`<select>` par imbrication (pas de `id`/`htmlFor`
+ * nécessaire) : sans risque de collision même si les deux instances (desktop +
+ * feuille mobile) étaient montées en même temps. `pleineLargeur` étire le contrôle
+ * dans la feuille mobile (empilée verticalement) plutôt que la largeur naturelle du
+ * `<select>` en ligne desktop. */
+function CompteSelect({
+  holdings,
+  filtreCompte,
+  setFiltreCompte,
+  pleineLargeur = false,
+}: {
+  holdings: Holding[]
+  filtreCompte: string
+  setFiltreCompte: (c: string) => void
+  pleineLargeur?: boolean
+}) {
+  return (
+    <label className={`flex items-center gap-2 text-xs font-medium text-texte-attenue ${pleineLargeur ? 'flex-col items-start' : ''}`}>
+      Filtrer par compte
+      <select
+        value={filtreCompte}
+        onChange={(e) => setFiltreCompte(e.target.value)}
+        className={`rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte ${pleineLargeur ? 'w-full' : ''}`}
+      >
+        <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
+        {comptesDisponibles(holdings).map((compte) => (
+          <option key={compte} value={compte}>
+            {compte}
+          </option>
+        ))}
+        {holdings.some((h) => h.compte === null) && <option value={FILTRE_SANS_COMPTE}>Sans compte</option>}
+      </select>
+    </label>
+  )
+}
+
 export default function PortefeuillePage() {
   const [holdings, setHoldings] = useState<Holding[]>([])
   // Catégorie et compte sont des FILTRES (ils changent ce qui est affiché), donc
@@ -110,6 +168,12 @@ export default function PortefeuillePage() {
   // navigateur par une modale de l'application (cohérente visuellement, testable).
   // Ne mémorise que ce qui est nécessaire à l'affichage du message et à l'appel API,
   // pas la ligne entière.
+  // Filtres dans une feuille glissante sur mobile (backlog 2.K.4, < 768 px) — même
+  // état (catégorie/compte, portés par l'URL) que la version inline desktop, juste
+  // un autre conteneur pour les mêmes contrôles.
+  const [filtresOuverts, setFiltresOuverts] = useState(false)
+  const filtreActif = categorie !== 'TOUS' || filtreCompte !== FILTRE_TOUS_COMPTES
+
   const [confirmSuppression, setConfirmSuppression] = useState<{ id: number; ticker: string } | null>(null)
   const [suppressionEnCours, setSuppressionEnCours] = useState(false)
 
@@ -315,42 +379,58 @@ export default function PortefeuillePage() {
           )}
       </Card>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1">
-          {CATEGORY_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setCategorie(tab.key)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                categorie === tab.key
-                  ? 'bg-texte text-surface'
-                  : 'bg-surface text-texte-attenue hover:bg-surface-elevee'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+      {/* Desktop (≥ 768 px, backlog 2.K.4) : contrôles inline, comportement inchangé. */}
+      <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
+        <CategorieTabs categorie={categorie} setCategorie={setCategorie} />
         {holdings.length > 0 && (
-          <label className="flex items-center gap-2 text-xs font-medium text-texte-attenue">
-            Filtrer par compte
-            <select
-              value={filtreCompte}
-              onChange={(e) => setFiltreCompte(e.target.value)}
-              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            >
-              <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
-              {comptesDisponibles(holdings).map((compte) => (
-                <option key={compte} value={compte}>
-                  {compte}
-                </option>
-              ))}
-              {holdings.some((h) => h.compte === null) && <option value={FILTRE_SANS_COMPTE}>Sans compte</option>}
-            </select>
-          </label>
+          <CompteSelect holdings={holdings} filtreCompte={filtreCompte} setFiltreCompte={setFiltreCompte} />
         )}
       </div>
+
+      {/* Mobile (< 768 px) : les mêmes contrôles derrière une feuille glissante,
+          déclenchée par un bouton à cible tactile confortable (≥ 44 px). */}
+      <div className="md:hidden">
+        <button
+          type="button"
+          onClick={() => setFiltresOuverts(true)}
+          className="flex min-h-11 w-full items-center justify-between rounded-md border border-bordure bg-surface px-4 py-2.5 text-sm font-medium text-texte"
+        >
+          <span>
+            Filtrer{filtreActif && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />}
+          </span>
+          <span className="text-texte-attenue">{CATEGORY_TABS.find((t) => t.key === categorie)?.label}</span>
+        </button>
+      </div>
+
+      {filtresOuverts && (
+        <Modale
+          onClose={() => setFiltresOuverts(false)}
+          variant="bottom"
+          panelClassName="w-full rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl"
+        >
+          {({ titleId }) => (
+            <div className="space-y-4">
+              <div className="mx-auto h-1 w-10 rounded-full bg-bordure" aria-hidden="true" />
+              <h2 id={titleId} className="text-sm font-semibold text-texte">
+                Filtrer le portefeuille
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                <CategorieTabs categorie={categorie} setCategorie={setCategorie} />
+              </div>
+              {holdings.length > 0 && (
+                <CompteSelect holdings={holdings} filtreCompte={filtreCompte} setFiltreCompte={setFiltreCompte} pleineLargeur />
+              )}
+              <button
+                type="button"
+                onClick={() => setFiltresOuverts(false)}
+                className="min-h-11 w-full rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-surface"
+              >
+                Voir {lignesFiltrees.length} position{lignesFiltrees.length > 1 ? 's' : ''}
+              </button>
+            </div>
+          )}
+        </Modale>
+      )}
 
       <Card>
         {loading ? (

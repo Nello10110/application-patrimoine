@@ -244,6 +244,19 @@ export function IconHorloge({ className }: IconProps) {
   )
 }
 
+// Trois points horizontaux ("plus d'options") — pas un "+" : nom choisi pour éviter
+// la confusion avec une icône d'ajout (déjà couverte ailleurs par du texte, ex.
+// "Ajouter").
+export function IconPlusOptions({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="5.2" cy="10" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="10" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="14.8" cy="10" r="1.15" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 export function IconRecherche({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

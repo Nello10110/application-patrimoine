@@ -26,14 +26,15 @@ const ICONES = {
 /** Barre latérale verticale repliable (backlog 2.K.2), remplace l'ancien en-tête
  * horizontal à 9 onglets qui ne tenait plus sous ~1000 px de large (audit UX).
  * N'affiche que les écrans de consultation ; les écrans d'administration vivent
- * désormais dans `MenuCompte`. */
+ * désormais dans `MenuCompte`. Masquée sous 768 px (backlog 2.K.4) : `BottomNav`
+ * la remplace sur mobile, jamais les deux montées en même temps. */
 export default function Sidebar() {
   const { repliee, basculer } = useSidebarRepliee()
   const { user } = useAuth()
 
   return (
     <aside
-      className={`flex h-screen flex-col border-r border-bordure bg-surface transition-[width] duration-150 ${
+      className={`hidden h-screen flex-col border-r border-bordure bg-surface transition-[width] duration-150 md:flex ${
         repliee ? 'w-16' : 'w-60'
       }`}
     >

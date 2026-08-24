@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Holding, Loan } from '../api/types'
+import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDateHeure, formatEuro } from '../utils/format'
 import Card from './Card'
@@ -20,6 +21,128 @@ interface LoanForm {
 
 const FORM_VIDE: LoanForm = { libelle: '', capital_initial: '', taux_annuel_pct: '', mensualite: '', date_debut: '', duree_mois: '' }
 
+/** Un emprunt, en carte (backlog 2.K.4, < 768 px) — remplace la ligne de tableau
+ * sur mobile, même état de recalage/rattachement que la vue desktop. */
+function LoanCardMobile({
+  loan,
+  holdings,
+  montantsMasques,
+  recalageId,
+  recalageValeur,
+  setRecalageValeur,
+  recalageSaving,
+  rattachementSaving,
+  onStartRecalage,
+  onSaveRecalage,
+  onCancelRecalage,
+  onRattacher,
+  onRequestDelete,
+}: {
+  loan: Loan
+  holdings: Holding[]
+  montantsMasques: boolean
+  recalageId: number | null
+  recalageValeur: string
+  setRecalageValeur: (v: string) => void
+  recalageSaving: boolean
+  rattachementSaving: number | null
+  onStartRecalage: () => void
+  onSaveRecalage: () => void
+  onCancelRecalage: () => void
+  onRattacher: (holdingId: number | null) => void
+  onRequestDelete: () => void
+}) {
+  const enRecalage = recalageId === loan.id
+
+  return (
+    <div className="rounded-lg border border-bordure bg-surface p-4">
+      <p className="font-medium text-texte">{loan.libelle}</p>
+
+      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+        <div>
+          <span className="block text-xs text-texte-attenue">Capital initial</span>
+          {formatEuro(loan.capital_initial, 0, montantsMasques)}
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Taux</span>
+          {loan.taux_annuel_pct.toFixed(2)}%
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Mensualité</span>
+          {formatEuro(loan.mensualite, 0, montantsMasques)}
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Capital restant dû</span>
+          <span className="font-medium text-texte">{formatEuro(loan.capital_restant_du, 0, montantsMasques)}</span>
+        </div>
+      </div>
+      {loan.derniere_maj_manuelle && !enRecalage && (
+        <p className="mt-1 text-xs text-texte-attenue">recalé le {formatDateHeure(loan.derniere_maj_manuelle)}</p>
+      )}
+
+      {enRecalage && (
+        <label className="mt-3 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+          Nouveau capital restant dû
+          <input
+            value={recalageValeur}
+            onChange={(e) => setRecalageValeur(e.target.value)}
+            type="number"
+            step="any"
+            aria-label={`Recaler le capital restant dû de ${loan.libelle}`}
+            className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          />
+        </label>
+      )}
+
+      <label className="mt-3 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+        Actif rattaché
+        <select
+          value={loan.holding_id ?? ''}
+          disabled={rattachementSaving === loan.id}
+          onChange={(e) => onRattacher(e.target.value === '' ? null : Number(e.target.value))}
+          className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+        >
+          <option value="">Aucun</option>
+          {holdings.map((h) => (
+            <option key={h.id} value={h.id}>
+              {h.nom ?? h.ticker}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="mt-4 flex gap-2">
+        {enRecalage ? (
+          <>
+            <button
+              onClick={onSaveRecalage}
+              disabled={recalageSaving}
+              className="min-h-11 flex-1 rounded-md bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+            >
+              Enregistrer
+            </button>
+            <button onClick={onCancelRecalage} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+              Annuler
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={onStartRecalage} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+              Recaler
+            </button>
+            <button
+              onClick={onRequestDelete}
+              className="min-h-11 flex-1 rounded-md border border-negatif/40 px-3 text-sm font-medium text-negatif"
+            >
+              Supprimer
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /** Dettes et emprunts (roadmap Phase 1, patrimoine net) — premier vrai PASSIF de
  * l'application. Carte autonome (charge ses propres données) plutôt qu'un nouvel
  * onglet du tableau des positions : un emprunt n'a ni quantité ni prix, sa forme de
@@ -28,6 +151,7 @@ const FORM_VIDE: LoanForm = { libelle: '', capital_initial: '', taux_annuel_pct:
  * recalage manuel (relevé bancaire réel) prime sur le calcul théorique. */
 export default function LoansCard() {
   const { montantsMasques } = usePreferencesAffichage()
+  const estMobile = useEstMobile()
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -146,6 +270,30 @@ export default function LoansCard() {
         <SkeletonTexte />
       ) : loans.length === 0 ? (
         <EtatVide titre="Aucun emprunt enregistré." description="Renseigne un crédit immobilier ou un prêt dans le formulaire ci-dessous." />
+      ) : estMobile ? (
+        <div className="mb-4 space-y-3">
+          {loans.map((loan) => (
+            <LoanCardMobile
+              key={loan.id}
+              loan={loan}
+              holdings={holdings}
+              montantsMasques={montantsMasques}
+              recalageId={recalageId}
+              recalageValeur={recalageValeur}
+              setRecalageValeur={setRecalageValeur}
+              recalageSaving={recalageSaving}
+              rattachementSaving={rattachementSaving}
+              onStartRecalage={() => startRecalage(loan)}
+              onSaveRecalage={() => saveRecalage(loan.id)}
+              onCancelRecalage={() => setRecalageId(null)}
+              onRattacher={(holdingId) => handleRattacher(loan.id, holdingId)}
+              onRequestDelete={() => setConfirmSuppression({ id: loan.id, libelle: loan.libelle })}
+            />
+          ))}
+          <p className="pt-1 text-sm font-semibold text-texte">
+            {loans.length} emprunt{loans.length > 1 ? 's' : ''} · {formatEuro(totalRestantDu, 0, montantsMasques)}
+          </p>
+        </div>
       ) : (
         <div className="mb-4 overflow-x-auto">
           <table className="w-full text-sm">

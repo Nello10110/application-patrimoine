@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './api/client'
@@ -61,18 +61,63 @@ describe('App — barre latérale (backlog 2.K.2)', () => {
       </MemoryRouter>,
     )
 
-    await screen.findByRole('link', { name: /Synthèse/ })
-    expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
-    expect(screen.getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
-    expect(screen.getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
-    expect(screen.getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
-    expect(screen.getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
+    // Scopé à la barre latérale (backlog 2.K.4) : `BottomNav`, toujours montée en
+    // parallèle (masquée en CSS seulement — jsdom n'applique pas `md:hidden`),
+    // reprend les 4 premiers écrans de consultation, d'où l'ambiguïté sinon.
+    const barreLaterale = await screen.findByRole('navigation', { name: 'Navigation principale' })
+    expect(within(barreLaterale).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
+    expect(within(barreLaterale).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
+    expect(within(barreLaterale).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
+    expect(within(barreLaterale).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
+    expect(within(barreLaterale).getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
+    expect(within(barreLaterale).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
 
     // Import/Réglages/Aide ne sont plus dans la barre latérale : seulement dans le
     // menu du compte, fermé par défaut.
-    expect(screen.queryByRole('link', { name: /^Import$/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /^Réglages$/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /^Aide$/ })).not.toBeInTheDocument()
+    expect(within(barreLaterale).queryByRole('link', { name: /^Import$/ })).not.toBeInTheDocument()
+    expect(within(barreLaterale).queryByRole('link', { name: /^Réglages$/ })).not.toBeInTheDocument()
+    expect(within(barreLaterale).queryByRole('link', { name: /^Aide$/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('App — navigation inférieure mobile (backlog 2.K.4)', () => {
+  it('propose 4 écrans de consultation en direct, puis "Plus" pour le reste', async () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    const navMobile = await screen.findByRole('navigation', { name: 'Navigation principale (mobile)' })
+    expect(within(navMobile).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
+    expect(within(navMobile).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
+    expect(within(navMobile).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
+    expect(within(navMobile).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
+    // Dividendes/Rapport ne tiennent pas dans les 4 entrées directes : rangés
+    // derrière "Plus", fermé par défaut.
+    expect(within(navMobile).queryByRole('link', { name: /Dividendes/ })).not.toBeInTheDocument()
+    expect(within(navMobile).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
+    expect(within(navMobile).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
+  })
+
+  it('"Plus" ouvre une feuille avec Dividendes/Rapport, Import/Réglages/Aide, thème et déconnexion', async () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    const navMobile = await screen.findByRole('navigation', { name: 'Navigation principale (mobile)' })
+    fireEvent.click(within(navMobile).getByRole('button', { name: 'Plus' }))
+
+    const feuille = await screen.findByRole('dialog')
+    expect(within(feuille).getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
+    expect(within(feuille).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
+    expect(within(feuille).getByRole('link', { name: 'Import' })).toHaveAttribute('href', '/import')
+    expect(within(feuille).getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
+    expect(within(feuille).getByRole('link', { name: 'Aide' })).toHaveAttribute('href', '/aide')
+    expect(within(feuille).getByRole('button', { name: /Thème/ })).toBeInTheDocument()
+    expect(within(feuille).getByRole('button', { name: /Se déconnecter/ })).toBeInTheDocument()
   })
 })
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
+import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPE_ACTIF_OPTIONS, TYPES_AVEC_TAUX, libelleTaux, valeurProjeteeUnAn } from '../utils/holdingCategories'
 import { formatEuro, formatQuantite } from '../utils/format'
@@ -72,6 +73,222 @@ interface EditForm {
   taux_pct: string
 }
 
+/** Une position, en carte (backlog 2.K.4, < 768 px) — remplace la ligne de tableau
+ * sur mobile plutôt que de la laisser défiler horizontalement. Même état d'édition
+ * (`editForm`/handlers) que la vue desktop, juste un autre agencement : tous les
+ * champs modifiables sont empilés dans une seule carte plutôt que répartis entre la
+ * ligne principale (quantité) et la ligne développée (le reste). */
+function PositionCard({
+  h,
+  enEdition,
+  editForm,
+  setEditForm,
+  editSaving,
+  editError,
+  montantsMasques,
+  onSelect,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+}: {
+  h: Holding
+  enEdition: boolean
+  editForm: EditForm
+  setEditForm: (f: EditForm) => void
+  editSaving: boolean
+  editError: string | null
+  montantsMasques: boolean
+  onSelect: () => void
+  onStartEdit: (e: React.MouseEvent) => void
+  onCancelEdit: (e: React.MouseEvent) => void
+  onSaveEdit: (e: React.MouseEvent) => void
+  onDelete: (e: React.MouseEvent) => void
+}) {
+  const md = h.market_data
+
+  if (enEdition) {
+    return (
+      <div className="rounded-lg border border-bordure bg-surface p-4">
+        <p className="mb-3 font-medium text-texte">{h.ticker}</p>
+        <div className="space-y-3">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Quantité
+            <input
+              value={editForm.quantite}
+              onChange={(e) => setEditForm({ ...editForm, quantite: e.target.value })}
+              type="number"
+              step="any"
+              aria-label="Quantité (édition)"
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Prix de revient
+            <input
+              value={editForm.prix_revient_moyen}
+              onChange={(e) => setEditForm({ ...editForm, prix_revient_moyen: e.target.value })}
+              type="number"
+              step="any"
+              aria-label="Prix de revient (édition)"
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Compte
+            <input
+              value={editForm.compte}
+              onChange={(e) => setEditForm({ ...editForm, compte: e.target.value })}
+              aria-label="Compte (édition)"
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Type d'actif
+            <select
+              value={editForm.type_actif}
+              onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
+              aria-label="Type d'actif (édition)"
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            >
+              {TYPE_ACTIF_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Valeur estimée
+            <input
+              value={editForm.valeur_estimee}
+              onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
+              type="number"
+              step="any"
+              aria-label="Valeur estimée (édition)"
+              placeholder="optionnel"
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              {libelleTaux(editForm.type_actif)}
+              <input
+                value={editForm.taux_pct}
+                onChange={(e) => setEditForm({ ...editForm, taux_pct: e.target.value })}
+                type="number"
+                step="any"
+                aria-label="Taux annuel (édition)"
+                placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
+                className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              />
+            </label>
+          )}
+        </div>
+
+        {TYPES_AVEC_TAUX.has(editForm.type_actif) &&
+          valeurProjeteeUnAn(
+            editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
+            editForm.taux_pct ? Number(editForm.taux_pct) : null,
+          ) !== null && (
+            <p className="mt-2 text-xs text-texte-attenue">
+              Valeur projetée dans 1 an (indicatif) :{' '}
+              {valeurProjeteeUnAn(Number(editForm.valeur_estimee), Number(editForm.taux_pct))?.toLocaleString('fr-FR', {
+                style: 'currency',
+                currency: 'EUR',
+                maximumFractionDigits: 0,
+              })}
+            </p>
+          )}
+        {editError && <p className="mt-2 text-xs text-negatif">{editError}</p>}
+
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onSaveEdit}
+            disabled={editSaving}
+            className="min-h-11 flex-1 rounded-md bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+          >
+            Enregistrer
+          </button>
+          <button onClick={onCancelEdit} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+            Annuler
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div onClick={onSelect} className="rounded-lg border border-bordure bg-surface p-4 active:bg-surface-elevee">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-texte">
+            {h.ticker}
+            {h.origine === 'manuel' && (
+              <span
+                title="Ligne saisie manuellement : non recalculée par un import de transactions"
+                className="ml-2 rounded-full bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
+              >
+                saisie manuelle
+              </span>
+            )}
+          </p>
+          <p className="truncate text-sm text-texte-attenue">{md?.nom ?? h.nom ?? '—'}</p>
+        </div>
+        <span className="shrink-0 font-medium text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+        <div>
+          <span className="block text-xs text-texte-attenue">Quantité</span>
+          {formatQuantite(h.quantite)}
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Prix actuel</span>
+          {formatEuro(md?.prix_actuel ?? null, 2, montantsMasques)}
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Depuis achat</span>
+          <RendementCell value={h.rendement_depuis_achat_pct} />
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Annualisé</span>
+          <RendementCell value={h.rendement_annualise_pct} />
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Secteur</span>
+          {md?.secteur ?? '—'}
+        </div>
+        <div>
+          <span className="block text-xs text-texte-attenue">Pays</span>
+          {md?.erreur ? <span className="text-avertissement">{md.erreur}</span> : (md?.pays ?? '—')}
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-2 border-t border-bordure pt-3">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onStartEdit(e)
+          }}
+          className="min-h-11 flex-1 rounded-md border border-bordure text-sm font-medium text-texte"
+        >
+          Modifier
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(e)
+          }}
+          className="min-h-11 flex-1 rounded-md border border-negatif/40 text-sm font-medium text-negatif"
+        >
+          Supprimer
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface PositionsTableProps {
   /** Lignes déjà filtrées (catégorie + compte) par la page, pas encore triées —
    * le tri est un état purement local à ce tableau. */
@@ -84,6 +301,9 @@ interface PositionsTableProps {
 
 export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, onSaved }: PositionsTableProps) {
   const { montantsMasques } = usePreferencesAffichage()
+  // Table ou cartes (backlog 2.K.4) : rendu conditionnel en JS, pas en CSS pur —
+  // cf. la docstring de `useEstMobile` pour pourquoi (contenu répété par ligne).
+  const estMobile = useEstMobile()
   const [tri, setTriState] = useState<{ cle: CleTri; direction: SensTri } | null>(() => triStocke())
 
   function setTri(maj: (prev: { cle: CleTri; direction: SensTri } | null) => { cle: CleTri; direction: SensTri }) {
@@ -178,6 +398,66 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
       })
     : rows
   const valeurTotaleAffichee = rows.reduce((somme, h) => somme + (h.valeur ?? 0), 0)
+
+  if (estMobile) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <label className="flex flex-1 items-center gap-2 text-xs font-medium text-texte-attenue">
+            Trier par
+            <select
+              value={tri?.cle ?? ''}
+              onChange={(e) => {
+                const cle = e.target.value as CleTri
+                setTri((prev) => ({ cle, direction: prev?.cle === cle ? prev.direction : 'asc' }))
+              }}
+              className="flex-1 rounded-md border border-bordure bg-surface px-2 py-2 text-sm text-texte"
+            >
+              <option value="" disabled>
+                Choisir...
+              </option>
+              {COLONNES_TRIABLES.map((col) => (
+                <option key={col.cle} value={col.cle}>
+                  {col.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => tri && setTri((prev) => ({ cle: prev!.cle, direction: prev!.direction === 'asc' ? 'desc' : 'asc' }))}
+            disabled={!tri}
+            aria-label={tri?.direction === 'asc' ? 'Tri croissant' : 'Tri décroissant'}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-bordure text-texte disabled:opacity-40"
+          >
+            {tri?.direction === 'desc' ? '▼' : '▲'}
+          </button>
+        </div>
+
+        {lignesAffichees.map((h) => (
+          <PositionCard
+            key={h.id}
+            h={h}
+            enEdition={editingId === h.id}
+            editForm={editForm}
+            setEditForm={setEditForm}
+            editSaving={editSaving}
+            editError={editingId === h.id ? editError : null}
+            montantsMasques={montantsMasques}
+            onSelect={() => editingId !== h.id && onSelectTicker(h.ticker)}
+            onStartEdit={(e) => startEdit(e, h)}
+            onCancelEdit={cancelEdit}
+            onSaveEdit={(e) => saveEdit(e, h.id)}
+            onDelete={(e) => handleDelete(e, h)}
+          />
+        ))}
+
+        <p className="pt-1 text-sm font-semibold text-texte">
+          {rows.length} position{rows.length > 1 ? 's' : ''} · {formatEuro(valeurTotaleAffichee, 2, montantsMasques)}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-x-auto">

@@ -3,6 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
+import { simulerLargeurEcran } from '../test/matchMedia'
 import PortefeuillePage from './PortefeuillePage'
 
 vi.mock('../api/client', () => ({
@@ -374,6 +375,129 @@ describe('PortefeuillePage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser les filtres' }))
 
       await screen.findByText('AAA')
+    })
+  })
+
+  describe('filtres — feuille glissante mobile (backlog 2.K.4)', () => {
+    function deuxPositions() {
+      return [
+        holding({ id: 1, ticker: 'AAA', compte: 'PEA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+        holding({ id: 2, ticker: 'BBB', compte: 'CTO', type_actif: 'FUND', market_data: marketData({ ticker: 'BBB', prix_actuel: 100 }) }),
+      ]
+    }
+
+    it('le bouton "Filtrer" ouvre une feuille avec les mêmes contrôles que la barre desktop', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(deuxPositions())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('2 positions')
+
+      fireEvent.click(screen.getByRole('button', { name: /^Filtrer/ }))
+
+      const feuille = await screen.findByRole('dialog')
+      expect(within(feuille).getByRole('button', { name: 'Actions' })).toBeInTheDocument()
+      expect(within(feuille).getByText('Filtrer par compte')).toBeInTheDocument()
+    })
+
+    it('choisir une catégorie dans la feuille filtre la liste, comme la barre desktop', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(deuxPositions())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('2 positions')
+
+      fireEvent.click(screen.getByRole('button', { name: /^Filtrer/ }))
+      const feuille = await screen.findByRole('dialog')
+      fireEvent.click(within(feuille).getByRole('button', { name: 'ETF' }))
+
+      await screen.findByText('BBB')
+      expect(screen.queryByText('AAA')).not.toBeInTheDocument()
+    })
+
+    it('un point apparaît sur le déclencheur quand un filtre est actif', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(deuxPositions())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('2 positions')
+      const declencheur = screen.getByRole('button', { name: /^Filtrer/ })
+      expect(declencheur.querySelector('.bg-accent')).not.toBeInTheDocument()
+
+      fireEvent.click(declencheur)
+      const feuille = await screen.findByRole('dialog')
+      fireEvent.click(within(feuille).getByRole('button', { name: 'ETF' }))
+
+      expect(screen.getByRole('button', { name: /^Filtrer/ }).querySelector('.bg-accent')).toBeInTheDocument()
+    })
+
+    it('le bouton "Voir N positions" ferme la feuille sans changer le filtre', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(deuxPositions())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('2 positions')
+
+      fireEvent.click(screen.getByRole('button', { name: /^Filtrer/ }))
+      await screen.findByRole('dialog')
+
+      fireEvent.click(screen.getByRole('button', { name: /^Voir 2 positions$/ }))
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(screen.getByText('2 positions')).toBeInTheDocument()
+    })
+  })
+
+  describe('PositionsTable — cartes sur mobile (backlog 2.K.4)', () => {
+    beforeEach(() => simulerLargeurEcran(true))
+
+    function positionUnique() {
+      return [
+        holding({
+          id: 42,
+          ticker: 'AAA',
+          quantite: 10,
+          prix_revient_moyen: 100,
+          compte: 'PEA',
+          type_actif: 'STOCK',
+          rendement_depuis_achat_pct: 12.5,
+          market_data: marketData({ ticker: 'AAA', prix_actuel: 150, secteur: 'Technologie', pays: 'France' }),
+        }),
+      ]
+    }
+
+    it('affiche une carte par position (pas de tableau) avec ses informations clés', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      await screen.findByText('AAA')
+      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      expect(screen.getByText('Technologie')).toBeInTheDocument()
+      expect(screen.getByText('France')).toBeInTheDocument()
+      expect(screen.getByText('+12.5%')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+    })
+
+    it('« Modifier » ouvre un formulaire empilé (pas de ligne développée), « Enregistrer » appelle updateHolding', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce(positionUnique())
+      vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 42, ticker: 'AAA', quantite: 15 }))
+      vi.mocked(api.listHoldings).mockResolvedValueOnce(positionUnique())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('AAA')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+      expect(screen.getByLabelText('Quantité (édition)')).toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText('Quantité (édition)'), { target: { value: '15' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      await waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(42, expect.objectContaining({ quantite: 15 })))
+    })
+
+    it('le tri se fait via un sélecteur (pas de colonnes cliquables)', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'BBB', quantite: 1, origine: 'reconstruit', market_data: marketData({ ticker: 'BBB' }) }),
+        holding({ id: 2, ticker: 'AAA', quantite: 1, origine: 'reconstruit', market_data: marketData({ ticker: 'AAA' }) }),
+      ])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('BBB')
+
+      fireEvent.change(screen.getByLabelText('Trier par'), { target: { value: 'ticker' } })
+
+      const tickers = screen.getAllByText(/^(AAA|BBB)$/).map((el) => el.textContent)
+      expect(tickers.indexOf('AAA')).toBeLessThan(tickers.indexOf('BBB'))
     })
   })
 

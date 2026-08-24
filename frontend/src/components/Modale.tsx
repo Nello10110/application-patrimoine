@@ -28,15 +28,22 @@ function elementsFocusables(conteneur: HTMLElement): HTMLElement[] {
  * `children` est une render prop recevant `titleId`, l'identifiant à poser sur
  * l'élément de titre du contenu (référencé par `aria-labelledby`) : chaque appelant a
  * un titre à l'apparence différente (cf. `CompositionModal`, `HoldingDetailModal`), on
- * ne l'impose donc pas ici. */
+ * ne l'impose donc pas ici.
+ *
+ * `variant="bottom"` (backlog 2.K.4, mobile) : le panneau s'ancre en bas de l'écran
+ * plutôt qu'au centre — même mécanique de pile/piège du focus/fermeture au clic sur
+ * le fond, seul le positionnement change. L'appelant garde la main sur l'arrondi/le
+ * padding via `panelClassName` (ex. `rounded-t-2xl` plutôt que `rounded-xl`). */
 export default function Modale({
   onClose,
   children,
   panelClassName = 'w-full max-w-lg rounded-xl bg-surface p-6 shadow-xl',
+  variant = 'center',
 }: {
   onClose: () => void
   children: (ctx: { titleId: string }) => ReactNode
   panelClassName?: string
+  variant?: 'center' | 'bottom'
 }) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -103,8 +110,13 @@ export default function Modale({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  const conteneurClassName =
+    variant === 'bottom'
+      ? 'fixed inset-0 z-50 flex items-end justify-center bg-black/40 dark:bg-black/60'
+      : 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 dark:bg-black/60'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 dark:bg-black/60" onClick={onClose}>
+    <div className={conteneurClassName} onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"

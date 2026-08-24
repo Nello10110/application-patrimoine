@@ -863,7 +863,7 @@ dans la préférence transverse). `/performance`, `/performance/dividendes` et `
 restent hors périmètre (recalculer leurs métriques cumulées depuis-l'origine sur une fenêtre est un
 chantier backend nettement plus lourd) — **aucun fichier backend n'a été modifié pour ce point**.
 
-#### K.4 — `majeur` · `M` · `P1` · `non traité` — Mobile et responsive
+#### K.4 — `majeur` · `M` · `P1` · `traité` (24/08/2026) — Mobile et responsive
 
 L'application est déjà installable (PWA, § H.1) mais n'est pas utilisable au doigt. Cible :
 
@@ -872,6 +872,34 @@ L'application est déjà installable (PWA, § H.1) mais n'est pas utilisable au 
   feuille glissante, graphiques simplifiés (moins de points, légende sous le graphe).
 - Cibles tactiles ≥ 44 px, aucune interaction dépendante du survol.
 - Test obligatoire à 390 px (iPhone), 768 px (tablette), 1 440 px et 1 920 px.
+
+**Livré et vérifié le 24/08/2026.** Point de rupture à 768 px (`md:`, valeur par défaut Tailwind v4,
+inchangée) : `Sidebar` (`hidden md:flex`) et une nouvelle `BottomNav` (`md:hidden`, 4 entrées de
+consultation directes + un bouton **« Plus »** ouvrant une feuille glissante avec le reste des
+routes de consultation, l'administration, le thème et la déconnexion) se substituent l'une à
+l'autre sans jamais coexister. **Écart assumé avec le texte du backlog** : « cinq entrées » devient
+« 4 directes + Plus », pour rester cohérent avec le filtrage par rôle déjà en place (L.2) — un
+invité n'a que 2 routes de consultation, un nombre fixe de 5 n'aurait pas eu de sens pour lui.
+`Modale.tsx` gagne un `variant="bottom"` (feuille glissante, réutilise tout le mécanisme
+d'accessibilité existant — piège au clavier, pile de modales, fermeture Échap/clic extérieur),
+utilisé par `MenuPlusSheet` et par le nouveau déclencheur de filtres de `PortefeuillePage`
+(bouton « Filtrer » sous 768 px, remplaçant la rangée de filtres inline). **Tableaux transformés en
+cartes** : `PositionsTable` et `LoansCard` (les deux tableaux les plus consultés/complexes) rendent
+désormais des cartes sous 768 px, via un nouveau hook `useEstMobile()` (`matchMedia`, écoute les
+changements) — nécessaire en plus du simple `hidden md:flex` pour tout contenu répété ligne par
+ligne (testé en jsdom : le montage CSS-only des deux variantes rend les libellés de chaque ligne
+ambigus pour les tests). **Hors périmètre, documenté comme tel** : les 5 tableaux de
+`HoldingDetailContent`, ainsi qu'`ImportPage`/`SimulateurPage`/`AllocationChartCard`/
+`DividendesPage`, restent inchangés (défilement horizontal existant conservé) — non traités faute
+de temps dans cet incrément, à reprendre si l'usage mobile réel le justifie. « Graphiques
+simplifiés » : traité comme une simple vérification (les graphiques existants restent lisibles à
+390 px, aucun changement de mécanisme) plutôt qu'une nouvelle fonctionnalité de réduction de points/
+légende. Cibles tactiles ≥ 44 px partout sur le nouveau code mobile (`h-16` = 64 px pour la barre
+inférieure, `min-h-11` = 44 px pour les boutons/cartes) ; zones de sécurité iOS couvertes
+(`env(safe-area-inset-bottom)`). **Vérifié aux 4 largeurs exigées** (1920/1440/768/390 px, backend
+isolé avec des données réelles de test) : bascule Sidebar/BottomNav exacte à la frontière de 768 px
+(jamais les deux en même temps), tableaux → cartes sous 768 px, feuilles « Filtrer » et « Plus »
+fonctionnelles, `BarreControles` se replie sans débordement horizontal à 390 px.
 
 #### K.5 — `mineur` · `S` · `P1` · `traité` (21/08/2026) — États de chargement, vides et d'erreur
 
@@ -1400,8 +1428,8 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Phase 1** | A.1, A.2, A.3 — patrimoine net (immobilier, SCPI/AV/PER, dettes) | — | — | **Livré** 19/08/2026 |
 | **Phase 2** | B.1, B.2, A.4 — simulateur, FIRE, catégorie libre | Phase 1 | — | **Livré** 19-20/08/2026 |
 | **Phase 3** | C.1, D.1, D.2, E.3, H.1 — dividendes, PDF, rapport, coût consolidé, PWA | Phase 2 | — | **Livré** 20/08/2026 |
-| **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | En cours — L.1, L.2, M.2, K.7 livrés ; K.1/K.2/K.3 en pilote ; K.5 restant |
-| **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | À lancer |
+| **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
+| **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | En cours — M.1, M.3, K.4, K.6 livrés (4/5) ; M.4 restant |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | À lancer |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | À lancer |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | À lancer |

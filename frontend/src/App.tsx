@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'react-router-dom'
 import BarreControles from './components/BarreControles'
+import BottomNav from './components/BottomNav'
 import FilDAriane from './components/FilDAriane'
 import Sidebar from './components/Sidebar'
 import { AuthProvider } from './contexts/AuthContext'
@@ -69,7 +70,11 @@ function AppAuthentifiee() {
         <main className="flex-1 overflow-y-auto">
           <BarreControles />
           <FilDAriane />
-          <div className="mx-auto max-w-6xl px-6 py-8">
+          {/* `pb-24` (backlog 2.K.4, < 768 px) : marge sous le contenu pour ne jamais
+              le laisser passer sous `BottomNav`, fixe en bas de l'écran sur mobile
+              (`h-16` + zone de sécurité iOS) — inutile dès 768 px, `BottomNav` est
+              alors `md:hidden`. */}
+          <div className="mx-auto max-w-6xl px-6 py-8 pb-24 md:pb-8">
             <Suspense fallback={<p className="text-sm text-texte-attenue">Chargement...</p>}>
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
@@ -91,6 +96,8 @@ function AppAuthentifiee() {
             </Suspense>
           </div>
         </main>
+
+        <BottomNav />
       </div>
     </PreferencesAffichageProvider>
   )

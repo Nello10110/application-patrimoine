@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Holding, Loan } from '../api/types'
+import { simulerLargeurEcran } from '../test/matchMedia'
 import LoansCard from './LoansCard'
 
 vi.mock('../api/client', () => ({
@@ -183,5 +184,47 @@ describe('LoansCard — rattachement à un actif (backlog 2.M.2)', () => {
     render(<LoansCard />)
 
     await screen.findByDisplayValue('Apple')
+  })
+})
+
+describe('LoansCard — cartes sur mobile (backlog 2.K.4)', () => {
+  it('affiche une carte par emprunt (pas de tableau) avec ses informations clés', async () => {
+    simulerLargeurEcran(true)
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByText('3.50%')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Recaler' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+  })
+
+  it('le recalage manuel fonctionne aussi dans la vue carte', async () => {
+    simulerLargeurEcran(true)
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    vi.mocked(api.updateLoan).mockResolvedValue(loan({ capital_restant_du: 100000, capital_restant_du_manuel: 100000 }))
+    render(<LoansCard />)
+    await screen.findByText('Crédit immobilier')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recaler' }))
+    const input = screen.getByLabelText('Recaler le capital restant dû de Crédit immobilier')
+    fireEvent.change(input, { target: { value: '100000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() => expect(api.updateLoan).toHaveBeenCalledWith(1, { capital_restant_du_manuel: 100000 }))
+  })
+
+  it('le rattachement à un actif fonctionne aussi dans la vue carte', async () => {
+    simulerLargeurEcran(true)
+    vi.mocked(api.listLoans).mockResolvedValueOnce([loan()]).mockResolvedValueOnce([loan({ holding_id: 1 })])
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, nom: 'Maison' })])
+    vi.mocked(api.updateLoan).mockResolvedValue(loan({ holding_id: 1 }))
+    render(<LoansCard />)
+    await screen.findByText('Crédit immobilier')
+
+    fireEvent.change(screen.getByDisplayValue('Aucun'), { target: { value: '1' } })
+
+    await vi.waitFor(() => expect(api.updateLoan).toHaveBeenCalledWith(1, { holding_id: 1 }))
   })
 })

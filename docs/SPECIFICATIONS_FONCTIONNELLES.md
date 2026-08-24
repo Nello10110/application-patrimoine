@@ -274,6 +274,21 @@ remonté par `DashboardPage` plutôt que chargé en double par les deux composan
 dépend plus de l'analyse géo/sectorielle (`analysis`/`loading`), elle reste visible même si celle-ci
 échoue à charger.
 
+### 3.17 Mobile et responsive (backlog § 2.K.4)
+
+**Point de rupture unique** à 768 px (`md:`, valeur par défaut Tailwind v4). Au-dessus : barre
+latérale (`Sidebar`) et tableaux classiques. En dessous : barre de navigation inférieure fixe
+(`BottomNav`, 4 routes de consultation directes + un bouton **« Plus »** ouvrant une feuille
+glissante avec le reste de la navigation, l'administration, le thème et la déconnexion — écart
+assumé avec une lecture littérale de « cinq entrées » : le nombre de routes directes dépend du rôle
+via le filtrage déjà en place, § 2.L.2, un invité n'en ayant que deux), et deux tableaux transformés
+en cartes (`PositionsTable`, `LoansCard` — les plus consultés/complexes ; les 5 tableaux de la fiche
+détaillée d'une position et les tableaux d'Import/Simulateur/Répartition/Dividendes restent en
+défilement horizontal classique, hors périmètre de cet incrément). Les filtres de `PortefeuillePage`
+(catégorie, compte) passent dans une feuille glissante sous 768 px au lieu d'une rangée inline.
+Cibles tactiles ≥ 44 px sur tout le nouveau code mobile, zones de sécurité iOS couvertes
+(`env(safe-area-inset-bottom)`).
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
