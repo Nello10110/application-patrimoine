@@ -1,8 +1,5 @@
 """Objectifs suivis dans le temps et indicateurs de situation (backlog 2.O.1/2.O.2).
-Distinct de `routers/targets.py` (objectifs de répartition géo/sectorielle,
-§ 2.C/roadmap Phase 4) — deux notions différentes qui partagent le mot « objectif »
-dans le texte du backlog, pas dans le modèle de données. Enregistré `_proprietaire_seul`
-dans `main.py`, même classification que `targets.router`."""
+Enregistré `_proprietaire_seul` dans `main.py`."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

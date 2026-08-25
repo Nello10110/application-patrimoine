@@ -52,8 +52,8 @@ _compteur_transaction_id = itertools.count(1)
 # explicitement ici plutôt que de compter sur l'autoincrément pour que ce ne soit
 # pas un détail d'implémentation implicite. `make_holding`/`make_transaction`
 # l'utilisent comme propriétaire par défaut ; les tests qui construisent une ligne
-# directement (`Holding(...)`, `Transaction(...)`, `Loan(...)`, `AllocationTarget(...)`)
-# doivent désormais passer `user_id=ID_UTILISATEUR_TEST` explicitement.
+# directement (`Holding(...)`, `Transaction(...)`, `Loan(...)`) doivent désormais
+# passer `user_id=ID_UTILISATEUR_TEST` explicitement.
 ID_UTILISATEUR_TEST = 1
 NOM_UTILISATEUR_TEST = "test"
 # Second compte, pour les tests d'isolation inter-utilisateurs (Milestone 2a,

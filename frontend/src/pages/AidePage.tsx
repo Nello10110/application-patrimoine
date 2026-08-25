@@ -172,7 +172,6 @@ const GLOSSAIRE: GlossaireEntry[] = [
   { terme: 'Drawdown', definition: 'La perte maximale subie entre un plus haut et le creux qui a suivi, sur une période donnée. Un bon indicateur de "à quel point ça peut faire mal" avant de remonter.' },
   { terme: 'Volatilité', definition: 'À quel point le prix d’un titre bouge dans le temps. Une volatilité élevée veut dire des variations plus fortes (à la hausse comme à la baisse) — pas forcément une mauvaise performance, mais un trajet plus mouvementé.' },
   { terme: 'Plus-value latente / réalisée', definition: 'Latente : le gain "sur le papier" d’une position toujours détenue, qui peut encore monter ou redescendre. Réalisée : le gain devenu définitif au moment de la vente.' },
-  { terme: 'Rééquilibrage', definition: 'Ajuster ses positions pour revenir vers ses objectifs de répartition, quand le marché a fait dériver le portefeuille loin de la cible initiale.' },
 ]
 
 function ZoneCard({ zone }: { zone: ZoneGeographiqueInfo }) {

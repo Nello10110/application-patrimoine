@@ -6,37 +6,36 @@ Application web locale et mono-utilisateur de suivi de portefeuille boursier. El
 
 1. reconstruire automatiquement le portefeuille réel à partir d'un export d'historique de transactions (courtier Trade Republic et compatibles), avec un choix de méthode de calcul du coût de revient (coût moyen pondéré ou FIFO) ;
 2. enrichir chaque position avec des données de marché (cours, secteur, pays, composition des ETF) via Yahoo Finance (`yfinance`), avec mise en cache pour limiter la fréquence des appels ;
-3. définir des objectifs de répartition géographique et sectorielle par année, visualiser les écarts avec le portefeuille réel et être alerté quand un écart dépasse un seuil réglable ;
+3. visualiser la répartition géographique et sectorielle réelle du portefeuille financier ;
 4. calculer la rentabilité globale et par ligne (gain/perte, rendement annualisé money-weighted), à partir d'une convention de données algébrique et sans double comptage des frais ;
-5. proposer des actions de rééquilibrage mécaniques (aucun conseil sur des titres précis) ;
-6. annoter chaque ligne d'un compte (PEA, CTO...) à titre purement indicatif, pour lire la répartition de la valeur actuelle par enveloppe ;
-7. exporter positions, transactions et synthèse de rentabilité en CSV compatible Excel français ;
-8. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface ;
-9. suivre le **patrimoine net global** (roadmap Phase 1, `docs/ROADMAP.md`) : au-delà du seul portefeuille financier, immobilier/SCPI/assurance-vie/PER/autres actifs valorisés manuellement et emprunts (passifs), avec une répartition par grande classe d'actif ;
-10. **projeter** ce patrimoine net à horizon réglable et estimer une **indépendance financière** (roadmap Phase 2) à partir d'hypothèses de rendement, d'épargne et de dépense cible — présenté explicitement comme une hypothèse, jamais une promesse ;
-11. consulter un **calendrier des dividendes perçus**, mois par mois, avec le détail des lignes (roadmap Phase 3) ;
-12. exporter un **relevé de patrimoine en PDF** mis en forme, au-delà des exports CSV (roadmap Phase 3) ;
-13. voir le **coût de gestion annuel consolidé** des fonds/ETF détenus, avec un indicateur honnête de la part du portefeuille pour laquelle ce coût est réellement connu (roadmap Phase 3) ;
-14. consulter, à la demande, un **rapport récapitulatif** (évolution, plus gros mouvements, dividendes perçus) sur un mois, une année, ou une période personnalisée (roadmap Phase 4) ;
-15. **installer l'application** comme une application (icône, plein écran) depuis un navigateur compatible (roadmap Phase 3).
+5. annoter chaque ligne d'un compte (PEA, CTO...) à titre purement indicatif, pour lire la répartition de la valeur actuelle par enveloppe ;
+6. exporter positions, transactions et synthèse de rentabilité en CSV compatible Excel français ;
+7. planifier le rafraîchissement automatique des données de marché, ou le déclencher manuellement, sans bloquer l'interface ;
+8. suivre le **patrimoine net global** (roadmap Phase 1, `docs/ROADMAP.md`) : au-delà du seul portefeuille financier, immobilier/SCPI/assurance-vie/PER/autres actifs valorisés manuellement et emprunts (passifs), avec une répartition par grande classe d'actif ;
+9. **projeter** ce patrimoine net à horizon réglable et estimer une **indépendance financière** (roadmap Phase 2) à partir d'hypothèses de rendement, d'épargne et de dépense cible — présenté explicitement comme une hypothèse, jamais une promesse ;
+10. consulter un **calendrier des dividendes perçus**, mois par mois, avec le détail des lignes (roadmap Phase 3) ;
+11. exporter un **relevé de patrimoine en PDF** mis en forme, au-delà des exports CSV (roadmap Phase 3) ;
+12. voir le **coût de gestion annuel consolidé** des fonds/ETF détenus, avec un indicateur honnête de la part du portefeuille pour laquelle ce coût est réellement connu (roadmap Phase 3) ;
+13. consulter, à la demande, un **rapport récapitulatif** (évolution, plus gros mouvements, dividendes perçus) sur un mois, une année, ou une période personnalisée (roadmap Phase 4) ;
+14. **installer l'application** comme une application (icône, plein écran) depuis un navigateur compatible (roadmap Phase 3).
 
-L'application ne fournit **aucun conseil en investissement personnalisé** : les objectifs de répartition sont définis par l'utilisateur lui-même, les recommandations ne portent que sur des catégories (zone géographique, secteur), jamais sur un titre à acheter ou vendre. Elle ne simule aucune fiscalité (cf. § 5, non-objectif assumé).
+L'application ne fournit **aucun conseil en investissement personnalisé** : elle ne recommande jamais l'achat ou la vente d'un titre précis. Elle ne simule aucune fiscalité (cf. § 5, non-objectif assumé).
 
 ## 2. Écrans
 
 | Écran | Route | Rôle |
 |---|---|---|
-| Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, revenus passifs projetés certain/estimé — § 2.P.3, répartition réel vs cible, qualité des données, coût de gestion, répartition par compte, indicateurs de risque, indicateur de rééquilibrage) |
+| Tableau de bord | `/` | Vue d'ensemble en trois temps (backlog § 2.K.6) : **le chiffre** (patrimoine net très grand + variation/phrase), **la courbe** (évolution du portefeuille), **le détail** repliable (rentabilité globale + métriques avancées TWR/volatilité/drawdown/comparaison à un indice — § 2.P.2, revenus passifs projetés certain/estimé — § 2.P.3, répartition géo/sectorielle réelle, qualité des données, exposition consolidée tous actifs — § 2.P.1, coût de gestion, répartition par compte, indicateurs de risque) |
 | Portefeuille | `/portefeuille` | Liste des positions : tri par colonne, ligne de total, filtrage par catégorie d'actif (dont « Immobilier & Épargne ») et par compte, édition en ligne, fraîcheur des cours, ajout manuel (avec valeur estimée pour l'immobilier/SCPI/assurance-vie/PER), accès à la fiche détaillée ; carte « Dettes et emprunts » (CRUD, capital restant dû calculé ou recalé manuellement) |
-| Fiche détaillée | `/patrimoine/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
-| Répartition (Analyse) | `/repartition` (`/analyse`) | En tête (backlog § 2.P.1) : **exposition consolidée tous actifs** — répartition géo/classe financier ET immobilier/épargne confondus, concentration (plus grosse ligne, top 5, première zone). En dessous, objectifs et rééquilibrage réunis (fusion Objectifs/Rééquilibrage) pour une même année sélectionnable, financiers uniquement : définition des cibles de répartition géo/sectorielle, puis le détail complet des alertes et des actions de rééquilibrage recommandées qui en découlent. Un enregistrement des objectifs recharge automatiquement le rééquilibrage affiché |
-| Objectifs | `/objectifs` (`/simulateur` redirige) | Deux blocs sur un même écran (backlog § 2.O.1) : **Objectifs suivis**, persistés — nom, montant cible, échéance, actifs rattachés dont la valeur cumulée mesure la progression réelle, trajectoire cible/réelle, diagnostic en langage naturel, rendement requis et contribution mensuelle nécessaire — et **indicateurs de situation** (§ 2.O.2, matelas de sécurité, taux d'endettement, part immobilisée) ; puis le **Simulateur**, calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel et le versement mensuel observé sur le budget (§ 2.N.4), horizon réglable (5/10/20/30 ans), tableau de détail annuel/mensuel, indépendance financière (FIRE). Tout le Simulateur est calculé côté client hormis les préremplissages |
+| Fiche détaillée | `/patrimoine/:ticker` (page pleine page) ou modale ouverte depuis le Portefeuille/le Tableau de bord | **Fiche unifiée à trois onglets** (backlog § 2.M.4), commune à toute nature d'actif : **Aperçu** (valorisation, rendements, courbe de cours ou cashflow/historique immobilier/épargne, émetteur/résumé) ; **Analyse** (look-through géo/secteur, détention et part nette) ; **Paramètres** (édition sectionnée — caractéristiques immobilières aujourd'hui, état vide explicite pour les autres natures) |
+| Épargne | `/epargne` | (backlog § 2.S.1) Comptes courants/épargne réglementée/épargne salariale/assurance-vie/PER : liste de comptes avec valeur actuelle datée, versement mensuel déclaré (additionné au préremplissage du Simulateur), historique de valorisation à date choisie par l'utilisateur (jamais figée à « maintenant »), petit graphique d'évolution, modification/suppression d'un compte |
+| Objectifs | `/objectifs` (`/simulateur` redirige) | Deux blocs sur un même écran (backlog § 2.O.1) : **Objectifs suivis**, persistés — nom, montant cible, échéance, actifs rattachés dont la valeur cumulée mesure la progression réelle, trajectoire cible/réelle, diagnostic en langage naturel, rendement requis et contribution mensuelle nécessaire — et **indicateurs de situation** (§ 2.O.2, matelas de sécurité, taux d'endettement, part immobilisée) ; puis le **Simulateur**, calcul à la volée sans rien conserver, préempli avec le patrimoine net actuel et le versement mensuel observé sur le budget (§ 2.N.4) additionné aux versements Épargne déclarés (§ 2.S.1), horizon réglable (5/10/20/30 ans), tableau de détail annuel/mensuel, indépendance financière (FIRE). Tout le Simulateur est calculé côté client hormis les préremplissages |
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
 | Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, **décomposition « investi » (argent ajouté) vs « généré » (plus-value, dividendes, intérêts)**, dividendes perçus, cinq plus gros mouvements de la période |
 | Salaire | `/salaire` (propriétaire seul) | (backlog § 2.R.1) Calculateur brut/net — **plusieurs entrées par année** (un revenu par conjoint, chacune nommée et avec son propre taux d'imposition), montant brut ou net, mensuel ou annuel, cadre ou non-cadre, nombre de versements dans l'année, aperçu instantané côté client avant enregistrement. Chaque entrée affiche son détail brut/net avant-après impôt. **Taux d'épargne du foyer** : agrégat de toutes les entrées d'une année (revenu net total rapporté au montant réellement investi en achats de titres) — historique par année et moyenne, volontairement distinct du rendement de marché (carte Performance) |
 | Import | `/import` | Import de l'historique de transactions, d'un relevé de positions, ou de mouvements bancaires (CSV mappé, OFX, QIF — backlog § 2.N.1) pour l'écran Budget |
-| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte, taux d'imposition déclaré), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV, relevé de patrimoine PDF et déclaration de patrimoine paramétrable (backlog § 2.Q.2), gestion des liens de partage (onglet Partage, backlog § 2.Q.1) |
+| Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, taux d'imposition déclaré), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV, relevé de patrimoine PDF et déclaration de patrimoine paramétrable (backlog § 2.Q.2), gestion des liens de partage (onglet Partage, backlog § 2.Q.1) |
 | Partage public | `/partage/:token` | Consultation PUBLIQUE (aucune authentification, backlog § 2.Q.1) d'un lien de partage — sections agrégées choisies par le propriétaire, code optionnel |
 
 Un bouton dans l'en-tête bascule le thème clair/sombre (ou suit le système), sur tous les écrans.
@@ -94,7 +93,7 @@ Un ETF n'a pas de pays/secteur unique. Sa contribution à la répartition du por
 
 **Deux fourre-tout distincts.** « Non catégorisé » (donnée manquante : pays/secteur inconnu, ou fonds sans composition ni indice reconnu) est distinct d'« Autres zones »/« Autres secteurs » (une zone ou un secteur réel, connu, mais résiduel — hors des catégories habituelles). Confondre les deux masquerait la différence entre « je ne sais pas » et « je sais, et c'est une catégorie mineure ».
 
-**Qualité des données exposée.** L'API (`GET /api/analysis/{annee}`, champ `qualite_donnees`) et l'interface (encart « Qualité des données » du Tableau de bord) qualifient, en euros et en pourcentage de la valeur totale du portefeuille, l'origine de la répartition géographique affichée : part en composition réelle, part estimée par indice, part non catégorisée, part valorisée à son coût de revient faute de cotation. Sans cette information, la comparaison réel vs cible du tableau de bord laisserait croire à une précision qu'elle n'a pas.
+**Qualité des données exposée.** L'API (`GET /api/analysis`, champ `qualite_donnees`) et l'interface (encart « Qualité des données » du Tableau de bord) qualifient, en euros et en pourcentage de la valeur totale du portefeuille, l'origine de la répartition géographique affichée : part en composition réelle, part estimée par indice, part non catégorisée, part valorisée à son coût de revient faute de cotation. Sans cette information, la répartition géographique affichée sur le tableau de bord laisserait croire à une précision qu'elle n'a pas.
 
 **Poids sectoriels normalisés.** Les poids géo et sectoriels d'un fonds sont renormalisés pour sommer exactement à 1,0 (Yahoo Finance renvoie parfois une somme légèrement différente, ex. 1,0001) — cohérence nécessaire pour que la somme des catégories affichées corresponde toujours à 100 % de la ligne.
 
@@ -189,14 +188,6 @@ que d'abandonner la projection à cause de sa partie la moins fiable (le blocage
 - Réponse : détail des 4 composantes, `revenu_certain_annuel`, `revenu_estime_annuel`,
   `revenu_total_projete_annuel`/`_mensuel`.
 
-### 3.6 Recommandations de rééquilibrage et alertes
-
-Pour chaque catégorie (géo ou secteur) dont l'écart entre poids réel et poids cible dépasse **2 points**, une **recommandation** est calculée : réduire ou augmenter la catégorie du montant en euros nécessaire pour revenir à la cible. Aucun titre précis n'est recommandé — l'utilisateur reste seul décideur des instruments.
-
-Une **alerte** est un sous-ensemble des recommandations dont l'écart absolu dépasse un **seuil réglable** (par défaut 5 points, modifiable depuis les Réglages) — jamais un recalcul distinct.
-
-Le détail complet (alertes et recommandations, catégorie par catégorie) vit sur l'écran Répartition (`/repartition`, fusionné avec la définition des objectifs — les deux sont deux vues d'un même concept pour une même année) : le Tableau de bord n'affiche plus qu'un **indicateur** résumé (nombre d'actions recommandées, dont nombre d'alertes) avec un lien vers ce détail, pour ne pas encombrer la vue d'ensemble d'une liste pouvant compter plusieurs dizaines de lignes sur un portefeuille peu diversifié. Un enregistrement des objectifs sur cet écran recharge automatiquement le rééquilibrage affiché en dessous, pour refléter les nouvelles cibles sans rechargement manuel.
-
 ### 3.7 Multi-compte
 
 Chaque ligne du portefeuille peut être annotée d'un compte (PEA, CTO, ou tout libellé libre saisi par l'utilisateur, à la création ou en édition). Cette annotation est **purement manuelle** : le grand livre de transactions importé (format Trade Republic) ne porte **aucune information de compte**. En conséquence, seule la répartition de la **valeur actuelle** du portefeuille par compte est calculable (affichée sur le Tableau de bord dès qu'au moins une ligne est annotée) — il est **impossible d'en déduire une rentabilité par compte** (XIRR, gains réalisés) : rien dans les données importées ne permet de savoir quelles transactions appartiennent à quel compte. Ce n'est pas une limite technique contournable, c'est une absence structurelle de la donnée source ; l'interface le rappelle explicitement à côté de la répartition par compte.
@@ -228,7 +219,7 @@ Les historiques de prix (série d'une ligne pour la fiche détaillée, historiqu
 
 ### 3.10 Validation des saisies et robustesse des imports
 
-Les créations/modifications de position, les objectifs de répartition et la configuration des tâches planifiées sont validées (quantité strictement positive, prix non négatif, pourcentages entre 0 et 100, catégories non dupliquées, intervalle de planification borné...) ; toute violation renvoie une erreur **400** avec un message en français, plutôt qu'une erreur générique ou un plantage silencieux.
+Les créations/modifications de position et la configuration des tâches planifiées sont validées (quantité strictement positive, prix non négatif, pourcentages entre 0 et 100, intervalle de planification borné...) ; toute violation renvoie une erreur **400** avec un message en français, plutôt qu'une erreur générique ou un plantage silencieux.
 
 L'import d'un relevé de positions est **transactionnel** : une erreur en cours d'import déclenche un rollback explicite, le portefeuille n'est jamais laissé dans un état partiellement vidé. Les colonnes choisies lors du mapping sont vérifiées comme existant réellement dans le fichier avant l'import, pour ne pas produire un import silencieusement vide en cas d'erreur de mapping. Les fichiers importés sont plafonnés en taille (25 Mo) pour éviter d'épuiser la mémoire du process sur un fichier anormalement volumineux.
 
@@ -240,7 +231,7 @@ Neuf `type_actif` valorisés **manuellement** (`REAL_ESTATE`, `SCPI`, `LIFE_INSU
 
 **Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps).
 
-**Deux périmètres volontairement distincts.** Le portefeuille FINANCIER (actions, ETF, crypto, obligations, private equity — `analysis_service.holdings_financiers`) reste seul concerné par le look-through géo/sectoriel, les objectifs et la carte Rentabilité boursière (§ 3.2, § 3.4, § 3.5) : y mélanger un bien immobilier n'aurait pas de sens (pas de géographie/secteur boursier, pas de coût de base dans le grand livre de transactions). Le **patrimoine net global** (`GET /api/patrimoine/net`, `services/patrimoine_service.py`) est une vue **additive** : actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER/autre actif, valorisés par la même règle que `value_holdings`) moins passifs totaux (somme des capitaux restants dus), avec une répartition par grande classe d'actif. Il n'écrase ni ne remplace les écrans existants.
+**Deux périmètres volontairement distincts.** Le portefeuille FINANCIER (actions, ETF, crypto, obligations, private equity — `analysis_service.holdings_financiers`) reste seul concerné par le look-through géo/sectoriel et la carte Rentabilité boursière (§ 3.2, § 3.4, § 3.5) : y mélanger un bien immobilier n'aurait pas de sens (pas de géographie/secteur boursier, pas de coût de base dans le grand livre de transactions). Le **patrimoine net global** (`GET /api/patrimoine/net`, `services/patrimoine_service.py`) est une vue **additive** : actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER/autre actif, valorisés par la même règle que `value_holdings`) moins passifs totaux (somme des capitaux restants dus), avec une répartition par grande classe d'actif. Il n'écrase ni ne remplace les écrans existants.
 
 **Fiche immobilier complète** (backlog § 2.M.3) : `HoldingImmobilierDetail` (un par `Holding`, table
 séparée — ces champs n'ont de sens que pour `REAL_ESTATE`) porte le bloc location (type, loyer
@@ -303,11 +294,11 @@ Au-delà du graphique, un **tableau de détail** (bascule Annuelle/Mensuelle) li
 Trois temps : **le chiffre** (`PatrimoineNetCard`, patrimoine net en très grand — jeton `text-display`
 du système de design, § 2.K.1 — avec la répartition actifs/passifs juste en dessous), **la courbe**
 (`PortfolioHistoryChart`, évolution du portefeuille financier), **le détail** (tout le reste :
-indicateurs de risque, répartitions réel vs cible, qualité des données, coût de gestion, répartition
-par compte, indicateur de rééquilibrage) regroupé dans un composant repliable générique
-(`Disclosure.tsx`, natif `<details>`-like, état persisté dans `localStorage`), ouvert par défaut. Les
-deux bandeaux d'accueil (aucune position/aucun objectif défini) restent hors du repliable : ce sont
-des appels à l'action, pas de la simple information complémentaire.
+indicateurs de risque, répartitions géo/sectorielles réelles, qualité des données, exposition
+consolidée tous actifs — § 3.20, coût de gestion, répartition par compte) regroupé dans un composant
+repliable générique (`Disclosure.tsx`, natif `<details>`-like, état persisté dans `localStorage`),
+ouvert par défaut. Le bandeau d'accueil (aucune position) reste hors du repliable : c'est un appel à
+l'action, pas de la simple information complémentaire.
 
 **Variation et phrase en langage naturel** sous le chiffre principal (`{signe}{pct}% {libellé
 période}`, ex. « +10,0 % depuis le début du suivi ») : calculée sur le **portefeuille financier
@@ -400,8 +391,9 @@ Distinct du Simulateur (§ 3.12, calcul à la volée sans rien conserver) : un o
 Distinct du § 3.4 (portefeuille FINANCIER seul) et du § 3.11 (patrimoine net, additif mais sans
 géographie ni concentration) : une seule répartition géo/classe, **financier ET immobilier/épargne
 confondus** (`GET /api/patrimoine/exposition-consolidee`,
-`services/patrimoine_service.compute_exposition_consolidee`) — affichée en tête de l'écran
-Répartition, avant la comparaison objectifs vs réel.
+`services/patrimoine_service.compute_exposition_consolidee`) — affichée dans le détail repliable du
+Tableau de bord (relocalisée depuis l'ancien écran Répartition, retiré le 25/08/2026 avec la feature
+d'objectifs de répartition annuelle, cf. § 3.6 devenue vacante).
 
 - **Géographie** : réutilise le look-through des fonds (§ 3.4) pour le financier ; un actif valorisé
   manuellement y contribue via un nouveau champ `Holding.zone_geo` (une des 6 zones de
@@ -567,14 +559,13 @@ aux côtés de l'immobilier) ; ces 5 types restent aussi visibles dans Portefeui
 | `holding_immobilier_details` | Fiche immobilier complète (§ 3.11, backlog § 2.M.3) : bloc location + caractéristiques, un par `Holding` |
 | `holding_valuation_history` | Historique daté des valorisations manuelles (§ 3.11, backlog § 2.M.3) — jamais écrasé, générique (pas réservé à l'immobilier) |
 | `market_data_cache` | Cache des cours/secteur/pays par position, horodaté. `description` (fonds uniquement, alimentée par `justetf_refresh`, cf. § 3.4) ; `frais_gestion_pct` (fonds uniquement, mis en cache une seule fois par ticker, cf. § 3.9) |
-| `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques/objectifs). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
+| `fund_composition` | Look-through géo/secteur zone-mappé des fonds (utilisé pour les graphiques de répartition). `source` (`justetf` \| `composition` \| `indice` \| absente) qualifie l'origine de la donnée (cf. § 3.4) — les lignes `justetf` ne sont recalculées que par `justetf_refresh`, les autres à chaque `market_data_refresh` |
 | `fund_composition_brute` | Répartition géo/sectorielle **brute** (non zone-mappée) d'un fonds telle que publiée par justETF, affichage seul sur la fiche détaillée (cf. § 3.4) — jamais utilisée dans un calcul agrégé |
 | `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds — justETF pour un fonds couvert (2.4), Yahoo Finance en repli sinon |
 | `ticker_resolution` | Cache ISIN/symbole → ticker Yahoo Finance |
-| `allocation_targets` | Objectifs de répartition géo/sectorielle par année |
 | `salaires` | Calculateur brut/net + taux d'épargne — plusieurs lignes possibles par année à l'échelle du foyer, chacune avec son propre taux d'imposition (§ 3.23) |
 | `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |
-| `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, seuil d'alerte, taux d'imposition déclaré — § 3.22), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
+| `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, taux d'imposition déclaré — § 3.22), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
 | `historique_cache` | Cache persistant (24 h) des séries d'historique de prix coûteuses à recalculer (ligne, portefeuille, et indice de référence — § 3.5.1), cf. § 3.9 |
 | `liens_partage` | Liens de partage révocables (§ 3.21, backlog 2.Q.1) : jeton opaque, sections activées, code haché optionnel, expiration, révocation |
 | `partage_acces` | Journal des consultations d'un lien de partage public (§ 3.21) — alimente le verrouillage temporaire par lien |

@@ -322,19 +322,6 @@ class MarketDataCache(Base):
     derniere_maj: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
-class AllocationTarget(Base):
-    __tablename__ = "allocation_targets"
-    __table_args__ = (UniqueConstraint("user_id", "annee", "type", "categorie", name="uq_target_user_annee_type_categorie"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    annee: Mapped[int] = mapped_column(Integer, index=True)
-    type: Mapped[str] = mapped_column(String)  # "geo" | "sector"
-    categorie: Mapped[str] = mapped_column(String)
-    pourcentage_cible: Mapped[float] = mapped_column(Float)
-
-
 class Salaire(Base):
     """Une entrée de salaire du foyer pour une année donnée (backlog salaire/taux
     d'épargne) — PLUSIEURS entrées par année sont possibles (plusieurs revenus, ex.

@@ -36,8 +36,8 @@ describe('BottomNav (backlog 2.K.4)', () => {
     expect(nav).toHaveClass('h-16') // 64px, largement au-dessus des 44px requis
     expect(within(nav).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
     expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
-    expect(within(nav).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(nav).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
+    expect(within(nav).getByRole('link', { name: /Épargne/ })).toHaveAttribute('href', '/epargne')
     expect(within(nav).queryByRole('link', { name: /Dividendes/ })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
@@ -50,13 +50,13 @@ describe('BottomNav (backlog 2.K.4)', () => {
     expect(screen.getByRole('link', { name: /Synthèse/ })).not.toHaveClass('text-accent')
   })
 
-  it('invité : seuls Synthèse/Patrimoine en direct (rôle restreint, backlog 2.L.2), "Plus" reste présent', () => {
+  it('invité : seuls Synthèse/Patrimoine/Épargne en direct (rôle restreint, backlog 2.L.2), "Plus" reste présent', () => {
     renderNav(utilisateur({ role: 'invite' }))
 
     const nav = screen.getByRole('navigation', { name: 'Navigation principale (mobile)' })
     expect(within(nav).getByRole('link', { name: /Synthèse/ })).toBeInTheDocument()
     expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toBeInTheDocument()
-    expect(within(nav).queryByRole('link', { name: /Analyse/ })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: /Objectifs/ })).not.toBeInTheDocument()
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
   })
 

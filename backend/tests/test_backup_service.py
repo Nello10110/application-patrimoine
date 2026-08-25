@@ -24,7 +24,6 @@ def base_source(tmp_path):
     connexion.execute("CREATE TABLE holdings (id INTEGER PRIMARY KEY)")
     connexion.execute("CREATE TABLE transactions (id INTEGER PRIMARY KEY)")
     connexion.execute("CREATE TABLE market_data_cache (id INTEGER PRIMARY KEY)")
-    connexion.execute("CREATE TABLE allocation_targets (id INTEGER PRIMARY KEY)")
     connexion.commit()
     connexion.close()
     return chemin

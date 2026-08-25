@@ -2,16 +2,16 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { AnalysisResponse } from '../api/types'
+import type { AnalysisResponse, ExpositionConsolidee } from '../api/types'
 import DashboardPage from './DashboardPage'
 
 vi.mock('../api/client', () => ({
   api: {
-    listTargetYears: vi.fn(),
     getAnalysis: vi.fn(),
     getPerformance: vi.fn(),
     getRepartitionComptes: vi.fn(),
     getCoutGestionConsolide: vi.fn(),
+    getExpositionConsolidee: vi.fn(),
     // Historique du portefeuille (backlog 2.K.6) : remonté ici pour être partagé avec
     // `PortfolioHistoryChart`/`PatrimoineNetCard` (tous deux mis de côté ci-dessous) —
     // hors de l'objet de ce fichier, stub neutre.
@@ -20,7 +20,7 @@ vi.mock('../api/client', () => ({
 }))
 
 // Composants lourds (recharts, appels réseau propres) mis de côté : ce fichier ne
-// verrouille que le sélecteur d'année et le bouton "Actualiser" (LOT 5.3).
+// verrouille pas leur rendu interne (déjà couvert ailleurs, ex. `AllocationChartCard.test.tsx`).
 vi.mock('../components/PortfolioHistoryChart', () => ({ default: () => <div /> }))
 vi.mock('../components/AllocationBarChart', () => ({ default: () => <div /> }))
 vi.mock('../components/CompositionModal', () => ({ default: () => <div /> }))
@@ -39,11 +39,8 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
 }))
 
-const CURRENT_YEAR = new Date().getFullYear()
-
-function analyse(annee: number, overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
+function analyse(overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
   return {
-    annee,
     valeur_totale: 1000,
     geo: [],
     sector: [],
@@ -59,8 +56,6 @@ function analyse(annee: number, overrides: Partial<AnalysisResponse> = {}): Anal
       score_diversification: 80,
       lignes_sans_donnees: 0,
     },
-    recommandations: [],
-    alertes: [],
     qualite_donnees: {
       valeur_composition_reelle: 1000,
       pct_composition_reelle: 100,
@@ -75,6 +70,21 @@ function analyse(annee: number, overrides: Partial<AnalysisResponse> = {}): Anal
   }
 }
 
+function expositionConsolidee(overrides: Partial<ExpositionConsolidee> = {}): ExpositionConsolidee {
+  return {
+    valeur_totale: 0,
+    repartition_geo: [],
+    repartition_classe: [],
+    plus_grosse_ligne_ticker: null,
+    plus_grosse_ligne_pct: null,
+    top5_lignes_pct: null,
+    premiere_zone_geo: null,
+    premiere_zone_geo_pct: null,
+    part_estimee_manuelle_pct: 0,
+    ...overrides,
+  }
+}
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -83,49 +93,34 @@ function renderPage() {
   )
 }
 
-describe('DashboardPage — sélecteur d\'année', () => {
+function mockReponsesParDefaut() {
+  vi.mocked(api.getAnalysis).mockResolvedValue(analyse())
+  vi.mocked(api.getPerformance).mockResolvedValue(null as never)
+  vi.mocked(api.getRepartitionComptes).mockResolvedValue({
+    valeur_totale: 0,
+    items: [],
+    a_des_comptes_annotes: false,
+    pas_de_rentabilite_par_compte: '',
+  })
+  vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
+    valeur_fonds: 0,
+    valeur_fonds_avec_ter_connu: 0,
+    couverture_pct: 0,
+    cout_annuel_estime: 0,
+  })
+  vi.mocked(api.getExpositionConsolidee).mockResolvedValue(expositionConsolidee())
+}
+
+describe('DashboardPage — chargement et actualisation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(api.listTargetYears).mockResolvedValue([2023, 2024])
-    vi.mocked(api.getAnalysis).mockImplementation((annee: number) => Promise.resolve(analyse(annee)))
-    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
-    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
-      valeur_totale: 0,
-      items: [],
-      a_des_comptes_annotes: false,
-      pas_de_rentabilite_par_compte: '',
-    })
-    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
-      valeur_fonds: 0,
-      valeur_fonds_avec_ter_connu: 0,
-      couverture_pct: 0,
-      cout_annuel_estime: 0,
-    })
+    mockReponsesParDefaut()
   })
 
-  it("charge l'analyse de l'année courante au montage, et propose les années enregistrées plus l'année courante", async () => {
-    const anneeCourante = new Date().getFullYear()
+  it("charge l'analyse au montage", async () => {
     renderPage()
 
-    await waitFor(() => expect(api.getAnalysis).toHaveBeenCalledWith(anneeCourante))
-
-    const select = await screen.findByRole('combobox')
-    const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent)
-    expect(options).toContain('2023')
-    expect(options).toContain('2024')
-    expect(options).toContain(String(anneeCourante))
-  })
-
-  it("recharge l'analyse quand l'année sélectionnée change", async () => {
-    renderPage()
-    await waitFor(() => expect(api.getAnalysis).toHaveBeenCalled())
-    vi.mocked(api.getAnalysis).mockClear()
-
-    const select = await screen.findByRole('combobox')
-    const { fireEvent } = await import('@testing-library/react')
-    fireEvent.change(select, { target: { value: '2023' } })
-
-    await waitFor(() => expect(api.getAnalysis).toHaveBeenCalledWith(2023))
+    await waitFor(() => expect(api.getAnalysis).toHaveBeenCalledTimes(1))
   })
 
   it('le bouton Actualiser relance analyse et rentabilité', async () => {
@@ -140,14 +135,13 @@ describe('DashboardPage — sélecteur d\'année', () => {
     expect(api.getPerformance).toHaveBeenCalledTimes(2)
   })
 
-  it("l'en-tête (sélecteur + bouton) reste affiché pendant une erreur de chargement", async () => {
+  it("l'en-tête (bouton Actualiser) reste affiché pendant une erreur de chargement", async () => {
     vi.mocked(api.getAnalysis).mockRejectedValue(new Error('panne simulée'))
     renderPage()
 
     // Message brut (backlog 2.K.1, `EtatErreur`) : le préfixe "Erreur: " a été retiré,
     // normalisé comme partout ailleurs dans l'application.
     await screen.findByText('panne simulée')
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Actualiser/ })).toBeInTheDocument()
   })
 })
@@ -155,20 +149,7 @@ describe('DashboardPage — sélecteur d\'année', () => {
 describe('DashboardPage — erreurs indépendantes de performance/comptes/coût de gestion (backlog 2.K.5)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(api.listTargetYears).mockResolvedValue([])
-    vi.mocked(api.getAnalysis).mockResolvedValue(analyse(CURRENT_YEAR))
-    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
-      valeur_totale: 0,
-      items: [],
-      a_des_comptes_annotes: false,
-      pas_de_rentabilite_par_compte: '',
-    })
-    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
-      valeur_fonds: 0,
-      valeur_fonds_avec_ter_connu: 0,
-      couverture_pct: 0,
-      cout_annuel_estime: 0,
-    })
+    mockReponsesParDefaut()
   })
 
   it("un échec de getPerformance seul n'empêche pas le reste du tableau de bord de s'afficher, et Réessayer relance seulement cet appel", async () => {
@@ -177,8 +158,8 @@ describe('DashboardPage — erreurs indépendantes de performance/comptes/coût 
     renderPage()
 
     await screen.findByText('panne performance')
-    // Le reste de la page (indicateur de rééquilibrage, dépendant de `analysis`) s'affiche normalement.
-    expect(await screen.findByText(/action recommandée/)).toBeInTheDocument()
+    // Le reste de la page (dépendant de `analysis`) s'affiche normalement.
+    expect(await screen.findByText('Score de diversification')).toBeInTheDocument()
 
     vi.mocked(api.getPerformance).mockResolvedValueOnce(null as never)
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
@@ -188,7 +169,6 @@ describe('DashboardPage — erreurs indépendantes de performance/comptes/coût 
   })
 
   it('un échec de getCoutGestionConsolide affiche EtatErreur avec une action de reprise dédiée', async () => {
-    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
     vi.mocked(api.getCoutGestionConsolide).mockRejectedValueOnce(new Error('panne cout gestion'))
     const { fireEvent } = await import('@testing-library/react')
     renderPage()
@@ -207,7 +187,6 @@ describe('DashboardPage — erreurs indépendantes de performance/comptes/coût 
   })
 
   it('un échec de getRepartitionComptes affiche EtatErreur avec une action de reprise dédiée', async () => {
-    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
     vi.mocked(api.getRepartitionComptes).mockRejectedValueOnce(new Error('panne comptes'))
     const { fireEvent } = await import('@testing-library/react')
     renderPage()
@@ -226,95 +205,32 @@ describe('DashboardPage — erreurs indépendantes de performance/comptes/coût 
   })
 })
 
-describe('DashboardPage — indicateur de rééquilibrage', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(api.listTargetYears).mockResolvedValue([])
-    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
-    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
-      valeur_totale: 0,
-      items: [],
-      a_des_comptes_annotes: false,
-      pas_de_rentabilite_par_compte: '',
-    })
-    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
-      valeur_fonds: 0,
-      valeur_fonds_avec_ter_connu: 0,
-      couverture_pct: 0,
-      cout_annuel_estime: 0,
-    })
-  })
-
-  it('affiche le nombre de recommandations et le nombre d\'alertes, avec un lien vers le détail', async () => {
-    vi.mocked(api.getAnalysis).mockResolvedValue(
-      analyse(CURRENT_YEAR, {
-        recommandations: [{ type: 'geo', categorie: 'Europe', ecart_pourcentage: 8.0, montant_a_ajuster: 100, sens: 'reduire' }],
-        alertes: [{ type: 'geo', categorie: 'Europe', ecart_pourcentage: 8.0, montant_a_ajuster: 100, sens: 'reduire' }],
-      }),
-    )
-    renderPage()
-
-    await screen.findByText(/1 action recommandée/)
-    expect(screen.getByText(/dont 1 alerte/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Voir le détail' })).toHaveAttribute('href', '/analyse')
-    // Le détail (catégorie, montant) ne s'affiche plus sur le tableau de bord.
-    expect(screen.queryByText('Europe')).not.toBeInTheDocument()
-  })
-
-  it("indique un portefeuille aligné quand il n'y a ni recommandation ni alerte", async () => {
-    vi.mocked(api.getAnalysis).mockResolvedValue(
-      // Un objectif défini (pourcentage_cible non nul) pour ne pas tomber dans le
-      // message "renseigne des objectifs" — ici on veut bien vérifier le message
-      // "portefeuille aligné".
-      analyse(CURRENT_YEAR, { geo: [{ categorie: 'Europe', valeur: 1000, pourcentage_reel: 100, pourcentage_cible: 100, ecart: 0 }] }),
-    )
-    renderPage()
-
-    await screen.findByText(/0 action recommandée/)
-    expect(screen.getByText(/Portefeuille bien aligné/)).toBeInTheDocument()
-  })
-})
-
 describe('DashboardPage — hiérarchie de lecture (backlog 2.K.6)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(api.listTargetYears).mockResolvedValue([])
-    vi.mocked(api.getAnalysis).mockResolvedValue(analyse(CURRENT_YEAR))
-    vi.mocked(api.getPerformance).mockResolvedValue(null as never)
-    vi.mocked(api.getRepartitionComptes).mockResolvedValue({
-      valeur_totale: 0,
-      items: [],
-      a_des_comptes_annotes: false,
-      pas_de_rentabilite_par_compte: '',
-    })
-    vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
-      valeur_fonds: 0,
-      valeur_fonds_avec_ter_connu: 0,
-      couverture_pct: 0,
-      cout_annuel_estime: 0,
-    })
+    mockReponsesParDefaut()
   })
 
   it('charge un seul historique de portefeuille, partagé entre le chiffre et la courbe', async () => {
     renderPage()
 
-    await screen.findByText(/action recommandée/)
+    await screen.findByText('Score de diversification')
     expect(api.getPortfolioHistory).toHaveBeenCalledTimes(1)
   })
 
-  it('le détail (rééquilibrage, score de diversification...) est ouvert par défaut, et se replie au clic', async () => {
+  it('le détail (répartition, score de diversification, exposition consolidée...) est ouvert par défaut, et se replie au clic', async () => {
     const { fireEvent } = await import('@testing-library/react')
     renderPage()
 
-    await screen.findByText(/action recommandée/)
-    expect(screen.getByText('Score de diversification')).toBeInTheDocument()
+    await screen.findByText('Score de diversification')
+    // Exposition consolidée (backlog 2.P.1) — relocalisée depuis l'ancien écran
+    // Analyse (retiré 25/08/2026) dans le détail repliable du Tableau de bord.
+    expect(await screen.findByText('Exposition consolidée — tous actifs')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Détail' }))
 
     expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
-    // Le lien "Voir le détail" (Rééquilibrage) disparaît aussi, contrairement au
-    // sélecteur d'année / bouton "Actualiser" qui restent toujours visibles.
-    expect(screen.queryByRole('link', { name: 'Voir le détail' })).not.toBeInTheDocument()
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
+    expect(screen.queryByText('Exposition consolidée — tous actifs')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Actualiser/ })).toBeInTheDocument()
   })
 })

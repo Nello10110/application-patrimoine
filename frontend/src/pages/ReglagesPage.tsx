@@ -377,7 +377,6 @@ function PreferencesCard() {
     try {
       const resultat = await api.updatePreferences({
         methode_cout,
-        seuil_alerte_ecart_pct: prefs.seuil_alerte_ecart_pct,
         taux_imposition_pct: prefs.taux_imposition_pct,
       })
       setPrefs(resultat)
@@ -395,24 +394,6 @@ function PreferencesCard() {
     }
   }
 
-  async function handleSeuilChange(seuil_alerte_ecart_pct: number) {
-    if (!prefs) return
-    setSaving(true)
-    setError(null)
-    try {
-      const resultat = await api.updatePreferences({
-        methode_cout: prefs.methode_cout,
-        seuil_alerte_ecart_pct,
-        taux_imposition_pct: prefs.taux_imposition_pct,
-      })
-      setPrefs(resultat)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function handleTauxImpositionChange(taux_imposition_pct: number | null) {
     if (!prefs) return
     setSaving(true)
@@ -420,7 +401,6 @@ function PreferencesCard() {
     try {
       const resultat = await api.updatePreferences({
         methode_cout: prefs.methode_cout,
-        seuil_alerte_ecart_pct: prefs.seuil_alerte_ecart_pct,
         taux_imposition_pct,
       })
       setPrefs(resultat)
@@ -464,30 +444,6 @@ function PreferencesCard() {
         </div>
         {message && <p className="mt-3 text-sm text-positif">{message}</p>}
         {error && <EtatErreur message={error} />}
-      </Card>
-
-      <Card title="Alertes">
-        <p className="mb-4 text-sm text-texte">
-          Seuil d'écart (en points de pourcentage) entre la répartition réelle et l'objectif au-delà duquel une
-          recommandation de rééquilibrage devient une alerte, mise en avant sur le tableau de bord.
-        </p>
-        <label className="flex items-center gap-2 text-sm text-texte">
-          Seuil d'alerte
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step="0.5"
-            defaultValue={prefs.seuil_alerte_ecart_pct}
-            disabled={saving}
-            onBlur={(e) => {
-              const valeur = Number(e.target.value)
-              if (!Number.isNaN(valeur) && valeur !== prefs.seuil_alerte_ecart_pct) handleSeuilChange(valeur)
-            }}
-            className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          />
-          points
-        </label>
       </Card>
 
       <Card title="Déclaration de patrimoine">

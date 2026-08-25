@@ -201,9 +201,9 @@ def compute_risk_indicators(valued: list[ValuedHolding], geo_totals: dict[str, f
 
 def compute_data_quality(db: Session, valued: list[ValuedHolding]) -> dict:
     """Qualifie, en euros et en pourcentage de la valeur totale, l'origine de la
-    répartition géographique affichée à l'écran (cf. 2.1/2.3) — le tableau de bord
-    compare réel et cible, encore faut-il savoir à quel point le "réel" est mesuré
-    plutôt qu'estimé. Trois catégories, non exclusives entre elles pour la dernière :
+    répartition géographique affichée à l'écran (cf. 2.1/2.3) — encore faut-il
+    savoir à quel point le "réel" affiché est mesuré plutôt qu'estimé. Trois
+    catégories, non exclusives entre elles pour la dernière :
 
     - composition réelle : géographie connue avec certitude, soit parce que la
       ligne est un fonds dont Yahoo fournit `top_holdings` (`FundComposition.source

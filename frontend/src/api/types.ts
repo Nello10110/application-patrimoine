@@ -421,31 +421,10 @@ export interface ImportResult {
   errors: string[]
 }
 
-export interface AllocationTargetInput {
-  categorie: string
-  pourcentage_cible: number
-}
-
-export interface AllocationTargetsSet {
-  annee: number
-  geo: AllocationTargetInput[]
-  sector: AllocationTargetInput[]
-}
-
-export interface AllocationTargetOut {
-  id: number
-  annee: number
-  type: 'geo' | 'sector'
-  categorie: string
-  pourcentage_cible: number
-}
-
 export interface AllocationBreakdownItem {
   categorie: string
   valeur: number
   pourcentage_reel: number
-  pourcentage_cible: number | null
-  ecart: number | null
 }
 
 export interface RiskIndicators {
@@ -461,14 +440,6 @@ export interface RiskIndicators {
   lignes_sans_donnees: number
 }
 
-export interface RebalancingAction {
-  type: 'geo' | 'sector'
-  categorie: string
-  ecart_pourcentage: number
-  montant_a_ajuster: number
-  sens: 'reduire' | 'augmenter'
-}
-
 export interface QualiteDonnees {
   valeur_composition_reelle: number
   pct_composition_reelle: number
@@ -481,15 +452,10 @@ export interface QualiteDonnees {
 }
 
 export interface AnalysisResponse {
-  annee: number
   valeur_totale: number
   geo: AllocationBreakdownItem[]
   sector: AllocationBreakdownItem[]
   risques: RiskIndicators
-  recommandations: RebalancingAction[]
-  // Sous-ensemble de `recommandations` (LOT 5.5) dont l'écart absolu dépasse le
-  // seuil réglable `seuil_alerte_ecart_pct` (cf. `Preferences`) — pas un recalcul.
-  alertes: RebalancingAction[]
   qualite_donnees: QualiteDonnees
 }
 
@@ -513,7 +479,6 @@ export interface RepartitionComptesResponse {
 // Réglages applicatifs persistants (LOT 5B).
 export interface Preferences {
   methode_cout: 'cout_moyen_pondere' | 'fifo'
-  seuil_alerte_ecart_pct: number
   // Taux d'imposition SAISI par l'utilisateur (backlog 2.Q.2) : une donnée reprise
   // telle quelle dans la déclaration de patrimoine, jamais un calcul fiscal.
   taux_imposition_pct: number | null
@@ -521,7 +486,7 @@ export interface Preferences {
 
 export interface PreferencesUpdateResponse extends Preferences {
   // Nombre de positions recalculées si le changement de méthode a déclenché une
-  // reconstruction du portefeuille (LOT 5.6), `null` sinon (seuil seul modifié).
+  // reconstruction du portefeuille (LOT 5.6), `null` sinon.
   positions_recalculees: number | null
 }
 

@@ -31,7 +31,7 @@ vi.mock('../api/client', () => ({
     listDetenteurs: vi.fn(),
     createDetenteur: vi.fn(),
     deleteDetenteur: vi.fn(),
-    getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', seuil_alerte_ecart_pct: 5, taux_imposition_pct: null }),
+    getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     updatePreferences: vi.fn(),
     listJobs: vi.fn().mockResolvedValue([]),
     // Déclaration de patrimoine (backlog 2.Q.2) : hors de l'objet des autres blocs

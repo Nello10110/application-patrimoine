@@ -15,27 +15,23 @@ def test_get_preferences_renvoie_les_defauts(client):
     assert reponse.status_code == 200
     assert reponse.json() == {
         "methode_cout": "cout_moyen_pondere",
-        "seuil_alerte_ecart_pct": 5.0,
         "taux_imposition_pct": None,
     }
 
 
 def test_put_preferences_enregistre_puis_relecture_coherente(client):
-    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": 12.0})
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo"})
 
     assert reponse.status_code == 200
     corps = reponse.json()
     assert corps["methode_cout"] == "fifo"
-    assert corps["seuil_alerte_ecart_pct"] == 12.0
 
     relue = client.get("/api/settings/preferences").json()
-    assert relue == {"methode_cout": "fifo", "seuil_alerte_ecart_pct": 12.0, "taux_imposition_pct": None}
+    assert relue == {"methode_cout": "fifo", "taux_imposition_pct": None}
 
 
 def test_put_preferences_avec_taux_imposition_puis_relecture(client):
-    reponse = client.put(
-        "/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": 12.0, "taux_imposition_pct": 30.0}
-    )
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "taux_imposition_pct": 30.0})
 
     assert reponse.status_code == 200
     assert reponse.json()["taux_imposition_pct"] == 30.0
@@ -43,30 +39,20 @@ def test_put_preferences_avec_taux_imposition_puis_relecture(client):
 
 
 def test_put_preferences_refuse_un_taux_imposition_hors_bornes(client):
-    reponse = client.put(
-        "/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": 5.0, "taux_imposition_pct": 150.0}
-    )
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "taux_imposition_pct": 150.0})
     assert reponse.status_code == 400
 
 
 def test_put_preferences_refuse_une_methode_inconnue(client):
-    reponse = client.put("/api/settings/preferences", json={"methode_cout": "lifo", "seuil_alerte_ecart_pct": 5.0})
-    assert reponse.status_code == 400
-
-
-def test_put_preferences_refuse_un_seuil_hors_bornes(client):
-    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": 150.0})
-    assert reponse.status_code == 400
-
-    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": -1.0})
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "lifo"})
     assert reponse.status_code == 400
 
 
 def test_put_preferences_sans_changement_de_methode_ne_reconstruit_pas(client, db):
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
-    client.put("/api/settings/preferences", json={"methode_cout": "cout_moyen_pondere", "seuil_alerte_ecart_pct": 5.0})
+    client.put("/api/settings/preferences", json={"methode_cout": "cout_moyen_pondere"})
 
-    reponse = client.put("/api/settings/preferences", json={"methode_cout": "cout_moyen_pondere", "seuil_alerte_ecart_pct": 9.0})
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "cout_moyen_pondere"})
 
     assert reponse.status_code == 200
     assert reponse.json()["positions_recalculees"] is None
@@ -90,7 +76,7 @@ def test_put_preferences_changement_de_methode_declenche_la_reconstruction(clien
     assert len(avant) == 1
     assert avant[0]["prix_revient_moyen"] == 200.0
 
-    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo", "seuil_alerte_ecart_pct": 5.0})
+    reponse = client.put("/api/settings/preferences", json={"methode_cout": "fifo"})
 
     assert reponse.status_code == 200
     assert reponse.json()["positions_recalculees"] == 1

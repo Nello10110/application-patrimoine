@@ -18,7 +18,6 @@ from ..models import UserParametre
 
 # Clés de stockage en base (`UserParametre.cle`), jamais exposées en dehors de ce module.
 _CLE_METHODE_COUT = "methode_cout"
-_CLE_SEUIL_ALERTE_ECART_PCT = "seuil_alerte_ecart_pct"
 _CLE_BUDGET_CATEGORIES_INITIALISEES = "budget_categories_initialisees"
 _CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
 
@@ -28,13 +27,6 @@ _CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
 METHODE_COUT_MOYEN_PONDERE = "cout_moyen_pondere"
 METHODE_FIFO = "fifo"
 METHODES_VALIDES = (METHODE_COUT_MOYEN_PONDERE, METHODE_FIFO)
-
-# Seuil (en points de pourcentage d'écart absolu réel/cible) au-delà duquel une
-# recommandation de rééquilibrage devient une ALERTE (cf. LOT 5.5, distinct du
-# seuil de 2 points de `services/rebalancing.SEUIL_ECART_PCT` qui décide, lui, si
-# une recommandation existe tout court) : une recommandation informe simplement
-# d'un écart mesuré, une alerte réclame une action de la part de l'utilisateur.
-SEUIL_ALERTE_ECART_PCT_DEFAUT = 5.0
 
 
 def _lire_valeur_brute(db: Session, cle: str, user_id: int) -> str | None:
@@ -58,16 +50,6 @@ def lire_methode_cout(db: Session, user_id: int) -> str:
     la reconstruction."""
     valeur = _lire_valeur_brute(db, _CLE_METHODE_COUT, user_id)
     return valeur if valeur in METHODES_VALIDES else METHODE_COUT_MOYEN_PONDERE
-
-
-def lire_seuil_alerte_ecart_pct(db: Session, user_id: int) -> float:
-    valeur = _lire_valeur_brute(db, _CLE_SEUIL_ALERTE_ECART_PCT, user_id)
-    if valeur is None:
-        return SEUIL_ALERTE_ECART_PCT_DEFAUT
-    try:
-        return float(valeur)
-    except ValueError:
-        return SEUIL_ALERTE_ECART_PCT_DEFAUT
 
 
 def lire_taux_imposition_pct(db: Session, user_id: int) -> float | None:
@@ -104,23 +86,19 @@ def lire_preferences(db: Session, user_id: int) -> dict:
     `UserParametre`."""
     return {
         "methode_cout": lire_methode_cout(db, user_id),
-        "seuil_alerte_ecart_pct": lire_seuil_alerte_ecart_pct(db, user_id),
         "taux_imposition_pct": lire_taux_imposition_pct(db, user_id),
     }
 
 
-def enregistrer_preferences(
-    db: Session, user_id: int, methode_cout: str, seuil_alerte_ecart_pct: float, taux_imposition_pct: float | None = None
-) -> dict:
+def enregistrer_preferences(db: Session, user_id: int, methode_cout: str, taux_imposition_pct: float | None = None) -> dict:
     """Écrit les réglages de ce compte et renvoie l'ensemble des préférences relu
     (même forme que `lire_preferences`). La validation des valeurs (méthode
-    autorisée, seuils entre 0 et 100) est déjà faite en amont par
+    autorisée, taux entre 0 et 100) est déjà faite en amont par
     `schemas.PreferencesUpdate` : ce module ne fait ici que persister, pas que
     revalider. `taux_imposition_pct=None` efface la valeur déjà enregistrée
-    (contrairement aux deux réglages ci-dessus, toujours requis) : un champ de
-    saisie vidé côté client doit pouvoir revenir à "non renseigné"."""
+    (contrairement à `methode_cout`, toujours requis) : un champ de saisie vidé
+    côté client doit pouvoir revenir à "non renseigné"."""
     _ecrire_valeur_brute(db, _CLE_METHODE_COUT, user_id, methode_cout)
-    _ecrire_valeur_brute(db, _CLE_SEUIL_ALERTE_ECART_PCT, user_id, str(seuil_alerte_ecart_pct))
     if taux_imposition_pct is None:
         db.query(UserParametre).filter(UserParametre.cle == _CLE_TAUX_IMPOSITION_PCT, UserParametre.user_id == user_id).delete()
     else:

@@ -1,69 +1,11 @@
-"""Verrouille la validation des saisies (LOT 3.2) et la détection d'un doublon de
-catégorie d'objectif avant écriture en base (LOT 3.1). Pour chaque contrainte : un
-cas nominal (accepté) et un cas rejeté (refusé proprement, jamais un 500).
+"""Verrouille la validation des saisies (LOT 3.2). Pour chaque contrainte : un cas
+nominal (accepté) et un cas rejeté (refusé proprement, jamais un 500).
 
 Toutes les erreurs de validation Pydantic sont renvoyées en 400 par le gestionnaire
 d'erreurs global (`app.main.gestion_erreurs_validation`), avec un message français
 lisible tel quel (`detail`) — cf. docstring de ce gestionnaire."""
 
 from app.models import ORIGINE_MANUEL
-
-
-# ---------------------------------------------------------------------------
-# 3.1 — catégorie en doublon dans les objectifs
-# ---------------------------------------------------------------------------
-
-
-def _payload_targets(annee, geo, sector=None):
-    return {"annee": annee, "geo": geo, "sector": sector or []}
-
-
-def test_set_targets_categorie_dupliquee_refusee_en_400(client):
-    payload = _payload_targets(
-        2026,
-        geo=[
-            {"categorie": "Europe", "pourcentage_cible": 50},
-            {"categorie": "Europe", "pourcentage_cible": 50},
-        ],
-    )
-    reponse = client.put("/api/targets/2026", json=payload)
-
-    assert reponse.status_code == 400
-    detail = reponse.json()["detail"]
-    assert "Europe" in detail
-    assert "geo" in detail
-
-
-def test_set_targets_sans_doublon_accepte_en_200(client):
-    payload = _payload_targets(
-        2026,
-        geo=[
-            {"categorie": "Europe", "pourcentage_cible": 60},
-            {"categorie": "Amérique du Nord", "pourcentage_cible": 40},
-        ],
-    )
-    reponse = client.put("/api/targets/2026", json=payload)
-
-    assert reponse.status_code == 200
-    categories = {item["categorie"] for item in reponse.json()}
-    assert categories == {"Europe", "Amérique du Nord"}
-
-
-def test_set_targets_categorie_dupliquee_dans_sector_refusee(client):
-    payload = _payload_targets(
-        2026,
-        geo=[],
-        sector=[
-            {"categorie": "Technologie", "pourcentage_cible": 50},
-            {"categorie": "Technologie", "pourcentage_cible": 50},
-        ],
-    )
-    reponse = client.put("/api/targets/2026", json=payload)
-
-    assert reponse.status_code == 400
-    detail = reponse.json()["detail"]
-    assert "Technologie" in detail
-    assert "sector" in detail
 
 
 # ---------------------------------------------------------------------------
@@ -167,35 +109,6 @@ def test_update_holding_prix_revient_negatif_refuse_en_400(client):
 def test_update_holding_valeur_estimee_negative_refusee_en_400(client):
     holding_id = _creer_holding(client)
     reponse = client.patch(f"/api/portfolio/holdings/{holding_id}", json={"valeur_estimee": -1})
-    assert reponse.status_code == 400
-
-
-# ---------------------------------------------------------------------------
-# 3.2 — AllocationTargetItem : pourcentage_cible borné, catégorie non vide
-# ---------------------------------------------------------------------------
-
-
-def test_set_targets_pourcentage_negatif_refuse_en_400(client):
-    payload = _payload_targets(2026, geo=[{"categorie": "Europe", "pourcentage_cible": -10}])
-    reponse = client.put("/api/targets/2026", json=payload)
-    assert reponse.status_code == 400
-
-
-def test_set_targets_pourcentage_superieur_a_100_refuse_en_400(client):
-    payload = _payload_targets(2026, geo=[{"categorie": "Europe", "pourcentage_cible": 150}])
-    reponse = client.put("/api/targets/2026", json=payload)
-    assert reponse.status_code == 400
-
-
-def test_set_targets_pourcentage_borne_acceptee(client):
-    payload = _payload_targets(2026, geo=[{"categorie": "Europe", "pourcentage_cible": 100}])
-    reponse = client.put("/api/targets/2026", json=payload)
-    assert reponse.status_code == 200
-
-
-def test_set_targets_categorie_vide_refusee_en_400(client):
-    payload = _payload_targets(2026, geo=[{"categorie": "   ", "pourcentage_cible": 100}])
-    reponse = client.put("/api/targets/2026", json=payload)
     assert reponse.status_code == 400
 
 

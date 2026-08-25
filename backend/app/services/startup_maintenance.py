@@ -69,8 +69,8 @@ def reconstruire_si_regles_de_calcul_modifiees(db: Session) -> int | None:
 
     Multi-utilisateur (Milestone 2a/2b, `docs/BACKLOG.md` § 2.I.1) :
     `VERSION_CALCUL_PORTEFEUILLE` reste volontairement une version GLOBALE dans
-    `Parametre` (contrairement à `methode_cout`/`seuil_alerte_ecart_pct`, devenues
-    par utilisateur au Milestone 2b dans `UserParametre`) — c'est un marqueur de
+    `Parametre` (contrairement à `methode_cout`, devenue par utilisateur au
+    Milestone 2b dans `UserParametre`) — c'est un marqueur de
     version du CODE de calcul, pas une préférence, il n'a donc pas de sens par
     compte. Un changement de règle de calcul doit reconstruire le portefeuille de
     CHAQUE compte existant : la boucle ci-dessous est le comportement définitif,

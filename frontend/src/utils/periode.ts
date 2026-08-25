@@ -1,9 +1,6 @@
 /** Période transverse (backlog 2.K.3) : fenêtre glissante relative à aujourd'hui,
  * ou plage personnalisée — s'applique au graphique d'évolution du patrimoine et au
- * Rapport (cf. `PreferencesAffichageContext`). Volontairement distincte du
- * sélecteur "année" du Dashboard/Répartition/Objectifs (`AllocationTarget` est un
- * objectif intrinsèquement annuel, une fenêtre glissante "3 derniers mois" n'a pas
- * de sens pour lui) — celui-ci reste un contrôle séparé, non touché par ce module. */
+ * Rapport (cf. `PreferencesAffichageContext`). */
 
 export type PeriodeRelative = '1M' | '3M' | '6M' | 'YTD' | '1A' | '3A' | 'TOUT'
 export type Periode = { type: 'relative'; valeur: PeriodeRelative } | { type: 'personnalisee'; dateDebut: string; dateFin: string }

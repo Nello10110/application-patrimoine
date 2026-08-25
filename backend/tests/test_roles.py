@@ -90,11 +90,10 @@ def test_membre_peut_creer_et_modifier_des_holdings(client_reel):
     assert any(h["ticker"] == "AAA" for h in holdings_proprio)
 
 
-def test_membre_refuse_sur_les_objectifs_et_detenteurs(client_reel):
+def test_membre_refuse_sur_les_detenteurs_et_le_salaire(client_reel):
     token_proprio = _fonder_foyer(client_reel)
     token_membre = _creer_membre(client_reel, token_proprio)
 
-    assert client_reel.get("/api/targets/2026", headers=_en_tete(token_membre)).status_code == 403
     assert client_reel.get("/api/detenteurs", headers=_en_tete(token_membre)).status_code == 403
     assert client_reel.get("/api/settings/jobs", headers=_en_tete(token_membre)).status_code == 403
     # Un membre garde un accès large en lecture/écriture sur les données du foyer
@@ -102,7 +101,7 @@ def test_membre_refuse_sur_les_objectifs_et_detenteurs(client_reel):
     assert client_reel.get("/api/partage", headers=_en_tete(token_membre)).status_code == 403
     assert client_reel.post("/api/partage", json={"nom": "Test"}, headers=_en_tete(token_membre)).status_code == 403
     # Salaire (calculateur brut/net + taux d'épargne) : donnée de revenu personnel,
-    # même niveau de sensibilité que les Objectifs — réservé au propriétaire.
+    # réservé au propriétaire.
     assert client_reel.get("/api/salaire", headers=_en_tete(token_membre)).status_code == 403
     assert (
         client_reel.post(
@@ -202,7 +201,7 @@ def test_invite_refuse_sur_les_ecrans_hors_perimetre(client_reel):
     token_proprio = _fonder_foyer(client_reel)
     token_invite = _creer_invite(client_reel, token_proprio, [])
 
-    assert client_reel.get("/api/analysis/2026", headers=_en_tete(token_invite)).status_code == 403
+    assert client_reel.get("/api/analysis", headers=_en_tete(token_invite)).status_code == 403
     assert client_reel.get("/api/performance", headers=_en_tete(token_invite)).status_code == 403
 
 

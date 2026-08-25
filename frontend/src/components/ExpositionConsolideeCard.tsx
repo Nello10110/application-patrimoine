@@ -12,9 +12,8 @@ import { formatEuro } from '../utils/format'
 
 /** Exposition consolidée tous actifs (backlog 2.P.1) : une seule répartition
  * géo/classe, financier ET immobilier/épargne confondus — jamais servie ailleurs
- * dans l'application (`RepartitionPage`/`AnalysisResponse` restent scopés au seul
- * portefeuille financier). Affichée en tête de l'écran Analyse, avant la
- * comparaison objectifs vs réel (qui reste, elle, financière uniquement). */
+ * dans l'application (`AnalysisResponse` reste scopé au seul portefeuille
+ * financier). Affichée dans le détail repliable du Tableau de bord. */
 export default function ExpositionConsolideeCard() {
   const { montantsMasques } = usePreferencesAffichage()
   const [donnees, setDonnees] = useState<ExpositionConsolidee | null>(null)

@@ -48,7 +48,7 @@ logger = logging.getLogger("patrimoine.sauvegarde")
 # Tables dont l'absence ou l'illisibilité, après copie, signale à coup sûr une
 # sauvegarde inexploitable — sans prétendre à l'exhaustivité de tout le schéma
 # (`PRAGMA integrity_check` couvre déjà la cohérence bas niveau des pages/index).
-TABLES_PRINCIPALES = ("holdings", "transactions", "market_data_cache", "allocation_targets")
+TABLES_PRINCIPALES = ("holdings", "transactions", "market_data_cache")
 
 RETENTION_PAR_DEFAUT = 10
 

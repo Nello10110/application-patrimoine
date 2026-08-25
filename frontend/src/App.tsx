@@ -26,7 +26,6 @@ const ImportPage = lazy(() => import('./pages/ImportPage'))
 const PartagePublicPage = lazy(() => import('./pages/PartagePublicPage'))
 const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
 const RapportPage = lazy(() => import('./pages/RapportPage'))
-const RepartitionPage = lazy(() => import('./pages/RepartitionPage'))
 const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
 const SalairePage = lazy(() => import('./pages/SalairePage'))
 const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
@@ -85,7 +84,6 @@ function AppAuthentifiee() {
                 <Route path="/patrimoine" element={<PortefeuillePage />} />
                 <Route path="/patrimoine/:ticker" element={<HoldingDetailPage />} />
                 <Route path="/epargne" element={<EpargnePage />} />
-                <Route path="/analyse" element={<RepartitionPage />} />
                 <Route path="/objectifs" element={<SimulateurPage />} />
                 <Route path="/dividendes" element={<DividendesPage />} />
                 <Route path="/budget" element={<BudgetPage />} />
@@ -97,7 +95,11 @@ function AppAuthentifiee() {
 
                 <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
                 <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />
-                <Route path="/repartition" element={<Navigate to="/analyse" replace />} />
+                {/* Feature d'objectifs de répartition annuelle retirée (25/08/2026) — ces
+                    deux anciennes URL redirigent vers le Tableau de bord plutôt que de
+                    disparaître, même logique que les autres redirections ci-dessus. */}
+                <Route path="/repartition" element={<Navigate to="/" replace />} />
+                <Route path="/analyse" element={<Navigate to="/" replace />} />
                 <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
               </Routes>
             </Suspense>

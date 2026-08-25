@@ -3,7 +3,7 @@ import Card from './Card'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
-/** Encart de qualité des données (LOT 2.1/2.3) : la comparaison réel vs cible du
+/** Encart de qualité des données (LOT 2.1/2.3) : la répartition géo/sectorielle du
  * tableau de bord n'a de sens que si l'utilisateur sait à quel point le "réel" est
  * mesuré plutôt qu'estimé — voire pas connu du tout. N'affiche rien tant qu'il n'y a
  * rien à signaler (portefeuille entièrement couvert par une composition réelle et

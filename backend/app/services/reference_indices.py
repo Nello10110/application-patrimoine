@@ -1,6 +1,6 @@
 """Données de référence statiques : libellés de zones et de secteurs, correspondance
-pays -> zone, objectifs par défaut proposés à l'utilisateur (éditables dans l'appli),
-et répartitions géographiques de repli déduites de l'indice suivi par un fonds.
+pays -> zone, et répartitions géographiques de repli déduites de l'indice suivi par
+un fonds.
 
 Ces répartitions de repli ne servent QUE lorsque la composition réelle du fonds n'est
 pas disponible chez le fournisseur de données : ce sont des approximations, à revoir
@@ -21,32 +21,7 @@ ZONE_AUTRES = "Autres zones"
 
 # Catégorie fourre-tout historiquement appelée "Autres" ; renommée "Autres zones"
 # pour la distinguer de "Non catégorisé" (donnée manquante, cf. `region_for_country`)
-# — un objectif enregistré sur "Autres" désigne toujours une vraie zone géographique
-# résiduelle, jamais une absence de donnée. Les objectifs existants en base sont
-# migrés vers ce nouveau libellé par une migration ponctuelle (LOT 2.2, historique
-# dans `backend/alembic/versions/`), appliquée une fois.
-DEFAULT_GEO_TARGETS: dict[str, float] = {
-    ZONE_AMERIQUE_DU_NORD: 16.67,
-    ZONE_EUROPE: 16.67,
-    ZONE_JAPON: 16.67,
-    ZONE_ASIE_PACIFIQUE: 16.67,
-    ZONE_MARCHES_EMERGENTS: 16.67,
-    ZONE_AUTRES: 16.65,
-}
-
-DEFAULT_SECTOR_TARGETS: dict[str, float] = {
-    "Technologies de l'information": 23,
-    "Financières": 15,
-    "Santé": 11,
-    "Consommation discrétionnaire": 11,
-    "Industrie": 11,
-    "Communication": 8,
-    "Consommation de base": 6,
-    "Énergie": 5,
-    "Matériaux": 4,
-    "Services publics": 3,
-    "Immobilier": 3,
-}
+# — une zone géographique résiduelle, jamais une absence de donnée.
 
 # Pays (tels que renvoyés par yfinance) -> région utilisée dans les objectifs géographiques
 COUNTRY_TO_REGION: dict[str, str] = {

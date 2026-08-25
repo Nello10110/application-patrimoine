@@ -4,10 +4,8 @@ import { STYLE_INFOBULLE } from '../utils/chartTheme'
 
 const COLORS = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#db2777', '#4b5563', '#0d9488', '#9333ea', '#ea580c']
 
-/** Variante camembert d'`AllocationBarChart` (LOT 6.10) : ne montre que la répartition
- * réelle (`pourcentage_reel`), volontairement — un camembert à deux séries (réel +
- * cible) n'est pas lisible, contrairement aux barres. La comparaison à la cible reste
- * disponible en repassant sur le mode barres. */
+/** Variante camembert d'`AllocationBarChart` (LOT 6.10) : répartition réelle
+ * (`pourcentage_reel`) du portefeuille financier. */
 export default function AllocationPieChart({
   items,
   onCategoryClick,

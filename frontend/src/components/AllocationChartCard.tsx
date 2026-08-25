@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { AllocationBreakdownItem } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro, formatPct } from '../utils/format'
+import { formatEuro } from '../utils/format'
 import AllocationBarChart from './AllocationBarChart'
 import AllocationPieChart from './AllocationPieChart'
 import Card from './Card'
@@ -66,10 +66,8 @@ function BoutonMode({
 }
 
 /** Répartition géo/sectorielle du tableau de bord (LOT 6.10) : un graphique qui bascule
- * entre barres (réel vs cible, comportement d'origine) et camembert (réel seul — une
- * cible n'a pas de sens visuel en camembert, donc volontairement absente de ce mode),
- * plus une vue plein écran avec des informations complémentaires que le graphique seul
- * ne montre pas (écarts chiffrés, poste le plus surpondéré/sous-pondéré). */
+ * entre barres et camembert, plus une vue plein écran avec le détail chiffré par
+ * catégorie que le graphique seul ne montre pas. */
 export default function AllocationChartCard({
   title,
   items,
@@ -87,10 +85,10 @@ export default function AllocationChartCard({
 
   const modeToggle = items.length > 0 && (
     <div className="flex overflow-hidden rounded-md border border-bordure">
-      <BoutonMode actif={mode === 'bar'} onClick={() => setMode('bar')} titre="Barres (réel vs cible)">
+      <BoutonMode actif={mode === 'bar'} onClick={() => setMode('bar')} titre="Barres">
         <IconBarChart />
       </BoutonMode>
-      <BoutonMode actif={mode === 'pie'} onClick={() => setMode('pie')} titre="Camembert (répartition réelle, sans la cible)">
+      <BoutonMode actif={mode === 'pie'} onClick={() => setMode('pie')} titre="Camembert">
         <IconPieChart />
       </BoutonMode>
     </div>
@@ -112,9 +110,6 @@ export default function AllocationChartCard({
   )
 
   const totalValeur = items.reduce((acc, i) => acc + i.valeur, 0)
-  const itemsAvecCible = items.filter((i) => i.ecart !== null)
-  const plusSurpondere = itemsAvecCible.length > 0 ? itemsAvecCible.reduce((max, i) => (i.ecart! > max.ecart! ? i : max)) : null
-  const plusSousPondere = itemsAvecCible.length > 0 ? itemsAvecCible.reduce((min, i) => (i.ecart! < min.ecart! ? i : min)) : null
 
   return (
     <>
@@ -158,22 +153,6 @@ export default function AllocationChartCard({
 
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <StatTile label="Valeur totale" value={formatEuro(totalValeur, 0, montantsMasques)} />
-                {plusSurpondere && (
-                  <StatTile
-                    label="Le plus surpondéré"
-                    value={formatPct(plusSurpondere.ecart)}
-                    sub={plusSurpondere.categorie}
-                    tone={plusSurpondere.ecart! > 0 ? 'warning' : 'neutral'}
-                  />
-                )}
-                {plusSousPondere && (
-                  <StatTile
-                    label="Le plus sous-pondéré"
-                    value={formatPct(plusSousPondere.ecart)}
-                    sub={plusSousPondere.categorie}
-                    tone={plusSousPondere.ecart! < 0 ? 'warning' : 'neutral'}
-                  />
-                )}
               </div>
 
               <table className="mt-6 w-full text-sm">
@@ -182,8 +161,6 @@ export default function AllocationChartCard({
                     <th className="py-2 font-medium">Catégorie</th>
                     <th className="py-2 text-right font-medium">Valeur</th>
                     <th className="py-2 text-right font-medium">Réel</th>
-                    <th className="py-2 text-right font-medium">Cible</th>
-                    <th className="py-2 text-right font-medium">Écart</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-bordure">
@@ -198,22 +175,6 @@ export default function AllocationChartCard({
                         <td className="py-2 text-texte">{item.categorie}</td>
                         <td className="py-2 text-right text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</td>
                         <td className="py-2 text-right text-texte">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
-                        <td className="py-2 text-right text-texte-attenue">
-                          {item.pourcentage_cible !== null ? `${item.pourcentage_cible.toFixed(1)}%` : '—'}
-                        </td>
-                        <td
-                          className={`py-2 text-right font-medium ${
-                            item.ecart === null
-                              ? 'text-texte-attenue'
-                              : item.ecart > 0
-                                ? 'text-avertissement'
-                                : item.ecart < 0
-                                  ? 'text-accent'
-                                  : 'text-texte-attenue'
-                          }`}
-                        >
-                          {formatPct(item.ecart)}
-                        </td>
                       </tr>
                     ))}
                 </tbody>

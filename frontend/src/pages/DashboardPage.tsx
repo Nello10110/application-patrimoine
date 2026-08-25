@@ -9,6 +9,7 @@ import CoutGestionCard from '../components/CoutGestionCard'
 import Disclosure from '../components/Disclosure'
 import EtatErreur from '../components/EtatErreur'
 import { SkeletonTexte } from '../components/Skeleton'
+import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
 import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
 import RevenusPassifsCard from '../components/RevenusPassifsCard'
@@ -19,12 +20,8 @@ import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
-const CURRENT_YEAR = new Date().getFullYear()
-
 export default function DashboardPage() {
   const { montantsMasques } = usePreferencesAffichage()
-  const [annee, setAnnee] = useState(CURRENT_YEAR)
-  const [anneesDisponibles, setAnneesDisponibles] = useState<number[]>([CURRENT_YEAR])
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -48,32 +45,15 @@ export default function DashboardPage() {
   // Historique du portefeuille (backlog 2.K.6) : remonté ici plutôt que chargé dans
   // `PortfolioHistoryChart` lui-même — partagé avec `PatrimoineNetCard` (variation
   // affichée sur le chiffre principal), un seul appel réseau pour les deux. Endpoint
-  // coûteux (jusqu'à une minute), indépendant de `annee` comme les trois ci-dessus.
+  // coûteux (jusqu'à une minute), chargé une seule fois au montage.
   const [historique, setHistorique] = useState<PortfolioHistoryPoint[] | null>(null)
   const [chargementHistorique, setChargementHistorique] = useState(true)
   const [erreurHistorique, setErreurHistorique] = useState<string | null>(null)
 
   const [modal, setModal] = useState<{ type: 'geo' | 'sector'; categorie: string } | null>(null)
 
-  // Années réellement enregistrées (`GET /api/targets/`, cf. LOT 5.3) plutôt qu'une
-  // seule année figée à l'import du module : sans ça, ni le passage à la nouvelle
-  // année civile ni la consultation d'un exercice passé n'étaient possibles sans F5.
-  useEffect(() => {
-    api
-      .listTargetYears()
-      .then((annees) => {
-        const ensemble = new Set([...annees, CURRENT_YEAR])
-        setAnneesDisponibles(Array.from(ensemble).sort((a, b) => b - a))
-      })
-      .catch(() => {
-        // Sélecteur dégradé à la seule année courante plutôt que bloquant : l'analyse
-        // de cette année reste consultable même si la liste des années échoue.
-      })
-  }, [])
-
-  // Recharge l'analyse (dépend de l'année sélectionnée) et la rentabilité (globale,
-  // indépendante de l'année) — factorisé pour servir à la fois à l'effet déclenché
-  // par le changement d'année et au bouton "Actualiser".
+  // Recharge l'analyse et la rentabilité — factorisé pour servir à la fois à
+  // l'effet de montage et au bouton "Actualiser".
   function chargerPerformance() {
     setChargementPerformance(true)
     setErreurPerformance(null)
@@ -84,8 +64,8 @@ export default function DashboardPage() {
       .finally(() => setChargementPerformance(false))
   }
 
-  // Répartition par compte (LOT 5.1) : indépendante de l'année sélectionnée, comme
-  // la rentabilité ci-dessus — pas de blocage de la page si elle échoue.
+  // Répartition par compte (LOT 5.1) : même philosophie que la rentabilité
+  // ci-dessus — pas de blocage de la page si elle échoue.
   function chargerComptes() {
     setChargementComptes(true)
     setErreurComptes(null)
@@ -96,8 +76,8 @@ export default function DashboardPage() {
       .finally(() => setChargementComptes(false))
   }
 
-  // Coût de gestion consolidé (§ E.3) : indépendant de l'année sélectionnée, même
-  // philosophie que la répartition par compte ci-dessus.
+  // Coût de gestion consolidé (§ E.3) : même philosophie que la répartition par
+  // compte ci-dessus.
   function chargerCoutGestion() {
     setChargementCoutGestion(true)
     setErreurCoutGestion(null)
@@ -122,7 +102,7 @@ export default function DashboardPage() {
     setLoading(true)
     setError(null)
     api
-      .getAnalysis(annee)
+      .getAnalysis()
       .then(setAnalysis)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -131,43 +111,25 @@ export default function DashboardPage() {
     chargerCoutGestion()
   }
 
-  useEffect(chargerDonnees, [annee])
-  // Indépendant de `annee` (l'historique couvre toute la vie du portefeuille) —
-  // chargé une seule fois, pas à chaque changement d'année.
+  useEffect(chargerDonnees, [])
   useEffect(chargerHistorique, [])
 
   const hasNoHoldings = analysis ? analysis.risques.nombre_lignes === 0 : false
-  const hasNoTargets = analysis
-    ? analysis.geo.every((g) => g.pourcentage_cible === null) && analysis.sector.every((s) => s.pourcentage_cible === null)
-    : false
 
-  // L'en-tête (sélecteur d'année + bouton "Actualiser") reste affiché quel que soit
-  // l'état (chargement, erreur, données) : c'est la seule voie de récupération d'une
-  // page restée en erreur, faute d'un rechargement complet (F5).
+  // L'en-tête (bouton "Actualiser") reste affiché quel que soit l'état
+  // (chargement, erreur, données) : c'est la seule voie de récupération d'une page
+  // restée en erreur, faute d'un rechargement complet (F5).
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-texte">Tableau de bord {annee}</h2>
-        <div className="flex items-center gap-3">
-          <select
-            value={annee}
-            onChange={(e) => setAnnee(Number(e.target.value))}
-            className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
-          >
-            {anneesDisponibles.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={chargerDonnees}
-            disabled={loading}
-            className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
-          >
-            {loading ? 'Actualisation...' : 'Actualiser'}
-          </button>
-        </div>
+        <h2 className="text-xl font-semibold text-texte">Tableau de bord</h2>
+        <button
+          onClick={chargerDonnees}
+          disabled={loading}
+          className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        >
+          {loading ? 'Actualisation...' : 'Actualiser'}
+        </button>
       </div>
 
       {/* Hiérarchie de lecture en trois temps (backlog 2.K.6) : (1) le chiffre —
@@ -175,8 +137,8 @@ export default function DashboardPage() {
           sur la période, juste en dessous, jamais masquée par un échec de `analysis`
           (limite documentée du backlog 2.K.5, corrigée ici par construction : ni la
           carte ni la courbe ne dépendent plus de `analysis`/`loading`) ; (3) le
-          détail — répartition, qualité des données, coût de gestion, alertes, sous
-          la ligne de flottaison et repliable. */}
+          détail — répartition, qualité des données, exposition consolidée, coût de
+          gestion, sous la ligne de flottaison et repliable. */}
       <PatrimoineNetCard historiquePortefeuille={{ points: historique, loading: chargementHistorique }} />
 
       <PortfolioHistoryChart points={historique} loading={chargementHistorique} error={erreurHistorique} onRetry={chargerHistorique} />
@@ -199,18 +161,6 @@ export default function DashboardPage() {
                   importer ton portefeuille
                 </Link>
                 .
-              </p>
-            </Card>
-          )}
-
-          {hasNoTargets && !hasNoHoldings && (
-            <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
-              <p className="text-sm text-amber-800 dark:text-amber-200/90">
-                Aucun objectif défini pour {annee}. Va sur la page{' '}
-                <Link to="/analyse" className="font-medium underline">
-                  Analyse
-                </Link>{' '}
-                pour en définir.
               </p>
             </Card>
           )}
@@ -257,7 +207,7 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <AllocationChartCard
-                title="Répartition géographique — réel vs cible"
+                title="Répartition géographique"
                 items={analysis.geo}
                 onCategoryClick={(categorie) => setModal({ type: 'geo', categorie })}
                 footnote={
@@ -270,13 +220,15 @@ export default function DashboardPage() {
                 }
               />
               <AllocationChartCard
-                title="Répartition sectorielle — réel vs cible"
+                title="Répartition sectorielle"
                 items={analysis.sector}
                 onCategoryClick={(categorie) => setModal({ type: 'sector', categorie })}
               />
             </div>
 
             <QualiteDonneesCard qualite={analysis.qualite_donnees} />
+
+            <ExpositionConsolideeCard />
 
             {chargementCoutGestion && <SkeletonTexte lignes={2} />}
             {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}
@@ -299,32 +251,6 @@ export default function DashboardPage() {
                 <p className="mt-3 text-xs text-texte-attenue">{comptes.pas_de_rentabilite_par_compte}</p>
               </Card>
             )}
-
-            <Card title="Rééquilibrage">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p
-                    className={`text-2xl font-semibold ${analysis.alertes.length > 0 ? 'text-avertissement' : 'text-texte'}`}
-                  >
-                    {analysis.recommandations.length} action{analysis.recommandations.length > 1 ? 's' : ''} recommandée
-                    {analysis.recommandations.length > 1 ? 's' : ''}
-                  </p>
-                  <p className="mt-1 text-sm text-texte-attenue">
-                    {analysis.alertes.length > 0
-                      ? `dont ${analysis.alertes.length} alerte${analysis.alertes.length > 1 ? 's' : ''} au-delà du seuil réglé dans Réglages`
-                      : hasNoTargets || hasNoHoldings
-                        ? 'Renseigne un portefeuille et des objectifs pour voir les recommandations.'
-                        : 'Portefeuille bien aligné avec les objectifs.'}
-                  </p>
-                </div>
-                <Link
-                  to="/analyse"
-                  className="shrink-0 rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
-                >
-                  Voir le détail
-                </Link>
-              </div>
-            </Card>
           </Disclosure>
 
           {modal && <CompositionModal type={modal.type} categorie={modal.categorie} onClose={() => setModal(null)} />}

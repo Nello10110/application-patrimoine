@@ -20,8 +20,8 @@ vi.mock('./AllocationPieChart', () => ({
 }))
 
 const ITEMS: AllocationBreakdownItem[] = [
-  { categorie: 'Europe', valeur: 6000, pourcentage_reel: 60, pourcentage_cible: 50, ecart: 10 },
-  { categorie: 'États-Unis', valeur: 4000, pourcentage_reel: 40, pourcentage_cible: 50, ecart: -10 },
+  { categorie: 'Europe', valeur: 6000, pourcentage_reel: 60 },
+  { categorie: 'États-Unis', valeur: 4000, pourcentage_reel: 40 },
 ]
 
 describe('AllocationChartCard', () => {
@@ -31,23 +31,19 @@ describe('AllocationChartCard', () => {
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
     expect(screen.queryByTestId('pie-chart')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByTitle('Camembert (répartition réelle, sans la cible)'))
+    fireEvent.click(screen.getByTitle('Camembert'))
 
     expect(screen.getByTestId('pie-chart')).toBeInTheDocument()
     expect(screen.queryByTestId('bar-chart')).not.toBeInTheDocument()
   })
 
-  it("le plein écran affiche un tableau détaillé avec valeurs, écarts et postes extrêmes", () => {
+  it("le plein écran affiche un tableau détaillé avec valeur totale et valeurs par catégorie", () => {
     render(<AllocationChartCard title="Répartition géographique" items={ITEMS} onCategoryClick={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Agrandir le graphique' }))
 
-    // Statistiques complémentaires (absentes de la carte compacte) — "+10.0%"/"-10.0%"
-    // apparaissent deux fois (statistique ET ligne du tableau détaillé ci-dessous).
-    expect(screen.getByText('Le plus surpondéré')).toBeInTheDocument()
-    expect(screen.getAllByText('+10.0%').length).toBeGreaterThan(0)
-    expect(screen.getByText('Le plus sous-pondéré')).toBeInTheDocument()
-    expect(screen.getAllByText('-10.0%').length).toBeGreaterThan(0)
+    expect(screen.getByText('Valeur totale')).toBeInTheDocument()
+    expect(screen.getByText('10 000 €')).toBeInTheDocument()
 
     // Tableau : une ligne par catégorie, valeur formatée.
     expect(screen.getByText('6 000 €')).toBeInTheDocument()

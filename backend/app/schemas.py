@@ -230,65 +230,10 @@ class ImportResult(BaseModel):
     errors: list[str]
 
 
-class AllocationTargetItem(BaseModel):
-    categorie: str
-    pourcentage_cible: float
-
-    @field_validator("categorie")
-    @classmethod
-    def _valider_categorie(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("La catégorie ne peut pas être vide")
-        return v
-
-    @field_validator("pourcentage_cible")
-    @classmethod
-    def _valider_pourcentage(cls, v: float) -> float:
-        if not (0 <= v <= 100):
-            raise ValueError("Le pourcentage cible doit être compris entre 0 et 100")
-        return v
-
-
-class AllocationTargetsSet(BaseModel):
-    annee: int
-    geo: list[AllocationTargetItem]
-    sector: list[AllocationTargetItem]
-
-    @model_validator(mode="after")
-    def _valider_categories_uniques(self) -> "AllocationTargetsSet":
-        """Détecte un doublon de catégorie *avant* l'écriture en base (LOT 3.1) :
-        sans ce contrôle, `routers/targets.set_targets` laisse SQLAlchemy lever une
-        `IntegrityError` sur la contrainte `uq_target_annee_type_categorie`, renvoyée
-        telle quelle en 500 par FastAPI."""
-        for groupe, items in (("geo", self.geo), ("sector", self.sector)):
-            vues: set[str] = set()
-            for item in items:
-                if item.categorie in vues:
-                    raise ValueError(
-                        f"Catégorie '{item.categorie}' en double dans la répartition '{groupe}' : "
-                        "chaque catégorie ne peut apparaître qu'une seule fois par année"
-                    )
-                vues.add(item.categorie)
-        return self
-
-
-class AllocationTargetOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    annee: int
-    type: str
-    categorie: str
-    pourcentage_cible: float
-
-
 class AllocationBreakdownItem(BaseModel):
     categorie: str
     valeur: float
     pourcentage_reel: float
-    pourcentage_cible: float | None = None
-    ecart: float | None = None
 
 
 class RiskIndicators(BaseModel):
@@ -302,14 +247,6 @@ class RiskIndicators(BaseModel):
     top_secteur_nom: str | None = None
     score_diversification: float
     lignes_sans_donnees: int
-
-
-class RebalancingAction(BaseModel):
-    type: str  # "geo" | "sector"
-    categorie: str
-    ecart_pourcentage: float
-    montant_a_ajuster: float
-    sens: str  # "reduire" | "augmenter"
 
 
 class QualiteDonnees(BaseModel):
@@ -328,17 +265,10 @@ class QualiteDonnees(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
-    annee: int
     valeur_totale: float
     geo: list[AllocationBreakdownItem]
     sector: list[AllocationBreakdownItem]
     risques: RiskIndicators
-    recommandations: list[RebalancingAction]
-    # Sous-ensemble de `recommandations` (LOT 5.5) dont l'écart absolu dépasse le
-    # seuil `seuil_alerte_ecart_pct` (réglable, cf. `Preferences`) — pas un
-    # recalcul : une recommandation informe d'un écart mesuré, une alerte réclame
-    # une action de la part de l'utilisateur (cf. `routers/analysis.get_analysis`).
-    alertes: list[RebalancingAction]
     qualite_donnees: QualiteDonnees
 
 
@@ -796,7 +726,6 @@ class Preferences(BaseModel):
     """Réglages applicatifs persistants (LOT 5B), cf. `services/preferences_service.py`."""
 
     methode_cout: str  # "cout_moyen_pondere" | "fifo"
-    seuil_alerte_ecart_pct: float
     # Taux d'imposition SAISI (backlog 2.Q.2) : une donnée reprise telle quelle dans
     # la déclaration de patrimoine, jamais un calcul fiscal — cf. `docs/BACKLOG.md` § 3.
     taux_imposition_pct: float | None = None
@@ -804,7 +733,6 @@ class Preferences(BaseModel):
 
 class PreferencesUpdate(BaseModel):
     methode_cout: str
-    seuil_alerte_ecart_pct: float
     taux_imposition_pct: float | None = None
 
     @field_validator("methode_cout")
@@ -812,13 +740,6 @@ class PreferencesUpdate(BaseModel):
     def _valider_methode(cls, v: str) -> str:
         if v not in METHODES_VALIDES:
             raise ValueError(f"Méthode de calcul du coût de revient invalide : doit être l'une de {METHODES_VALIDES}")
-        return v
-
-    @field_validator("seuil_alerte_ecart_pct")
-    @classmethod
-    def _valider_seuil(cls, v: float) -> float:
-        if not (0 <= v <= 100):
-            raise ValueError("Le seuil d'alerte doit être compris entre 0 et 100")
         return v
 
     @field_validator("taux_imposition_pct")

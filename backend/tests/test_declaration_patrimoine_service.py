@@ -146,7 +146,7 @@ def test_filtre_detenteur_affiche_la_part_dette_de_lemprunt_rattache(db):
 
 
 def test_inclure_profil_ajoute_la_section_avec_taux_imposition(db):
-    preferences_service.enregistrer_preferences(db, ID_UTILISATEUR_TEST, "cout_moyen_pondere", 5.0, 30.0)
+    preferences_service.enregistrer_preferences(db, ID_UTILISATEUR_TEST, "cout_moyen_pondere", 30.0)
 
     texte = _texte_pdf(_generer(db, inclure_profil=True))
 

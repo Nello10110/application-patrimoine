@@ -11,8 +11,7 @@ Parcours type conseillé :
 
 1. Importer son historique de transactions (écran **Import**).
 2. Rafraîchir les cours (bouton sur l'écran **Portefeuille**, ou automatiquement via **Réglages**).
-3. Définir ses objectifs de répartition pour l'année (écran **Répartition**).
-4. Consulter le **Tableau de bord** pour voir l'écart réel/cible, les alertes et les recommandations.
+3. Consulter le **Tableau de bord** pour voir la répartition géographique/sectorielle du portefeuille.
 
 Un bouton en haut à droite de chaque écran bascule l'apparence entre thème clair, thème sombre et suivi automatique du système (un clic fait passer de l'un à l'autre) ; le choix est mémorisé d'une visite à l'autre.
 
@@ -54,7 +53,7 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 - **Supprimer une ligne** : le bouton « Supprimer » ouvre une confirmation avant suppression définitive.
 - **Rafraîchir les cours** relance la récupération des données de marché pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions ») et le tableau se met à jour tout seul une fois terminé, sans bloquer le reste de l'écran.
 - **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif, valeur estimée) — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat.
-- **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée de l'écran Répartition.
+- **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée du Tableau de bord.
 - **Taux annuel** (épargne réglementée/salariale, véhicule) : champ apparaissant uniquement pour ces types — un pourcentage positif pour un taux d'intérêt attendu (épargne), négatif pour une décote annuelle attendue (véhicule). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
 - **Versement mensuel** (compte courant, épargne réglementée/salariale, assurance-vie, PER — backlog § 2.S.1) : champ apparaissant uniquement pour ces types — le montant versé régulièrement sur ce compte, additionné au préremplissage du Simulateur. Voir l'écran Épargne pour un suivi dédié (valorisation datée, historique, ajout rapide).
 
@@ -85,30 +84,6 @@ Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tablea
 - **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés puis l'historique daté de ses valorisations successives — ou, pour un compte Épargne (compte courant, épargne réglementée/salariale, assurance-vie, PER), la valeur actuelle et sa date, le versement mensuel déclaré, le même historique daté, et un ajout rapide d'une valorisation (voir l'écran Épargne) ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
 - **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique). En dessous, la répartition entre détenteurs déclarés (Réglages) et la part nette qui en résulte, si au moins un détenteur a été créé ;
 - **Paramètres** : édition des réglages propres à la ligne — aujourd'hui, les caractéristiques et le bloc location d'un bien immobilier (type de location, loyer, charges, surface, DPE...) ; pour toute autre nature, un message indique qu'il n'y a rien à régler pour l'instant.
-
-## Écran Répartition
-
-En tête de l'écran, l'**exposition consolidée tous actifs** : une seule vue combinant le portefeuille
-boursier ET l'immobilier/l'épargne, là où le reste de l'écran (objectifs/rééquilibrage) ne regarde que
-le portefeuille financier.
-
-- **Répartition géographique/par classe d'actif consolidée** : deux camemberts, tout le patrimoine
-  confondu. Pour un actif financier (action, ETF...), la géographie vient du look-through habituel.
-  Pour un actif saisi manuellement (immobilier, SCPI, assurance-vie...), elle vient de la **zone
-  géographique** déclarée à l'ajout de la ligne (écran Portefeuille) — Europe par défaut si rien n'a
-  été renseigné.
-- **Concentration** : la plus grosse ligne du patrimoine et son poids, le poids des 5 plus grosses
-  lignes réunies, la première zone géographique et son poids.
-- Une note en bas de section rappelle quelle part du patrimoine a une géographie *déclarée* plutôt
-  que *mesurée* (les actifs manuels) — pour ne jamais confondre une estimation avec une donnée
-  vérifiée.
-
-Puis, en dessous, objectifs et rééquilibrage réunis pour une même année sélectionnable — ces deux vues restent scopées au seul portefeuille financier.
-
-- **Objectifs** : sélectionner une année dans la liste (alimentée par les années réellement enregistrées), ou en ajouter une nouvelle par le champ dédié, puis ajuster les pourcentages cibles de répartition géographique et sectorielle (pré-remplis avec une répartition de référence à la première utilisation d'une année). Chaque catégorie peut être modifiée, supprimée, ou une nouvelle ajoutée. Le total doit sommer à 100 % (indiqué en vert quand c'est le cas). **Enregistrer** sauvegarde les objectifs de l'année sélectionnée et recharge aussitôt le rééquilibrage ci-dessous.
-- **Rééquilibrage** (sous les objectifs) : détail complet des alertes et des actions de rééquilibrage recommandées pour la même année.
-  - **Alertes** : sous-ensemble des recommandations dont l'écart dépasse le seuil réglé dans Réglages, mises en avant en haut de la section.
-  - **Actions de rééquilibrage recommandées** : liste complète des écarts significatifs (> 2 points) entre réel et cible, avec le montant à ajuster (réduire ou augmenter) pour chaque catégorie.
 
 ## Écran Objectifs
 
@@ -232,11 +207,8 @@ courbe, puis le détail replié) :
    Période, barre de contrôles) et un mode étagé qui distingue le capital investi des gains cumulés.
    Reste visible même si le reste de l'écran (répartitions, indicateurs) échoue à charger.
 3. **Le détail** — tout le reste, replié sous un bouton **Détail** (ouvert par défaut, l'état choisi
-   est mémorisé d'une visite à l'autre) :
-   - **Sélecteur d'année**, en haut à droite de l'écran (hors du repliable) : change l'année de
-     comparaison réel/cible (répartitions, indicateur de rééquilibrage), sans toucher à la
-     rentabilité globale ni à la répartition par compte, indépendantes de l'année. Le bouton
-     **Actualiser** recharge toutes les données de l'écran.
+   est mémorisé d'une visite à l'autre). Le bouton **Actualiser**, en haut à droite de l'écran (hors
+   du repliable), recharge toutes les données de l'écran.
    - **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement
      associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net),
      autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à
@@ -254,13 +226,21 @@ courbe, puis le détail replié) :
      derniers mois réellement perçus — jamais une promesse pour les 12 prochains, la nuance est
      rappelée explicitement sous l'encart. N'apparaît vide que si aucune de ces quatre sources n'est
      détectée sur le patrimoine.
-   - **Répartition géographique/sectorielle — réel vs cible** : deux graphiques en barres. Cliquer
-     sur une barre ouvre le détail des lignes qui composent cette catégorie.
+   - **Répartition géographique/sectorielle** : deux graphiques (barres ou camembert, bascule en haut
+     à droite de chaque carte). Cliquer sur une barre (ou une ligne du tableau en plein écran) ouvre
+     le détail des lignes qui composent cette catégorie.
    - **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une
      partie du portefeuille n'est pas mesurée avec certitude — répartition géographique estimée à
      partir de l'indice suivi par un fonds (faute de composition détaillée), donnée totalement
      manquante, ou position valorisée à son coût de revient faute de cotation. N'apparaît pas si tout
      le portefeuille est couvert par une donnée réelle et coté.
+   - **Exposition consolidée — tous actifs** : une seule vue combinant le portefeuille boursier ET
+     l'immobilier/l'épargne, là où les graphiques de répartition ci-dessus ne regardent que le
+     portefeuille financier. Deux camemberts (géographie et classe d'actif, tout le patrimoine
+     confondu — la géographie d'un actif saisi manuellement vient de sa **zone géographique**
+     déclarée, écran Portefeuille), la plus grosse ligne du patrimoine et son poids, le poids des 5
+     plus grosses lignes réunies, la première zone géographique et son poids. Une note rappelle
+     quelle part du patrimoine a une géographie *déclarée* plutôt que *mesurée*.
    - **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût
      annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la
      part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est
@@ -272,20 +252,15 @@ courbe, puis le détail replié) :
      valeur actuelle l'est (le grand livre importé ne porte aucune information de compte).
    - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne,
      concentration géographique.
-   - **Rééquilibrage** : indicateur résumé (nombre d'actions recommandées, dont nombre d'alertes)
-     avec un bouton **Voir le détail** vers l'écran dédié — le détail complet (catégorie par
-     catégorie) n'est plus affiché ici.
 
-Les deux bandeaux d'accueil (aucune position dans le portefeuille, aucun objectif défini pour
-l'année) restent visibles même si le détail est replié — ce sont des appels à l'action, pas de la
-simple information complémentaire.
+Le bandeau d'accueil (aucune position dans le portefeuille) reste visible même si le détail est
+replié — c'est un appel à l'action, pas de la simple information complémentaire.
 
 ## Écran Réglages
 
 ### Préférences
 
 - **Méthode de calcul du coût de revient** : coût moyen pondéré (par défaut) ou FIFO (premier entré, premier sorti). Changer de méthode recalcule immédiatement le prix de revient et les gains réalisés de tout le portefeuille ; le nombre de positions recalculées est affiché après le changement.
-- **Alertes** : seuil d'écart, en points de pourcentage, au-delà duquel une recommandation de rééquilibrage devient une alerte mise en avant sur l'écran Répartition.
 - **Taux d'imposition** : une valeur saisie ici, jamais calculée par l'application — reprise telle quelle dans la déclaration de patrimoine (ci-dessous) quand son profil emprunteur est inclus. Laisser vide si non pertinent.
 
 ### Rafraîchissement automatique des données de marché
@@ -357,8 +332,8 @@ Chaque lien créé apparaît dans la liste avec son URL complète (à copier-col
 
 Pense-bête pour un débutant, sans lien avec les données personnelles du portefeuille (rien n'y dépend d'une position en particulier) :
 
-- **Les 6 zones géographiques** : une carte par zone, avec la liste des pays qu'elle contient (ex. l'Inde ou la Chine dans « Marchés émergents ») — la même classification que celle utilisée partout ailleurs dans l'application (objectifs, tableau de bord). « Autres zones » est une catégorie résiduelle sans liste fixe, expliquée comme telle.
+- **Les 6 zones géographiques** : une carte par zone, avec la liste des pays qu'elle contient (ex. l'Inde ou la Chine dans « Marchés émergents ») — la même classification que celle utilisée partout ailleurs dans l'application (zone déclarée d'un actif manuel, tableau de bord). « Autres zones » est une catégorie résiduelle sans liste fixe, expliquée comme telle.
 - **Les 11 secteurs d'activité** : une carte par secteur avec quelques exemples d'entreprises connues, pour se repérer.
 - **Comprendre les chiffres de l'application** : questions/réponses dépliables sur les notions les moins évidentes (look-through des fonds, différence entre « Non catégorisé » et « Autres zones/secteurs », coût moyen pondéré vs FIFO, rendement annualisé (XIRR), score de diversification, répartition géographique parfois « estimée »).
 - **D'où viennent les données ?** : explique l'origine des cours et compositions (yfinance, justETF) et rappelle qu'aucune donnée du portefeuille n'est envoyée ailleurs que pour interroger ces deux sources de cotation.
-- **Glossaire** : définitions courtes des termes courants (ETF, ISIN, PEA/CTO, TER, drawdown, volatilité, plus-value latente/réalisée, rééquilibrage).
+- **Glossaire** : définitions courtes des termes courants (ETF, ISIN, PEA/CTO, TER, drawdown, volatilité, plus-value latente/réalisée).

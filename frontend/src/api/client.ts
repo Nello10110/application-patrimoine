@@ -1,7 +1,5 @@
 import { clearToken, getToken, notifyUnauthorized } from '../auth/tokenStorage'
 import type {
-  AllocationTargetOut,
-  AllocationTargetsSet,
   AnalysisResponse,
   AccessLogEntry,
   AuthResponse,
@@ -210,18 +208,8 @@ export const api = {
   refreshMarketData: () => request<EtatRafraichissement>('/market-data/refresh', { method: 'POST' }),
   getRefreshStatus: () => request<EtatRafraichissement>('/market-data/refresh/status'),
 
-  // Targets
-  getDefaultTargets: () =>
-    request<{ geo: { categorie: string; pourcentage_cible: number }[]; sector: { categorie: string; pourcentage_cible: number }[] }>(
-      '/targets/defaults',
-    ),
-  listTargetYears: () => request<number[]>('/targets/'),
-  getTargets: (annee: number) => request<AllocationTargetOut[]>(`/targets/${annee}`),
-  setTargets: (annee: number, payload: AllocationTargetsSet) =>
-    request<AllocationTargetOut[]>(`/targets/${annee}`, { method: 'PUT', body: JSON.stringify(payload) }),
-
   // Analysis
-  getAnalysis: (annee: number) => request<AnalysisResponse>(`/analysis/${annee}`),
+  getAnalysis: () => request<AnalysisResponse>('/analysis'),
   getCategoryComposition: (type: 'geo' | 'sector', categorie: string) =>
     request<CategoryCompositionResponse>(`/analysis/composition?type=${type}&categorie=${encodeURIComponent(categorie)}`),
   getRepartitionComptes: () => request<RepartitionComptesResponse>('/analysis/comptes'),

@@ -28,7 +28,7 @@ def test_tous_les_modules_de_app_routers_sont_enregistres_dans_main():
     chemins_app = set(app.openapi()["paths"].keys())
 
     noms_modules = [name for _, name, is_pkg in pkgutil.iter_modules(routers_package.__path__) if not is_pkg]
-    assert len(noms_modules) >= 18, "Régression de découverte : moins de routeurs trouvés qu'attendu dans app/routers/"
+    assert len(noms_modules) >= 17, "Régression de découverte : moins de routeurs trouvés qu'attendu dans app/routers/"
 
     for nom in noms_modules:
         module = importlib.import_module(f"app.routers.{nom}")
