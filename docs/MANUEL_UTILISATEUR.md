@@ -56,6 +56,7 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 - **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif, valeur estimée) — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat.
 - **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée de l'écran Répartition.
 - **Taux annuel** (épargne réglementée/salariale, véhicule) : champ apparaissant uniquement pour ces types — un pourcentage positif pour un taux d'intérêt attendu (épargne), négatif pour une décote annuelle attendue (véhicule). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
+- **Versement mensuel** (compte courant, épargne réglementée/salariale, assurance-vie, PER — backlog § 2.S.1) : champ apparaissant uniquement pour ces types — le montant versé régulièrement sur ce compte, additionné au préremplissage du Simulateur. Voir l'écran Épargne pour un suivi dédié (valorisation datée, historique, ajout rapide).
 
 ### Fiche immobilier complète
 
@@ -81,7 +82,7 @@ Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque
 
 Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/patrimoine/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...) :
 
-- **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés, puis l'historique daté de ses valorisations successives ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
+- **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés puis l'historique daté de ses valorisations successives — ou, pour un compte Épargne (compte courant, épargne réglementée/salariale, assurance-vie, PER), la valeur actuelle et sa date, le versement mensuel déclaré, le même historique daté, et un ajout rapide d'une valorisation (voir l'écran Épargne) ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
 - **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique). En dessous, la répartition entre détenteurs déclarés (Réglages) et la part nette qui en résulte, si au moins un détenteur a été créé ;
 - **Paramètres** : édition des réglages propres à la ligne — aujourd'hui, les caractéristiques et le bloc location d'un bien immobilier (type de location, loyer, charges, surface, DPE...) ; pour toute autre nature, un message indique qu'il n'y a rien à régler pour l'instant.
 
@@ -142,10 +143,33 @@ Projette un capital dans le temps — une **hypothèse**, pas une promesse : les
 
 - **Hypothèses** : capital de départ (€), rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), versement mensuel (€), **intérêts déjà obtenus (€, facultatif)**, durée (boutons 5/10/20/30 ans). Tout se recalcule instantanément à chaque changement (aucun appel au serveur).
 - **Intérêts déjà obtenus** : préempli avec le gain/perte déjà réalisé sur ton portefeuille financier (la carte Rentabilité du Tableau de bord), librement modifiable ou effaçable. Sert à indiquer que le capital de départ contient déjà des gains, pas seulement des versements — le tableau de détail en tient alors compte dès la ligne « Départ » au lieu de repartir de zéro, pour mieux distinguer les vrais intérêts déjà gagnés de ceux à venir.
-- **Versement mensuel** (backlog § 2.N.4) : préempli avec le versement moyen réellement observé sur le budget des 3 derniers mois (écran Budget), plutôt qu'une hypothèse saisie à la main — un lien apparaît pour y revenir en un clic si modifié. Nécessite des mouvements bancaires importés pour être calculé ; reste à 0 sinon, librement modifiable dans tous les cas.
+- **Versement mensuel** (backlog § 2.N.4 + 2.S.1) : préempli avec le versement moyen réellement observé sur le budget des 3 derniers mois (écran Budget) **additionné** aux versements mensuels déclarés sur tes comptes Épargne (assurance-vie, PER...), plutôt qu'une hypothèse saisie à la main — une légende sous le champ détaille les deux montants séparément, un lien apparaît pour revenir à leur somme en un clic si modifié. Reste à 0 si aucune des deux sources n'est renseignée, librement modifiable dans tous les cas.
 - **Graphique et tuiles** : valeur finale, total versé, intérêts gagnés, avec un graphique étagé (capital versé + gains).
 - **Tableau de détail** : sous le graphique, bascule **Annuelle** / **Mensuelle** listant, période par période, les versements, les intérêts gagnés, le capital, le versé cumulé et les intérêts cumulés à date. Chaque ligne est libellée par la **date réelle prévue** (ex. « 2028 » en vue annuelle, « 2027 Mars » en vue mensuelle) plutôt que par un compteur abstrait — seule la première ligne reste « Départ ». La vue mensuelle défile (jusqu'à 360 lignes sur 30 ans) dans un cadre à hauteur fixe, en-tête toujours visible.
 - **Indépendance financière (FIRE)** : renseigner une dépense annuelle cible et un taux de retrait (4 % par défaut — la « règle des 4 % », un choix méthodologique parmi d'autres, pas une vérité universelle, librement modifiable) affiche le patrimoine nécessaire pour vivre de ce patrimoine, et le délai estimé pour l'atteindre avec les mêmes hypothèses de capital/rendement/versement que ci-dessus. Au-delà de 60 ans de projection, le résultat affiche « Non atteinte » plutôt qu'un nombre d'années trop lointain pour être fiable.
+
+## Écran Épargne
+
+Pour tout ce qui ne se cote pas en bourse et se gère « à la main » — compte courant, épargne
+réglementée (Livret A, LDDS...), épargne salariale (PEE, PERCO...), assurance-vie, PER — plutôt qu'un
+tableau façon Portefeuille, une liste de **comptes** : nom, valeur actuelle et sa date de dernière
+mise à jour, versement mensuel déclaré, et un petit historique daté.
+
+- **« Ajouter une valorisation »** sur un compte : indique un montant et **la date de ton choix** —
+  pas forcément aujourd'hui. Tu peux ainsi rattraper après coup « au 1er mars, mon assurance-vie
+  valait 12 400 € » sans attendre une saisie régulière imposée. Chaque point est conservé, jamais
+  écrasé — l'historique s'affiche en dessous, le plus récent en premier. Si tu saisis un point plus
+  ancien qu'une date déjà connue (un rattrapage a posteriori), la **valeur actuelle affichée en haut
+  ne change pas** : elle ne reflète toujours que le point le plus récent, jamais le dernier saisi.
+- **Versement mensuel** (optionnel) : le montant que tu verses régulièrement sur ce compte (ex. 200 €
+  par mois sur une assurance-vie). Renseigné à la création du compte ou depuis Portefeuille (le champ
+  n'apparaît que pour ces types de compte). Ce montant est **additionné** au versement mensuel suggéré
+  par le Budget dans le préremplissage du Simulateur (jamais fusionné en une hypothèse opaque — les
+  deux montants restent visibles séparément).
+- **« + Ajouter un compte »** : crée une nouvelle ligne parmi ces 5 types, avec éventuellement une
+  valeur initiale et un versement mensuel dès la création. Le Véhicule n'apparaît pas ici (il reste
+  dans Portefeuille, onglet « Immobilier & Épargne ») — sa valeur décote plutôt qu'elle n'épargne, il
+  rejoindra plus tard une catégorie séparée aux côtés de l'immobilier.
 
 ## Écran Dividendes
 

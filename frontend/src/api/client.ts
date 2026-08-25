@@ -68,6 +68,7 @@ import type {
   Session,
   TransactionImportResult,
   TypeDetenteur,
+  ValorisationInput,
   ValuationHistoryPoint,
   ZoneGeographiqueInfo,
 } from './types'
@@ -187,6 +188,13 @@ export const api = {
     }),
   getHoldingValuationHistory: (ticker: string) =>
     request<ValuationHistoryPoint[]>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier-history`),
+  // Ajoute un point d'historique à une date choisie par l'utilisateur (écran
+  // Épargne, backlog 2.S.1) — cf. `PUT .../valorisation` côté backend.
+  setHoldingValorisation: (ticker: string, payload: ValorisationInput) =>
+    request<Holding>(`/portfolio/holdings/${encodeURIComponent(ticker)}/valorisation`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
 
   importPreview: (file: File) => {
     const form = new FormData()

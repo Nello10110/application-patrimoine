@@ -78,6 +78,20 @@ TYPES_ACTIF_PATRIMOINE_MANUEL = {
     TYPE_ACTIF_EMPLOYEE_SAVINGS,
     TYPE_ACTIF_VEHICLE,
 }
+# Sous-ensemble ci-dessus dédié à l'écran Épargne (backlog § 2.S.1) : comptes et
+# contrats d'épargne au sens large, dont l'utilisateur pilote lui-même la
+# valorisation dans le temps (historique daté) et, optionnellement, un versement
+# mensuel récurrent. Volontairement SANS `REAL_ESTATE`/`SCPI` (fiche immobilier
+# dédiée déjà existante), `OTHER_ASSET` (résiduel) ni `VEHICLE` (décote, pas
+# épargne — rapprochement futur de l'immobilier, décision actée avec l'utilisateur
+# le 25/08/2026, cf. `docs/BACKLOG.md` § 2.S.1).
+TYPES_EPARGNE = {
+    TYPE_ACTIF_CASH_ACCOUNT,
+    TYPE_ACTIF_REGULATED_SAVINGS,
+    TYPE_ACTIF_EMPLOYEE_SAVINGS,
+    TYPE_ACTIF_LIFE_INSURANCE,
+    TYPE_ACTIF_PENSION,
+}
 
 
 class Holding(Base):
@@ -128,6 +142,13 @@ class Holding(Base):
     # assurance-vie française) plutôt que de laisser un "Non catégorisé" qui rendrait
     # la fonctionnalité inutilisable sur les lignes déjà saisies avant son ajout.
     zone_geo: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Versement mensuel récurrent DÉCLARÉ par l'utilisateur (backlog § 2.S.1, écran
+    # Épargne) — sans objet en dehors de `TYPES_EPARGNE`. Même philosophie que
+    # `taux_pct` : jamais déduit automatiquement (aucune détection depuis le grand
+    # livre de transactions, qui ne couvre de toute façon pas les virements bancaires,
+    # cf. increment 5). Additionné à `versement_mensuel_suggere` du Simulateur
+    # (`services/budget_service.compute_jonction_patrimoine`), jamais fusionné en base.
+    versement_mensuel: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

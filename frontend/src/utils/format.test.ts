@@ -66,6 +66,10 @@ describe('formatDate', () => {
   it('convertit une date ISO en jj/mm/aaaa', () => {
     expect(formatDate('2024-03-07')).toBe('07/03/2024')
   })
+
+  it('accepte aussi un horodatage complet (ex. Holding.date_valeur_estimee) sans laisser "T..." coller au jour', () => {
+    expect(formatDate('2026-01-01T00:00:00')).toBe('01/01/2026')
+  })
 })
 
 describe('formatDateHeure', () => {

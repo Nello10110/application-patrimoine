@@ -79,6 +79,7 @@ function jonctionPatrimoine(overrides: Partial<JonctionPatrimoine> = {}): Joncti
     taux_epargne_reel_pct: null,
     reste_a_vivre: null,
     versement_mensuel_suggere: null,
+    versement_mensuel_epargne_declare: 0,
     categorie_epargne_introuvable: true,
     categorie_logement_introuvable: true,
     ...overrides,
@@ -316,6 +317,28 @@ describe('SimulateurPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
       await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(200))
+    })
+  })
+
+  describe('Versement mensuel — addition avec l’Épargne (backlog 2.S.1)', () => {
+    it('additionne le versement suggéré par le budget et le versement déclaré sur les comptes Épargne', async () => {
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
+        jonctionPatrimoine({ versement_mensuel_suggere: 350, versement_mensuel_epargne_declare: 200 }),
+      )
+      render(<SimulateurPage />)
+
+      await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(550))
+      expect(screen.getByText(/350 €.*observés sur le budget/)).toBeInTheDocument()
+      expect(screen.getByText(/200 €.*déclarés sur l'Épargne/)).toBeInTheDocument()
+    })
+
+    it("préremplit avec le seul montant déclaré sur l'Épargne si aucun versement observé sur le budget", async () => {
+      vi.mocked(api.getJonctionPatrimoine).mockResolvedValue(
+        jonctionPatrimoine({ versement_mensuel_suggere: null, versement_mensuel_epargne_declare: 150 }),
+      )
+      render(<SimulateurPage />)
+
+      await waitFor(() => expect(screen.getByLabelText('Versement mensuel (€)')).toHaveValue(150))
     })
   })
 })

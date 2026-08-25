@@ -19,6 +19,7 @@ import {
   SEUIL_PEREMPTION_HEURES,
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
+  TYPES_EPARGNE,
   TYPES_PATRIMOINE,
   ZONES_GEO,
   categorieDe,
@@ -164,6 +165,7 @@ export default function PortefeuillePage() {
     valeur_estimee: '',
     taux_pct: '',
     zone_geo: '',
+    versement_mensuel: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -231,6 +233,7 @@ export default function PortefeuillePage() {
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
         taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
         zone_geo: form.zone_geo || null,
+        versement_mensuel: form.versement_mensuel ? Number(form.versement_mensuel) : null,
       })
       setForm({
         ticker: '',
@@ -241,6 +244,7 @@ export default function PortefeuillePage() {
         valeur_estimee: '',
         taux_pct: '',
         zone_geo: '',
+        versement_mensuel: '',
       })
       load()
     } catch (err) {
@@ -362,6 +366,20 @@ export default function PortefeuillePage() {
                 step="any"
                 className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
+              />
+            </label>
+          )}
+          {TYPES_EPARGNE.has(form.type_actif) && (
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Versement mensuel (€)
+              <input
+                value={form.versement_mensuel}
+                onChange={(e) => setForm({ ...form, versement_mensuel: e.target.value })}
+                type="number"
+                step="any"
+                min={0}
+                className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                placeholder="optionnel"
               />
             </label>
           )}

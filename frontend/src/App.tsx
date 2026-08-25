@@ -20,6 +20,7 @@ const AidePage = lazy(() => import('./pages/AidePage'))
 const BudgetPage = lazy(() => import('./pages/BudgetPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const DividendesPage = lazy(() => import('./pages/DividendesPage'))
+const EpargnePage = lazy(() => import('./pages/EpargnePage'))
 const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('./pages/ImportPage'))
 const PartagePublicPage = lazy(() => import('./pages/PartagePublicPage'))
@@ -83,6 +84,7 @@ function AppAuthentifiee() {
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/patrimoine" element={<PortefeuillePage />} />
                 <Route path="/patrimoine/:ticker" element={<HoldingDetailPage />} />
+                <Route path="/epargne" element={<EpargnePage />} />
                 <Route path="/analyse" element={<RepartitionPage />} />
                 <Route path="/objectifs" element={<SimulateurPage />} />
                 <Route path="/dividendes" element={<DividendesPage />} />

@@ -4,9 +4,10 @@ au budget cible."""
 
 from datetime import date as date_cls, datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import BudgetCible, CategorieBudget, MouvementBancaire
+from ..models import TYPES_EPARGNE, BudgetCible, CategorieBudget, Holding, MouvementBancaire
 from . import budget_categories_service
 
 
@@ -210,10 +211,25 @@ def compute_jonction_patrimoine(db: Session, user_id: int, date_debut: str, date
 
     versement_mensuel_suggere = round(summary["disponible"] / _nombre_mois_periode(date_debut, date_fin), 2)
 
+    # Versements mensuels déclarés sur les comptes Épargne (backlog 2.S.1) — somme
+    # séparée de `versement_mensuel_suggere` (jamais fusionnée ici) : le Simulateur
+    # additionne les deux côté frontend, avec une légende détaillant chaque source.
+    versement_mensuel_epargne_declare = (
+        db.query(func.sum(Holding.versement_mensuel))
+        .filter(
+            Holding.user_id == user_id,
+            Holding.type_actif.in_(TYPES_EPARGNE),
+            Holding.versement_mensuel.isnot(None),
+        )
+        .scalar()
+        or 0.0
+    )
+
     return {
         "taux_epargne_reel_pct": taux_epargne_reel_pct,
         "reste_a_vivre": reste_a_vivre,
         "versement_mensuel_suggere": versement_mensuel_suggere,
+        "versement_mensuel_epargne_declare": round(versement_mensuel_epargne_declare, 2),
         "categorie_epargne_introuvable": categorie_epargne is None,
         "categorie_logement_introuvable": categorie_logement is None,
     }

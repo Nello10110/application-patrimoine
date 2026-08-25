@@ -50,6 +50,9 @@ class HoldingBase(BaseModel):
     # Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1) —
     # cf. `models.Holding.zone_geo`.
     zone_geo: str | None = None
+    # Versement mensuel récurrent déclaré (backlog 2.S.1, écran Épargne) — cf.
+    # `models.Holding.versement_mensuel`.
+    versement_mensuel: float | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -80,6 +83,13 @@ class HoldingBase(BaseModel):
             raise ValueError(MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE)
         return v
 
+    @field_validator("versement_mensuel")
+    @classmethod
+    def _valider_versement_mensuel(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("Le versement mensuel doit être positif ou nul")
+        return v
+
 
 class HoldingCreate(HoldingBase):
     pass
@@ -96,6 +106,7 @@ class HoldingUpdate(BaseModel):
     valeur_estimee: float | None = None
     taux_pct: float | None = None
     zone_geo: str | None = None
+    versement_mensuel: float | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -126,6 +137,34 @@ class HoldingUpdate(BaseModel):
     def _valider_valeur_estimee(cls, v: float | None) -> float | None:
         if v is not None and v < 0:
             raise ValueError(MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE)
+        return v
+
+    @field_validator("versement_mensuel")
+    @classmethod
+    def _valider_versement_mensuel(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("Le versement mensuel doit être positif ou nul")
+        return v
+
+
+class ValorisationInput(BaseModel):
+    valeur: float
+    date: str
+
+    @field_validator("valeur")
+    @classmethod
+    def _valider_valeur(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError(MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE)
+        return v
+
+    @field_validator("date")
+    @classmethod
+    def _valider_date(cls, v: str) -> str:
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("La date doit être au format AAAA-MM-JJ")
         return v
 
 
@@ -616,6 +655,13 @@ class HoldingDetail(BaseModel):
     # n'empêche techniquement d'en saisir un ailleurs, mais l'UI ne le propose que
     # pour ce type).
     immobilier: HoldingImmobilierOut | None = None
+    # Valeur courante saisie manuellement et sa date (backlog 2.S.1) — le graphique
+    # d'historique complet vit dans `GET .../immobilier-history`, ces deux champs
+    # servent juste à afficher "à jour au ..." sur l'écran Épargne.
+    valeur_estimee: float | None = None
+    date_valeur_estimee: datetime | None = None
+    # Versement mensuel déclaré (écran Épargne, backlog 2.S.1) — cf. `Holding.versement_mensuel`.
+    versement_mensuel: float | None = None
 
 
 TYPES_DETENTEUR_VALIDES = {"personne", "societe"}
@@ -1395,6 +1441,7 @@ class JonctionPatrimoine(BaseModel):
     taux_epargne_reel_pct: float | None
     reste_a_vivre: float | None
     versement_mensuel_suggere: float | None
+    versement_mensuel_epargne_declare: float
     categorie_epargne_introuvable: bool
     categorie_logement_introuvable: bool
 

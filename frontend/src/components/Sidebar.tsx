@@ -7,6 +7,7 @@ import {
   IconBudget,
   IconChevron,
   IconDividendes,
+  IconEpargne,
   IconObjectifs,
   IconPatrimoine,
   IconRapport,
@@ -19,6 +20,7 @@ import PaletteRecherche from './PaletteRecherche'
 const ICONES = {
   Synthèse: IconSynthese,
   Patrimoine: IconPatrimoine,
+  Épargne: IconEpargne,
   Analyse: IconAnalyse,
   Objectifs: IconObjectifs,
   Dividendes: IconDividendes,

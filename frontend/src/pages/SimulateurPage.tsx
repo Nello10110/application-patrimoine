@@ -71,6 +71,10 @@ export default function SimulateurPage() {
   const [erreurPatrimoine, setErreurPatrimoine] = useState<string | null>(null)
   const [erreurInterets, setErreurInterets] = useState<string | null>(null)
   const [versementSuggere, setVersementSuggere] = useState<number | null>(null)
+  // Versement mensuel déclaré sur les comptes Épargne (backlog 2.S.1) — ADDITIONNÉ à
+  // `versementSuggere` (dérivé du Budget, 2.N.4), jamais fusionné en une seule
+  // hypothèse opaque : la légende sous le champ détaille les deux sources séparément.
+  const [versementEpargneDeclare, setVersementEpargneDeclare] = useState(0)
   const [erreurVersement, setErreurVersement] = useState<string | null>(null)
 
   // Dégradé plutôt que bloquant (backlog 2.K.5) : le calculateur reste utilisable en
@@ -114,9 +118,12 @@ export default function SimulateurPage() {
     api
       .getJonctionPatrimoine(dateDebut, dateFin)
       .then((j) => {
-        if (j.versement_mensuel_suggere !== null && j.versement_mensuel_suggere > 0) {
-          setVersementSuggere(j.versement_mensuel_suggere)
-          setVersement(String(Math.round(j.versement_mensuel_suggere)))
+        setVersementEpargneDeclare(j.versement_mensuel_epargne_declare)
+        const suggereBudget = j.versement_mensuel_suggere !== null && j.versement_mensuel_suggere > 0 ? j.versement_mensuel_suggere : 0
+        const total = suggereBudget + j.versement_mensuel_epargne_declare
+        if (total > 0) {
+          setVersementSuggere(total)
+          setVersement(String(Math.round(total)))
         }
       })
       .catch((err) => setErreurVersement(err.message))
@@ -255,9 +262,16 @@ export default function SimulateurPage() {
         </div>
 
         <p className="mt-3 text-xs text-texte-attenue">
-          « Versement mensuel » (backlog 2.N.4) : préempli avec le versement moyen réellement observé sur le budget des 3
-          derniers mois (entrées − sorties), plutôt qu'une hypothèse saisie à la main — librement modifiable. Nécessite des
-          mouvements bancaires importés (écran Import) pour être calculé ; reste à 0 sinon.
+          « Versement mensuel » (backlog 2.N.4 + 2.S.1) : préempli avec le versement moyen réellement observé sur le budget
+          des 3 derniers mois (entrées − sorties) ADDITIONNÉ aux versements mensuels déclarés sur les comptes Épargne
+          (assurance-vie, PER...) — plutôt qu'une hypothèse saisie à la main — librement modifiable.
+          {versementSuggere !== null && (
+            <>
+              {' '}
+              Détail : {formatEuro(versementSuggere - versementEpargneDeclare, 0, montantsMasques)} observés sur le budget +{' '}
+              {formatEuro(versementEpargneDeclare, 0, montantsMasques)} déclarés sur l'Épargne.
+            </>
+          )}
         </p>
         {erreurVersement && (
           <div className="mt-2">

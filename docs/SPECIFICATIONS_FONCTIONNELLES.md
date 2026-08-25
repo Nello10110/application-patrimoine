@@ -511,6 +511,40 @@ d'unicité — un revenu par conjoint, par exemple), à l'échelle du foyer, pas
   mesure un comportement d'épargne, le second la performance de ce qui est déjà investi — les deux ne
   se recoupent jamais dans ce calcul.
 
+### 3.24 Écran Épargne et valorisation datée par l'utilisateur (backlog § 2.S.1)
+
+`TYPES_EPARGNE` (`models.py`) : sous-ensemble de `TYPES_ACTIF_PATRIMOINE_MANUEL` couvert par l'écran
+`/epargne` — `CASH_ACCOUNT` / `REGULATED_SAVINGS` / `EMPLOYEE_SAVINGS` / `LIFE_INSURANCE` / `PENSION`.
+Le Véhicule en reste exclu (décote plutôt qu'épargne, futur rapprochement avec une catégorie « biens »
+aux côtés de l'immobilier) ; ces 5 types restent aussi visibles dans Portefeuille (onglet « Immobilier
+& Épargne ») — l'écran Épargne est un complément adapté à leur usage, pas un remplacement.
+
+- **Valorisation à date choisie** : `PUT /portfolio/holdings/{ticker}/valorisation`
+  (`ValorisationInput{valeur, date}`) enregistre un point d'historique à la date indiquée par
+  l'utilisateur — contrairement à `create_holding`/`update_holding` (routes existantes, inchangées)
+  qui stampent toujours `datetime.now()`. **Règle d'antidatage** : la « valeur courante »
+  (`Holding.valeur_estimee`/`date_valeur_estimee`) n'est mise à jour que si le point soumis est le
+  **plus récent connu** (`date_dt >= holding.date_valeur_estimee`, ou aucune date connue) — un
+  rattrapage antidaté (saisie tardive d'un mois passé) est bien conservé dans l'historique complet
+  (`GET .../immobilier-history`, générique malgré son nom) mais n'écrase jamais une valeur plus
+  récente déjà affichée.
+- **Fiche détaillée généralisée** : `HoldingDetailContent.tsx` étend l'onglet *Aperçu* (jusque-là
+  réservé à `REAL_ESTATE`) aux 5 types Épargne via `EpargneApercu`, qui partage
+  `ValorisationHistoriqueCard` (tableau daté) et `AjoutValorisationForm` (ajout rapide) avec la fiche
+  immobilier — même infrastructure, débridée, pas un mécanisme séparé.
+- **Versement mensuel déclaré** (`Holding.versement_mensuel`, `None` par défaut) : jamais déduit
+  automatiquement, même philosophie que `taux_pct`. `budget_service.compute_jonction_patrimoine`
+  renvoie `versement_mensuel_epargne_declare` (somme des `versement_mensuel` des lignes `TYPES_EPARGNE`
+  du foyer) — **additionné**, jamais fusionné côté backend, au `versement_mensuel_suggere` déjà dérivé
+  du Budget (§ 3.18) pour le préremplissage du Simulateur (§ 3.12) ; la légende sous le champ détaille
+  les deux sources séparément. Les deux ne se recoupent jamais : un virement réel déjà suivi par le
+  Budget est déjà soustrait de `disponible` (`compute_summary`), la somme des versements déclarés
+  mesure autre chose (l'intention documentée, pas le mouvement déjà compté).
+- **Écran `/epargne`** : liste de « comptes » (pas un tableau boursier) — valeur courante, date de
+  dernière mise à jour, versement mensuel, mini-historique, action rapide « Ajouter une valorisation » ;
+  formulaire « + Ajouter un compte » réutilisant `POST /portfolio/holdings` (quantité fixée à 1, même
+  convention que l'immobilier/l'assurance-vie).
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |

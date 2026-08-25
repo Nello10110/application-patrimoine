@@ -21,6 +21,7 @@ from ..schemas import (
     ImportPreviewResponse,
     ImportResult,
     QuotitesUpdate,
+    ValorisationInput,
     ValuationHistoryPoint,
 )
 from ..services import (
@@ -246,6 +247,32 @@ def get_holding_valuation_history(ticker: str, db: Session = Depends(get_db), cu
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     points = immobilier_service.historique_valorisation(db, holding.id)
     return [ValuationHistoryPoint(date_valeur=p.date_valeur, valeur=p.valeur) for p in points]
+
+
+@router.put("/holdings/{ticker}/valorisation", response_model=HoldingOut)
+def set_holding_valorisation(
+    ticker: str,
+    payload: ValorisationInput,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_peut_ecrire),
+):
+    """Ajoute un point d'historique à une date choisie par l'utilisateur (backlog
+    2.S.1), au lieu de figer systématiquement la date sur `datetime.now()` comme le
+    font `create_holding`/`update_holding`. La valeur "courante" (`valeur_estimee`/
+    `date_valeur_estimee`) n'est mise à jour que si ce point est le plus RÉCENT connu :
+    un rattrapage antidaté ne doit jamais écraser une valeur plus récente déjà
+    enregistrée."""
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    if holding is None:
+        raise HTTPException(status_code=404, detail="Ligne introuvable")
+    date_dt = datetime.strptime(payload.date, "%Y-%m-%d")
+    immobilier_service.enregistrer_point_historique(db, holding.id, payload.valeur, date_dt)
+    if holding.date_valeur_estimee is None or date_dt >= holding.date_valeur_estimee:
+        holding.valeur_estimee = payload.valeur
+        holding.date_valeur_estimee = date_dt
+        db.commit()
+        db.refresh(holding)
+    return holding
 
 
 @router.put("/holdings/{ticker}/quotites")

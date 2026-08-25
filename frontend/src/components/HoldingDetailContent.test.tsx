@@ -15,6 +15,7 @@ vi.mock('../api/client', () => ({
     getHoldingPriceHistory: vi.fn().mockResolvedValue({ points: [], volatilite_annualisee_pct: null, max_drawdown_pct: null }),
     updateHoldingImmobilier: vi.fn(),
     getHoldingValuationHistory: vi.fn().mockResolvedValue([]),
+    setHoldingValorisation: vi.fn(),
   },
 }))
 
@@ -47,6 +48,9 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     composition_actions: [],
     quotites: [],
     immobilier: null,
+    valeur_estimee: null,
+    date_valeur_estimee: null,
+    versement_mensuel: null,
     ...overrides,
   }
 }
@@ -216,6 +220,79 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     const lignes = screen.getAllByRole('row').slice(1) // ignore l'en-tête
     expect(within(lignes[0]).getByText('220 000,00 €')).toBeInTheDocument()
     expect(within(lignes[1]).getByText('200 000,00 €')).toBeInTheDocument()
+  })
+})
+
+describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2.S.1)', () => {
+  it("n'affiche pas la fiche Épargne pour un véhicule (hors périmètre, décision du 25/08/2026)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    // Réinitialise le compteur d'appels : ce mock n'est pas remis à zéro entre les
+    // tests de ce fichier (pas de `clearMocks` global, cf. `src/test/setup.ts`), et
+    // des tests précédents (fiche immobilier) l'ont déjà invoqué.
+    vi.mocked(api.getHoldingValuationHistory).mockClear()
+    render(<HoldingDetailContent detail={detail({ type_actif: 'VEHICLE' })} />)
+
+    await vi.waitFor(() => expect(api.listDetenteurs).toHaveBeenCalled())
+    expect(screen.queryByText('Versement mensuel déclaré')).not.toBeInTheDocument()
+    expect(api.getHoldingValuationHistory).not.toHaveBeenCalled()
+  })
+
+  it("charge et affiche l'historique daté pour un compte Épargne (pas seulement l'immobilier)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2026-01-01T00:00:00', valeur: 10000 }])
+    render(
+      <HoldingDetailContent
+        detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000, date_valeur_estimee: '2026-01-01T00:00:00' })}
+      />,
+    )
+
+    await vi.waitFor(() => expect(api.getHoldingValuationHistory).toHaveBeenCalledWith('AAPL'))
+    expect(await screen.findByText('Historique de valorisation')).toBeInTheDocument()
+    // "10 000,00 €" apparaît deux fois : la "Valeur actuelle" et la ligne d'historique.
+    expect(screen.getAllByText('10 000,00 €')).toHaveLength(2)
+  })
+
+  it('remplace la courbe de cours par la fiche Épargne pour un type couvert par TYPES_EPARGNE', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'CASH_ACCOUNT' })} />)
+
+    expect(await screen.findByText('Versement mensuel déclaré')).toBeInTheDocument()
+  })
+
+  it('ajouter une valorisation appelle setHoldingValorisation et met à jour la valeur actuelle affichée', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([])
+    vi.mocked(api.setHoldingValorisation).mockResolvedValue({
+      id: 1,
+      ticker: 'AAPL',
+      nom: 'Assurance-vie',
+      quantite: 1,
+      prix_revient_moyen: null,
+      compte: null,
+      devise: null,
+      type_actif: 'LIFE_INSURANCE',
+      origine: 'manuel',
+      created_at: '2026-01-01T00:00:00',
+      updated_at: '2026-01-01T00:00:00',
+      market_data: null,
+      rendement_depuis_achat_pct: null,
+      rendement_annualise_pct: null,
+      valeur: 12000,
+      valeur_estimee: 12000,
+      date_valeur_estimee: '2026-03-15T00:00:00',
+      taux_pct: null,
+      zone_geo: null,
+      versement_mensuel: null,
+    })
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+    await screen.findByLabelText('Valeur (€)')
+
+    fireEvent.change(screen.getByLabelText('Valeur (€)'), { target: { value: '12000' } })
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-03-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
+
+    await vi.waitFor(() => expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15' }))
+    expect(await screen.findByText('12 000,00 €')).toBeInTheDocument()
   })
 })
 

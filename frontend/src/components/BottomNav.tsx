@@ -1,12 +1,23 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang } from '../layout/routes'
-import { IconAnalyse, IconBudget, IconDividendes, IconObjectifs, IconPatrimoine, IconRapport, IconSalaire, IconSynthese } from './icons'
+import {
+  IconAnalyse,
+  IconBudget,
+  IconDividendes,
+  IconEpargne,
+  IconObjectifs,
+  IconPatrimoine,
+  IconRapport,
+  IconSalaire,
+  IconSynthese,
+} from './icons'
 import MenuPlusSheet from './MenuPlusSheet'
 
 const ICONES = {
   Synthèse: IconSynthese,
   Patrimoine: IconPatrimoine,
+  Épargne: IconEpargne,
   Analyse: IconAnalyse,
   Objectifs: IconObjectifs,
   Dividendes: IconDividendes,

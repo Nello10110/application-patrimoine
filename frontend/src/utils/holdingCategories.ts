@@ -58,6 +58,11 @@ export const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
 // suggéré adaptés au type sélectionné plutôt qu'un champ générique muet.
 export const TYPES_AVEC_TAUX = new Set(['REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS', 'VEHICLE'])
 
+// Sous-ensemble de TYPES_PATRIMOINE couvert par l'écran Épargne (backlog 2.S.1) —
+// miroir de `models.TYPES_EPARGNE` côté backend. Le Véhicule en reste exclu (décote
+// plutôt qu'épargne, futur rapprochement avec l'immobilier — décision du 25/08/2026).
+export const TYPES_EPARGNE = new Set(['CASH_ACCOUNT', 'REGULATED_SAVINGS', 'EMPLOYEE_SAVINGS', 'LIFE_INSURANCE', 'PENSION'])
+
 // Les 6 zones de `backend/app/services/reference_indices.py` (jamais une granularité
 // par pays) — utilisées telles quelles comme valeur de `Holding.zone_geo` (backlog
 // 2.P.1). Dupliquées ici en constantes de chaînes plutôt qu'exposées par une route

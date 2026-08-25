@@ -62,6 +62,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     date_valeur_estimee: null,
     taux_pct: null,
     zone_geo: null,
+    versement_mensuel: null,
     ...overrides,
   }
   if (overrides.valeur === undefined) {
@@ -203,6 +204,50 @@ describe('PortefeuillePage', () => {
 
       await waitFor(() =>
         expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'MAISON', zone_geo: 'Amérique du Nord' })),
+      )
+    })
+  })
+
+  describe('Ajouter une ligne manuellement — versement mensuel (backlog 2.S.1)', () => {
+    it("le champ « Versement mensuel » n'apparaît pas pour un type hors TYPES_EPARGNE (ex. action, véhicule)", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      expect(screen.queryByLabelText('Versement mensuel (€)')).not.toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
+      expect(screen.queryByLabelText('Versement mensuel (€)')).not.toBeInTheDocument()
+    })
+
+    it("sélectionner une assurance-vie révèle le champ « Versement mensuel »", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'LIFE_INSURANCE' } })
+
+      expect(screen.getByLabelText('Versement mensuel (€)')).toBeInTheDocument()
+    })
+
+    it('soumettre avec un versement mensuel renseigné appelle createHolding avec versement_mensuel', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(
+        holding({ id: 9, ticker: 'AV1', quantite: 1, type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000, versement_mensuel: 200 }),
+      )
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'AV1' } })
+      fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'LIFE_INSURANCE' } })
+      fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '10000' } })
+      fireEvent.change(screen.getByLabelText('Versement mensuel (€)'), { target: { value: '200' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() =>
+        expect(api.createHolding).toHaveBeenCalledWith(
+          expect.objectContaining({ ticker: 'AV1', type_actif: 'LIFE_INSURANCE', versement_mensuel: 200 }),
+        ),
       )
     })
   })

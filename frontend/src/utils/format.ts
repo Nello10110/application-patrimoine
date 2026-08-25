@@ -29,7 +29,10 @@ export function formatPct(value: number | null): string {
 }
 
 export function formatDate(isoDate: string): string {
-  const [annee, mois, jour] = isoDate.split('-')
+  // Accepte aussi bien une date pure ("2026-01-01") qu'un horodatage complet
+  // ("2026-01-01T00:00:00", ex. `Holding.date_valeur_estimee`) — sans ce découpage,
+  // le "T..." final se retrouvait concaténé au jour ("01T00:00:00/01/2026").
+  const [annee, mois, jour] = isoDate.split('T')[0].split('-')
   return `${jour}/${mois}/${annee}`
 }
 

@@ -78,6 +78,7 @@ function jonction(overrides: Partial<JonctionPatrimoine> = {}): JonctionPatrimoi
     taux_epargne_reel_pct: 20,
     reste_a_vivre: 1500,
     versement_mensuel_suggere: 400,
+    versement_mensuel_epargne_declare: 0,
     categorie_epargne_introuvable: false,
     categorie_logement_introuvable: false,
     ...overrides,

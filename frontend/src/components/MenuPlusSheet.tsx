@@ -9,6 +9,7 @@ import {
   IconBudget,
   IconDeconnexion,
   IconDividendes,
+  IconEpargne,
   IconImport,
   IconObjectifs,
   IconPlusOptions,
@@ -19,6 +20,7 @@ import {
 import Modale from './Modale'
 
 const ICONES = {
+  Épargne: IconEpargne,
   Analyse: IconAnalyse,
   Objectifs: IconObjectifs,
   Dividendes: IconDividendes,

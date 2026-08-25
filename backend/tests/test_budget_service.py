@@ -9,7 +9,7 @@ import pytest
 from app.models import MouvementBancaire
 from app.services import budget_categories_service, budget_service
 
-from .conftest import ID_UTILISATEUR_TEST
+from .conftest import ID_UTILISATEUR_TEST, make_holding
 
 _compteur_transaction_id = itertools.count(1)
 
@@ -183,3 +183,34 @@ class TestJonctionPatrimoine:
 
         # Disponible = 4000 - 1000 = 3000, sur 2 mois calendaires (janvier + février).
         assert j["versement_mensuel_suggere"] == 1500.0
+
+    def test_versement_mensuel_epargne_declare_est_zero_sans_compte_epargne(self, db):
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-02-28")
+
+        assert j["versement_mensuel_epargne_declare"] == 0.0
+
+    def test_versement_mensuel_epargne_declare_somme_les_comptes_epargne(self, db):
+        make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", versement_mensuel=200.0)
+        make_holding(db, ticker="PER1", type_actif="PENSION", versement_mensuel=150.5)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-02-28")
+
+        assert j["versement_mensuel_epargne_declare"] == 350.5
+
+    def test_versement_mensuel_epargne_declare_ignore_le_vehicule_et_les_types_non_epargne(self, db):
+        """Le Véhicule reste hors du périmètre Épargne (décote plutôt qu'épargne,
+        décision du 25/08/2026, backlog 2.S.1) — une ligne boursière classique n'a de
+        toute façon jamais de `versement_mensuel` renseigné côté UI."""
+        make_holding(db, ticker="VOITURE", type_actif="VEHICLE", versement_mensuel=100.0)
+        make_holding(db, ticker="AAPL", type_actif="STOCK")
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-02-28")
+
+        assert j["versement_mensuel_epargne_declare"] == 0.0
+
+    def test_versement_mensuel_epargne_declare_ignore_un_compte_sans_versement_renseigne(self, db):
+        make_holding(db, ticker="LIVRET", type_actif="REGULATED_SAVINGS", versement_mensuel=None)
+
+        j = budget_service.compute_jonction_patrimoine(db, ID_UTILISATEUR_TEST, "2026-01-01", "2026-02-28")
+
+        assert j["versement_mensuel_epargne_declare"] == 0.0

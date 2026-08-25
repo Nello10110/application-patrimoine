@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
-import type { Detenteur, HoldingDetail, ValuationHistoryPoint } from '../api/types'
+import type { Detenteur, Holding, HoldingDetail, ValuationHistoryPoint } from '../api/types'
 import Card from './Card'
 import EtatVide from './EtatVide'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import PieChartCard from './PieChartCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { TYPE_ACTIF_OPTIONS } from '../utils/holdingCategories'
+import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatDate, formatEuro, formatPct, formatQuantite } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
@@ -163,23 +163,28 @@ function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
  * son affichage puisse être scindé entre deux onglets (backlog 2.M.4) : le
  * formulaire de caractéristiques dans *Paramètres*, le cashflow/rentabilités/
  * historique — calculés côté serveur, jamais recalculés ici — dans *Aperçu*.
- * Toujours appelé (règle des hooks), `estImmobilier` désactive juste la requête
- * réseau pour toute ligne qui n'est pas `REAL_ESTATE`. */
-function useImmobilierDetail(ticker: string, estImmobilier: boolean, immobilierInitial: HoldingDetail['immobilier']) {
+ * Toujours appelé (règle des hooks), `chargerHistorique` désactive juste la requête
+ * réseau pour toute ligne qui n'est ni `REAL_ESTATE` ni de type Épargne (backlog
+ * 2.S.1 — l'historique daté n'est pas réservé à l'immobilier malgré le nom du hook). */
+function useImmobilierDetail(ticker: string, chargerHistorique: boolean, immobilierInitial: HoldingDetail['immobilier']) {
   const [immobilier, setImmobilier] = useState(immobilierInitial)
   const [form, setForm] = useState<FormImmobilier>(() => formulaireDepuis(immobilierInitial))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [historique, setHistorique] = useState<ValuationHistoryPoint[]>([])
 
-  useEffect(() => {
-    if (!estImmobilier) return
+  const rechargerHistorique = () => {
     api
       .getHoldingValuationHistory(ticker)
       .then(setHistorique)
       .catch(() => setHistorique([]))
+  }
+
+  useEffect(() => {
+    if (!chargerHistorique) return
+    rechargerHistorique()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `ticker` change = remontage du composant parent (route/modale).
-  }, [ticker, estImmobilier])
+  }, [ticker, chargerHistorique])
 
   async function handleSave() {
     setSaving(true)
@@ -207,7 +212,7 @@ function useImmobilierDetail(ticker: string, estImmobilier: boolean, immobilierI
     }
   }
 
-  return { immobilier, form, setForm, saving, error, handleSave, historique }
+  return { immobilier, form, setForm, saving, error, handleSave, historique, rechargerHistorique }
 }
 
 /** Onglet *Paramètres* de la fiche immobilier (backlog 2.M.3 + 2.M.4) : formulaire de
@@ -327,6 +332,157 @@ function ImmobilierParametresForm({
   )
 }
 
+/** Historique daté des valorisations manuelles (backlog 2.M.3, généralisé en 2.S.1
+ * à l'écran Épargne) — jamais écrasé, une nouvelle ligne à chaque point saisi.
+ * Partagé entre `ImmobilierApercu`, `EpargneApercu` et `EpargnePage`. */
+export function ValorisationHistoriqueCard({ historique }: { historique: ValuationHistoryPoint[] }) {
+  const { montantsMasques } = usePreferencesAffichage()
+  if (historique.length === 0) return null
+
+  return (
+    <Card title="Historique de valorisation">
+      <p className="mb-3 text-xs text-texte-attenue">
+        Chaque estimation est datée et conservée — l'ancienne n'est jamais écrasée.
+      </p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
+            <th className="py-2 pr-4">Date</th>
+            <th className="py-2 pr-4 text-right">Valeur estimée</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-bordure">
+          {[...historique].reverse().map((p, i) => (
+            <tr key={`${p.date_valeur}-${i}`}>
+              <td className="py-2 pr-4 text-texte">{formatDate(p.date_valeur)}</td>
+              <td className="py-2 pr-4 text-right font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  )
+}
+
+/** Formulaire d'ajout rapide d'un point d'historique à une date choisie par
+ * l'utilisateur (backlog 2.S.1) — jamais `datetime.now()` imposé côté serveur pour
+ * cette route, contrairement à la création/édition classique d'une ligne. Partagé
+ * avec `EpargnePage` (action rapide « Ajouter une valorisation » sur chaque compte). */
+export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onAdded: (holding: Holding) => void }) {
+  const [valeur, setValeur] = useState('')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!valeur) return
+    setSaving(true)
+    setError(null)
+    try {
+      const holding = await api.setHoldingValorisation(ticker, { valeur: Number(valeur), date })
+      setValeur('')
+      onAdded(holding)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+        Valeur (€)
+        <input
+          type="number"
+          step="any"
+          min={0}
+          required
+          value={valeur}
+          onChange={(e) => setValeur(e.target.value)}
+          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+        Date
+        <input
+          type="date"
+          required
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={saving}
+        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+      >
+        {saving ? 'Enregistrement...' : 'Ajouter une valorisation'}
+      </button>
+      {error && <span className="text-sm text-negatif">{error}</span>}
+    </form>
+  )
+}
+
+/** Onglet *Aperçu* d'un compte Épargne (backlog 2.S.1) : historique daté + versement
+ * mensuel déclaré + ajout rapide d'un point — remplace la courbe de cours (sans
+ * objet pour un actif non coté) pour les 5 types couverts par `TYPES_EPARGNE`. */
+function EpargneApercu({
+  detail,
+  historique,
+  onValorisationAjoutee,
+}: {
+  detail: HoldingDetail
+  historique: ValuationHistoryPoint[]
+  onValorisationAjoutee: () => void
+}) {
+  const { montantsMasques } = usePreferencesAffichage()
+  // Copie locale rafraîchie depuis la réponse de `setHoldingValorisation` (qui
+  // renvoie le holding à jour) : évite de dépendre d'un rechargement complet de la
+  // fiche parente juste pour refléter l'antidatage-safe côté "valeur actuelle".
+  const [valeurActuelle, setValeurActuelle] = useState(detail.valeur_estimee)
+  const [dateValeurActuelle, setDateValeurActuelle] = useState(detail.date_valeur_estimee)
+
+  function handleValorisationAjoutee(holding: Holding) {
+    setValeurActuelle(holding.valeur_estimee)
+    setDateValeurActuelle(holding.date_valeur_estimee)
+    onValorisationAjoutee()
+  }
+
+  return (
+    <>
+      <Card>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur actuelle</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(valeurActuelle, 2, montantsMasques)}</p>
+            {dateValeurActuelle && <p className="mt-1 text-xs text-texte-attenue">à jour au {formatDate(dateValeurActuelle)}</p>}
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Versement mensuel déclaré</p>
+            <p className="mt-1 text-lg font-semibold text-texte">
+              {detail.versement_mensuel !== null ? formatEuro(detail.versement_mensuel, 2, montantsMasques) : '—'}
+            </p>
+            <p className="mt-1 text-xs text-texte-attenue">additionné au préremplissage du Simulateur</p>
+          </div>
+        </div>
+      </Card>
+
+      <ValorisationHistoriqueCard historique={historique} />
+
+      <Card title="Ajouter une valorisation">
+        <p className="mb-3 text-xs text-texte-attenue">
+          Un point antidaté (rattrapage a posteriori) ne remplace jamais la valeur actuelle si une date plus récente est déjà
+          connue.
+        </p>
+        <AjoutValorisationForm ticker={detail.ticker} onAdded={handleValorisationAjoutee} />
+      </Card>
+    </>
+  )
+}
+
 /** Onglet *Aperçu* de la fiche immobilier (backlog 2.M.4) : cashflow/rentabilités/
  * prix au m² déjà calculés côté serveur, et l'historique daté des valorisations —
  * jamais écrasé, une nouvelle ligne à chaque changement réel de `valeur_estimee`.
@@ -384,29 +540,7 @@ function ImmobilierApercu({
         </Card>
       )}
 
-      {historique.length > 0 && (
-        <Card title="Historique de valorisation">
-          <p className="mb-3 text-xs text-texte-attenue">
-            Chaque estimation est datée et conservée — l'ancienne n'est jamais écrasée.
-          </p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
-                <th className="py-2 pr-4">Date</th>
-                <th className="py-2 pr-4 text-right">Valeur estimée</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-bordure">
-              {[...historique].reverse().map((p, i) => (
-                <tr key={`${p.date_valeur}-${i}`}>
-                  <td className="py-2 pr-4 text-texte">{formatDate(p.date_valeur)}</td>
-                  <td className="py-2 pr-4 text-right font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
+      <ValorisationHistoriqueCard historique={historique} />
     </>
   )
 }
@@ -430,7 +564,8 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
   const { montantsMasques } = usePreferencesAffichage()
   const gainPositif = (detail.rendement_depuis_achat_pct ?? 0) >= 0
   const estImmobilier = detail.type_actif === 'REAL_ESTATE'
-  const immo = useImmobilierDetail(detail.ticker, estImmobilier, detail.immobilier)
+  const estEpargne = detail.type_actif !== null && TYPES_EPARGNE.has(detail.type_actif)
+  const immo = useImmobilierDetail(detail.ticker, estImmobilier || estEpargne, detail.immobilier)
   const [onglet, setOnglet] = useState<Onglet>('apercu')
 
   return (
@@ -516,6 +651,8 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
 
           {estImmobilier ? (
             <ImmobilierApercu immobilier={immo.immobilier} historique={immo.historique} />
+          ) : estEpargne ? (
+            <EpargneApercu detail={detail} historique={immo.historique} onValorisationAjoutee={immo.rechargerHistorique} />
           ) : (
             <HoldingPriceHistoryChart ticker={detail.ticker} />
           )}

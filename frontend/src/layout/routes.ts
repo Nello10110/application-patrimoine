@@ -32,6 +32,11 @@ export const ROUTES: RouteMeta[] = [
   { path: '/patrimoine/:ticker', titre: 'Détail de la position' },
   { path: '/analyse', titre: 'Analyse', navLabel: 'Analyse', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
   { path: '/objectifs', titre: 'Objectifs', navLabel: 'Objectifs', rang: 'consultation', rolesAutorises: ['proprietaire'] },
+  // Placé après Objectifs (pas juste après Patrimoine) : `BottomNav` ne montre en
+  // direct que les 4 premières routes de consultation (`MAX_ENTREES_DIRECTES`) — cet
+  // ordre garde Synthèse/Patrimoine/Analyse/Objectifs en accès direct sur mobile,
+  // Épargne rejoint "Plus" plutôt que de déloger Objectifs (backlog 2.S.1).
+  { path: '/epargne', titre: 'Épargne', navLabel: 'Épargne', rang: 'consultation' },
   { path: '/dividendes', titre: 'Dividendes', navLabel: 'Dividendes', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
   { path: '/budget', titre: 'Budget', navLabel: 'Budget', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
   { path: '/rapport', titre: 'Rapport', navLabel: 'Rapport', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },

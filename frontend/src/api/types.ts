@@ -160,6 +160,10 @@ export interface Holding {
   // Zone géographique déclarée pour un actif valorisé manuellement (backlog 2.P.1) —
   // cf. `models.Holding.zone_geo` côté backend.
   zone_geo: string | null
+  // Versement mensuel récurrent déclaré (écran Épargne, backlog 2.S.1) — jamais
+  // déduit automatiquement, additionné à `versement_mensuel_suggere` côté Simulateur.
+  // Cf. `models.Holding.versement_mensuel` côté backend.
+  versement_mensuel: number | null
 }
 
 export interface HoldingInput {
@@ -173,6 +177,7 @@ export interface HoldingInput {
   valeur_estimee?: number | null
   taux_pct?: number | null
   zone_geo?: string | null
+  versement_mensuel?: number | null
 }
 
 // Champs modifiables via `PATCH /api/portfolio/holdings/{id}` (cf. `HoldingUpdate`
@@ -189,6 +194,14 @@ export interface HoldingUpdateInput {
   valeur_estimee?: number | null
   taux_pct?: number | null
   zone_geo?: string | null
+  versement_mensuel?: number | null
+}
+
+// Point d'historique daté par l'utilisateur (backlog 2.S.1) — cf. `schemas.
+// ValorisationInput` côté backend. `date` au format AAAA-MM-JJ.
+export interface ValorisationInput {
+  valeur: number
+  date: string
 }
 
 // Types d'actifs valorisés manuellement (roadmap Phase 1, patrimoine net) — aucune
@@ -629,6 +642,11 @@ export interface HoldingDetail {
   // Fiche immobilier complète (backlog 2.M.3) : `null` tant qu'aucun détail n'a été
   // saisi pour cette ligne.
   immobilier: HoldingImmobilier | null
+  // Valeur courante manuelle et sa date (backlog 2.S.1) — "à jour au ..." sur
+  // l'écran Épargne ; l'historique complet vient de `getHoldingValuationHistory`.
+  valeur_estimee: number | null
+  date_valeur_estimee: string | null
+  versement_mensuel: number | null
 }
 
 // Fiche immobilier (backlog 2.M.3) : bloc location + caractéristiques saisis par
@@ -901,6 +919,11 @@ export interface JonctionPatrimoine {
   taux_epargne_reel_pct: number | null
   reste_a_vivre: number | null
   versement_mensuel_suggere: number | null
+  // Somme des `Holding.versement_mensuel` déclarés sur les comptes Épargne (backlog
+  // 2.S.1) — à ADDITIONNER à `versement_mensuel_suggere` côté Simulateur, jamais le
+  // remplacer (les deux sources ne se recoupent jamais, cf. `budget_service.
+  // compute_jonction_patrimoine`).
+  versement_mensuel_epargne_declare: number
   categorie_epargne_introuvable: boolean
   categorie_logement_introuvable: boolean
 }

@@ -1782,7 +1782,7 @@ comportement déjà en production. Verrouillé par un test dédié reproduisant 
 
 ### S. Épargne et actifs valorisés manuellement (nouveau, 25/08/2026)
 
-#### S.1 — `majeur` · `M` · `P2` · `non traité` (25/08/2026) — Écran Épargne + historique de valorisation daté par l'utilisateur
+#### S.1 — `majeur` · `M` · `P2` · `traité` (25/08/2026) — Écran Épargne + historique de valorisation daté par l'utilisateur
 
 Demande directe de l'utilisateur : les actifs boursiers/immobilier/crypto/obligations sont jugés
 bien traités, mais tout ce qui est valorisé manuellement — assurance-vie, PER, épargne retraite,
@@ -1846,6 +1846,40 @@ explicitement à construire le besoin ensemble plutôt qu'une exécution silenci
 - `budget_service.compute_jonction_patrimoine` (ou son appelant côté Simulateur) additionne la somme
   des `versement_mensuel` des actifs Épargne du foyer à `versement_mensuel_suggere` avant préremplissage.
 
+**Livré et vérifié le 25/08/2026.** Nouvel écran `/epargne` (liste de « comptes » avec valeur
+courante, versement mensuel, mini-historique et ajout rapide d'une valorisation datée), généralisation
+de la fiche détaillée (`HoldingDetailContent.tsx`) aux 5 types Épargne via un nouveau composant
+`EpargneApercu` partageant `ValorisationHistoriqueCard`/`AjoutValorisationForm` avec l'immobilier.
+Nouvelle route `PUT /holdings/{ticker}/valorisation` (schéma `ValorisationInput`) qui répare le bug de
+date figée à `datetime.now()` : elle enregistre le point d'historique à la date choisie par
+l'utilisateur, mais ne met à jour la « valeur courante » (`valeur_estimee`/`date_valeur_estimee`) que
+si ce point est le **plus récent connu** — un rattrapage antidaté (saisie tardive d'un mois passé)
+n'écrase jamais une valeur plus récente déjà enregistrée. Règle verrouillée par un test dédié ET
+vérifiée en conditions réelles (backend isolé, navigateur) : après un point à 10 000 € daté
+d'aujourd'hui puis un point antidaté à 9 500 €, la valeur courante affichée reste 10 000 €, tandis que
+le point antidaté apparaît bien dans l'historique complet.
+
+Nouveau champ `Holding.versement_mensuel` (déclaré, jamais déduit) ; `budget_service.
+compute_jonction_patrimoine` renvoie `versement_mensuel_epargne_declare` (somme des comptes Épargne),
+additionné côté Simulateur à `versement_mensuel_suggere` — jamais fusionné côté backend, la légende
+sous le champ détaille les deux sources séparément. Vérifié en réel : un versement mensuel de 200 €
+déclaré sur un compte Épargne se retrouve bien dans le préremplissage du Simulateur avec la légende
+« 0 € observés sur le budget + 200 € déclarés sur l'Épargne ».
+
+Le Véhicule reste exclu de l'écran Épargne (décision actée plus haut) ; les 5 types restent aussi
+visibles dans Portefeuille (onglet « Immobilier & Épargne »), cet écran est un complément.
+
+**Bug latent corrigé en marge** : `formatDate` (frontend) ne gérait pas un horodatage complet
+(`"2026-01-01T00:00:00"`, le format réel de `Holding.date_valeur_estimee`) — le `"T..."` final se
+retrouvait concaténé au jour (`"01T00:00:00/01/2026"`). Affectait déjà silencieusement la carte
+« Historique de valorisation » de l'immobilier (aucun test n'avait jamais assertion sur le texte de
+date affiché), corrigé pour tous les appelants + régression verrouillée.
+
+12 tests backend nouveaux (dont l'antidatage et les sommes `versement_mensuel_epargne_declare`,
+suites complètes : 803 passés) + 17 tests frontend nouveaux (`EpargnePage.test.tsx`, généralisation de
+`HoldingDetailContent.test.tsx`, `PortefeuillePage.test.tsx`, `SimulateurPage.test.tsx`,
+`format.test.ts` ; suite complète : 426 passés), `tsc -b`/`oxlint`/`npm run build` propres.
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -1906,7 +1940,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2, P.3 traités (2/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
 | **Hors lot — R.1** | Calculateur brut/net + taux d'épargne | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
-| **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **En attente d'arbitrage** — demande directe de l'utilisateur, deux questions ouvertes avant tout développement |
+| **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 
 **Pourquoi cet ordre.**
 
