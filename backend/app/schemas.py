@@ -787,13 +787,32 @@ class PreferencesUpdateResponse(Preferences):
 
 
 class SalaireIn(BaseModel):
-    """Saisie du calculateur brut/net (une ligne par année), cf. `services/salaire_service.py`."""
+    """Saisie d'UNE entrée de salaire (plusieurs entrées possibles par année, ex. un
+    revenu par conjoint — chacune avec son propre taux d'imposition), cf.
+    `services/salaire_service.py`."""
 
+    annee: int
+    nom: str | None = None
     montant: float
     type_montant: str  # "brut" | "net"
     periodicite: str  # "mensuel" | "annuel"
     statut: str  # "cadre" | "non_cadre"
     nombre_mois: int = 12
+    taux_imposition_pct: float | None = None
+
+    @field_validator("annee")
+    @classmethod
+    def _valider_annee(cls, v: int) -> int:
+        if not (2000 <= v <= 2100):
+            raise ValueError("L'année doit être comprise entre 2000 et 2100")
+        return v
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return v.strip() or None
 
     @field_validator("montant")
     @classmethod
@@ -830,17 +849,27 @@ class SalaireIn(BaseModel):
             raise ValueError("Le nombre de versements par an doit être compris entre 1 et 24")
         return v
 
+    @field_validator("taux_imposition_pct")
+    @classmethod
+    def _valider_taux_imposition(cls, v: float | None) -> float | None:
+        if v is not None and not (0 <= v <= 100):
+            raise ValueError("Le taux d'imposition doit être compris entre 0 et 100")
+        return v
+
 
 class SalaireResume(BaseModel):
-    """Résultat calculé du calculateur brut/net + taux d'épargne pour une année, cf.
-    `services/salaire_service.compute_salaire_resume`."""
+    """Résultat calculé du calculateur brut/net pour UNE entrée de salaire, cf.
+    `services/salaire_service.resume_depuis_ligne`."""
 
+    id: int
     annee: int
+    nom: str
     montant: float
     type_montant: str
     periodicite: str
     statut: str
     nombre_mois: int
+    taux_imposition_pct: float | None
     brut_annuel: float
     brut_mensuel_moyen: float
     brut_par_versement: float
@@ -849,9 +878,26 @@ class SalaireResume(BaseModel):
     net_avant_impot_par_versement: float
     net_apres_impot_annuel: float | None
     net_apres_impot_mensuel_moyen: float | None
+
+
+class SyntheseAnnee(BaseModel):
+    """Agrégat de TOUTES les entrées de salaire d'une année — taux d'épargne du foyer,
+    cf. `services/salaire_service.compute_synthese_annee`."""
+
+    annee: int
+    nombre_salaires: int
+    net_total_annuel: float
+    toutes_les_entrees_ont_un_taux_imposition: bool
     montant_investi_annee: float
     taux_epargne_pct: float | None
-    taux_epargne_base_net_apres_impot: bool
+
+
+class SalaireDonnees(BaseModel):
+    """Réponse complète de `GET /api/salaire/` : toutes les entrées (pour l'édition) et
+    la synthèse de chaque année où au moins une entrée existe (pour l'historique)."""
+
+    entrees: list[SalaireResume]
+    syntheses: list[SyntheseAnnee]
 
 
 class LoanBase(BaseModel):

@@ -60,8 +60,10 @@ import type {
   RegleCategorisation,
   RegleReapplicationResult,
   RepartitionComptesResponse,
+  SalaireDonnees,
   SalaireIn,
   SalaireResume,
+  SyntheseAnnee,
   ScheduledJob,
   Session,
   TransactionImportResult,
@@ -236,12 +238,13 @@ export const api = {
   getRapportPeriode: (dateDebut: string, dateFin: string) =>
     request<RapportPeriode>(`/performance/rapport?date_debut=${dateDebut}&date_fin=${dateFin}`),
 
-  // Calculateur brut/net + taux d'épargne (une ligne par année, propriétaire seul).
-  getSalaires: () => request<SalaireResume[]>('/salaire/'),
-  getSalaire: (annee: number) => request<SalaireResume>(`/salaire/${annee}`),
-  updateSalaire: (annee: number, payload: SalaireIn) =>
-    request<SalaireResume>(`/salaire/${annee}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  deleteSalaire: (annee: number) => request<void>(`/salaire/${annee}`, { method: 'DELETE' }),
+  // Calculateur brut/net + taux d'épargne (plusieurs entrées par année, propriétaire seul).
+  getSalaires: () => request<SalaireDonnees>('/salaire/'),
+  getSyntheseAnnee: (annee: number) => request<SyntheseAnnee>(`/salaire/synthese/${annee}`),
+  createSalaire: (payload: SalaireIn) => request<SalaireResume>('/salaire/', { method: 'POST', body: JSON.stringify(payload) }),
+  updateSalaire: (id: number, payload: SalaireIn) =>
+    request<SalaireResume>(`/salaire/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteSalaire: (id: number) => request<void>(`/salaire/${id}`, { method: 'DELETE' }),
 
   // Réglages (tâches planifiées)
   listJobs: () => request<ScheduledJob[]>('/settings/jobs'),

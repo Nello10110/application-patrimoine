@@ -1653,25 +1653,45 @@ vue du **taux d'épargne réel** — quelle part du revenu part effectivement à
 année — clairement séparée du `rendement` déjà affiché ailleurs (carte Performance, § 2.P.2), qui
 mesure la performance de MARCHÉ sur ce qui est déjà investi, pas le comportement d'épargne.
 
-**Livré et vérifié le 25/08/2026.** Nouvel écran `/salaire` (propriétaire seul, même sensibilité que
-les Objectifs), nouvelle table `salaires` (une ligne par année, foyer entier — pas par détenteur,
-scope volontairement simplifié). Conversion brut/net **approximative et assumée comme telle**
-(coefficients forfaitaires cadre 0,75 / non-cadre 0,78, pas un moteur de paie certifié — aucune API
-gratuite fiable pour ça) ; le net après impôt réutilise le `taux_imposition_pct` déjà saisi en
-Réglages (§ 2.Q.2) plutôt que d'inventer un second champ. Le **taux d'épargne** est calculé à partir
-des achats RÉELS de l'année (`TRADING/BUY` + `CASH/PRIVATE_MARKET_BUY`, nouvelle fonction
-`performance_service.montant_investi_periode`, volontairement séparée de `compute_performance` pour
-ne prendre aucun risque de régression sur ce calcul déjà livré) rapportés au revenu net — jamais à la
-performance du portefeuille, les deux métriques ne se recoupent à aucun moment. Historique par année
-et moyenne affichés sur l'écran, répondant directement au besoin « en moyenne je mets 15 % ».
+**Livré le 25/08/2026, révisé le même jour suite au retour de l'utilisateur.** Nouvel écran
+`/salaire` (propriétaire seul, même sensibilité que les Objectifs). Conversion brut/net
+**approximative et assumée comme telle** (coefficients forfaitaires cadre 0,75 / non-cadre 0,78, pas
+un moteur de paie certifié — aucune API gratuite fiable pour ça).
 
-Vérifié en conditions réelles (backend isolé, compte de test) : saisie 3000 €/mois brut cadre × 13
-versements → 39 000 € brut annuel, 29 250 € net avant impôt (coefficient 0,75), 26 325 € net après
-impôt (taux d'imposition 10 % renseigné) ; ajout d'un achat réel de 2 632,50 € sur l'année → taux
-d'épargne affiché 10,0 % (2 632,50 / 26 325), recalculé correctement à 8,6 % après modification du
-salaire enregistré (34 125 → 30 712,50 € de base). 13 tests backend (service + routeur, dont
-isolation inter-comptes et restriction au rôle propriétaire) + 10 tests frontend (arithmétique pure +
-page : état vide, erreur+retry, aperçu live, sauvegarde, invite taux d'imposition, historique).
+**v1** (première livraison) : une ligne de salaire par année, foyer entier, net après impôt réutilisant
+`Preferences.taux_imposition_pct` (§ 2.Q.2). **v2** (même jour, sur retour utilisateur) : l'utilisateur
+a demandé de pouvoir saisir **plusieurs salaires** par année (un par revenu du foyer) **avec des taux
+d'imposition différents**, directement éditables dans l'onglet Salaire plutôt que dépendants d'un
+réglage global. Contrainte d'unicité `(user_id, annee)` retirée de la table `salaires`, ajout de
+`nom` (distingue les entrées à l'affichage) et `taux_imposition_pct` propre à chaque entrée. Le taux
+d'épargne, qui ne peut plus se calculer entrée par entrée sans fausser le ratio, est désormais un
+agrégat par année (`compute_synthese_annee` : somme des revenus nets de toutes les entrées — après
+impôt quand connu, avant impôt en repli sinon — rapportée à l'unique montant investi de l'année,
+calculé une seule fois). Nouvelle migration Alembic (`38389a473a71`, additive + drop de contrainte en
+mode batch), `GET /api/salaire/` renvoie désormais `{entrees, syntheses}`, CRUD par `id` d'entrée
+(`POST`/`PUT /{id}`/`DELETE /{id}`) plutôt que par année.
+
+**Incident et correctif (25/08/2026)** : entre la livraison et le retour de l'utilisateur, celui-ci a
+signalé un `404 Not Found` sur `/salaire`. Cause : son backend réel tournait depuis avant l'ajout du
+routeur — Python n'exécute `app.include_router(...)` (et les migrations) qu'au démarrage du process,
+un `uvicorn` déjà lancé ne les recharge jamais tout seul. Corrigé par un redémarrage propre (sauvegarde
+préalable de la vraie base, données vérifiées intactes après). Deux mesures prises pour ne pas répéter
+ce type d'erreur : nouveau test de non-régression générique `backend/tests/test_main.py` (verrouille
+qu'un futur routeur écrit dans `app/routers/` mais jamais enregistré dans `main.py` ferait échouer la
+suite plutôt qu'échouer silencieusement en production — vérifié en le cassant exprès puis en confirmant
+qu'il échoue) et une entrée dans `docs/MANUEL_EXPLOITATION.md` § 10 sur la nécessité de toujours
+redémarrer (jamais `--reload`) après un changement touchant `main.py`/`database.py`/un nouveau routeur.
+Aucun test automatisé ne peut en revanche détecter « le process n'a pas été redémarré » — c'est un fait
+d'exploitation, pas un défaut de code.
+
+Vérifié en conditions réelles (backend isolé, compte de test, puis vrai backend redémarré) : saisie
+3000 €/mois brut cadre × 13 versements → 39 000 € brut annuel, 29 250 € net avant impôt (coefficient
+0,75) ; deux entrées de la même année avec des taux d'imposition différents → synthèse correctement
+agrégée (revenu net total = somme des deux, montant investi non dupliqué). 46+ tests backend (service +
+routeur + garde-fou de câblage des routeurs, dont isolation inter-comptes et restriction au rôle
+propriétaire) + 10 tests frontend (arithmétique pure + page : état vide, erreur+retry, ajout/
+modification/suppression d'entrée, aperçu live avec/sans taux d'imposition, agrégation multi-entrées,
+historique).
 
 ---
 ## 3. Hors périmètre (assumé)

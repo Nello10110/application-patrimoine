@@ -315,20 +315,28 @@ class AllocationTarget(Base):
 
 
 class Salaire(Base):
-    """Salaire du foyer pour une année donnée (backlog salaire/taux d'épargne) — une seule
-    ligne par année, à l'échelle du foyer (pas par détenteur, cf. `Detenteur`). Sert de base
-    au calculateur brut/net et au taux d'épargne (`services/salaire_service.py`)."""
+    """Une entrée de salaire du foyer pour une année donnée (backlog salaire/taux
+    d'épargne) — PLUSIEURS entrées par année sont possibles (plusieurs revenus, ex.
+    un par conjoint), chacune avec son propre taux d'imposition (pas de préférence
+    globale partagée : deux personnes du foyer peuvent avoir des taux différents).
+    `nom` distingue les entrées d'une même année à l'affichage (« Salaire de Paul »...).
+    Le taux d'épargne du foyer (`services/salaire_service.compute_synthese_annee`) agrège
+    toutes les entrées d'une année, jamais une seule prise isolément."""
     __tablename__ = "salaires"
-    __table_args__ = (UniqueConstraint("user_id", "annee", name="uq_salaire_user_annee"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     annee: Mapped[int] = mapped_column(Integer, index=True)
+    nom: Mapped[str | None] = mapped_column(String, nullable=True)
     montant: Mapped[float] = mapped_column(Float)
     type_montant: Mapped[str] = mapped_column(String)  # "brut" | "net"
     periodicite: Mapped[str] = mapped_column(String)  # "mensuel" | "annuel"
     statut: Mapped[str] = mapped_column(String)  # "cadre" | "non_cadre"
     nombre_mois: Mapped[int] = mapped_column(Integer, default=12)
+    # Taux d'imposition PROPRE à cette entrée (pas la préférence globale
+    # `Preferences.taux_imposition_pct`, réservée à la déclaration de patrimoine, § 2.Q.2) :
+    # `None` tant qu'il n'est pas renseigné pour cette entrée précise.
+    taux_imposition_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
