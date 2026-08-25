@@ -1,0 +1,42 @@
+# Exemple de déploiement Docker Compose pour un homelab — voir
+# docs/MANUEL_EXPLOITATION.md § « Déploiement Docker (homelab) » pour le mode d'emploi
+# complet (génération des clés, ce que couvrent les volumes...).
+#
+# Copier ce fichier en `compose.yaml` (ou le référencer avec `-f`), remplacer les deux
+# clés ci-dessous par de vraies clés générées, puis :
+#   docker compose -f compose-exemple.yaml up --build
+#
+# IMPORTANT — pas exposé au public pour l'instant : les deux ports publiés sont liés à
+# 127.0.0.1 sur l'hôte, jamais 0.0.0.0. L'application reste donc injoignable depuis le
+# reste du LAN ou internet tant qu'aucun reverse proxy n'est ajouté volontairement
+# devant (cf. la section SSO/Authentik du manuel d'exploitation pour quand ce jour
+# viendra). Ne changer ces valeurs qu'en connaissance de cause.
+
+services:
+  backend:
+    build: ./backend
+    environment:
+      PATRIMOINE_DB: /app/data/patrimoine.db
+      # Générer une fois chacune, à conserver précieusement (les perdre rend les
+      # sauvegardes chiffrées et le contenu protégé irrécupérables) :
+      #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      PATRIMOINE_SECRET_KEY: "REMPLACER_PAR_UNE_VRAIE_CLE_FERNET"
+      PATRIMOINE_BACKUP_KEY: "REMPLACER_PAR_UNE_AUTRE_VRAIE_CLE_FERNET"
+    volumes:
+      - patrimoine_data:/app/data
+      - patrimoine_sauvegardes:/app/sauvegardes
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:8080:80"
+    restart: unless-stopped
+
+volumes:
+  patrimoine_data:
+  patrimoine_sauvegardes:

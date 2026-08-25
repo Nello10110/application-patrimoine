@@ -1,8 +1,10 @@
 """Point d'entrée de l'API FastAPI : mise à jour du schéma, routeurs.
-Application locale, multi-utilisateur depuis le Milestone 1 (cf. `docs/BACKLOG.md`
-§ 2.I.1) : toutes les routes hormis `/api/auth/{register,login}` et `/api/health`
-exigent d'être connecté — CORS restreint au frontend Vite tournant sur localhost."""
+Application multi-utilisateur depuis le Milestone 1 (cf. `docs/BACKLOG.md` § 2.I.1) :
+toutes les routes hormis `/api/auth/{register,login}` et `/api/health` exigent d'être
+connecté — CORS restreint à une liste d'origines explicite (dev local par défaut,
+`PATRIMOINE_CORS_ORIGINS` pour un déploiement Docker, cf. `compose-exemple.yaml`)."""
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
@@ -43,15 +45,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Application Patrimoine API", lifespan=lifespan)
 
-# Application locale, prévue pour tourner uniquement contre le frontend Vite en
-# développement local (`localhost`/`127.0.0.1:5173`) : le jeton de session (Milestone
-# 1) est transporté en en-tête `Authorization: Bearer ...`, jamais en cookie, donc
-# `allow_credentials` reste `False`. Méthodes et en-têtes restreints à ce que le
-# frontend utilise réellement plutôt que `"*"` (LOT 7.3) — `Content-Type` et
-# `Authorization` sont les deux seuls en-têtes personnalisés envoyés par `client.ts`.
+# Origines autorisées : les deux ports de dev par défaut, ou `PATRIMOINE_CORS_ORIGINS`
+# (liste séparée par des virgules) pour un déploiement Docker où le frontend n'est pas
+# servi sur ces ports. Reste volontairement une liste explicite plutôt que `"*"`
+# (LOT 7.3) — piloter la liste ne change pas la philosophie, juste son emplacement.
+# Note : avec le déploiement Docker de référence (`compose-exemple.yaml`), nginx sert
+# le frontend ET reverse-proxy `/api/` vers le backend sous la MÊME origine navigateur
+# — aucune requête cross-origin réelle dans ce cas, cette liste ne sert alors qu'en
+# repli pour un accès direct au backend.
+_ORIGINES_CORS_DEFAUT = ["http://localhost:5173", "http://127.0.0.1:5173"]
+_origines_cors_env = os.environ.get("PATRIMOINE_CORS_ORIGINS")
+_origines_cors = [o.strip() for o in _origines_cors_env.split(",") if o.strip()] if _origines_cors_env else _ORIGINES_CORS_DEFAUT
+
+# Le jeton de session (Milestone 1) est transporté en en-tête `Authorization: Bearer
+# ...`, jamais en cookie, donc `allow_credentials` reste `False`. Méthodes et en-têtes
+# restreints à ce que le frontend utilise réellement plutôt que `"*"` — `Content-Type`
+# et `Authorization` sont les deux seuls en-têtes personnalisés envoyés par `client.ts`.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_origines_cors,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

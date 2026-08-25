@@ -1693,6 +1693,48 @@ propriétaire) + 10 tests frontend (arithmétique pure + page : état vide, erre
 modification/suppression d'entrée, aperçu live avec/sans taux d'imposition, agrégation multi-entrées,
 historique).
 
+#### R.2 — `mineur` · `M` · `P2` · `traité` (25/08/2026) — Déploiement Docker (homelab, non exposé)
+
+Demande directe de l'utilisateur, en marge d'un passage d'onboard sur le projet : pouvoir faire
+tourner l'application sur son homelab en Docker, avec un `compose-exemple.yaml` fonctionnel, et
+explicitement **pas ouvert au public pour l'instant**.
+
+**Livré et vérifié le 25/08/2026.** `backend/Dockerfile` (Python 3.14-slim, `uvicorn --host
+0.0.0.0`), `frontend/Dockerfile` (build multi-étapes Node → nginx), `frontend/docker/nginx.conf`,
+`compose-exemple.yaml` à la racine. Architecture retenue : **nginx sert le frontend ET reverse-
+proxy `/api/` vers le service backend** (résolution par nom Docker Compose, `http://backend:8000`)
+— le navigateur ne parle donc qu'à une seule origine, aucune requête cross-origin réelle dans ce
+déploiement, `api/client.ts` inchangé (appelle déjà des chemins relatifs). CORS rendu configurable
+par `PATRIMOINE_CORS_ORIGINS` (`backend/app/main.py`, repli sur les deux origines de dev si absent —
+comportement local inchangé) plutôt que codé en dur, pour un usage futur hors de ce schéma de
+référence.
+
+**Deux volumes nommés distincts**, pas un seul : `patrimoine_data` (`/app/data`, la base) et
+`patrimoine_sauvegardes` (`/app/sauvegardes`) — nécessaire car `scripts/sauvegarde.py` dépose
+toujours les sauvegardes à la racine du code backend (`DOSSIER_SAUVEGARDES_PAR_DEFAUT`), jamais sous
+le chemin de `PATRIMOINE_DB` ; sans ce second volume, le job planifié `sauvegarde_chiffree` (§ 2.L.2)
+écrirait dans une couche de conteneur perdue à la prochaine reconstruction de l'image.
+
+**Pas exposé au public** : les deux ports publiés sont liés à `127.0.0.1` sur l'hôte
+(`"127.0.0.1:8000:8000"`, `"127.0.0.1:8080:80"`), jamais `0.0.0.0` — confirmé par inspection directe
+des mappages de ports des conteneurs lancés (`docker ps`), pas seulement lu dans le fichier.
+
+Vérifié en conditions réelles (Docker Desktop, build + exécution réels, pas seulement une relecture
+de syntaxe) : les deux images se construisent sans erreur ; `docker compose up` démarre les deux
+conteneurs ; `GET /api/health` répond `{"status":"ok"}` en direct sur le port backend ET à travers le
+proxy nginx du frontend (confirme le reverse-proxy) ; page d'accueil et route client
+(`/patrimoine`, rechargement direct) répondent `200` (confirme `try_files ... index.html`) ;
+inscription + connexion complètes via l'origine frontend (aucune erreur CORS) ; **persistance des
+données confirmée** après un cycle `docker compose down && up` complet (compte créé avant l'arrêt,
+connexion réussie après redémarrage sur les mêmes volumes). 786 tests backend toujours au vert après
+le changement CORS (aucune régression sur le comportement de dev par défaut).
+
+**Hors périmètre de cet incrément, assumé** : reverse proxy/HTTPS et exposition publique
+(explicitement refusés par l'utilisateur pour l'instant — cf. § 2.L.2 pour la connexion SSO déjà
+prête pour ce jour-là), pas de `.env`/`env_file` séparé (un seul fichier auto-porteur avec
+placeholders commentés, conforme à la demande d'un exemple simple), pas de CI/registry d'images
+(build local uniquement, cohérent avec un usage homelab mono-machine).
+
 ---
 ## 3. Hors périmètre (assumé)
 
