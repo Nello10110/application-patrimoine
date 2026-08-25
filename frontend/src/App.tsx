@@ -27,6 +27,7 @@ const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
 const RapportPage = lazy(() => import('./pages/RapportPage'))
 const RepartitionPage = lazy(() => import('./pages/RepartitionPage'))
 const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
+const SalairePage = lazy(() => import('./pages/SalairePage'))
 const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
 
 // Anciennes URL (avant le renommage backlog 2.K.2) : redirigées plutôt que
@@ -87,6 +88,7 @@ function AppAuthentifiee() {
                 <Route path="/dividendes" element={<DividendesPage />} />
                 <Route path="/budget" element={<BudgetPage />} />
                 <Route path="/rapport" element={<RapportPage />} />
+                <Route path="/salaire" element={<SalairePage />} />
                 <Route path="/import" element={<ImportPage />} />
                 <Route path="/reglages" element={<ReglagesPage />} />
                 <Route path="/aide" element={<AidePage />} />

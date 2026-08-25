@@ -314,6 +314,25 @@ class AllocationTarget(Base):
     pourcentage_cible: Mapped[float] = mapped_column(Float)
 
 
+class Salaire(Base):
+    """Salaire du foyer pour une année donnée (backlog salaire/taux d'épargne) — une seule
+    ligne par année, à l'échelle du foyer (pas par détenteur, cf. `Detenteur`). Sert de base
+    au calculateur brut/net et au taux d'épargne (`services/salaire_service.py`)."""
+    __tablename__ = "salaires"
+    __table_args__ = (UniqueConstraint("user_id", "annee", name="uq_salaire_user_annee"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    annee: Mapped[int] = mapped_column(Integer, index=True)
+    montant: Mapped[float] = mapped_column(Float)
+    type_montant: Mapped[str] = mapped_column(String)  # "brut" | "net"
+    periodicite: Mapped[str] = mapped_column(String)  # "mensuel" | "annuel"
+    statut: Mapped[str] = mapped_column(String)  # "cadre" | "non_cadre"
+    nombre_mois: Mapped[int] = mapped_column(Integer, default=12)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
     # Multi-utilisateur (Milestone 2a) : l'unicité de `transaction_id` (identifiant

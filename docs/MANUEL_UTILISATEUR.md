@@ -172,6 +172,14 @@ Rapport récapitulatif généré à la demande — rien n'est envoyé par courri
 
 Quel que soit le mode : valeur du portefeuille en fin de période, évolution sur la période (en vert si positive, en rouge sinon), dividendes perçus, et les cinq mouvements les plus importants (achats, ventes...). Généré à la demande à chaque changement de mode ou de dates.
 
+## Écran Salaire
+
+Réservé au propriétaire du compte. Un calculateur brut/net classique : saisis un montant, choisis s'il s'agit d'un brut ou d'un net, mensuel ou annuel, ton statut (cadre ou non-cadre) et le nombre de versements dans l'année (12, 13 avec un 13e mois, etc.). Un aperçu s'affiche instantanément pendant la saisie. C'est une **estimation approximative** — pas un bulletin de paie certifié, les cotisations réelles dépendant de ta convention collective et de ta situation exacte.
+
+Une fois « Enregistrer » cliqué (une saisie par année, sélectionnable en haut de l'écran) : le détail complet apparaît — brut et net avant/après impôt, en annuel, en moyenne mensuelle sur 12 mois et par versement réel. Le net après impôt n'apparaît que si un taux d'imposition a été renseigné dans Réglages (un lien y mène directement si ce n'est pas encore fait).
+
+En dessous, la carte **Taux d'épargne** répond à « quelle part de mon salaire est-ce que je mets vraiment de côté ? » : le montant réellement investi dans l'année (tes achats réels de titres) rapporté à ton revenu net, avec l'historique année par année et une moyenne. C'est volontairement différent du rendement affiché sur le Tableau de bord : le rendement mesure la performance de marché de ce qui est déjà investi, le taux d'épargne mesure ton propre effort d'épargne.
+
 ## Tableau de bord
 
 Organisé en trois temps, pour aller du plus important au plus accessoire (le chiffre, puis la

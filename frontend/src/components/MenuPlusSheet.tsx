@@ -14,6 +14,7 @@ import {
   IconPlusOptions,
   IconRapport,
   IconReglages,
+  IconSalaire,
 } from './icons'
 import Modale from './Modale'
 
@@ -23,6 +24,7 @@ const ICONES = {
   Dividendes: IconDividendes,
   Budget: IconBudget,
   Rapport: IconRapport,
+  Salaire: IconSalaire,
   Import: IconImport,
   Réglages: IconReglages,
   Aide: IconAide,

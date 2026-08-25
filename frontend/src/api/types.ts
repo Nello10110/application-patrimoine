@@ -512,6 +512,31 @@ export interface PreferencesUpdateResponse extends Preferences {
   positions_recalculees: number | null
 }
 
+// Calculateur brut/net + taux d'épargne (une ligne par année, foyer entier).
+export interface SalaireIn {
+  montant: number
+  type_montant: 'brut' | 'net'
+  periodicite: 'mensuel' | 'annuel'
+  statut: 'cadre' | 'non_cadre'
+  nombre_mois: number
+}
+
+export interface SalaireResume extends SalaireIn {
+  annee: number
+  brut_annuel: number
+  brut_mensuel_moyen: number
+  brut_par_versement: number
+  net_avant_impot_annuel: number
+  net_avant_impot_mensuel_moyen: number
+  net_avant_impot_par_versement: number
+  // `null` tant que `taux_imposition_pct` (Réglages) n'est pas renseigné.
+  net_apres_impot_annuel: number | null
+  net_apres_impot_mensuel_moyen: number | null
+  montant_investi_annee: number
+  taux_epargne_pct: number | null
+  taux_epargne_base_net_apres_impot: boolean
+}
+
 export interface TransactionImportResult {
   lignes_lues: number
   importees: number

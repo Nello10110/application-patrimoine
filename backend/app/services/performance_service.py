@@ -217,6 +217,28 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     }
 
 
+def montant_investi_periode(db: Session, user_id: int, date_debut: str, date_fin: str) -> float:
+    """Somme des achats réels (`TRADING/BUY` + `CASH/PRIVATE_MARKET_BUY`, frais/taxes
+    inclus — même logique que `cout_total_investi` ci-dessus, mais bornée à une période
+    plutôt qu'à toute la vie du compte) sur `[date_debut, date_fin]` (bornes incluses,
+    format `AAAA-MM-JJ`, même filtrage que `rapport_service.compute_rapport_periode`).
+    Volontairement une fonction séparée plutôt qu'un paramètre optionnel sur
+    `compute_performance` : ce dernier est déjà livré et testé sur son calcul
+    "vie entière", ne pas y toucher pour ce besoin distinct (taux d'épargne annuel)."""
+    transactions_periode = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user_id, Transaction.date >= date_debut, Transaction.date <= date_fin)
+        .all()
+    )
+    total = 0.0
+    for tx in transactions_periode:
+        if tx.category == "TRADING" and tx.type == "BUY" and tx.shares is not None:
+            total += -(tx.amount + tx.fee + tx.tax)
+        elif tx.category == "CASH" and tx.type == "PRIVATE_MARKET_BUY":
+            total += -(tx.amount + tx.fee + tx.tax)
+    return total
+
+
 def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:
     """Dividendes perçus regroupés par mois calendaire (roadmap Phase 3, § C.1) —
     même source et même convention algébrique que `dividendes_percus` ci-dessus

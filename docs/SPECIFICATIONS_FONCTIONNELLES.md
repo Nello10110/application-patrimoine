@@ -34,6 +34,7 @@ L'application ne fournit **aucun conseil en investissement personnalisé** : les
 | Dividendes | `/dividendes` | Calendrier des dividendes perçus, groupés par mois, détail dépliable par mois (date, ligne, montant net) |
 | Budget | `/budget` | (backlog § 2.N) Suivi des mouvements bancaires, indépendant du portefeuille boursier : période mensuelle/annuelle/personnalisée, quatre indicateurs (entrées, sorties, disponible, dépenses récurrentes), taux d'épargne réel et reste à vivre quand les catégories Épargne/Logement existent, répartition des sorties par catégorie avec budget cible et écart, filtres catégorie/compte sur la liste des mouvements, charges récurrentes et abonnements détectés (hausse de prix signalée), gestion des catégories et des règles de catégorisation automatique |
 | Rapport | `/rapport` | Rapport récapitulatif généré à la demande sur un mois, une année, ou une période personnalisée (sélecteur de mode) : évolution de la valeur du portefeuille, dividendes perçus, cinq plus gros mouvements de la période |
+| Salaire | `/salaire` (propriétaire seul) | (backlog § 2.R.1) Calculateur brut/net (montant, brut ou net, mensuel ou annuel, cadre ou non-cadre, nombre de versements dans l'année) — une saisie par année, avec aperçu instantané côté client avant enregistrement. Une fois enregistré : détail brut/net avant-après impôt (annuel, moyenne mensuelle, par versement), et **taux d'épargne réel** de l'année (montant réellement investi en achats de titres, rapporté au revenu net) — historique par année et moyenne, volontairement distinct du rendement de marché (carte Performance) |
 | Import | `/import` | Import de l'historique de transactions, d'un relevé de positions, ou de mouvements bancaires (CSV mappé, OFX, QIF — backlog § 2.N.1) pour l'écran Budget |
 | Réglages | `/reglages` | Préférences (méthode de calcul du coût de revient, seuil d'alerte, taux d'imposition déclaré), configuration du rafraîchissement automatique des cours (avec suivi de progression), exports CSV, relevé de patrimoine PDF et déclaration de patrimoine paramétrable (backlog § 2.Q.2), gestion des liens de partage (onglet Partage, backlog § 2.Q.1) |
 | Partage public | `/partage/:token` | Consultation PUBLIQUE (aucune authentification, backlog § 2.Q.1) d'un lien de partage — sections agrégées choisies par le propriétaire, code optionnel |
@@ -483,6 +484,26 @@ sur un grand nombre d'identifiants).
   factorisée avec `request` — même gestion d'erreur/jeton, seule la lecture du corps de réponse
   diffère) + `<a download>` généré côté client.
 
+### 3.23 Calculateur brut/net et taux d'épargne (backlog § 2.R.1)
+
+Table `salaires` : une ligne par année (`user_id`, `annee` uniques ensemble), à l'échelle du foyer —
+pas par détenteur. `services/salaire_service.py` :
+
+- **Conversion brut/net approximative et assumée comme telle** : coefficient net/brut forfaitaire
+  selon le statut (cadre 0,75, non-cadre 0,78 — cotisations salariales secteur privé, hors cas
+  particuliers), jamais un moteur de paie certifié. Le nombre de versements par an (12/13/14…)
+  distingue le montant « par versement » de la moyenne mensuelle sur 12 mois.
+- **Net après impôt** réutilise `Preferences.taux_imposition_pct` (§ 3.22, `None` par défaut) plutôt
+  qu'un second champ dédié — absent tant que ce taux n'est pas renseigné, avec une invite explicite
+  côté écran plutôt qu'un champ vide silencieux.
+- **Taux d'épargne** = montant réellement investi sur l'année (achats réels,
+  `TRADING/BUY` + `CASH/PRIVATE_MARKET_BUY`, nouvelle fonction
+  `performance_service.montant_investi_periode` — volontairement séparée du calcul "vie entière" de
+  `compute_performance`, § 3.5) rapporté au revenu net de l'année (après impôt si disponible, avant
+  impôt sinon). **Distinct à dessein du rendement de marché** (§ 3.5, TWR/XIRR) : le premier mesure
+  un comportement d'épargne, le second la performance de ce qui est déjà investi — les deux ne se
+  recoupent jamais dans ce calcul.
+
 ## 4. Modèle de données (tables principales)
 
 | Table | Rôle |
@@ -498,6 +519,7 @@ sur un grand nombre d'identifiants).
 | `fund_top_holdings` | Détail nominatif des ~10 plus grosses lignes de chaque fonds — justETF pour un fonds couvert (2.4), Yahoo Finance en repli sinon |
 | `ticker_resolution` | Cache ISIN/symbole → ticker Yahoo Finance |
 | `allocation_targets` | Objectifs de répartition géo/sectorielle par année |
+| `salaires` | Calculateur brut/net + taux d'épargne, une ligne par année à l'échelle du foyer (§ 3.23) |
 | `scheduled_job_config` | Configuration et suivi d'exécution des tâches planifiées |
 | `parametres` | Réglages applicatifs génériques clé/valeur (méthode de calcul du coût de revient, seuil d'alerte, taux d'imposition déclaré — § 3.22), exposés par `services/preferences_service.py` ; porte aussi la version des règles de calcul du portefeuille, qui déclenche une reconstruction unique au démarrage après une mise à jour (cf. `services/startup_maintenance.py`) |
 | `historique_cache` | Cache persistant (24 h) des séries d'historique de prix coûteuses à recalculer (ligne, portefeuille, et indice de référence — § 3.5.1), cf. § 3.9 |

@@ -35,6 +35,7 @@ export const ROUTES: RouteMeta[] = [
   { path: '/dividendes', titre: 'Dividendes', navLabel: 'Dividendes', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
   { path: '/budget', titre: 'Budget', navLabel: 'Budget', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
   { path: '/rapport', titre: 'Rapport', navLabel: 'Rapport', rang: 'consultation', rolesAutorises: ['proprietaire', 'membre'] },
+  { path: '/salaire', titre: 'Salaire', navLabel: 'Salaire', rang: 'consultation', rolesAutorises: ['proprietaire'] },
   { path: '/import', titre: 'Import', navLabel: 'Import', rang: 'administration', rolesAutorises: ['proprietaire', 'membre'] },
   { path: '/reglages', titre: 'Réglages', navLabel: 'Réglages', rang: 'administration', rolesAutorises: ['proprietaire'] },
   { path: '/aide', titre: 'Aide', navLabel: 'Aide', rang: 'administration' },

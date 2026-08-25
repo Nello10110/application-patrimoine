@@ -355,15 +355,20 @@ tests frontend (`CoutGestionCard.test.tsx`).
 
 ### F. Budget (décision de scope, pas juste une fonctionnalité)
 
-#### F.1 — `majeur` · `L` · `P3` · `non traité` — Suivi des dépenses du quotidien (optionnel)
+#### F.1 — `majeur` · `L` · `P3` · `traité (tranché et absorbé par § 2.N)` — Suivi des dépenses du quotidien (optionnel)
 
 L'application exclut aujourd'hui **volontairement** les mouvements hors bourse (increment 5 :
 virements bancaires, carte) — décision prise pour recentrer l'app sur le suivi boursier pur. Un
 module Budget à la Finary réintroduirait ces données. **À trancher avec l'utilisateur avant tout
 développement** : soit un écran strictement séparé et optionnel (import distinct, jamais mélangé
 aux calculs de performance boursière existants), soit un non-objectif assumé (comme la fiscalité
-PEA) si le suivi boursier doit rester le seul périmètre. Ne pas commencer sans cette décision — le
-risque est de rouvrir une frontière posée délibérément lors de l'increment 5.
+PEA) si le suivi boursier doit rester le seul périmètre.
+
+**Tranché le 21/08/2026** : le budget entre dans le périmètre, exactement dans la lecture « écran
+strictement séparé et optionnel » envisagée ci-dessus — jamais mélangé aux calculs de performance
+boursière. Livré en lot dédié, cf. § 2.N (« Budget et flux »), qui référence explicitement ce point
+en introduction. Cette entrée n'a été mise à jour que le 25/08/2026 (en marge de R.1) — le statut
+`non traité` était resté affiché par erreur après la livraison réelle de N.1-N.4.
 
 ### G. Multi-utilisateur et partage
 
@@ -1637,6 +1642,37 @@ plus contenues existent (permettre d'ajouter UN actif dans une devise étrangèr
 la cotation — l'euro restant la seule devise d'affichage — ou une vraie bascule de devise de
 référence pour tout le patrimoine). Arbitrage à demander à l'utilisateur avant tout développement.
 
+### R. Revenu du foyer et taux d'épargne (nouveau, 25/08/2026)
+
+#### R.1 — `mineur` · `M` · `P2` · `traité` (25/08/2026) — Calculateur brut/net + taux d'épargne
+
+Demande directe de l'utilisateur (25/08/2026) : un écran pour saisir son salaire (brut ou net,
+mensuel ou annuel, cadre ou non-cadre, avec le nombre de versements dans l'année — 12/13/14…) et en
+déduire le reste façon calculatrice brut-net grand public. Deuxième besoin, lié mais distinct : une
+vue du **taux d'épargne réel** — quelle part du revenu part effectivement à l'investissement chaque
+année — clairement séparée du `rendement` déjà affiché ailleurs (carte Performance, § 2.P.2), qui
+mesure la performance de MARCHÉ sur ce qui est déjà investi, pas le comportement d'épargne.
+
+**Livré et vérifié le 25/08/2026.** Nouvel écran `/salaire` (propriétaire seul, même sensibilité que
+les Objectifs), nouvelle table `salaires` (une ligne par année, foyer entier — pas par détenteur,
+scope volontairement simplifié). Conversion brut/net **approximative et assumée comme telle**
+(coefficients forfaitaires cadre 0,75 / non-cadre 0,78, pas un moteur de paie certifié — aucune API
+gratuite fiable pour ça) ; le net après impôt réutilise le `taux_imposition_pct` déjà saisi en
+Réglages (§ 2.Q.2) plutôt que d'inventer un second champ. Le **taux d'épargne** est calculé à partir
+des achats RÉELS de l'année (`TRADING/BUY` + `CASH/PRIVATE_MARKET_BUY`, nouvelle fonction
+`performance_service.montant_investi_periode`, volontairement séparée de `compute_performance` pour
+ne prendre aucun risque de régression sur ce calcul déjà livré) rapportés au revenu net — jamais à la
+performance du portefeuille, les deux métriques ne se recoupent à aucun moment. Historique par année
+et moyenne affichés sur l'écran, répondant directement au besoin « en moyenne je mets 15 % ».
+
+Vérifié en conditions réelles (backend isolé, compte de test) : saisie 3000 €/mois brut cadre × 13
+versements → 39 000 € brut annuel, 29 250 € net avant impôt (coefficient 0,75), 26 325 € net après
+impôt (taux d'imposition 10 % renseigné) ; ajout d'un achat réel de 2 632,50 € sur l'année → taux
+d'épargne affiché 10,0 % (2 632,50 / 26 325), recalculé correctement à 8,6 % après modification du
+salaire enregistré (34 125 → 30 712,50 € de base). 13 tests backend (service + routeur, dont
+isolation inter-comptes et restriction au rôle propriétaire) + 10 tests frontend (arithmétique pure +
+page : état vide, erreur+retry, aperçu live, sauvegarde, invite taux d'imposition, historique).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -1696,6 +1732,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2, P.3 traités (2/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
+| **Hors lot — R.1** | Calculateur brut/net + taux d'épargne | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 
 **Pourquoi cet ordre.**
 

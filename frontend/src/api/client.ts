@@ -60,6 +60,8 @@ import type {
   RegleCategorisation,
   RegleReapplicationResult,
   RepartitionComptesResponse,
+  SalaireIn,
+  SalaireResume,
   ScheduledJob,
   Session,
   TransactionImportResult,
@@ -233,6 +235,13 @@ export const api = {
   getDividendCalendar: () => request<DividendeMois[]>('/performance/dividendes'),
   getRapportPeriode: (dateDebut: string, dateFin: string) =>
     request<RapportPeriode>(`/performance/rapport?date_debut=${dateDebut}&date_fin=${dateFin}`),
+
+  // Calculateur brut/net + taux d'épargne (une ligne par année, propriétaire seul).
+  getSalaires: () => request<SalaireResume[]>('/salaire/'),
+  getSalaire: (annee: number) => request<SalaireResume>(`/salaire/${annee}`),
+  updateSalaire: (annee: number, payload: SalaireIn) =>
+    request<SalaireResume>(`/salaire/${annee}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteSalaire: (annee: number) => request<void>(`/salaire/${annee}`, { method: 'DELETE' }),
 
   // Réglages (tâches planifiées)
   listJobs: () => request<ScheduledJob[]>('/settings/jobs'),

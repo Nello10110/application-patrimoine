@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from .models import ROLE_INVITE, ROLE_MEMBRE
 
 from .services.preferences_service import METHODES_VALIDES
+from .services.salaire_service import PERIODICITES_VALIDES, STATUTS_VALIDES, TYPES_MONTANT_VALIDES
 
 MESSAGE_TICKER_VIDE = "Le ticker ne peut pas être vide"
 MESSAGE_QUANTITE_POSITIVE = "La quantité doit être strictement positive (les positions vendues à découvert ne sont pas gérées)"
@@ -783,6 +784,74 @@ class PreferencesUpdateResponse(Preferences):
     change réellement, `None` sinon)."""
 
     positions_recalculees: int | None = None
+
+
+class SalaireIn(BaseModel):
+    """Saisie du calculateur brut/net (une ligne par année), cf. `services/salaire_service.py`."""
+
+    montant: float
+    type_montant: str  # "brut" | "net"
+    periodicite: str  # "mensuel" | "annuel"
+    statut: str  # "cadre" | "non_cadre"
+    nombre_mois: int = 12
+
+    @field_validator("montant")
+    @classmethod
+    def _valider_montant(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Le montant doit être strictement positif")
+        return v
+
+    @field_validator("type_montant")
+    @classmethod
+    def _valider_type_montant(cls, v: str) -> str:
+        if v not in TYPES_MONTANT_VALIDES:
+            raise ValueError(f"Type de montant invalide : doit être l'un de {TYPES_MONTANT_VALIDES}")
+        return v
+
+    @field_validator("periodicite")
+    @classmethod
+    def _valider_periodicite(cls, v: str) -> str:
+        if v not in PERIODICITES_VALIDES:
+            raise ValueError(f"Périodicité invalide : doit être l'une de {PERIODICITES_VALIDES}")
+        return v
+
+    @field_validator("statut")
+    @classmethod
+    def _valider_statut(cls, v: str) -> str:
+        if v not in STATUTS_VALIDES:
+            raise ValueError(f"Statut invalide : doit être l'un de {STATUTS_VALIDES}")
+        return v
+
+    @field_validator("nombre_mois")
+    @classmethod
+    def _valider_nombre_mois(cls, v: int) -> int:
+        if not (1 <= v <= 24):
+            raise ValueError("Le nombre de versements par an doit être compris entre 1 et 24")
+        return v
+
+
+class SalaireResume(BaseModel):
+    """Résultat calculé du calculateur brut/net + taux d'épargne pour une année, cf.
+    `services/salaire_service.compute_salaire_resume`."""
+
+    annee: int
+    montant: float
+    type_montant: str
+    periodicite: str
+    statut: str
+    nombre_mois: int
+    brut_annuel: float
+    brut_mensuel_moyen: float
+    brut_par_versement: float
+    net_avant_impot_annuel: float
+    net_avant_impot_mensuel_moyen: float
+    net_avant_impot_par_versement: float
+    net_apres_impot_annuel: float | None
+    net_apres_impot_mensuel_moyen: float | None
+    montant_investi_annee: float
+    taux_epargne_pct: float | None
+    taux_epargne_base_net_apres_impot: bool
 
 
 class LoanBase(BaseModel):

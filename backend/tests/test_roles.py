@@ -101,6 +101,17 @@ def test_membre_refuse_sur_les_objectifs_et_detenteurs(client_reel):
     # mais ne peut pas les exposer publiquement (backlog 2.Q.1).
     assert client_reel.get("/api/partage", headers=_en_tete(token_membre)).status_code == 403
     assert client_reel.post("/api/partage", json={"nom": "Test"}, headers=_en_tete(token_membre)).status_code == 403
+    # Salaire (calculateur brut/net + taux d'épargne) : donnée de revenu personnel,
+    # même niveau de sensibilité que les Objectifs — réservé au propriétaire.
+    assert client_reel.get("/api/salaire", headers=_en_tete(token_membre)).status_code == 403
+    assert (
+        client_reel.put(
+            "/api/salaire/2026",
+            json={"montant": 3000, "type_montant": "net", "periodicite": "mensuel", "statut": "cadre"},
+            headers=_en_tete(token_membre),
+        ).status_code
+        == 403
+    )
 
 
 def test_second_foyer_isole(db_vide, client_reel):

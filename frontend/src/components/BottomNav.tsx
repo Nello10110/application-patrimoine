@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang } from '../layout/routes'
-import { IconAnalyse, IconBudget, IconDividendes, IconObjectifs, IconPatrimoine, IconRapport, IconSynthese } from './icons'
+import { IconAnalyse, IconBudget, IconDividendes, IconObjectifs, IconPatrimoine, IconRapport, IconSalaire, IconSynthese } from './icons'
 import MenuPlusSheet from './MenuPlusSheet'
 
 const ICONES = {
@@ -12,6 +12,7 @@ const ICONES = {
   Dividendes: IconDividendes,
   Budget: IconBudget,
   Rapport: IconRapport,
+  Salaire: IconSalaire,
 } as const
 
 // Jusqu'à 4 écrans de consultation en accès direct + toujours une entrée "Plus"

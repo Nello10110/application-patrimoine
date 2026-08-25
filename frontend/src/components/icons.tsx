@@ -84,6 +84,16 @@ export function IconBudget({ className }: IconProps) {
   )
 }
 
+export function IconSalaire({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="2.5" y="6" width="15" height="9" rx="1.4" />
+      <circle cx="10" cy="10.5" r="2.3" />
+      <path d="M5 6 V4.5 H15 V6" />
+    </svg>
+  )
+}
+
 export function IconImport({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

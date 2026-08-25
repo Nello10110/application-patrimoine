@@ -10,6 +10,7 @@ import {
   IconObjectifs,
   IconPatrimoine,
   IconRapport,
+  IconSalaire,
   IconSynthese,
 } from './icons'
 import MenuCompte from './MenuCompte'
@@ -23,6 +24,7 @@ const ICONES = {
   Dividendes: IconDividendes,
   Budget: IconBudget,
   Rapport: IconRapport,
+  Salaire: IconSalaire,
 } as const
 
 /** Barre latérale verticale repliable (backlog 2.K.2), remplace l'ancien en-tête
