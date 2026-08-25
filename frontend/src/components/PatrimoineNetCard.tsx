@@ -154,6 +154,14 @@ export default function PatrimoineNetCard({ historiquePortefeuille }: Patrimoine
               <Legend wrapperStyle={{ fontSize: 11 }} />
             </PieChart>
           </ResponsiveContainer>
+          <ul className="divide-y divide-bordure border-t border-bordure pt-2">
+            {patrimoine.repartition_par_classe.map((item) => (
+              <li key={item.categorie} className="flex items-center justify-between py-1.5 text-sm">
+                <span className="text-texte">{item.categorie}</span>
+                <span className="font-medium text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </Card>

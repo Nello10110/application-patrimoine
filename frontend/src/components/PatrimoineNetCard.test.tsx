@@ -117,7 +117,7 @@ describe('PatrimoineNetCard', () => {
     expect(screen.getByText('180 000 €')).toBeInTheDocument()
   })
 
-  it('affiche un camembert de répartition par type d\'investissement quand renseignée', async () => {
+  it('affiche un camembert ET la liste détaillée (montants exacts) de la répartition par type d\'investissement (retour utilisateur : garder les deux)', async () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(
       patrimoine({
         actifs_totaux: 300000,
@@ -135,6 +135,10 @@ describe('PatrimoineNetCard', () => {
     // un test manuel en conditions réelles (cf. vérification de cette fonctionnalité).
     await screen.findByText('Par type d\'investissement')
     expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+
+    // La liste détaillée d'origine reste affichée en plus du camembert, pas remplacée.
+    expect(screen.getByText('250 000 €')).toBeInTheDocument()
+    expect(screen.getByText('50 000 €')).toBeInTheDocument()
   })
 
   it('n\'affiche pas de camembert quand la répartition par classe est vide', async () => {
