@@ -1,0 +1,45 @@
+# Déploiement sur le homelab distant à partir des images DÉJÀ CONSTRUITES par la CI
+# (`.github/workflows/docker-publish.yml`, publiées sur ghcr.io à chaque push sur
+# main) — jamais de build sur cette machine. Voir docs/MANUEL_EXPLOITATION.md
+# § « Images pré-construites (CI GitHub Actions) » pour le mode d'emploi complet
+# (génération des clés, connexion au registre privé...).
+#
+#   docker login ghcr.io -u <utilisateur> -p <jeton d'accès personnel, read:packages>
+#   docker compose -f compose-homelab.yaml pull
+#   docker compose -f compose-homelab.yaml up -d
+#
+# Ports liés à 0.0.0.0 (pas 127.0.0.1 comme compose-exemple.yaml) : joignable
+# depuis n'importe quel appareil du réseau local (ex. http://192.168.x.x:8080),
+# choix assumé pour un usage quotidien. Reste néanmoins injoignable depuis
+# internet tant que le routeur/pare-feu du homelab ne redirige pas ces ports —
+# une décision qui reste entièrement à la charge de l'exploitant, jamais faite
+# par ce fichier.
+
+services:
+  backend:
+    image: ghcr.io/nello10110/application-patrimoine-backend:latest
+    environment:
+      PATRIMOINE_DB: /app/data/patrimoine.db
+      # Générer une fois chacune, à conserver précieusement (les perdre rend les
+      # sauvegardes chiffrées et le contenu protégé irrécupérables) :
+      #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      PATRIMOINE_SECRET_KEY: "REMPLACER_PAR_UNE_VRAIE_CLE_FERNET"
+      PATRIMOINE_BACKUP_KEY: "REMPLACER_PAR_UNE_AUTRE_VRAIE_CLE_FERNET"
+    volumes:
+      - patrimoine_data:/app/data
+      - patrimoine_sauvegardes:/app/sauvegardes
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/nello10110/application-patrimoine-frontend:latest
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  patrimoine_data:
+  patrimoine_sauvegardes:

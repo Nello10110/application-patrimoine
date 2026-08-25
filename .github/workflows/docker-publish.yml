@@ -1,0 +1,47 @@
+name: Docker publish
+
+# Construit et publie les deux images (backend, frontend) sur GitHub Container
+# Registry a chaque push sur main -- "deja build" pour le deploiement homelab
+# (compose-homelab.yaml les tire au lieu de les construire, cf.
+# docs/MANUEL_EXPLOITATION.md). Depot prive -> images privees par defaut.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resout le proprietaire en minuscules (exige par GHCR)
+        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build et push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-backend:latest
+            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-backend:${{ github.sha }}
+
+      - name: Build et push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-frontend:latest
+            ghcr.io/${{ env.OWNER_LC }}/application-patrimoine-frontend:${{ github.sha }}

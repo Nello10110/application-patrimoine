@@ -1732,8 +1732,25 @@ le changement CORS (aucune régression sur le comportement de dev par défaut).
 **Hors périmètre de cet incrément, assumé** : reverse proxy/HTTPS et exposition publique
 (explicitement refusés par l'utilisateur pour l'instant — cf. § 2.L.2 pour la connexion SSO déjà
 prête pour ce jour-là), pas de `.env`/`env_file` séparé (un seul fichier auto-porteur avec
-placeholders commentés, conforme à la demande d'un exemple simple), pas de CI/registry d'images
-(build local uniquement, cohérent avec un usage homelab mono-machine).
+placeholders commentés, conforme à la demande d'un exemple simple). Le point « pas de CI/registry
+d'images » a depuis été rouvert et livré, cf. ci-dessous.
+
+**Extension le même jour (25/08/2026) — CI GitHub Actions + déploiement homelab distant.** Demande
+directe de suivi : déployer sur un homelab **distant** sans y construire les images. Deux décisions
+actées avec l'utilisateur avant implémentation : (1) le homelab expose les ports sur son réseau
+local (`0.0.0.0`, pas `127.0.0.1`) pour un usage quotidien réel — l'exposition à internet reste
+entièrement décidée par son routeur, jamais par Docker ; (2) les images restent **privées** sur
+GHCR, cohérent avec le dépôt GitHub déjà privé (confirmé par `gh repo view`), au prix d'une
+authentification unique (`docker login ghcr.io`, jeton personnel `read:packages`) sur le homelab.
+
+Livré : `.github/workflows/docker-publish.yml` (construit et pousse les deux images sur
+`ghcr.io/nello10110/application-patrimoine-{backend,frontend}` à chaque push sur `main`, tags
+`latest` + SHA du commit pour un rollback manuel possible ; conversion du nom du propriétaire en
+minuscules, exigée par GHCR) ; `compose-homelab.yaml` (même structure que `compose-exemple.yaml`,
+`image:` au lieu de `build:`, ports sans IP hôte précisée donc `0.0.0.0`). Syntaxe validée
+(`docker compose -f compose-homelab.yaml config`) ; l'exécution réelle de la CI et le
+`docker login`/`pull` depuis le vrai homelab restent à confirmer par l'utilisateur (machine hors de
+portée de cet environnement de développement).
 
 ---
 ## 3. Hors périmètre (assumé)
