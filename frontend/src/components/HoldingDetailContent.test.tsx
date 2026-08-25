@@ -221,6 +221,27 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     expect(within(lignes[0]).getByText('220 000,00 €')).toBeInTheDocument()
     expect(within(lignes[1]).getByText('200 000,00 €')).toBeInTheDocument()
   })
+
+  it("affiche un graphique d'évolution dès que l'historique compte au moins deux points (retour utilisateur 25/08)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
+      { date_valeur: '2025-01-01T00:00:00', valeur: 200000 },
+      { date_valeur: '2026-01-01T00:00:00', valeur: 220000 },
+    ])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+
+    await screen.findByText('Historique de valorisation')
+    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+  })
+
+  it("n'affiche pas de graphique pour un unique point d'historique (rien à tracer)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+
+    await screen.findByText('Historique de valorisation')
+    expect(document.querySelector('.recharts-responsive-container')).not.toBeInTheDocument()
+  })
 })
 
 describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2.S.1)', () => {

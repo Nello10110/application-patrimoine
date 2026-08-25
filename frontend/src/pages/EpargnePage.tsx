@@ -6,6 +6,7 @@ import { AjoutValorisationForm, ValorisationHistoriqueCard } from '../components
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
+import Modale from '../components/Modale'
 import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
@@ -28,14 +29,86 @@ function formulaireVierge(): FormulaireCompte {
   return { nom: '', type_actif: OPTIONS_EPARGNE[0]?.value ?? '', valeur_estimee: '', versement_mensuel: '' }
 }
 
+/** Formulaire d'édition du nom et du versement mensuel d'un compte (backlog 2.S.1,
+ * retour utilisateur du 25/08 : rien ne permettait de corriger un versement mensuel
+ * une fois déclaré). Ne touche jamais à `valeur_estimee`/`date_valeur_estimee` — ces
+ * champs passent uniquement par « Ajouter une valorisation », pour ne jamais casser
+ * la cohérence de l'historique daté. */
+function ModifierCompteForm({ holding, onSaved, onCancel }: { holding: Holding; onSaved: (h: Holding) => void; onCancel: () => void }) {
+  const [nom, setNom] = useState(holding.nom ?? '')
+  const [versementMensuel, setVersementMensuel] = useState(holding.versement_mensuel !== null ? String(holding.versement_mensuel) : '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      const h = await api.updateHolding(holding.id, {
+        nom: nom.trim() || null,
+        versement_mensuel: versementMensuel ? Number(versementMensuel) : null,
+      })
+      onSaved(h)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+        Nom du compte
+        <input
+          type="text"
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+          className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+        Versement mensuel (€)
+        <input
+          type="number"
+          step="any"
+          min={0}
+          value={versementMensuel}
+          onChange={(e) => setVersementMensuel(e.target.value)}
+          placeholder="optionnel"
+          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={saving}
+        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+      >
+        {saving ? 'Enregistrement...' : 'Enregistrer'}
+      </button>
+      <button type="button" onClick={onCancel} className="text-sm font-medium text-texte-attenue hover:text-texte">
+        Annuler
+      </button>
+      {error && <span className="text-sm text-negatif">{error}</span>}
+    </form>
+  )
+}
+
 /** Une carte "compte" (backlog 2.S.1) : valeur actuelle, versement mensuel déclaré,
  * historique daté et ajout rapide d'un point — gère son propre historique (requête
  * indépendante par compte, comme `DetenteursSection`/`useImmobilierDetail` pour la
  * fiche détaillée), pour ne pas coupler le chargement de tous les comptes entre eux. */
-function CompteEpargneCard({ holding, onChanged }: { holding: Holding; onChanged: () => void }) {
+function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding; onChanged: () => void; onDeleted: () => void }) {
   const { montantsMasques } = usePreferencesAffichage()
   const [historique, setHistorique] = useState<ValuationHistoryPoint[]>([])
   const [ouvert, setOuvert] = useState(false)
+  const [edition, setEdition] = useState(false)
+  const [confirmSuppression, setConfirmSuppression] = useState(false)
+  const [suppression, setSuppression] = useState(false)
+  const [erreurSuppression, setErreurSuppression] = useState<string | null>(null)
+  const [nomActuel, setNomActuel] = useState(holding.nom)
+  const [versementActuel, setVersementActuel] = useState(holding.versement_mensuel)
   const [valeurActuelle, setValeurActuelle] = useState(holding.valeur_estimee)
   const [dateValeurActuelle, setDateValeurActuelle] = useState(holding.date_valeur_estimee)
 
@@ -55,18 +128,45 @@ function CompteEpargneCard({ holding, onChanged }: { holding: Holding; onChanged
     onChanged()
   }
 
+  function handleCompteModifie(h: Holding) {
+    setNomActuel(h.nom)
+    setVersementActuel(h.versement_mensuel)
+    setEdition(false)
+    onChanged()
+  }
+
+  async function handleSupprimer() {
+    setSuppression(true)
+    setErreurSuppression(null)
+    try {
+      await api.deleteHolding(holding.id)
+      onDeleted()
+    } catch (err) {
+      setErreurSuppression((err as Error).message)
+      setSuppression(false)
+    }
+  }
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-2">
         <div>
           <Link to={`/patrimoine/${encodeURIComponent(holding.ticker)}`} className="text-sm font-medium text-texte hover:underline">
-            {holding.nom ?? holding.ticker}
+            {nomActuel ?? holding.ticker}
           </Link>
           <p className="text-xs text-texte-attenue">{libelleType(holding.type_actif)}</p>
         </div>
-        <button type="button" onClick={() => setOuvert((v) => !v)} className="text-sm font-medium text-accent hover:underline">
-          {ouvert ? 'Fermer' : 'Ajouter une valorisation'}
-        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          <button type="button" onClick={() => setEdition((v) => !v)} className="text-sm font-medium text-accent hover:underline">
+            {edition ? 'Fermer' : 'Modifier'}
+          </button>
+          <button type="button" onClick={() => setOuvert((v) => !v)} className="text-sm font-medium text-accent hover:underline">
+            {ouvert ? 'Fermer' : 'Ajouter une valorisation'}
+          </button>
+          <button type="button" onClick={() => setConfirmSuppression(true)} className="text-sm font-medium text-negatif hover:underline">
+            Supprimer
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -77,11 +177,15 @@ function CompteEpargneCard({ holding, onChanged }: { holding: Holding; onChanged
         </div>
         <div>
           <p className="text-xs text-texte-attenue">Versement mensuel</p>
-          <p className="font-medium text-texte">
-            {holding.versement_mensuel !== null ? formatEuro(holding.versement_mensuel, 2, montantsMasques) : '—'}
-          </p>
+          <p className="font-medium text-texte">{versementActuel !== null ? formatEuro(versementActuel, 2, montantsMasques) : '—'}</p>
         </div>
       </div>
+
+      {edition && (
+        <div className="mt-4 border-t border-bordure pt-4">
+          <ModifierCompteForm holding={holding} onSaved={handleCompteModifie} onCancel={() => setEdition(false)} />
+        </div>
+      )}
 
       {ouvert && (
         <div className="mt-4 border-t border-bordure pt-4">
@@ -92,6 +196,39 @@ function CompteEpargneCard({ holding, onChanged }: { holding: Holding; onChanged
       <div className="mt-4">
         <ValorisationHistoriqueCard historique={historique} />
       </div>
+
+      {confirmSuppression && (
+        <Modale onClose={() => setConfirmSuppression(false)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+          {({ titleId }) => (
+            <>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">
+                Supprimer ce compte ?
+              </h2>
+              <p className="mt-2 text-sm text-texte">
+                Le compte <span className="font-medium text-texte">{nomActuel ?? holding.ticker}</span> et tout son historique de
+                valorisation seront définitivement supprimés.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmSuppression(false)}
+                  disabled={suppression}
+                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSupprimer}
+                  disabled={suppression}
+                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                >
+                  {suppression ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+              {erreurSuppression && <p className="mt-2 text-sm text-negatif">{erreurSuppression}</p>}
+            </>
+          )}
+        </Modale>
+      )}
     </Card>
   )
 }
@@ -275,7 +412,7 @@ export default function EpargnePage() {
 
       <div className="space-y-4">
         {comptes.map((h) => (
-          <CompteEpargneCard key={h.id} holding={h} onChanged={charger} />
+          <CompteEpargneCard key={h.id} holding={h} onChanged={charger} onDeleted={charger} />
         ))}
       </div>
     </div>

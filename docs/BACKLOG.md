@@ -1880,6 +1880,18 @@ suites complètes : 803 passés) + 17 tests frontend nouveaux (`EpargnePage.test
 `HoldingDetailContent.test.tsx`, `PortefeuillePage.test.tsx`, `SimulateurPage.test.tsx`,
 `format.test.ts` ; suite complète : 426 passés), `tsc -b`/`oxlint`/`npm run build` propres.
 
+**Retour utilisateur après premier usage réel (25/08/2026), trois manques corrigés le jour même** :
+aucun moyen de supprimer un compte Épargne créé par erreur ni de corriger un versement mensuel mal
+saisi (les deux réutilisent les routes `PATCH`/`DELETE /portfolio/holdings/{id}` déjà existantes pour
+toute ligne du portefeuille, jamais la route `valorisation` qui reste strictement réservée à
+`valeur_estimee`/`date_valeur_estimee`) ; et aucun graphique visuel de l'évolution — seul un tableau
+existait, ce qui donnait l'impression qu'un point antidaté n'était « pas pris en compte » alors qu'il
+l'était bien (vérifié dès la première livraison), juste invisible faute de graphique. Un `LineChart`
+partagé (`ValorisationHistoriqueCard`) s'affiche désormais dès 2 points d'historique, aussi bien sur
+l'écran Épargne que sur la fiche détaillée. +3 tests frontend nouveaux, suite complète toujours au vert
+(430 passés), `tsc -b`/`oxlint`/`npm run build` propres. Aucun changement backend nécessaire (routes
+déjà existantes).
+
 ---
 ## 3. Hors périmètre (assumé)
 

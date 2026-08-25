@@ -170,6 +170,14 @@ mise à jour, versement mensuel déclaré, et un petit historique daté.
   valeur initiale et un versement mensuel dès la création. Le Véhicule n'apparaît pas ici (il reste
   dans Portefeuille, onglet « Immobilier & Épargne ») — sa valeur décote plutôt qu'elle n'épargne, il
   rejoindra plus tard une catégorie séparée aux côtés de l'immobilier.
+- **« Modifier »** sur un compte : corrige son nom et/ou son versement mensuel (jamais la valeur
+  actuelle ni son historique — ça passe uniquement par « Ajouter une valorisation », pour ne jamais
+  fausser l'historique daté).
+- **« Supprimer »** sur un compte : demande confirmation avant de retirer définitivement le compte et
+  tout son historique de valorisation.
+- **Graphique d'évolution** : dès qu'un compte a au moins deux points d'historique, un petit graphique
+  trace leur évolution (en plus du tableau daté) — aussi bien sur cette liste que sur la fiche
+  détaillée du compte.
 
 ## Écran Dividendes
 

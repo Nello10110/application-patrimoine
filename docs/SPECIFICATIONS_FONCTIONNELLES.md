@@ -544,6 +544,18 @@ aux côtés de l'immobilier) ; ces 5 types restent aussi visibles dans Portefeui
   dernière mise à jour, versement mensuel, mini-historique, action rapide « Ajouter une valorisation » ;
   formulaire « + Ajouter un compte » réutilisant `POST /portfolio/holdings` (quantité fixée à 1, même
   convention que l'immobilier/l'assurance-vie).
+- **Modifier/Supprimer un compte** (retour utilisateur du 25/08, après premier usage réel) : chaque
+  carte expose « Modifier » (nom + `versement_mensuel` via `PATCH /portfolio/holdings/{id}`, jamais
+  `valeur_estimee`/`date_valeur_estimee` — ces deux champs ne passent QUE par la route `valorisation`
+  pour ne jamais casser la cohérence de l'historique daté) et « Supprimer » (confirmation obligatoire,
+  `DELETE /portfolio/holdings/{id}`, réutilise les routes déjà existantes pour toute ligne du
+  portefeuille — aucune route dédiée à créer).
+- **Graphique d'évolution** (même retour du 25/08) : `ValorisationHistoriqueCard` (partagée entre la
+  fiche détaillée et l'écran Épargne) affiche un `LineChart` au-dessus du tableau dès que l'historique
+  compte au moins deux points — `historique` est déjà trié chronologiquement par
+  `immobilier_service.historique_valorisation` (`ORDER BY date_valeur`), directement exploitable sans
+  retri ; le tableau en dessous garde son propre tri inverse (le plus récent en premier) sans affecter
+  l'ordre du graphique.
 
 ## 4. Modèle de données (tables principales)
 

@@ -1,5 +1,5 @@
 import { MemoryRouter } from 'react-router-dom'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
@@ -9,6 +9,8 @@ vi.mock('../api/client', () => ({
   api: {
     listHoldings: vi.fn(),
     createHolding: vi.fn(),
+    updateHolding: vi.fn(),
+    deleteHolding: vi.fn(),
     getHoldingValuationHistory: vi.fn().mockResolvedValue([]),
     setHoldingValorisation: vi.fn(),
   },
@@ -147,5 +149,42 @@ describe('EpargnePage (backlog 2.S.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
 
     await vi.waitFor(() => expect(api.setHoldingValorisation).toHaveBeenCalledWith('AV1', { valeur: 10500, date: '2026-02-01' }))
+  })
+
+  it('modifier le nom et le versement mensuel appelle updateHolding puis met à jour la carte (retour utilisateur 25/08)', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holding()])
+    vi.mocked(api.updateHolding).mockResolvedValue(holding({ nom: 'Assurance-vie Renommée', versement_mensuel: 350 }))
+
+    renderPage()
+    await screen.findByText('Assurance-vie Boursorama')
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+
+    fireEvent.change(screen.getByLabelText('Nom du compte'), { target: { value: 'Assurance-vie Renommée' } })
+    fireEvent.change(screen.getByLabelText('Versement mensuel (€)'), { target: { value: '350' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() =>
+      expect(api.updateHolding).toHaveBeenCalledWith(1, { nom: 'Assurance-vie Renommée', versement_mensuel: 350 }),
+    )
+    expect(await screen.findByText('Assurance-vie Renommée')).toBeInTheDocument()
+    expect(screen.getByText('350,00 €')).toBeInTheDocument()
+  })
+
+  it('supprimer un compte demande confirmation avant deleteHolding (retour utilisateur 25/08)', async () => {
+    vi.mocked(api.listHoldings).mockResolvedValueOnce([holding()]).mockResolvedValueOnce([])
+    vi.mocked(api.deleteHolding).mockResolvedValue({ ok: true })
+
+    renderPage()
+    await screen.findByText('Assurance-vie Boursorama')
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+
+    const boiteDialogue = await screen.findByRole('dialog')
+    await within(boiteDialogue).findByText('Supprimer ce compte ?')
+    expect(api.deleteHolding).not.toHaveBeenCalled()
+
+    fireEvent.click(within(boiteDialogue).getByRole('button', { name: 'Supprimer' }))
+
+    await vi.waitFor(() => expect(api.deleteHolding).toHaveBeenCalledWith(1))
+    await vi.waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))
   })
 })

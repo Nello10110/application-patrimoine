@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { Detenteur, Holding, HoldingDetail, ValuationHistoryPoint } from '../api/types'
 import Card from './Card'
@@ -339,11 +339,33 @@ export function ValorisationHistoriqueCard({ historique }: { historique: Valuati
   const { montantsMasques } = usePreferencesAffichage()
   if (historique.length === 0) return null
 
+  // `historique` est déjà trié chronologiquement par le backend (`immobilier_service.
+  // historique_valorisation`, ORDER BY date_valeur) : directement exploitable par le
+  // graphique sans retri. Le tableau ci-dessous l'inverse séparément pour son propre
+  // affichage (le plus récent en premier), sans affecter cet ordre.
+  const donneesGraphique = historique.map((p) => ({ date: p.date_valeur, Valeur: p.valeur }))
+
   return (
     <Card title="Historique de valorisation">
       <p className="mb-3 text-xs text-texte-attenue">
         Chaque estimation est datée et conservée — l'ancienne n'est jamais écrasée.
       </p>
+      {historique.length > 1 && (
+        <ResponsiveContainer width="100%" height={180} className="mb-4">
+          <LineChart data={donneesGraphique}>
+            <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
+            <XAxis dataKey="date" tickFormatter={(v) => formatDate(v)} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+            <YAxis
+              tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)}
+              width={80}
+              tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
+              stroke={COULEUR_AXE}
+            />
+            <Tooltip formatter={(v) => formatEuro(Number(v), 2, montantsMasques)} labelFormatter={(v) => formatDate(String(v))} {...STYLE_INFOBULLE} />
+            <Line type="monotone" dataKey="Valeur" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
