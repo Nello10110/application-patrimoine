@@ -5,6 +5,7 @@ import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { SkeletonTexte } from '../components/Skeleton'
+import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro, formatPct } from '../utils/format'
 import { bornesPeriode } from '../utils/periode'
@@ -184,6 +185,21 @@ export default function RapportPage() {
                   <p className="text-2xl font-semibold text-positif">{formatEuro(rapport.dividendes_percus, 2, montantsMasques)}</p>
                 </Card>
               </div>
+
+              <Card title="D'où vient l'évolution ?">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <StatTile label="Investi sur la période" value={formatEuro(rapport.montant_investi_periode, 0, montantsMasques)} />
+                  <StatTile
+                    label="Généré sur la période"
+                    value={rapport.gain_genere_periode !== null ? formatEuro(rapport.gain_genere_periode, 0, montantsMasques) : '—'}
+                    tone={rapport.gain_genere_periode === null ? 'neutral' : rapport.gain_genere_periode >= 0 ? 'good' : 'warning'}
+                  />
+                </div>
+                <p className="mt-3 text-sm text-texte-attenue">
+                  « Investi » : ce que vous avez vous-même ajouté (achats réels) sur la période. « Généré » : plus-value,
+                  dividendes et intérêts — ce que le portefeuille a produit de lui-même, distinct de l'argent ajouté.
+                </p>
+              </Card>
 
               <Card title="Plus gros mouvements de la période">
                 {rapport.plus_gros_mouvements.length === 0 ? (

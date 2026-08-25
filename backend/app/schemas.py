@@ -477,6 +477,12 @@ class RapportPeriode(BaseModel):
     valeur_debut_periode: float | None
     valeur_fin_periode: float | None
     evolution_pct: float | None
+    # Décomposition de l'évolution (backlog, demande directe 25/08/2026) : argent
+    # AJOUTÉ (achats réels sur la période) vs GÉNÉRÉ (plus-value + dividendes +
+    # intérêts, jamais confondus). `None` seulement si aucun historique de
+    # portefeuille n'existe encore sur la période (même condition qu'`evolution_pct`).
+    montant_investi_periode: float
+    gain_genere_periode: float | None
     dividendes_percus: float
     nombre_transactions: int
     plus_gros_mouvements: list[MouvementRapport]

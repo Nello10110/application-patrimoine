@@ -172,6 +172,8 @@ Rapport récapitulatif généré à la demande — rien n'est envoyé par courri
 
 Quel que soit le mode : valeur du portefeuille en fin de période, évolution sur la période (en vert si positive, en rouge sinon), dividendes perçus, et les cinq mouvements les plus importants (achats, ventes...). Généré à la demande à chaque changement de mode ou de dates.
 
+**« D'où vient l'évolution ? »** répond à la question « est-ce que mon patrimoine augmente parce que j'y mets de l'argent, ou parce qu'il en génère lui-même ? » : **Investi sur la période** (ce que tu as toi-même ajouté — tes achats réels) et **Généré sur la période** (plus-value, dividendes et intérêts — ce que le portefeuille a produit tout seul). Les deux s'additionnent pour expliquer l'évolution affichée juste au-dessus.
+
 ## Écran Salaire
 
 Réservé au propriétaire du compte. **Plusieurs salaires peuvent être ajoutés pour une même année** — un par revenu du foyer (toi, ton/ta conjoint·e, un complément...), chacun nommé librement et avec son propre taux d'imposition, puisque deux personnes du même foyer peuvent être imposées différemment.

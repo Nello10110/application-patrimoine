@@ -719,6 +719,10 @@ export interface RapportPeriode {
   valeur_debut_periode: number | null
   valeur_fin_periode: number | null
   evolution_pct: number | null
+  // Décomposition de l'évolution : argent AJOUTÉ (achats réels sur la période) vs
+  // GÉNÉRÉ (plus-value + dividendes + intérêts) — jamais confondus.
+  montant_investi_periode: number
+  gain_genere_periode: number | null
   dividendes_percus: number
   nombre_transactions: number
   plus_gros_mouvements: MouvementRapport[]

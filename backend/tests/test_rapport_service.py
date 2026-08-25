@@ -11,8 +11,13 @@ from app.services.rapport_service import compute_rapport_periode
 from .conftest import ID_UTILISATEUR_TEST, make_transaction
 
 
-def _points(*paires: tuple[str, float]) -> list[dict]:
-    return [{"date": d, "valeur_portefeuille": v, "valeur_investie": v} for d, v in paires]
+def _points(*paires: tuple[str, float], realise: dict[str, float] | None = None) -> list[dict]:
+    """`realise` : valeur cumulée de `valeur_realisee_cumulee` par date, pour les tests
+    qui vérifient la décomposition investi/généré — `0.0` par défaut (aucune vente/
+    dividende/intérêt dans le scénario), comportement inchangé pour les tests
+    existants qui ne s'y intéressent pas."""
+    realise = realise or {}
+    return [{"date": d, "valeur_portefeuille": v, "valeur_investie": v, "valeur_realisee_cumulee": realise.get(d, 0.0)} for d, v in paires]
 
 
 def test_evolution_pct_entre_debut_et_fin_de_periode(db, monkeypatch):
@@ -124,3 +129,93 @@ def test_periode_personnalisee_arbitraire(db, monkeypatch):
     assert rapport["valeur_debut_periode"] == 500.0
     assert rapport["valeur_fin_periode"] == 700.0
     assert rapport["nombre_transactions"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Décomposition investi/généré (demande directe, 25/08/2026)
+# ---------------------------------------------------------------------------
+
+
+def test_gain_genere_isole_lappreciation_de_largent_ajoute(db, monkeypatch):
+    """1000 € achetés pendant la période, valeur finale 1100 € : les 100 € d'écart
+    sont bien attribués au « généré », pas confondus avec l'argent ajouté."""
+    monkeypatch.setattr(
+        historical_performance_service,
+        "compute_portfolio_history",
+        lambda db_, user_id_: _points(("2026-07-01", 0.0), ("2026-07-31", 1100.0)),
+    )
+    make_transaction(db, transaction_id="achat", symbol="AAA", amount=-1000.0, date="2026-07-05")
+
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+
+    assert rapport["montant_investi_periode"] == 1000.0
+    assert rapport["gain_genere_periode"] == 100.0
+
+
+def test_gain_genere_inclut_le_delta_de_valeur_realisee(db, monkeypatch):
+    """Ventes/dividendes/intérêts de la période (`valeur_realisee_cumulee`) comptent
+    dans le généré, même si la valeur du portefeuille détenu n'a pas bougé."""
+    monkeypatch.setattr(
+        historical_performance_service,
+        "compute_portfolio_history",
+        lambda db_, user_id_: _points(
+            ("2026-07-01", 1000.0), ("2026-07-31", 1000.0), realise={"2026-07-01": 0.0, "2026-07-31": 50.0}
+        ),
+    )
+
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+
+    assert rapport["montant_investi_periode"] == 0.0
+    assert rapport["gain_genere_periode"] == 50.0
+
+
+def test_gain_genere_negatif_si_largent_ajoute_depasse_la_croissance(db, monkeypatch):
+    """Portefeuille resté plat malgré un apport de 200 € pendant la période : le
+    généré est bien négatif (sous-performance), pas masqué par l'apport."""
+    monkeypatch.setattr(
+        historical_performance_service,
+        "compute_portfolio_history",
+        lambda db_, user_id_: _points(("2026-07-01", 1000.0), ("2026-07-31", 1000.0)),
+    )
+    make_transaction(db, transaction_id="achat", symbol="AAA", amount=-200.0, date="2026-07-10")
+
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+
+    assert rapport["gain_genere_periode"] == -200.0
+
+
+def test_gain_genere_ne_recompte_pas_lachat_quand_la_periode_precede_le_premier_point(db, monkeypatch):
+    """Cas réel rencontré en vérification : période demandée à partir du 1er janvier,
+    mais le tout premier point d'historique tombe le 1er juin (date du premier
+    achat) — la position y est DÉJÀ achetée. `valeur_debut_periode` (affichage,
+    inchangé) retombe sur ce point pour rester "honnête" plutôt que vide, mais le
+    généré ne doit pas confondre ce repli avec une vraie valeur de départ : 1000 €
+    achetés + aucune appréciation de prix (position restée plate) + 13,5 € de
+    dividende doit donner 13,5 € généré, jamais -986,5 €."""
+    monkeypatch.setattr(
+        historical_performance_service,
+        "compute_portfolio_history",
+        lambda db_, user_id_: _points(
+            ("2026-06-01", 1000.0), ("2026-12-31", 1000.0), realise={"2026-06-01": 0.0, "2026-12-31": 13.5}
+        ),
+    )
+    make_transaction(db, transaction_id="achat", symbol="AAA", amount=-1000.0, date="2026-06-01")
+
+    rapport = compute_rapport_periode(db, "2026-01-01", "2026-12-31", ID_UTILISATEUR_TEST)
+
+    # Comportement d'affichage inchangé (evolution_pct existant, pas touché par le correctif).
+    assert rapport["valeur_debut_periode"] == 1000.0
+    assert rapport["evolution_pct"] == 0.0
+    # Le correctif : le généré isole bien le dividende, sans re-compter l'achat.
+    assert rapport["montant_investi_periode"] == 1000.0
+    assert rapport["gain_genere_periode"] == 13.5
+
+
+def test_gain_genere_none_sans_historique_mais_montant_investi_reste_calcule(db, monkeypatch):
+    monkeypatch.setattr(historical_performance_service, "compute_portfolio_history", lambda db_, user_id_: [])
+    make_transaction(db, transaction_id="achat", symbol="AAA", amount=-300.0, date="2026-07-10")
+
+    rapport = compute_rapport_periode(db, "2026-07-01", "2026-07-31", ID_UTILISATEUR_TEST)
+
+    assert rapport["gain_genere_periode"] is None
+    assert rapport["montant_investi_periode"] == 300.0

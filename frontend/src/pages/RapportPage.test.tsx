@@ -32,6 +32,8 @@ function rapport(overrides: Partial<RapportPeriode> = {}): RapportPeriode {
     valeur_debut_periode: 1000,
     valeur_fin_periode: 1100,
     evolution_pct: 10,
+    montant_investi_periode: 80,
+    gain_genere_periode: 20,
     dividendes_percus: 8.5,
     nombre_transactions: 3,
     plus_gros_mouvements: [{ date: '2026-07-15', type: 'BUY', symbol: 'AAA', nom: 'Titre AAA', montant: -500 }],
@@ -52,6 +54,23 @@ describe('RapportPage — mode mensuel (par défaut)', () => {
     expect(screen.getByText('+10.0%')).toBeInTheDocument()
     expect(screen.getByText('8,50 €')).toBeInTheDocument()
     expect(screen.getByText(/Titre AAA/)).toBeInTheDocument()
+  })
+
+  it("affiche la décomposition investi/généré de l'évolution", async () => {
+    render(<RapportPage />)
+
+    await screen.findByText("D'où vient l'évolution ?")
+    expect(screen.getByText('80 €')).toBeInTheDocument()
+    expect(screen.getByText('20 €')).toBeInTheDocument()
+  })
+
+  it("affiche un tiret quand le généré n'est pas calculable (aucun historique)", async () => {
+    vi.mocked(api.getRapportPeriode).mockResolvedValue(rapport({ gain_genere_periode: null }))
+
+    render(<RapportPage />)
+    await screen.findByText("D'où vient l'évolution ?")
+
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 
   it('recharge le rapport quand le mois sélectionné change, avec les bornes du mois entier', async () => {

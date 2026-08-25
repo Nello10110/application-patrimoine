@@ -1752,8 +1752,33 @@ minuscules, exigée par GHCR) ; `compose-homelab.yaml` (même structure que `com
 `docker login`/`pull` depuis le vrai homelab restent à confirmer par l'utilisateur (machine hors de
 portée de cet environnement de développement).
 
----
-## 3. Hors périmètre (assumé)
+#### R.3 — `mineur` · `S` · `P2` · `traité` (25/08/2026) — Décomposition investi/généré du Rapport
+
+Demande directe de l'utilisateur : sur l'écran Rapport, l'« évolution sur la période » (ex. +65 %)
+mélange deux choses très différentes — l'argent que l'utilisateur a lui-même ajouté (achats) et ce
+que le portefeuille a produit tout seul (plus-value, dividendes, intérêts). Voulait voir les deux
+séparément.
+
+**Livré et vérifié le 25/08/2026.** Nouvelle carte « D'où vient l'évolution ? » sur `/rapport` :
+`montant_investi_periode` (réutilise `performance_service.montant_investi_periode`, déjà écrite pour
+le taux d'épargne § 2.R.1) et `gain_genere_periode`, calculé avec la même identité algébrique que la
+réconciliation du graphique d'accueil (§ 2.J.1) — `valeur_portefeuille + valeur_realisee_cumulee -
+valeur_investie` — appliquée en delta sur la période plutôt qu'en cumulé depuis l'origine.
+
+**Bug trouvé et corrigé en vérification réelle, avant toute mise en production** : la fonction
+existante `_valeur_a_ou_avant` (qui sert à afficher `evolution_pct`) retombe délibérément sur le
+premier point connu quand la période demandée commence avant tout historique — comportement voulu
+pour CET usage (afficher 0 % plutôt qu'une case vide). Réutiliser cette même fonction pour la
+décomposition investi/généré produisait un résultat faux : un achat de 1000 € le même jour que le
+tout premier point d'historique, demandé sur une période commençant plus tôt (ex. rapport annuel,
+achat en juin), donnait -986,5 € de « généré » au lieu des 13,5 € de dividende réellement produits —
+l'achat de 1000 € était compté une seconde fois en négatif, parce que la valeur de départ reprenait à
+tort la valeur DÉJÀ investie du premier point. Corrigé par une nouvelle fonction dédiée
+(`_champ_strict_a_ou_avant`, `rapport_service.py`) qui retombe sur `0`, jamais sur le premier point,
+pour cette décomposition spécifiquement — `evolution_pct` reste inchangé, aucune régression sur son
+comportement déjà en production. Verrouillé par un test dédié reproduisant exactement ce scénario.
+
+12 tests backend (dont le test de régression ci-dessus) + 10 tests frontend au vert.
 
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
 
