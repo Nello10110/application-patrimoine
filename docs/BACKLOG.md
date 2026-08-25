@@ -1782,7 +1782,7 @@ comportement déjà en production. Verrouillé par un test dédié reproduisant 
 
 ### S. Épargne et actifs valorisés manuellement (nouveau, 25/08/2026)
 
-#### S.1 — `majeur` · `M` · `P2` · `en attente d'arbitrage` (25/08/2026) — Écran Épargne + historique de valorisation daté par l'utilisateur
+#### S.1 — `majeur` · `M` · `P2` · `non traité` (25/08/2026) — Écran Épargne + historique de valorisation daté par l'utilisateur
 
 Demande directe de l'utilisateur : les actifs boursiers/immobilier/crypto/obligations sont jugés
 bien traités, mais tout ce qui est valorisé manuellement — assurance-vie, PER, épargne retraite,
@@ -1815,30 +1815,36 @@ explicitement à construire le besoin ensemble plutôt qu'une exécution silenci
      l'immobilier malgré son nom, cf. sa propre docstring).
   3. **Aucun champ « versement mensuel récurrent »** n'existe nulle part sur ces lignes — à créer.
 
-**Proposition (à valider avec l'utilisateur avant tout développement)** :
-- Nouvel écran **Épargne**, regroupant compte courant, épargne réglementée, épargne salariale,
-  assurance-vie et PER (le véhicule est un cas limite, cf. question ouverte ci-dessous) — PAS
-  immobilier/SCPI (qui gardent leur fiche dédiée déjà livrée), ni « Autre » (résiduel). Présentation
-  en liste de « comptes » plutôt qu'un tableau façon portefeuille boursier : valeur courante, date de
-  dernière mise à jour, un point d'entrée rapide « ajouter une valorisation » (montant + date
-  choisie), petit graphique d'évolution par ligne.
-- Généraliser la fiche détaillée existante (aujourd'hui réservée à l'immobilier) à ces types plutôt
-  que de reconstruire un mécanisme séparé — même infrastructure, débridée.
-- Corriger le point 1 ci-dessus : chaque point d'historique (depuis le nouvel écran ou la fiche déjà
-  existante) porte désormais la date choisie par l'utilisateur, jamais figée à l'instant de la saisie.
-- Nouveau champ `versement_mensuel` par ligne (montant informatif, saisi par l'utilisateur — même
-  philosophie que `taux_pct`, jamais déduit automatiquement).
+**Décisions actées avec l'utilisateur le 25/08/2026** (les deux questions ouvertes ci-dessus) :
+1. **Le Véhicule reste hors de l'écran Épargne** — rapproché plus tard d'une future catégorie
+   « biens » aux côtés de l'immobilier (une valeur qui décote, pas qui épargne). L'écran Épargne se
+   limite à Compte courant / Épargne réglementée / Épargne salariale / Assurance-vie / PER.
+2. **Le « versement mensuel » par actif entre dans le calcul du Simulateur/FIRE**, en s'ADDITIONNANT
+   au `versement_mensuel_suggere` déjà prérempli depuis le Budget (§ 2.N.4) — jamais en le
+   remplaçant. Vérifié par lecture directe de `budget_service.compute_summary`/
+   `compute_jonction_patrimoine` avant de trancher : `disponible = entrées − TOUTES les sorties`
+   (chaque mouvement négatif, quelle que soit sa catégorie) — un virement réel vers une assurance-vie
+   déjà suivi dans le Budget est donc déjà soustrait de `disponible`, jamais compté une seconde fois
+   si on ajoute par-dessus la somme des `versement_mensuel` déclarés sur les actifs Épargne. Les deux
+   sources restent non chevauchantes par construction : l'une mesure l'argent qui part déjà
+   régulièrement vers l'épargne (déclaré), l'autre ce qu'il reste de disponible, non encore alloué.
 
-**Deux questions ouvertes, à trancher avec l'utilisateur avant tout développement** :
-1. Le regroupement Compte courant / Épargne réglementée / Épargne salariale / Assurance-vie / PER
-   dans un même écran « Épargne » convient-il ? Et le Véhicule : dans ce même écran, ou plus proche
-   d'une future catégorie « biens » aux côtés de l'immobilier (a une valeur qui décote, pas qui
-   épargne) ?
-2. Le « versement mensuel » doit-il rester purement informatif (affiché sur la fiche/l'écran), ou
-   doit-il entrer dans le calcul du Simulateur/FIRE ? Le Simulateur préremplit déjà son propre
-   versement mensuel depuis le Budget (mouvements bancaires, backlog § 2.N.4) — ajouter cette
-   nouvelle source exige de décider si les deux s'additionnent, si l'une remplace l'autre, ou si
-   elles restent délibérément séparées pour l'instant (risque de double-comptage sinon).
+**Plan d'implémentation** :
+- Nouvel écran **Épargne** (Compte courant, Épargne réglementée, Épargne salariale, Assurance-vie,
+  PER — PAS immobilier/SCPI qui gardent leur fiche dédiée déjà livrée, ni Véhicule/Autre) : liste de
+  « comptes » plutôt qu'un tableau façon portefeuille boursier — valeur courante, date de dernière
+  mise à jour, point d'entrée rapide « ajouter une valorisation » (montant + date choisie), petit
+  graphique d'évolution par ligne.
+- Généraliser la fiche détaillée existante (aujourd'hui réservée à l'immobilier,
+  `HoldingDetailContent.tsx`) à ces cinq types plutôt que de reconstruire un mécanisme séparé — même
+  infrastructure, débridée (le backend le permet déjà).
+- Corriger le bug de date figée à « maintenant » : la route (`routers/portfolio.py`) doit transmettre
+  une date choisie par le client à `immobilier_service.enregistrer_point_historique` (qui l'accepte
+  déjà), au lieu de `datetime.now()` codé en dur.
+- Nouveau champ `versement_mensuel` par ligne (montant déclaré par l'utilisateur, même philosophie
+  que `taux_pct` — jamais déduit automatiquement).
+- `budget_service.compute_jonction_patrimoine` (ou son appelant côté Simulateur) additionne la somme
+  des `versement_mensuel` des actifs Épargne du foyer à `versement_mensuel_suggere` avant préremplissage.
 
 ---
 ## 3. Hors périmètre (assumé)
