@@ -292,7 +292,9 @@ Au-delà du graphique, un **tableau de détail** (bascule Annuelle/Mensuelle) li
 ### 3.16 Hiérarchie de lecture du tableau de bord (backlog § 2.K.6)
 
 Trois temps : **le chiffre** (`PatrimoineNetCard`, patrimoine net en très grand — jeton `text-display`
-du système de design, § 2.K.1 — avec la répartition actifs/passifs juste en dessous), **la courbe**
+du système de design, § 2.K.1 — avec la répartition actifs/passifs juste en dessous, puis un camembert
+« Par type d'investissement » sur `repartition_par_classe` dès qu'elle n'est pas vide — pourcentages
+toujours affichés, contrairement aux montants en euros qui respectent le masquage), **la courbe**
 (`PortfolioHistoryChart`, évolution du portefeuille financier), **le détail** (tout le reste :
 indicateurs de risque, répartitions géo/sectorielles réelles, qualité des données, exposition
 consolidée tous actifs — § 3.20, coût de gestion, répartition par compte) regroupé dans un composant

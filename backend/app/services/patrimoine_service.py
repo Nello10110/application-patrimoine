@@ -115,7 +115,7 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     `part_estimee_manuelle_pct` (part du patrimoine total dont la géo est ainsi
     estimée plutôt que mesurée) matérialise cette distinction sans dupliquer tout
     l'encart de qualité des données existant (`analysis_service.compute_data_quality`,
-    qui reste affiché tel quel sur l'écran Répartition pour le seul financier).
+    qui reste affiché tel quel sur le Tableau de bord pour le seul financier).
 
     Concentration : « premier émetteur » est ici la plus grosse LIGNE du portefeuille
     (pas un vrai agrégat multi-fonds par émetteur réel — hors de portée sans

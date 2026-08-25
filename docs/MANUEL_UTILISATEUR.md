@@ -198,8 +198,9 @@ courbe, puis le détail replié) :
 
 1. **Le chiffre** — **Patrimoine net**, en tout premier, affiché en très grand : actifs totaux
    (portefeuille financier + immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicules), passifs
-   (somme des emprunts), patrimoine net, et une répartition par grande classe d'actif juste en
-   dessous. Sous le chiffre, une ligne de variation (« +10,0 % depuis le début du suivi », ou selon
+   (somme des emprunts), patrimoine net, puis un **camembert « Par type d'investissement »**
+   (Actions, ETF/Fonds, Immobilier, Crypto...) — cliquer/survoler une part affiche le montant exact
+   et son pourcentage. Sous le chiffre, une ligne de variation (« +10,0 % depuis le début du suivi », ou selon
    la Période active dans la barre de contrôles) — elle porte sur le **portefeuille suivi** (le même
    que la courbe ci-dessous), pas sur le patrimoine net lui-même, ce que la ligne précise
    explicitement. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.

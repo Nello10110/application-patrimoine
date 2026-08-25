@@ -117,7 +117,7 @@ describe('PatrimoineNetCard', () => {
     expect(screen.getByText('180 000 €')).toBeInTheDocument()
   })
 
-  it('affiche la répartition par classe quand renseignée', async () => {
+  it('affiche un camembert de répartition par type d\'investissement quand renseignée', async () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(
       patrimoine({
         actifs_totaux: 300000,
@@ -130,8 +130,19 @@ describe('PatrimoineNetCard', () => {
     )
     renderCard()
 
-    await screen.findByText('Immobilier')
-    expect(screen.getByText('Actions')).toBeInTheDocument()
+    // Recharts ne rend pas son SVG dans jsdom (dimensions à 0) : le conteneur est le
+    // signal fiable disponible ici, le contenu du camembert lui-même est couvert par
+    // un test manuel en conditions réelles (cf. vérification de cette fonctionnalité).
+    await screen.findByText('Par type d\'investissement')
+    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+  })
+
+  it('n\'affiche pas de camembert quand la répartition par classe est vide', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 300000, patrimoine_net: 300000, repartition_par_classe: [] }))
+    renderCard()
+
+    await screen.findByText('Actifs totaux')
+    expect(screen.queryByText('Par type d\'investissement')).not.toBeInTheDocument()
   })
 })
 

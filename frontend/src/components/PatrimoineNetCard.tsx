@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { api } from '../api/client'
 import type { PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import { bornesPeriode, libellePeriodeEcoulee, variationSurPeriode } from '../utils/periode'
+import { STYLE_INFOBULLE } from '../utils/chartTheme'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
+
+const COULEURS_CLASSE = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#db2777', '#4b5563', '#0d9488', '#9333ea', '#ea580c']
 
 // Lentille (backlog 2.K.3) : quelle valeur devient la tuile principale, avec son
 // libellé et son ton — Net reste le comportement d'origine (tone "good", c'est LE
@@ -123,14 +127,34 @@ export default function PatrimoineNetCard({ historiquePortefeuille }: Patrimoine
       </div>
 
       {patrimoine.repartition_par_classe.length > 0 && (
-        <ul className="mt-4 divide-y divide-bordure border-t border-bordure pt-2">
-          {patrimoine.repartition_par_classe.map((item) => (
-            <li key={item.categorie} className="flex items-center justify-between py-1.5 text-sm">
-              <span className="text-texte">{item.categorie}</span>
-              <span className="font-medium text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-4 border-t border-bordure pt-2">
+          <p className="pt-2 text-xs font-medium uppercase tracking-wide text-texte-attenue">Par type d'investissement</p>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+              <Pie
+                data={patrimoine.repartition_par_classe}
+                dataKey="valeur"
+                nameKey="categorie"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label={(d) => `${((d.value / patrimoine.actifs_totaux) * 100).toFixed(0)}%`}
+              >
+                {patrimoine.repartition_par_classe.map((_, i) => (
+                  <Cell key={i} fill={COULEURS_CLASSE[i % COULEURS_CLASSE.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value, _name, item) => [
+                  `${formatEuro(Number(value), 0, montantsMasques)} (${((Number(value) / patrimoine.actifs_totaux) * 100).toFixed(1)}%)`,
+                  item?.payload?.categorie,
+                ]}
+                {...STYLE_INFOBULLE}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       )}
     </Card>
   )
