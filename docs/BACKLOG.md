@@ -1780,6 +1780,69 @@ comportement déjà en production. Verrouillé par un test dédié reproduisant 
 
 12 tests backend (dont le test de régression ci-dessus) + 10 tests frontend au vert.
 
+### S. Épargne et actifs valorisés manuellement (nouveau, 25/08/2026)
+
+#### S.1 — `majeur` · `M` · `P2` · `en attente d'arbitrage` (25/08/2026) — Écran Épargne + historique de valorisation daté par l'utilisateur
+
+Demande directe de l'utilisateur : les actifs boursiers/immobilier/crypto/obligations sont jugés
+bien traités, mais tout ce qui est valorisé manuellement — assurance-vie, PER, épargne retraite,
+épargne salariale, compte courant, véhicule — reste « pas top top ». Besoin reformulé : pouvoir
+indiquer, à la fréquence de son choix (pas une périodicité imposée), « à telle date, cet actif
+valait X € », construire ainsi un historique daté plutôt qu'une simple valeur courante écrasée, en
+tirer un petit graphique d'évolution par actif, pouvoir indiquer un versement mensuel récurrent
+(ex. assurance-vie alimentée chaque mois), et faire entrer tout ça dans les projections
+(Simulateur/FIRE). Éventuellement un écran séparé — l'utilisateur n'est pas sûr de la forme, demande
+explicitement à construire le besoin ensemble plutôt qu'une exécution silencieuse.
+
+**Audit du code existant avant toute proposition** (pour ne pas redemander ce qui existe déjà) :
+- Le modèle sait déjà presque tout faire côté base : 9 types valorisés manuellement
+  (`models.TYPES_ACTIF_PATRIMOINE_MANUEL` — `REAL_ESTATE`/`SCPI`/`LIFE_INSURANCE`/`PENSION`/
+  `OTHER_ASSET`/`CASH_ACCOUNT`/`REGULATED_SAVINGS`/`EMPLOYEE_SAVINGS`/`VEHICLE`), une vraie table
+  d'historique daté (`HoldingValuationHistory`, backlog § 2.M.3, jamais purgée), un taux annuel
+  informatif (`Holding.taux_pct` — intérêt épargne ou décote véhicule, jamais appliqué
+  automatiquement).
+- **Deux limites concrètes identifiées, précises** :
+  1. **La date de chaque point d'historique est toujours "maintenant"**, jamais choisie. Le service
+     (`immobilier_service.enregistrer_point_historique`) accepte pourtant bien une date arbitraire
+     en paramètre — c'est le routeur (`routers/portfolio.py`, `create_holding`/`update_holding`) qui
+     la câble en dur sur `datetime.now()`, sans jamais la faire remonter depuis le client. Impossible
+     aujourd'hui de saisir après coup « au 1er janvier, ça valait X ».
+  2. **Le graphique d'historique (et son chargement réseau) sont réservés à l'immobilier** —
+     `frontend/src/components/HoldingDetailContent.tsx`, `estImmobilier = detail.type_actif ===
+     'REAL_ESTATE'` conditionne tout (`useImmobilierDetail`, carte « Historique de valorisation »).
+     Assurance-vie/PER/compte courant/épargne/véhicule n'en bénéficient jamais alors que le backend
+     le permettrait déjà (`GET /holdings/{ticker}/immobilier-history` n'est pas réservé à
+     l'immobilier malgré son nom, cf. sa propre docstring).
+  3. **Aucun champ « versement mensuel récurrent »** n'existe nulle part sur ces lignes — à créer.
+
+**Proposition (à valider avec l'utilisateur avant tout développement)** :
+- Nouvel écran **Épargne**, regroupant compte courant, épargne réglementée, épargne salariale,
+  assurance-vie et PER (le véhicule est un cas limite, cf. question ouverte ci-dessous) — PAS
+  immobilier/SCPI (qui gardent leur fiche dédiée déjà livrée), ni « Autre » (résiduel). Présentation
+  en liste de « comptes » plutôt qu'un tableau façon portefeuille boursier : valeur courante, date de
+  dernière mise à jour, un point d'entrée rapide « ajouter une valorisation » (montant + date
+  choisie), petit graphique d'évolution par ligne.
+- Généraliser la fiche détaillée existante (aujourd'hui réservée à l'immobilier) à ces types plutôt
+  que de reconstruire un mécanisme séparé — même infrastructure, débridée.
+- Corriger le point 1 ci-dessus : chaque point d'historique (depuis le nouvel écran ou la fiche déjà
+  existante) porte désormais la date choisie par l'utilisateur, jamais figée à l'instant de la saisie.
+- Nouveau champ `versement_mensuel` par ligne (montant informatif, saisi par l'utilisateur — même
+  philosophie que `taux_pct`, jamais déduit automatiquement).
+
+**Deux questions ouvertes, à trancher avec l'utilisateur avant tout développement** :
+1. Le regroupement Compte courant / Épargne réglementée / Épargne salariale / Assurance-vie / PER
+   dans un même écran « Épargne » convient-il ? Et le Véhicule : dans ce même écran, ou plus proche
+   d'une future catégorie « biens » aux côtés de l'immobilier (a une valeur qui décote, pas qui
+   épargne) ?
+2. Le « versement mensuel » doit-il rester purement informatif (affiché sur la fiche/l'écran), ou
+   doit-il entrer dans le calcul du Simulateur/FIRE ? Le Simulateur préremplit déjà son propre
+   versement mensuel depuis le Budget (mouvements bancaires, backlog § 2.N.4) — ajouter cette
+   nouvelle source exige de décider si les deux s'additionnent, si l'une remplace l'autre, ou si
+   elles restent délibérément séparées pour l'instant (risque de double-comptage sinon).
+
+---
+## 3. Hors périmètre (assumé)
+
 Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un s'y ajoute.
 
 **Sortis du hors-périmètre :**
@@ -1837,6 +1900,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2, P.3 traités (2/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
 | **Hors lot — R.1** | Calculateur brut/net + taux d'épargne | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
+| **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **En attente d'arbitrage** — demande directe de l'utilisateur, deux questions ouvertes avant tout développement |
 
 **Pourquoi cet ordre.**
 
