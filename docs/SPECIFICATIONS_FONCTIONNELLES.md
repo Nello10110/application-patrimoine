@@ -154,10 +154,14 @@ Calculées à partir de la série hebdomadaire déjà produite par
   grille est traitée comme une sous-période — le flux net investi pendant cette semaine (variation de
   `valeur_investie`, cumulative) est retranché de la valeur de fin avant de calculer le rendement de
   cette sous-période, neutralisant l'effet du TIMING des versements. Cumulé (produit géométrique des
-  sous-périodes) et annualisé (`(1+cumulé)^(52/n) − 1`). Approximation assumée : un versement en milieu
-  de semaine n'est isolé qu'à la semaine près, même limite de précision que le graphique d'évolution.
-  Distinct du MWR déjà exposé (`performance_service`, XIRR) : le MWR juge la décision de
-  versement, le TWR juge le support.
+  sous-périodes) et annualisé (`(1+cumulé)^(52/n) − 1`) — **`None` si `1+cumulé <= 0`** (cumul à -100 %
+  ou pire) : élever une base négative à une puissance fractionnaire renvoie un nombre complexe en
+  Python plutôt qu'une erreur, et annualiser une perte totale n'a de toute façon aucun sens dans les
+  réels ; le cumulé lui-même reste affiché normalement dans ce cas (bug réel corrigé le 26/08/2026,
+  déclenché par un dépôt ponctuel très grand face à la valeur de sa semaine). Approximation assumée :
+  un versement en milieu de semaine n'est isolé qu'à la semaine près, même limite de précision que le
+  graphique d'évolution. Distinct du MWR déjà exposé (`performance_service`, XIRR) : le MWR juge la
+  décision de versement, le TWR juge le support.
 - **Volatilité annualisée** : écart-type des rendements hebdomadaires TWR, annualisé par `√52`.
 - **Max drawdown et récupération** : plus forte baisse entre un pic et un creux ultérieur sur la
   série de `valeur_portefeuille` ; `semaines_recuperation` mesurée depuis CE creux (pas depuis le pic

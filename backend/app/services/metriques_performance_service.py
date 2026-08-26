@@ -96,7 +96,15 @@ def compute_metriques_avancees(points: list[dict]) -> dict:
     for r in rendements:
         twr_cumule *= 1 + r
     twr_cumule -= 1
-    twr_annualise = (1 + twr_cumule) ** (NOMBRE_SEMAINES_PAR_AN / nb_semaines) - 1 if nb_semaines > 0 else None
+    # `(1 + twr_cumule)` élevé à une puissance fractionnaire (nb_semaines n'est pas un
+    # multiple exact de 52) : si la base est négative — un cumul <= -100 %, possible
+    # avec cette approximation hebdomadaire quand un apport ponctuel est très grand
+    # face à la valeur de départ de sa semaine (cf. docstring du module) — Python
+    # renvoie un nombre complexe plutôt qu'une erreur, que `round()` ne sait pas gérer.
+    # Annualiser une perte totale ou pire n'a de toute façon aucun sens mathématique
+    # dans les réels : `None` plutôt qu'un calcul silencieusement faux ou un 500.
+    base_annualisation = 1 + twr_cumule
+    twr_annualise = base_annualisation ** (NOMBRE_SEMAINES_PAR_AN / nb_semaines) - 1 if nb_semaines > 0 and base_annualisation > 0 else None
 
     volatilite_annualisee = None
     if len(rendements) >= 2:
