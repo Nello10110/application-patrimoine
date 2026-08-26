@@ -2077,6 +2077,19 @@ premier point connu, cas sans aucun historique ni valeur), 2 tests frontend nouv
 absence d'effet si la date d'acquisition est postérieure), suite complète au vert,
 `tsc -b`/`vitest`/`oxlint`/`build` propres.
 
+**Correctif le jour même : cache d'historique jamais invalidé pour ce champ.** L'utilisateur a
+signalé que le graphique du Tableau de bord « n'avait pas bougé » après cette extension. Cause :
+`historique_patrimoine:*` (`historique_cache.py`) est un cache PERSISTÉ EN BASE (24h de validité,
+survit aux redémarrages du process), et `routers/portfolio.py` ne l'invalidait que sur un changement
+RÉEL de `valeur_estimee` — un changement de `date_acquisition` ou `prix_revient_moyen` seul (le cas
+exact de cette fonctionnalité) laissait donc l'ancienne série servie jusqu'à expiration naturelle du
+cache. `create_holding`/`update_holding` invalident désormais aussi ce cache quand l'un de ces deux
+champs est posé/modifié. 4 tests nouveaux dans `test_holding_date_acquisition.py` (invalidation sur
+date_acquisition seule, sur prix_revient_moyen seul, à la création, et garde-fou : un champ sans
+rapport comme `nom` n'invalide toujours pas). Vérifié en conditions réelles : ré-enregistrement de
+la ligne réelle « APPARTEMENT », requête `GET /api/patrimoine/historique` confirmée recalculée avec
+un premier point au 15/06/2021 (coût d'acquisition) au lieu de la série figée précédente.
+
 ---
 ## 3. Hors périmètre (assumé)
 

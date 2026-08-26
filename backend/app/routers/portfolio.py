@@ -328,6 +328,11 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     if holding.valeur_estimee is not None:
         immobilier_service.enregistrer_point_historique(db, holding.id, holding.valeur_estimee, holding.date_valeur_estimee)
         historique_cache.invalider_historiques_patrimoine(db)
+    # `date_acquisition` alimente aussi la série combinée (point d'ancrage, cf.
+    # `patrimoine_history_service._serie_holding_manuel`) même quand `valeur_estimee`
+    # n'est pas fournie à la création — invalidation séparée pour ne pas la manquer.
+    elif holding.date_acquisition is not None:
+        historique_cache.invalider_historiques_patrimoine(db)
     return holding
 
 
@@ -356,6 +361,12 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     # ci-dessus, qui ne pose `date_valeur_estimee` que dans ce même cas).
     if "valeur_estimee" in updates and holding.valeur_estimee is not None:
         immobilier_service.enregistrer_point_historique(db, holding.id, holding.valeur_estimee, holding.date_valeur_estimee)
+        historique_cache.invalider_historiques_patrimoine(db)
+    # `date_acquisition`/`prix_revient_moyen` alimentent aussi le point d'ancrage de la
+    # série combinée (`patrimoine_history_service._serie_holding_manuel`) — invalidation
+    # séparée : ce changement peut survenir sans que `valeur_estimee` ne bouge (cas
+    # justement à l'origine de ce correctif, cf. retour utilisateur du 26/08/2026).
+    elif "date_acquisition" in updates or "prix_revient_moyen" in updates:
         historique_cache.invalider_historiques_patrimoine(db)
     return holding
 
