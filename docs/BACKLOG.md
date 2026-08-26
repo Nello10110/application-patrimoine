@@ -1996,6 +1996,25 @@ chacun pour une raison différente :
 `ExpositionConsolideeCard.test.tsx`, qui n'existait pas encore), suites complètes toujours au vert,
 `tsc -b`/`vitest`/`oxlint` propres.
 
+**Corrigé le jour même : le nettage ci-dessus était inconditionnel, pas piloté par la lentille.**
+L'utilisateur a repéré que « Répartition géographique consolidée » affichait exactement 62 % Europe
+en lentille Net ET en lentille Brut — `ExpositionConsolideeCard` ne lisait même pas `lentille`, donc
+rien n'y variait avec le sélecteur, contrairement au reste de la page. `compute_exposition_consolidee`
+calcule désormais DEUX jeux de champs sur la même requête (factorisés via un nouveau helper
+`_calculer_expo`, appelé une fois sur les lignes brutes et une fois sur les lignes nettées) : les
+champs sans suffixe redeviennent la valeur BRUTE (comportement confirmé correct par l'utilisateur pour
+la lentille Brut), un nouveau jeu suffixé `_nette` porte le nettage par ligne pour la lentille Net —
+même principe que `repartition_par_classe`/`repartition_par_classe_nette` du patrimoine net.
+`ExpositionConsolideeCard` lit maintenant `lentille` et choisit le bon jeu de champs. En lentille
+**Financier**, la carte est **masquée** plutôt que de montrer une pseudo-exposition « tous actifs »
+restreinte au financier — contradictoire avec son titre et redondant avec les cartes Répartition
+géographique/sectorielle déjà financières juste au-dessus (décision prise sans revalidation explicite
+de l'utilisateur, à ajuster s'il préfère un autre comportement). 2 tests backend étendus (vérifient
+maintenant les deux jeux de champs + non-régression du bug initial), 3 tests frontend nouveaux
+(Brut/Net donnent des valeurs différentes, Financier masque la carte), suites complètes au vert,
+`tsc -b`/`vitest`/`oxlint` propres, vérifié en conditions réelles (62 % en Net, 96 % en Brut, carte
+absente en Financier).
+
 ---
 ## 3. Hors périmètre (assumé)
 

@@ -84,6 +84,15 @@ function expositionConsolidee(overrides: Partial<ExpositionConsolidee> = {}): Ex
     premiere_zone_geo: null,
     premiere_zone_geo_pct: null,
     part_estimee_manuelle_pct: 0,
+    valeur_totale_nette: 0,
+    repartition_geo_nette: [],
+    repartition_classe_nette: [],
+    plus_grosse_ligne_ticker_nette: null,
+    plus_grosse_ligne_pct_nette: null,
+    top5_lignes_pct_nette: null,
+    premiere_zone_geo_nette: null,
+    premiere_zone_geo_pct_nette: null,
+    part_estimee_manuelle_pct_nette: 0,
     ...overrides,
   }
 }

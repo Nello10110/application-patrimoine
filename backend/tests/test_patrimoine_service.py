@@ -364,9 +364,12 @@ class TestExpositionConsolidee:
         assert resultat["part_estimee_manuelle_pct"] == 0.0
 
     def test_valeur_totale_et_repartition_nettees_de_lemprunt_rattache(self, db):
-        """Retour utilisateur (26/08/2026) : même correction que
-        `compute_patrimoine_net.repartition_par_classe_nette` — `valeur_totale`
-        correspond au patrimoine NET, pas aux actifs bruts."""
+        """Retour utilisateur (26/08/2026, deux passes) : d'abord une correction
+        inconditionnelle (bug repéré par l'utilisateur : mêmes % en lentille Net et
+        Brut, `ExpositionConsolideeCard` ne lisant même pas la lentille), puis la
+        vraie correction — deux jeux de champs, `_nette` correspond au patrimoine NET,
+        les champs sans suffixe restent la valeur BRUTE inchangée (comportement Brut
+        confirmé correct par l'utilisateur)."""
         h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
         db.add(
@@ -387,17 +390,24 @@ class TestExpositionConsolidee:
         resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
         patrimoine = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
 
-        # 300000 (Immobilier brut) - 120000 (son emprunt) + 1000 (Actions, jamais touché) = 181000.
-        assert resultat["valeur_totale"] == 181000.0
-        assert resultat["valeur_totale"] == patrimoine["patrimoine_net"]
+        # Brute (inchangée) : 300000 (Immobilier) + 1000 (Actions) = 301000, jamais
+        # nettée de l'emprunt — c'est la lentille Brut, confirmée correcte telle quelle.
+        assert resultat["valeur_totale"] == 301000.0
+        assert resultat["valeur_totale"] == patrimoine["actifs_totaux"]
         par_classe = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe"]}
-        assert par_classe == {"Immobilier": 180000.0, "Actions": 1000.0}
+        assert par_classe == {"Immobilier": 300000.0, "Actions": 1000.0}
+
+        # Nette : 300000 - 120000 (son emprunt) + 1000 (Actions, jamais touché) = 181000.
+        assert resultat["valeur_totale_nette"] == 181000.0
+        assert resultat["valeur_totale_nette"] == patrimoine["patrimoine_net"]
+        par_classe_nette = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe_nette"]}
+        assert par_classe_nette == {"Immobilier": 180000.0, "Actions": 1000.0}
         # Immobilier reste la plus grosse ligne (180000 nette > 1000), mais avec sa
         # valeur NETTE (180000), jamais sa valeur brute (300000).
-        assert resultat["plus_grosse_ligne_ticker"] == "MAISON"
-        assert resultat["plus_grosse_ligne_pct"] == round(180000.0 / 181000.0 * 100, 1)
+        assert resultat["plus_grosse_ligne_ticker_nette"] == "MAISON"
+        assert resultat["plus_grosse_ligne_pct_nette"] == round(180000.0 / 181000.0 * 100, 1)
 
-    def test_emprunt_non_rattache_reduit_la_valeur_totale_sans_categorie_associee(self, db):
+    def test_emprunt_non_rattache_reduit_la_valeur_totale_nette_sans_categorie_associee(self, db):
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
         db.add(
             Loan(
@@ -415,6 +425,7 @@ class TestExpositionConsolidee:
 
         resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
 
-        assert resultat["valeur_totale"] == 200.0  # 1000 - 800, sans bucket "Dettes" dédié ici
-        par_classe = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe"]}
-        assert par_classe == {"Actions": 1000.0}  # la ligne elle-même reste inchangée, seul le total baisse
+        assert resultat["valeur_totale"] == 1000.0  # brute, l'emprunt n'y figure jamais
+        assert resultat["valeur_totale_nette"] == 200.0  # 1000 - 800, sans bucket "Dettes" dédié ici
+        par_classe_nette = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe_nette"]}
+        assert par_classe_nette == {"Actions": 1000.0}  # la ligne elle-même reste inchangée, seul le total baisse

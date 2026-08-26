@@ -431,13 +431,20 @@ d'objectifs de répartition annuelle, cf. § 3.6 devenue vacante).
 - **Concentration** : plus grosse ligne (ticker + %), part des 5 plus grosses lignes, première zone
   géographique — « premier émetteur » interprété comme la plus grosse LIGNE (pas un vrai agrégat
   multi-fonds par émetteur réel, limite assumée).
-- **Valeurs NETTES par ligne** (backlog § 2.S.2, retour utilisateur 26/08/2026, même correction que
-  `repartition_par_classe_nette` du patrimoine net § 3.11) : chaque ligne est nettée de SON emprunt
-  rattaché (`Loan.holding_id`) avant d'entrer dans `valeur_totale`/la répartition géo/classe/la
-  concentration — `valeur_totale` correspond ainsi exactement au patrimoine NET, plus aux actifs bruts.
-  Contrairement à `repartition_par_classe_nette`, pas de bucket "Dettes non rattachées" ni de valeur
-  négative conservée ici (uniquement des camemberts en pourcentage, pas de liste en euros pour servir
-  de repli) : un emprunt non rattaché réduit `valeur_totale` sans catégorie géo/classe associée.
+- **Pilotée par la lentille Net/Brut/Financier** (backlog § 2.S.2, retour utilisateur 26/08/2026) :
+  `compute_exposition_consolidee` renvoie DEUX jeux de champs sur la même requête — sans suffixe pour
+  la valeur BRUTE, suffixés `_nette` pour la valeur nette de SON emprunt rattaché par ligne
+  (`Loan.holding_id`, même principe que `repartition_par_classe`/`repartition_par_classe_nette` du
+  patrimoine net § 3.11). `ExpositionConsolideeCard` choisit le jeu selon la lentille : Brut → champs
+  bruts (`valeur_totale` = `actifs_totaux`), Net → champs `_nette` (`valeur_totale_nette` =
+  `patrimoine_net`). Une première version nettait la carte de façon inconditionnelle (bug repéré par
+  l'utilisateur : mêmes pourcentages affichés en Net et en Brut), corrigé le jour même. En lentille
+  **Financier**, la carte est masquée (pas de pseudo-exposition « tous actifs » restreinte au
+  financier — contradictoire avec son titre, redondant avec la répartition géo/sectorielle déjà
+  financière juste au-dessus). Contrairement à `repartition_par_classe_nette`, pas de bucket "Dettes
+  non rattachées" ni de valeur négative conservée dans les variantes `_nette` ici (uniquement des
+  camemberts en pourcentage, pas de liste en euros pour servir de repli) : un emprunt non rattaché
+  réduit `valeur_totale_nette` sans catégorie géo/classe associée.
 - **`part_estimee_manuelle_pct`** : part du patrimoine dont la géo est déclarée (via `zone_geo`)
   plutôt que mesurée (look-through) — rappel honnête sans dupliquer l'encart de qualité des données
   existant (§ 3.4), qui reste affiché tel quel sur l'écran Répartition pour le seul financier.

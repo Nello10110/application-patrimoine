@@ -157,60 +157,30 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
     }
 
 
-def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
-    """Exposition consolidée tous actifs (backlog 2.P.1) : une seule répartition
-    géographique et par classe d'actif, financier ET immobilier/épargne confondus —
-    le besoin fondateur du projet, jusqu'ici jamais servi (`analysis_service` reste
-    volontairement scopé au seul portefeuille financier pour les objectifs/la
-    rentabilité boursière, cf. sa docstring).
+def _repartition_triee(totaux: dict[str, float]) -> list[dict]:
+    return sorted(
+        ({"categorie": c, "valeur": round(v, 2)} for c, v in totaux.items() if v > 0),
+        key=lambda item: item["valeur"],
+        reverse=True,
+    )
 
-    **Valeurs NETTES par ligne** (retour utilisateur, même correction que
-    `compute_patrimoine_net.repartition_par_classe_nette`) : chaque ligne est nettée
-    de SON emprunt rattaché (`_crd_par_ligne`) avant d'entrer dans `valeur_totale`, la
-    répartition géo/classe et le calcul de concentration — sans quoi « plus grosse
-    ligne » aurait pu pointer un bien très endetté comme si sa valeur brute constituait
-    du patrimoine réel. `valeur_totale` correspond donc exactement à `patrimoine_net`
-    de `compute_patrimoine_net`, pas à `actifs_totaux`. Un emprunt non rattaché à un
-    actif réduit `valeur_totale` sans être imputable à une catégorie géo/classe
-    précise (cohérent avec `repartition_par_classe_nette`, qui le range dans un bucket
-    "Dettes non rattachées" séparé — inutile ici, la géo/classe consolidées n'ont pas
-    cette notion de bucket dédié, seul le total en tient compte).
 
-    Géo : réutilise `analysis_service.breakdown_with_lookthrough`, qui éclate déjà les
-    fonds sur leur composition interne — les actifs valorisés manuellement y
-    contribuent via `Holding.zone_geo` (repli `ZONE_EUROPE`, cf. `value_holdings`),
-    une estimation déclarée, jamais mesurée comme le look-through d'un fonds.
-    `part_estimee_manuelle_pct` (part du patrimoine total dont la géo est ainsi
-    estimée plutôt que mesurée) matérialise cette distinction sans dupliquer tout
-    l'encart de qualité des données existant (`analysis_service.compute_data_quality`,
-    qui reste affiché tel quel sur le Tableau de bord pour le seul financier).
-
-    Concentration : « premier émetteur » est ici la plus grosse LIGNE du portefeuille
-    (pas un vrai agrégat multi-fonds par émetteur réel — hors de portée sans
-    recouper le look-through de chaque fonds avec les positions détenues en direct,
-    limite assumée et documentée)."""
-    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
-    valued = analysis_service.value_holdings(holdings)
-    crd_par_holding, crd_non_rattache = _crd_par_ligne(db, user_id)
-    valued_net = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, 0.0)) for v in valued]
-    valeur_totale = sum(v.valeur for v in valued_net) - crd_non_rattache
-
-    def repartition_triee(totaux: dict[str, float]) -> list[dict]:
-        return sorted(
-            ({"categorie": c, "valeur": round(v, 2)} for c, v in totaux.items() if v > 0),
-            key=lambda item: item["valeur"],
-            reverse=True,
-        )
-
-    repartition_geo = repartition_triee(analysis_service.breakdown_with_lookthrough(db, valued_net, "geo"))
+def _calculer_expo(db: Session, valued: list, valeur_totale: float) -> dict:
+    """Calcule les 7 champs dérivés (répartitions + concentration) de
+    `compute_exposition_consolidee` à partir d'une liste `valued` déjà valorisée
+    (brute OU nette selon l'appelant) — factorisé pour ne pas dupliquer cette logique
+    entre les deux variantes Brut/Net (backlog § 2.S.2, retour utilisateur : le
+    sélecteur Net/Brut/Financier doit aussi piloter cette carte, pas seulement le
+    chiffre principal)."""
+    repartition_geo = _repartition_triee(analysis_service.breakdown_with_lookthrough(db, valued, "geo"))
 
     totaux_classe: dict[str, float] = {}
-    for v in valued_net:
+    for v in valued:
         label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
         totaux_classe[label] = totaux_classe.get(label, 0.0) + v.valeur
-    repartition_classe = repartition_triee(totaux_classe)
+    repartition_classe = _repartition_triee(totaux_classe)
 
-    lignes_triees = sorted(valued_net, key=lambda v: v.valeur, reverse=True)
+    lignes_triees = sorted(valued, key=lambda v: v.valeur, reverse=True)
     plus_grosse_ligne_ticker = lignes_triees[0].holding.ticker if lignes_triees and valeur_totale > 0 else None
     plus_grosse_ligne_pct = round(lignes_triees[0].valeur / valeur_totale * 100, 1) if lignes_triees and valeur_totale > 0 else None
     top5_lignes_pct = round(sum(v.valeur for v in lignes_triees[:5]) / valeur_totale * 100, 1) if valeur_totale > 0 else None
@@ -218,7 +188,7 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     premiere_zone_geo = repartition_geo[0]["categorie"] if repartition_geo else None
     premiere_zone_geo_pct = round(repartition_geo[0]["valeur"] / valeur_totale * 100, 1) if repartition_geo and valeur_totale > 0 else None
 
-    valeur_manuelle = sum(v.valeur for v in valued_net if v.holding.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL)
+    valeur_manuelle = sum(v.valeur for v in valued if v.holding.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL)
     part_estimee_manuelle_pct = round(valeur_manuelle / valeur_totale * 100, 1) if valeur_totale > 0 else 0.0
 
     return {
@@ -231,4 +201,65 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
         "premiere_zone_geo": premiere_zone_geo,
         "premiere_zone_geo_pct": premiere_zone_geo_pct,
         "part_estimee_manuelle_pct": part_estimee_manuelle_pct,
+    }
+
+
+def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
+    """Exposition consolidée tous actifs (backlog 2.P.1) : une seule répartition
+    géographique et par classe d'actif, financier ET immobilier/épargne confondus —
+    le besoin fondateur du projet, jusqu'ici jamais servi (`analysis_service` reste
+    volontairement scopé au seul portefeuille financier pour les objectifs/la
+    rentabilité boursière, cf. sa docstring).
+
+    **Deux variantes Brut/Net** (backlog § 2.S.2, retour utilisateur du 26/08/2026) :
+    une première correction avait nette chaque ligne de SON emprunt rattaché
+    (`_crd_par_ligne`) de façon INCONDITIONNELLE — l'utilisateur a fait remarquer que
+    la carte affichait alors exactement les mêmes pourcentages en lentille Net et en
+    lentille Brut, puisque `ExpositionConsolideeCard` ne lit même pas `lentille`. Cette
+    fonction renvoie donc désormais les deux jeux de champs, suffixés `_nette` pour la
+    variante nettée (même principe que `repartition_par_classe`/
+    `repartition_par_classe_nette` de `compute_patrimoine_net`) ; le frontend choisit
+    lequel afficher selon la lentille active. `valeur_totale_nette` correspond
+    exactement à `patrimoine_net` de `compute_patrimoine_net`, `valeur_totale` (brute)
+    à `actifs_totaux`. Un emprunt non rattaché à un actif réduit `valeur_totale_nette`
+    sans être imputable à une catégorie géo/classe précise (cohérent avec
+    `repartition_par_classe_nette`, qui le range dans un bucket "Dettes non
+    rattachées" séparé — inutile ici, la géo/classe consolidées n'ont pas cette notion
+    de bucket dédié, seul le total net en tient compte).
+
+    Géo : réutilise `analysis_service.breakdown_with_lookthrough`, qui éclate déjà les
+    fonds sur leur composition interne — les actifs valorisés manuellement y
+    contribuent via `Holding.zone_geo` (repli `ZONE_EUROPE`, cf. `value_holdings`),
+    une estimation déclarée, jamais mesurée comme le look-through d'un fonds.
+    `part_estimee_manuelle_pct` (part du patrimoine dont la géo est ainsi estimée
+    plutôt que mesurée) matérialise cette distinction sans dupliquer tout l'encart de
+    qualité des données existant (`analysis_service.compute_data_quality`, qui reste
+    affiché tel quel sur le Tableau de bord pour le seul financier).
+
+    Concentration : « premier émetteur » est ici la plus grosse LIGNE du portefeuille
+    (pas un vrai agrégat multi-fonds par émetteur réel — hors de portée sans
+    recouper le look-through de chaque fonds avec les positions détenues en direct,
+    limite assumée et documentée)."""
+    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    valued = analysis_service.value_holdings(holdings)
+    valeur_totale_brute = sum(v.valeur for v in valued)
+
+    crd_par_holding, crd_non_rattache = _crd_par_ligne(db, user_id)
+    valued_net = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, 0.0)) for v in valued]
+    valeur_totale_nette = sum(v.valeur for v in valued_net) - crd_non_rattache
+
+    brut = _calculer_expo(db, valued, valeur_totale_brute)
+    net = _calculer_expo(db, valued_net, valeur_totale_nette)
+
+    return {
+        **brut,
+        "valeur_totale_nette": net["valeur_totale"],
+        "repartition_geo_nette": net["repartition_geo"],
+        "repartition_classe_nette": net["repartition_classe"],
+        "plus_grosse_ligne_ticker_nette": net["plus_grosse_ligne_ticker"],
+        "plus_grosse_ligne_pct_nette": net["plus_grosse_ligne_pct"],
+        "top5_lignes_pct_nette": net["top5_lignes_pct"],
+        "premiere_zone_geo_nette": net["premiere_zone_geo"],
+        "premiere_zone_geo_pct_nette": net["premiere_zone_geo_pct"],
+        "part_estimee_manuelle_pct_nette": net["part_estimee_manuelle_pct"],
     }

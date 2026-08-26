@@ -296,6 +296,9 @@ export interface PatrimoineHistoryResponse {
 // Exposition consolidée tous actifs (backlog 2.P.1) — une seule répartition géo/classe
 // financier ET immobilier/épargne confondus, distincte de `AnalysisResponse` (portefeuille
 // financier seul) et de `PatrimoineNet` (pas de vue géo/concentration).
+// Champs sans suffixe = valeur BRUTE ; `_nette` = chaque ligne nettée de son emprunt
+// rattaché (backlog 2.S.2) — même principe que `repartition_par_classe`/`_nette` du
+// patrimoine net. `ExpositionConsolideeCard` choisit selon la lentille active.
 export interface ExpositionConsolidee {
   valeur_totale: number
   repartition_geo: RepartitionParClasseItem[]
@@ -306,6 +309,15 @@ export interface ExpositionConsolidee {
   premiere_zone_geo: string | null
   premiere_zone_geo_pct: number | null
   part_estimee_manuelle_pct: number
+  valeur_totale_nette: number
+  repartition_geo_nette: RepartitionParClasseItem[]
+  repartition_classe_nette: RepartitionParClasseItem[]
+  plus_grosse_ligne_ticker_nette: string | null
+  plus_grosse_ligne_pct_nette: number | null
+  top5_lignes_pct_nette: number | null
+  premiere_zone_geo_nette: string | null
+  premiere_zone_geo_pct_nette: number | null
+  part_estimee_manuelle_pct_nette: number
 }
 
 // Lien de partage révocable (backlog 2.Q.1) — gestion (réservée au propriétaire)

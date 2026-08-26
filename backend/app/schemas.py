@@ -1462,7 +1462,10 @@ class ObjectifDetail(BaseModel):
 
 
 class ExpositionConsolidee(BaseModel):
-    """Backlog 2.P.1 — `services/patrimoine_service.compute_exposition_consolidee`."""
+    """Backlog 2.P.1 — `services/patrimoine_service.compute_exposition_consolidee`.
+    Champs sans suffixe = valeur BRUTE ; `_nette` = chaque ligne nettée de son emprunt
+    rattaché (backlog 2.S.2) — le frontend choisit selon la lentille Net/Brut/Financier
+    active (`repartition_par_classe`/`_nette` du patrimoine net suit le même principe)."""
 
     valeur_totale: float
     repartition_geo: list[RepartitionParClasseItem]
@@ -1473,6 +1476,15 @@ class ExpositionConsolidee(BaseModel):
     premiere_zone_geo: str | None
     premiere_zone_geo_pct: float | None
     part_estimee_manuelle_pct: float
+    valeur_totale_nette: float
+    repartition_geo_nette: list[RepartitionParClasseItem]
+    repartition_classe_nette: list[RepartitionParClasseItem]
+    plus_grosse_ligne_ticker_nette: str | None
+    plus_grosse_ligne_pct_nette: float | None
+    top5_lignes_pct_nette: float | None
+    premiere_zone_geo_nette: str | None
+    premiere_zone_geo_pct_nette: float | None
+    part_estimee_manuelle_pct_nette: float
 
 
 # ---------------------------------------------------------------------------
