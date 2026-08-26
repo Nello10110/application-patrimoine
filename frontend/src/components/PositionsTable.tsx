@@ -3,8 +3,8 @@ import { api } from '../api/client'
 import type { Holding } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { TYPE_ACTIF_OPTIONS, TYPES_AVEC_TAUX, libelleTaux, valeurProjeteeUnAn } from '../utils/holdingCategories'
-import { formatEuro, formatQuantite } from '../utils/format'
+import { TYPES_PATRIMOINE, TYPE_ACTIF_OPTIONS, TYPES_AVEC_TAUX, libelleTaux, valeurProjeteeUnAn } from '../utils/holdingCategories'
+import { formatDate, formatEuro, formatQuantite } from '../utils/format'
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
@@ -71,6 +71,7 @@ interface EditForm {
   type_actif: string
   valeur_estimee: string
   taux_pct: string
+  date_acquisition: string
 }
 
 /** Une position, en carte (backlog 2.K.4, < 768 px) — remplace la ligne de tableau
@@ -184,6 +185,18 @@ function PositionCard({
               />
             </label>
           )}
+          {TYPES_PATRIMOINE.has(editForm.type_actif) && (
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Date d'acquisition
+              <input
+                value={editForm.date_acquisition}
+                onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
+                type="date"
+                aria-label="Date d'acquisition (édition)"
+                className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              />
+            </label>
+          )}
         </div>
 
         {TYPES_AVEC_TAUX.has(editForm.type_actif) &&
@@ -234,6 +247,7 @@ function PositionCard({
             )}
           </p>
           <p className="truncate text-sm text-texte-attenue">{md?.nom ?? h.nom ?? '—'}</p>
+          {h.date_acquisition && <p className="text-xs text-texte-attenue">Acquis le {formatDate(h.date_acquisition)}</p>}
         </div>
         <span className="shrink-0 font-medium text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>
       </div>
@@ -326,6 +340,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
     type_actif: '',
     valeur_estimee: '',
     taux_pct: '',
+    date_acquisition: '',
   })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
@@ -351,6 +366,8 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
       type_actif: h.type_actif ?? '',
       valeur_estimee: h.valeur_estimee !== null && h.valeur_estimee !== undefined ? String(h.valeur_estimee) : '',
       taux_pct: h.taux_pct !== null && h.taux_pct !== undefined ? String(h.taux_pct) : '',
+      // `<input type="date">` attend AAAA-MM-JJ, l'API renvoie un horodatage complet.
+      date_acquisition: h.date_acquisition ? h.date_acquisition.slice(0, 10) : '',
     })
     setEditError(null)
   }
@@ -373,6 +390,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
         type_actif: editForm.type_actif || null,
         valeur_estimee: editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
         taux_pct: editForm.taux_pct ? Number(editForm.taux_pct) : null,
+        date_acquisition: editForm.date_acquisition || null,
       })
       setEditingId(null)
       onSaved()
@@ -508,7 +526,10 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                     </span>
                   )}
                 </td>
-                <td className="py-2 pr-4 text-texte">{md?.nom ?? h.nom ?? '—'}</td>
+                <td className="py-2 pr-4 text-texte">
+                  {md?.nom ?? h.nom ?? '—'}
+                  {h.date_acquisition && <span className="block text-xs text-texte-attenue">Acquis le {formatDate(h.date_acquisition)}</span>}
+                </td>
                 <td className="py-2 pr-4">
                   {enEdition ? (
                     <input
@@ -631,6 +652,19 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                         aria-label="Taux annuel (édition)"
                         className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                         placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
+                      />
+                    </label>
+                  )}
+                  {TYPES_PATRIMOINE.has(editForm.type_actif) && (
+                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                      Date d'acquisition
+                      <input
+                        value={editForm.date_acquisition}
+                        onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                        type="date"
+                        aria-label="Date d'acquisition (édition)"
+                        className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
                   )}

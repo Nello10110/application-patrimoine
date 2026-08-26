@@ -42,6 +42,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     taux_pct: null,
     zone_geo: null,
     versement_mensuel: 200,
+    date_acquisition: null,
     ...overrides,
   }
 }

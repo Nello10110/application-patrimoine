@@ -166,6 +166,7 @@ export default function PortefeuillePage() {
     taux_pct: '',
     zone_geo: '',
     versement_mensuel: '',
+    date_acquisition: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -234,6 +235,7 @@ export default function PortefeuillePage() {
         taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
         zone_geo: form.zone_geo || null,
         versement_mensuel: form.versement_mensuel ? Number(form.versement_mensuel) : null,
+        date_acquisition: form.date_acquisition || null,
       })
       setForm({
         ticker: '',
@@ -245,6 +247,7 @@ export default function PortefeuillePage() {
         taux_pct: '',
         zone_geo: '',
         versement_mensuel: '',
+        date_acquisition: '',
       })
       load()
     } catch (err) {
@@ -398,6 +401,17 @@ export default function PortefeuillePage() {
                   </option>
                 ))}
               </select>
+            </label>
+          )}
+          {TYPES_PATRIMOINE.has(form.type_actif) && (
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Date d'acquisition
+              <input
+                value={form.date_acquisition}
+                onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
+                type="date"
+                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              />
             </label>
           )}
           <button

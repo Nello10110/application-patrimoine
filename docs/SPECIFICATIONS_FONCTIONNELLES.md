@@ -231,6 +231,15 @@ L'import d'un relevé de positions est **transactionnel** : une erreur en cours 
 
 Neuf `type_actif` valorisés **manuellement** (`REAL_ESTATE`, `SCPI`, `LIFE_INSURANCE`, `PENSION`, `CASH_ACCOUNT` (compte courant), `REGULATED_SAVINGS` (Livret A, LDDS, LEP, PEL, CEL...), `EMPLOYEE_SAVINGS` (PEE, PERCO, PER entreprise), `VEHICLE`, et `OTHER_ASSET` pour tout ce qui ne rentre dans aucune autre case — objets de valeur, métaux précieux physiques, parts d'entreprise non cotée hors Private Equity déjà suivi — cf. backlog § 2.M.1) : aucune tentative de cotation automatique n'a de sens pour eux (un bien immobilier n'a pas de ticker coté). Leur valeur vient de `Holding.valeur_estimee` (montant absolu en euros, saisi et mis à jour manuellement — `quantite` reste conventionnellement à 1), distincte de `prix_revient_moyen` qui garde son sens habituel de coût d'acquisition : le rendement depuis achat de ces lignes se calcule donc normalement (`valeur_estimee / prix_revient_moyen − 1`), sans XIRR possible faute d'historique de transactions.
 
+**`Holding.date_acquisition`** (backlog § 2.S.3, retour utilisateur 26/08/2026) : date d'acquisition
+du bien (achat de l'appartement, souscription du contrat...) déclarée par l'utilisateur — distincte
+de `created_at` (date de saisie de la ligne dans l'application, souvent bien après l'achat réel) et
+de `date_valeur_estimee` (date de la dernière estimation). `None` par défaut, jamais déduite ni
+calculée. Éditable sur l'écran Patrimoine (`/patrimoine`, formulaire d'ajout et édition en ligne du
+tableau), affichée uniquement pour les 9 types valorisés manuellement ci-dessus (même gating que
+`zone_geo`, `TYPES_PATRIMOINE` côté frontend) — sans objet pour une ligne financière reconstruite,
+qui a déjà ses propres dates de transaction.
+
 **`Holding.taux_pct`** (backlog § 2.M.1, épargne réglementée/salariale et véhicule) : un pourcentage annuel purement **informatif**, jamais appliqué automatiquement à `valeur_estimee` — positif pour un taux d'intérêt attendu, négatif pour une décote annuelle attendue. Sert uniquement à calculer, côté client, une « valeur projetée dans 1 an » affichée en repère ; l'utilisateur reporte lui-même ce montant dans `valeur_estimee` s'il souhaite l'adopter — même philosophie que la valorisation immobilière datée (jamais de mutation silencieuse d'une donnée financière).
 
 **Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps).

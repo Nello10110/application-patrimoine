@@ -304,6 +304,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       taux_pct: null,
       zone_geo: null,
       versement_mensuel: null,
+      date_acquisition: null,
     })
     render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
     await screen.findByLabelText('Valeur (€)')

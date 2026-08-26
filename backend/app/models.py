@@ -149,6 +149,13 @@ class Holding(Base):
     # cf. increment 5). Additionné à `versement_mensuel_suggere` du Simulateur
     # (`services/budget_service.compute_jonction_patrimoine`), jamais fusionné en base.
     versement_mensuel: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Date d'ACQUISITION du bien (achat de l'appartement, souscription du contrat...),
+    # déclarée par l'utilisateur — à ne pas confondre avec `created_at` (date à laquelle
+    # la LIGNE a été saisie dans l'application, souvent bien après l'achat réel) ni
+    # `date_valeur_estimee` (date de la dernière mise à jour de l'estimation de valeur).
+    # `None` par défaut : aucune valeur inventée pour les lignes déjà saisies avant
+    # l'ajout de ce champ.
+    date_acquisition: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

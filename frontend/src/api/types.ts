@@ -164,6 +164,10 @@ export interface Holding {
   // déduit automatiquement, additionné à `versement_mensuel_suggere` côté Simulateur.
   // Cf. `models.Holding.versement_mensuel` côté backend.
   versement_mensuel: number | null
+  // Date d'acquisition du bien déclarée par l'utilisateur (retour utilisateur,
+  // 26/08/2026) — distincte de `created_at` (date de saisie de la ligne) et de
+  // `date_valeur_estimee` (dernière estimation). Cf. `models.Holding.date_acquisition`.
+  date_acquisition: string | null
 }
 
 export interface HoldingInput {
@@ -178,6 +182,8 @@ export interface HoldingInput {
   taux_pct?: number | null
   zone_geo?: string | null
   versement_mensuel?: number | null
+  // Format AAAA-MM-JJ, comme `ValorisationInput.date` — cf. `Holding.date_acquisition`.
+  date_acquisition?: string | null
 }
 
 // Champs modifiables via `PATCH /api/portfolio/holdings/{id}` (cf. `HoldingUpdate`
@@ -195,6 +201,7 @@ export interface HoldingUpdateInput {
   taux_pct?: number | null
   zone_geo?: string | null
   versement_mensuel?: number | null
+  date_acquisition?: string | null
 }
 
 // Point d'historique daté par l'utilisateur (backlog 2.S.1) — cf. `schemas.

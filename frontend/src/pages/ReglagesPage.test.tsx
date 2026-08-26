@@ -434,6 +434,7 @@ function holdingDeclaration(overrides: Partial<import('../api/types').Holding> =
     taux_pct: null,
     zone_geo: null,
     versement_mensuel: null,
+    date_acquisition: null,
     ...overrides,
   }
 }

@@ -53,6 +53,11 @@ class HoldingBase(BaseModel):
     # Versement mensuel récurrent déclaré (backlog 2.S.1, écran Épargne) — cf.
     # `models.Holding.versement_mensuel`.
     versement_mensuel: float | None = None
+    # Date d'acquisition déclarée par l'utilisateur (format AAAA-MM-JJ, comme
+    # `ValorisationInput.date`) — cf. `models.Holding.date_acquisition`. Chaîne côté
+    # saisie/validation, convertie en `datetime` par le routeur avant stockage
+    # (`HoldingOut` la redéclare en `datetime` pour la réponse).
+    date_acquisition: str | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -90,6 +95,17 @@ class HoldingBase(BaseModel):
             raise ValueError("Le versement mensuel doit être positif ou nul")
         return v
 
+    @field_validator("date_acquisition")
+    @classmethod
+    def _valider_date_acquisition(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ")
+        return v
+
 
 class HoldingCreate(HoldingBase):
     pass
@@ -107,6 +123,7 @@ class HoldingUpdate(BaseModel):
     taux_pct: float | None = None
     zone_geo: str | None = None
     versement_mensuel: float | None = None
+    date_acquisition: str | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -144,6 +161,17 @@ class HoldingUpdate(BaseModel):
     def _valider_versement_mensuel(cls, v: float | None) -> float | None:
         if v is not None and v < 0:
             raise ValueError("Le versement mensuel doit être positif ou nul")
+        return v
+
+    @field_validator("date_acquisition")
+    @classmethod
+    def _valider_date_acquisition(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ")
         return v
 
 
@@ -197,6 +225,17 @@ class HoldingOut(HoldingBase):
     # pour éviter que le frontend ne recalcule le même chiffre (LOT 6.7).
     valeur: float | None = None
     date_valeur_estimee: datetime | None = None
+    # Redéclare le champ hérité de `HoldingBase` (`str | None`, format saisie) en
+    # `datetime | None` pour la réponse — même différence input/output que
+    # `ValorisationInput.date` (str) vs les dates renvoyées ailleurs dans l'API.
+    date_acquisition: datetime | None = None
+
+    @field_validator("date_acquisition")
+    @classmethod
+    def _valider_date_acquisition(cls, v: datetime | None) -> datetime | None:
+        # Écrase le validateur hérité de `HoldingBase` (qui attend une chaîne
+        # AAAA-MM-JJ) : ici la valeur vient de la base, déjà un vrai `datetime`.
+        return v
 
 
 class ImportPreviewResponse(BaseModel):

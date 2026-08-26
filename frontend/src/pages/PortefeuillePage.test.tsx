@@ -63,6 +63,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     taux_pct: null,
     zone_geo: null,
     versement_mensuel: null,
+    date_acquisition: null,
     ...overrides,
   }
   if (overrides.valeur === undefined) {
@@ -205,6 +206,55 @@ describe('PortefeuillePage', () => {
       await waitFor(() =>
         expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'MAISON', zone_geo: 'Amérique du Nord' })),
       )
+    })
+  })
+
+  describe("Ajouter une ligne manuellement — date d'acquisition (retour utilisateur, 26/08/2026)", () => {
+    it("le champ « Date d'acquisition » n'apparaît pas pour un type d'actif financier (ex. action)", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      expect(screen.queryByLabelText("Date d'acquisition")).not.toBeInTheDocument()
+    })
+
+    it("sélectionner « Immobilier » révèle le champ « Date d'acquisition »", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+
+      expect(screen.getByLabelText("Date d'acquisition")).toBeInTheDocument()
+    })
+
+    it('soumettre avec une date renseignée appelle createHolding avec date_acquisition', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(
+        holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'REAL_ESTATE', valeur_estimee: 200000, date_acquisition: '2021-06-15T00:00:00' }),
+      )
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+
+      fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'MAISON' } })
+      fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '200000' } })
+      fireEvent.change(screen.getByLabelText("Date d'acquisition"), { target: { value: '2021-06-15' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() =>
+        expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'MAISON', date_acquisition: '2021-06-15' })),
+      )
+    })
+
+    it('affiche « Acquis le JJ/MM/AAAA » dans le tableau quand la date est renseignée', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 9, ticker: 'MAISON', type_actif: 'REAL_ESTATE', valeur_estimee: 200000, date_acquisition: '2021-06-15T00:00:00' }),
+      ])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      expect(await screen.findByText('Acquis le 15/06/2021')).toBeInTheDocument()
     })
   })
 
@@ -635,9 +685,32 @@ describe('PortefeuillePage', () => {
           type_actif: 'STOCK',
           valeur_estimee: null,
           taux_pct: null,
+          date_acquisition: null,
         }),
       )
       await waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))
+    })
+
+    it("le champ « Date d'acquisition (édition) » n'apparaît que pour un actif du patrimoine manuel, et sa modification appelle updateHolding (retour utilisateur, 26/08/2026)", async () => {
+      const ligneImmobiliere = [
+        holding({ id: 7, ticker: 'MAISON', type_actif: 'REAL_ESTATE', valeur_estimee: 300000, date_acquisition: '2019-03-01T00:00:00' }),
+      ]
+      vi.mocked(api.listHoldings).mockResolvedValueOnce(ligneImmobiliere)
+      vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 7, ticker: 'MAISON', type_actif: 'REAL_ESTATE', valeur_estimee: 300000 }))
+      vi.mocked(api.listHoldings).mockResolvedValueOnce(ligneImmobiliere)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('MAISON')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+      const champDate = screen.getByLabelText("Date d'acquisition (édition)")
+      expect(champDate).toHaveValue('2019-03-01')
+
+      fireEvent.change(champDate, { target: { value: '2020-07-10' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      await waitFor(() =>
+        expect(api.updateHolding).toHaveBeenCalledWith(7, expect.objectContaining({ date_acquisition: '2020-07-10' })),
+      )
     })
 
     it('une erreur 400 reste affichée sans quitter le mode édition', async () => {

@@ -317,6 +317,10 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # ici dès qu'une valeur estimée est fournie à la création.
     if donnees.get("valeur_estimee") is not None:
         donnees["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
+    # `date_acquisition` : chaîne côté saisie (déjà validée AAAA-MM-JJ par le schéma),
+    # convertie en `datetime` pour la colonne — même conversion que `set_holding_valorisation`.
+    if donnees.get("date_acquisition") is not None:
+        donnees["date_acquisition"] = datetime.strptime(donnees["date_acquisition"], "%Y-%m-%d")
     holding = Holding(**donnees, origine=ORIGINE_MANUEL, user_id=auth_service.id_foyer(current_user))
     db.add(holding)
     db.commit()
@@ -338,6 +342,10 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     # vraie date de « dernière mise à jour de l'estimation ».
     if "valeur_estimee" in updates:
         updates["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
+    # Même conversion qu'à la création — `date_acquisition` peut aussi être effacée
+    # (`None` explicite), auquel cas rien à convertir.
+    if "date_acquisition" in updates and updates["date_acquisition"] is not None:
+        updates["date_acquisition"] = datetime.strptime(updates["date_acquisition"], "%Y-%m-%d")
     for key, value in updates.items():
         setattr(holding, key, value)
     db.commit()

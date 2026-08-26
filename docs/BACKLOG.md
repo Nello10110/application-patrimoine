@@ -2015,6 +2015,38 @@ maintenant les deux jeux de champs + non-régression du bug initial), 3 tests fr
 `tsc -b`/`vitest`/`oxlint` propres, vérifié en conditions réelles (62 % en Net, 96 % en Brut, carte
 absente en Financier).
 
+#### S.3 — `mineur` · `S` · `P2` · `traité` (26/08/2026) — Date d'acquisition d'un bien
+
+Demande directe de l'utilisateur : pouvoir renseigner/modifier la date d'acquisition d'un bien
+(immobilier notamment), éditable sur l'écran Patrimoine.
+
+**Audit avant implémentation** : aucun champ existant ne portait déjà cette notion —
+`Holding.created_at` est la date de SAISIE de la ligne dans l'application (souvent bien après
+l'achat réel), `date_valeur_estimee` celle de la dernière estimation, et `prix_revient_moyen` un
+montant sans date attachée. Nouveau champ `Holding.date_acquisition` (nullable, `None` par défaut —
+aucune valeur inventée pour les lignes déjà saisies), migration Alembic chaînée sur la tête
+(`dbfb7fd6fbff` → `8643bfb5b753`).
+
+**Scope** : affiché/éditable uniquement pour les 9 types valorisés manuellement
+(`TYPES_ACTIF_PATRIMOINE_MANUEL`) — même gating que `zone_geo`, sans objet pour une ligne financière
+reconstruite qui a déjà ses propres dates de transaction. Éditable à la fois à l'ajout manuel
+(formulaire du haut) et sur une ligne existante (édition en ligne du tableau, `PositionsTable.tsx`,
+desktop et mobile) — même flux générique `PATCH /api/portfolio/holdings/{id}` que les autres champs
+(`taux_pct`, `zone_geo`...), pas de nouvel endpoint. Piège de type rencontré et corrigé : le champ
+d'entrée (`HoldingBase.date_acquisition`, chaîne AAAA-MM-JJ validée, même contrat que
+`ValorisationInput.date`) est redéclaré en `datetime` dans `HoldingOut` pour la réponse — sans
+redéclarer aussi le validateur Pydantic associé (qui attendait toujours une chaîne), la réponse
+plantait avec `TypeError: strptime() argument 1 must be str, not datetime.datetime`, repéré en
+testant l'API réelle avant de conclure au succès.
+
+Affichée dans le tableau sous le nom de la ligne (« Acquis le JJ/MM/AAAA ») dès qu'elle est
+renseignée — desktop et mobile. 6 tests backend nouveaux
+(`test_holding_date_acquisition.py` : création, valeur par défaut `None`, format invalide rejeté,
+modification, effacement, non-effet sur les autres champs), 5 tests frontend nouveaux
+(`PortefeuillePage.test.tsx` : gating par type à l'ajout et à l'édition, soumission, affichage dans
+le tableau), suite complète au vert, `tsc -b`/`vitest`/`oxlint` propres, vérifié en conditions
+réelles (backend isolé, création/modification/rejet de format).
+
 ---
 ## 3. Hors périmètre (assumé)
 
