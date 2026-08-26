@@ -23,6 +23,7 @@ def test_patrimoine_net_vide(client):
         "patrimoine_net": 0,
         "patrimoine_financier": 0,
         "repartition_par_classe": [],
+        "repartition_par_classe_financiere": [],
     }
 
 
@@ -59,6 +60,36 @@ def test_detenteur_id_dun_autre_utilisateur_renvoie_404(client, db):
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
 
     reponse = client.get(f"/api/patrimoine/net?detenteur_id={id_detenteur_a}")
+
+    assert reponse.status_code == 404
+
+
+def test_patrimoine_historique_vide(client):
+    reponse = client.get("/api/patrimoine/historique")
+
+    assert reponse.status_code == 200
+    assert reponse.json() == {"points": []}
+
+
+def test_patrimoine_historique_combine_financier_et_manuel(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+
+    reponse = client.get("/api/patrimoine/historique")
+
+    assert reponse.status_code == 200
+    points = reponse.json()["points"]
+    assert len(points) >= 1
+    dernier = points[-1]
+    assert dernier["valeur_manuelle"] == 300000.0
+    assert dernier["actifs_totaux"] == 300000.0
+    assert dernier["patrimoine_net"] == 300000.0
+
+
+def test_patrimoine_historique_detenteur_dun_autre_utilisateur_renvoie_404(client, db):
+    id_detenteur_a = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()["id"]
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+
+    reponse = client.get(f"/api/patrimoine/historique?detenteur_id={id_detenteur_a}")
 
     assert reponse.status_code == 404
 

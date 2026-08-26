@@ -108,3 +108,24 @@ def test_capital_restant_du_jamais_negatif_meme_en_toute_fin_de_pret():
     loan = _loan(mensualite=1000.0, duree_mois=12)
     restant = loan_service.compute_capital_restant_du(loan, datetime(2024, 12, 1))
     assert restant >= 0.0
+
+
+# ---------------------------------------------------------------------------
+# `compute_capital_restant_du_theorique` — ignore délibérément le recalage manuel
+# (backlog : historique combiné patrimoine, `patrimoine_history_service`)
+# ---------------------------------------------------------------------------
+
+
+def test_capital_restant_du_theorique_ignore_le_recalage_manuel():
+    """Contrairement à `compute_capital_restant_du`, la version théorique doit
+    reconstituer l'amortissement pur même si `capital_restant_du_manuel` est
+    renseigné — sert à reconstituer un point ANTÉRIEUR à ce recalage."""
+    loan = _loan(capital_restant_du_manuel=5000.0)
+    assert loan_service.compute_capital_restant_du_theorique(loan, datetime(2024, 2, 1)) == pytest.approx(9200.0)
+
+
+def test_capital_restant_du_theorique_coincide_avec_compute_capital_restant_du_sans_recalage():
+    loan = _loan()
+    for mois in range(0, 12):
+        date = datetime(2024, 1 + mois, 1)
+        assert loan_service.compute_capital_restant_du_theorique(loan, date) == loan_service.compute_capital_restant_du(loan, date)

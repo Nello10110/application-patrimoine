@@ -66,6 +66,11 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         # dupliquer sa logique d'exclusion.
         valued_financier = analysis_service.value_holdings(analysis_service.holdings_financiers(db, user_id))
         patrimoine_financier = sum(v.valeur for v in valued_financier)
+
+        par_classe_financiere: dict[str, float] = {}
+        for v in valued_financier:
+            label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
+            par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + v.valeur
     else:
         actifs_totaux = 0.0
         passifs_totaux = 0.0
@@ -80,24 +85,29 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
             par_classe[label] = par_classe.get(label, 0.0) + part["part_detenue"]
 
         patrimoine_financier = 0.0
+        par_classe_financiere = {}
         for h in analysis_service.holdings_financiers(db, user_id):
             valeur = next((v.valeur for v in valued if v.holding.id == h.id), 0.0)
             part = detenteurs_service.compute_parts(db, h, valeur).get(detenteur_id)
             if part is not None:
                 patrimoine_financier += part["part_detenue"]
+                label = LABEL_TYPE_ACTIF.get(h.type_actif, LABEL_NON_RENSEIGNE)
+                par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + part["part_detenue"]
 
-    repartition = sorted(
-        ({"categorie": categorie, "valeur": round(valeur, 2)} for categorie, valeur in par_classe.items() if valeur > 0),
-        key=lambda item: item["valeur"],
-        reverse=True,
-    )
+    def _repartition_triee(totaux: dict[str, float]) -> list[dict]:
+        return sorted(
+            ({"categorie": categorie, "valeur": round(valeur, 2)} for categorie, valeur in totaux.items() if valeur > 0),
+            key=lambda item: item["valeur"],
+            reverse=True,
+        )
 
     return {
         "actifs_totaux": round(actifs_totaux, 2),
         "passifs_totaux": round(passifs_totaux, 2),
         "patrimoine_net": round(actifs_totaux - passifs_totaux, 2),
         "patrimoine_financier": round(patrimoine_financier, 2),
-        "repartition_par_classe": repartition,
+        "repartition_par_classe": _repartition_triee(par_classe),
+        "repartition_par_classe_financiere": _repartition_triee(par_classe_financiere),
     }
 
 

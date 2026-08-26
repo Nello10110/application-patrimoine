@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { AnalysisResponse, CoutGestionConsolide, PerformanceSummary, PortfolioHistoryPoint, RepartitionComptesResponse } from '../api/types'
+import type {
+  AnalysisResponse,
+  CoutGestionConsolide,
+  PatrimoineHistoryPoint,
+  PerformanceSummary,
+  PortfolioHistoryPoint,
+  RepartitionComptesResponse,
+} from '../api/types'
 import AllocationChartCard from '../components/AllocationChartCard'
 import Card from '../components/Card'
 import CompositionModal from '../components/CompositionModal'
@@ -21,7 +28,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
 export default function DashboardPage() {
-  const { montantsMasques } = usePreferencesAffichage()
+  const { montantsMasques, detenteurId } = usePreferencesAffichage()
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +56,14 @@ export default function DashboardPage() {
   const [historique, setHistorique] = useState<PortfolioHistoryPoint[] | null>(null)
   const [chargementHistorique, setChargementHistorique] = useState(true)
   const [erreurHistorique, setErreurHistorique] = useState<string | null>(null)
+
+  // Historique combiné financier + immobilier/épargne − emprunts (feature Net/Brut/
+  // Financier sur toute la page Synthèse) — même philosophie que `historique`
+  // ci-dessus (partagé entre `PatrimoineNetCard` et `PortfolioHistoryChart`), mais
+  // rechargé quand `detenteurId` change (la série diffère selon la vue).
+  const [patrimoineHistorique, setPatrimoineHistorique] = useState<PatrimoineHistoryPoint[] | null>(null)
+  const [chargementPatrimoineHistorique, setChargementPatrimoineHistorique] = useState(true)
+  const [erreurPatrimoineHistorique, setErreurPatrimoineHistorique] = useState<string | null>(null)
 
   const [modal, setModal] = useState<{ type: 'geo' | 'sector'; categorie: string } | null>(null)
 
@@ -98,6 +113,16 @@ export default function DashboardPage() {
       .finally(() => setChargementHistorique(false))
   }
 
+  function chargerPatrimoineHistorique() {
+    setChargementPatrimoineHistorique(true)
+    setErreurPatrimoineHistorique(null)
+    api
+      .getPatrimoineHistory(detenteurId)
+      .then((res) => setPatrimoineHistorique(res.points))
+      .catch((err) => setErreurPatrimoineHistorique(err.message))
+      .finally(() => setChargementPatrimoineHistorique(false))
+  }
+
   function chargerDonnees() {
     setLoading(true)
     setError(null)
@@ -113,6 +138,7 @@ export default function DashboardPage() {
 
   useEffect(chargerDonnees, [])
   useEffect(chargerHistorique, [])
+  useEffect(chargerPatrimoineHistorique, [detenteurId])
 
   const hasNoHoldings = analysis ? analysis.risques.nombre_lignes === 0 : false
 
@@ -139,9 +165,21 @@ export default function DashboardPage() {
           carte ni la courbe ne dépendent plus de `analysis`/`loading`) ; (3) le
           détail — répartition, qualité des données, exposition consolidée, coût de
           gestion, sous la ligne de flottaison et repliable. */}
-      <PatrimoineNetCard historiquePortefeuille={{ points: historique, loading: chargementHistorique }} />
+      <PatrimoineNetCard
+        historiquePortefeuille={{ points: historique, loading: chargementHistorique }}
+        historiquePatrimoine={{ points: patrimoineHistorique, loading: chargementPatrimoineHistorique }}
+      />
 
-      <PortfolioHistoryChart points={historique} loading={chargementHistorique} error={erreurHistorique} onRetry={chargerHistorique} />
+      <PortfolioHistoryChart
+        points={historique}
+        loading={chargementHistorique}
+        error={erreurHistorique}
+        onRetry={chargerHistorique}
+        pointsPatrimoine={patrimoineHistorique}
+        loadingPatrimoine={chargementPatrimoineHistorique}
+        errorPatrimoine={erreurPatrimoineHistorique}
+        onRetryPatrimoine={chargerPatrimoineHistorique}
+      />
 
       {loading && <SkeletonTexte lignes={4} />}
       {error && <EtatErreur message={error} onReessayer={chargerDonnees} />}

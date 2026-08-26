@@ -307,18 +307,30 @@ repliable générique (`Disclosure.tsx`, natif `<details>`-like, état persisté
 ouvert par défaut. Le bandeau d'accueil (aucune position) reste hors du repliable : c'est un appel à
 l'action, pas de la simple information complémentaire.
 
-**Variation et phrase en langage naturel** sous le chiffre principal (`{signe}{pct}% {libellé
-période}`, ex. « +10,0 % depuis le début du suivi ») : calculée sur le **portefeuille financier
-suivi** (même série que la courbe juste en dessous, filtrée par la Période transverse, § 2.K.3), pas
-sur le patrimoine net lui-même — celui-ci inclut l'immobilier/l'épargne/les dettes, sans historique
-daté consolidé disponible pour eux (le sujet du futur P.1, Lot 7). La phrase le précise explicitement
-(« portefeuille suivi, hors immobilier/épargne/dettes ») plutôt que de laisser croire à une précision
-que le calcul n'a pas — même philosophie de transparence que la qualité des données de répartition
-(§ 3.4) ou la valorisation immobilière datée (§ 3.11). `PatrimoineNetCard` et `PortfolioHistoryChart`
-partagent un seul appel réseau (`GET /api/performance/history`, coûteux — jusqu'à une minute),
-remonté par `DashboardPage` plutôt que chargé en double par les deux composants ; la courbe ne
-dépend plus de l'analyse géo/sectorielle (`analysis`/`loading`), elle reste visible même si celle-ci
-échoue à charger.
+**Variation, phrase en langage naturel et courbe pilotées par la lentille Net/Brut/Financier**
+(backlog § 2.S.2) : la courbe (`PortfolioHistoryChart`), le camembert/liste et la variation
+(`{signe}{pct}% {libellé période}`, ex. « +10,0 % depuis le début du suivi ») suivent désormais le
+sélecteur Net/Brut/Financier (§ 2.K.3), et non plus systématiquement le seul portefeuille financier.
+En lentille **Financier**, comportement historique inchangé : série `GET /api/performance/history`
+(`compute_portfolio_history`), légende « portefeuille suivi, hors immobilier/épargne/dettes ». En
+lentille **Brut**/**Net**, la source devient `GET /api/patrimoine/historique`
+(`patrimoine_history_service.compute_patrimoine_history`) — une série combinée qui fusionne, sur une
+grille hebdomadaire commune : la série financière déjà existante, un historique daté par ligne
+valorisée manuellement (`HoldingValuationHistory`, dernier point connu reporté), et l'amortissement
+théorique de chaque emprunt par date. Le camembert/liste (`repartition_par_classe`) suit la même
+logique : tous-actifs en Brut/Net (inchangé), restreint aux catégories financières
+(`repartition_par_classe_financiere`) en lentille Financier. Le mode étagé Investi/Gains de la courbe
+reste réservé à la lentille Financier (désactivé sinon, avec une explication) : l'immobilier/l'épargne
+n'ont pas de grand livre de versements équivalent pour construire cette décomposition.
+
+**Deux limites assumées et affichées** (même philosophie de transparence que la qualité des données de
+répartition, § 3.4, ou la valorisation immobilière datée, § 3.11 — jamais de fausse précision) :
+données de valorisation manuelle clairsemées (une ligne plate tant qu'un second point n'est pas
+saisi) et scoping par détenteur de la poche financière approximé par un ratio d'aujourd'hui (les
+quotités ne sont pas historisées). `PatrimoineNetCard` et `PortfolioHistoryChart` partagent les deux
+appels réseau (financier et combiné, tous deux coûteux — jusqu'à une minute pour le premier), remontés
+par `DashboardPage` plutôt que chargés en double ; la courbe ne dépend plus de l'analyse
+géo/sectorielle (`analysis`/`loading`), elle reste visible même si celle-ci échoue à charger.
 
 ### 3.17 Mobile et responsive (backlog § 2.K.4)
 

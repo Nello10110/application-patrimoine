@@ -201,14 +201,22 @@ courbe, puis le détail replié) :
    (somme des emprunts), patrimoine net, puis un **camembert « Par type d'investissement »**
    (Actions, ETF/Fonds, Immobilier, Crypto...) — survoler une part affiche le montant exact et son
    pourcentage — et, juste en dessous, la **liste détaillée** des mêmes catégories avec leur montant
-   exact toujours visible (le camembert vient en plus de cette liste, pas à sa place). Sous le
-   chiffre, une ligne de variation (« +10,0 % depuis le début du suivi », ou selon
-   la Période active dans la barre de contrôles) — elle porte sur le **portefeuille suivi** (le même
-   que la courbe ci-dessous), pas sur le patrimoine net lui-même, ce que la ligne précise
-   explicitement. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
-2. **La courbe** — **Évolution du portefeuille** : graphique avec sélecteur d'échelle (via la
-   Période, barre de contrôles) et un mode étagé qui distingue le capital investi des gains cumulés.
-   Reste visible même si le reste de l'écran (répartitions, indicateurs) échoue à charger.
+   exact toujours visible (le camembert vient en plus de cette liste, pas à sa place ; en lentille
+   Financier, § "Barre de contrôles" ci-dessous, il se restreint aux seules catégories financières).
+   Sous le chiffre, une ligne de variation (« +10,0 % depuis le début du suivi », ou selon la Période
+   active dans la barre de contrôles) qui suit elle aussi la lentille Net/Brut/Financier : en
+   Financier, elle porte sur le portefeuille suivi (le même que la courbe ci-dessous) ; en Brut/Net,
+   sur le patrimoine combiné (financier + immobilier/épargne valorisés à leurs derniers points connus,
+   moins les emprunts) — la ligne précise dans chaque cas ce qu'elle mesure, plutôt que d'afficher un
+   chiffre à la définition ambiguë. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
+2. **La courbe** — **Évolution du portefeuille** : suit elle aussi la lentille Net/Brut/Financier. En
+   Financier, graphique avec sélecteur d'échelle (via la Période) et un mode étagé qui distingue le
+   capital investi des gains cumulés. En Brut/Net, la même courbe mais sur le patrimoine combiné
+   (financier + immobilier/épargne/emprunts) — le mode étagé n'est alors pas disponible : il n'existe
+   pas d'équivalent « investi/gains » pour un bien immobilier ou un contrat d'épargne. Cette courbe
+   combinée peut apparaître plate ou en escalier tant que peu de valorisations manuelles ont été
+   saisies (immobilier, épargne) — elle s'affine au fil des saisies. Reste visible même si le reste de
+   l'écran (répartitions, indicateurs) échoue à charger.
 3. **Le détail** — tout le reste, replié sous un bouton **Détail** (ouvert par défaut, l'état choisi
    est mémorisé d'une visite à l'autre). Le bouton **Actualiser**, en haut à droite de l'écran (hors
    du repliable), recharge toutes les données de l'écran.

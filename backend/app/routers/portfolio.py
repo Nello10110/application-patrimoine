@@ -30,6 +30,7 @@ from ..services import (
     csv_import,
     detenteurs_service,
     historical_performance_service,
+    historique_cache,
     holding_detail_service,
     immobilier_service,
     performance_service,
@@ -267,6 +268,7 @@ def set_holding_valorisation(
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     date_dt = datetime.strptime(payload.date, "%Y-%m-%d")
     immobilier_service.enregistrer_point_historique(db, holding.id, payload.valeur, date_dt)
+    historique_cache.invalider_historiques_patrimoine(db)
     if holding.date_valeur_estimee is None or date_dt >= holding.date_valeur_estimee:
         holding.valeur_estimee = payload.valeur
         holding.date_valeur_estimee = date_dt
@@ -294,6 +296,7 @@ def set_holding_quotites(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}
 
 
@@ -320,6 +323,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     db.refresh(holding)
     if holding.valeur_estimee is not None:
         immobilier_service.enregistrer_point_historique(db, holding.id, holding.valeur_estimee, holding.date_valeur_estimee)
+        historique_cache.invalider_historiques_patrimoine(db)
     return holding
 
 
@@ -344,6 +348,7 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     # ci-dessus, qui ne pose `date_valeur_estimee` que dans ce même cas).
     if "valeur_estimee" in updates and holding.valeur_estimee is not None:
         immobilier_service.enregistrer_point_historique(db, holding.id, holding.valeur_estimee, holding.date_valeur_estimee)
+        historique_cache.invalider_historiques_patrimoine(db)
     return holding
 
 
@@ -354,4 +359,5 @@ def delete_holding(holding_id: int, db: Session = Depends(get_db), current_user:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     db.delete(holding)
     db.commit()
+    historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}

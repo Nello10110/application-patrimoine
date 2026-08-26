@@ -15,8 +15,8 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Detenteur, User
-from ..schemas import ExpositionConsolidee, PatrimoineNetResponse
-from ..services import auth_service, detenteurs_service, patrimoine_service
+from ..schemas import ExpositionConsolidee, PatrimoineHistoryResponse, PatrimoineNetResponse
+from ..services import auth_service, detenteurs_service, patrimoine_history_service, patrimoine_service
 
 router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
 
@@ -27,12 +27,10 @@ router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
 _pas_invite = require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE)
 
 
-@router.get("/net", response_model=PatrimoineNetResponse)
-def get_patrimoine_net(
-    detenteur_id: int | None = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+def _verifier_acces_detenteur(db: Session, current_user: User, detenteur_id: int | None) -> None:
+    """Mêmes vérifications pour tout endpoint scopé par détenteur (`/net`,
+    `/historique`) : détenteur introuvable/étranger -> 404, invité (2.L.2) hors de son
+    périmètre assigné -> 403. Factorisé pour ne jamais diverger entre les deux routes."""
     if detenteur_id is not None:
         detenteur = db.get(Detenteur, detenteur_id)
         if detenteur is None or detenteur.user_id != auth_service.id_foyer(current_user):
@@ -43,7 +41,27 @@ def get_patrimoine_net(
         perimetre = detenteurs_service.perimetre_invite(db, current_user.id)
         if detenteur_id is None or detenteur_id not in perimetre:
             raise HTTPException(status_code=403, detail="Détenteur hors de votre périmètre")
+
+
+@router.get("/net", response_model=PatrimoineNetResponse)
+def get_patrimoine_net(
+    detenteur_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _verifier_acces_detenteur(db, current_user, detenteur_id)
     return PatrimoineNetResponse(**patrimoine_service.compute_patrimoine_net(db, auth_service.id_foyer(current_user), detenteur_id))
+
+
+@router.get("/historique", response_model=PatrimoineHistoryResponse)
+def get_patrimoine_historique(
+    detenteur_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _verifier_acces_detenteur(db, current_user, detenteur_id)
+    points = patrimoine_history_service.compute_patrimoine_history(db, auth_service.id_foyer(current_user), detenteur_id)
+    return PatrimoineHistoryResponse(points=points)
 
 
 @router.get("/exposition-consolidee", response_model=ExpositionConsolidee)

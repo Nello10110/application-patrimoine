@@ -28,7 +28,7 @@ from typing import Callable
 
 from ..database import SessionLocal
 from . import market_data_service
-from .historique_cache import invalider_historiques_portefeuille
+from .historique_cache import invalider_historiques_patrimoine, invalider_historiques_portefeuille
 
 logger = logging.getLogger("patrimoine.market_data")
 
@@ -152,6 +152,9 @@ def _executer_rafraichissement(
         # rafraîchissement est global (tous les tickers de tous les utilisateurs,
         # Milestone 2a) : l'invalidation l'est aussi, pour tout le monde d'un coup.
         invalider_historiques_portefeuille(db)
+        # La poche financière de l'historique combiné (`patrimoine_history_service`)
+        # dérive elle aussi de ces cours — même raisonnement que ci-dessus.
+        invalider_historiques_patrimoine(db)
 
         with _verrou_etat:
             _etat.statut = "ok"

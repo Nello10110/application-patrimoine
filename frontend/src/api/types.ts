@@ -265,6 +265,28 @@ export interface PatrimoineNet {
   patrimoine_net: number
   patrimoine_financier: number
   repartition_par_classe: RepartitionParClasseItem[]
+  // Lentille "financier" (feature Net/Brut/Financier sur toute la page Synthèse) :
+  // même répartition, restreinte au seul portefeuille financier.
+  repartition_par_classe_financiere: RepartitionParClasseItem[]
+}
+
+// Historique combiné financier + immobilier/épargne − emprunts (feature Net/Brut/
+// Financier sur toute la page Synthèse) — distinct de `PortfolioHistoryPoint`
+// (financier seul). Cf. `services/patrimoine_history_service.py` pour les deux
+// limites assumées : données manuelles clairsemées, ratio flou pour le scoping
+// détenteur de la poche financière.
+export interface PatrimoineHistoryPoint {
+  date: string
+  valeur_financiere: number
+  valeur_manuelle: number
+  actifs_totaux: number
+  passifs_totaux: number
+  patrimoine_net: number
+  patrimoine_financier: number
+}
+
+export interface PatrimoineHistoryResponse {
+  points: PatrimoineHistoryPoint[]
 }
 
 // Exposition consolidée tous actifs (backlog 2.P.1) — une seule répartition géo/classe

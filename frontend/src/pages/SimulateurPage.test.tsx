@@ -28,7 +28,15 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
 }))
 
 function patrimoineNet(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
-  return { actifs_totaux: 10000, passifs_totaux: 0, patrimoine_net: 10000, patrimoine_financier: 10000, repartition_par_classe: [], ...overrides }
+  return {
+    actifs_totaux: 10000,
+    passifs_totaux: 0,
+    patrimoine_net: 10000,
+    patrimoine_financier: 10000,
+    repartition_par_classe: [],
+    repartition_par_classe_financiere: [],
+    ...overrides,
+  }
 }
 
 function performance(overrides: Partial<PerformanceSummary> = {}): PerformanceSummary {

@@ -53,6 +53,15 @@ def cle_historique_portefeuille(user_id: int) -> str:
     return f"historique_portefeuille:{user_id}"
 
 
+def cle_historique_patrimoine(user_id: int, detenteur_id: int | None = None) -> str:
+    """Clé de cache de l'historique combiné financier + immobilier/épargne − emprunts
+    (`patrimoine_history_service.compute_patrimoine_history`) — scopée par utilisateur
+    ET par détenteur (contrairement à `cle_historique_portefeuille`) : la série diffère
+    selon la vue foyer/détenteur, cf. le ratio flou appliqué à la poche financière et le
+    filtrage exact des lignes/emprunts par quotité."""
+    return f"historique_patrimoine:{user_id}:{detenteur_id if detenteur_id is not None else 'foyer'}"
+
+
 def lire(db: Session, cle: str):
     """Contenu en cache pour `cle`, ou `None` si absent ou périmé (> `DUREE_VALIDITE_HEURES`).
     Ne supprime pas l'entrée périmée : `ecrire` l'écrasera au prochain calcul."""
@@ -110,4 +119,14 @@ def invalider_historiques_portefeuille(db: Session) -> None:
     fois, mais l'événement est rare, purger tout le cache reste sans conséquence
     notable)."""
     db.query(HistoriqueCache).filter(HistoriqueCache.cle.like("historique_portefeuille:%")).delete(synchronize_session=False)
+    db.commit()
+
+
+def invalider_historiques_patrimoine(db: Session) -> None:
+    """Purge le cache d'historique combiné patrimoine (préfixe `historique_patrimoine:`,
+    toutes vues détenteur confondues, tous utilisateurs). Appelée après toute mutation
+    dont rien ne dépendait avant l'existence de cette série — valorisation d'un actif
+    manuel, CRUD d'un emprunt, changement de quotité — puisque `historical_performance_
+    service`/`market_data_refresh` n'invalidaient jusqu'ici que `historique_portefeuille:`."""
+    db.query(HistoriqueCache).filter(HistoriqueCache.cle.like("historique_patrimoine:%")).delete(synchronize_session=False)
     db.commit()

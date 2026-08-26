@@ -32,14 +32,11 @@ def mois_ecoules(date_debut: datetime, a_la_date: datetime) -> int:
     return max(0, mois)
 
 
-def compute_capital_restant_du(loan: Loan, a_la_date: datetime | None = None) -> float:
-    """Capital restant dû à `a_la_date` (aujourd'hui par défaut). Toujours borné entre
-    0 et `capital_initial` — un arrondi ou un décalage de mensualité ne doit jamais
-    produire un solde négatif ou supérieur au capital emprunté."""
-    if loan.capital_restant_du_manuel is not None:
-        return max(0.0, min(loan.capital_initial, loan.capital_restant_du_manuel))
-
-    a_la_date = a_la_date or maintenant_naif()
+def compute_capital_restant_du_theorique(loan: Loan, a_la_date: datetime) -> float:
+    """Amortissement théorique pur, ignorant délibérément `capital_restant_du_manuel` —
+    sert à reconstituer un point historique ANTÉRIEUR à un recalage manuel
+    (`derniere_maj_manuelle`), cf. `services/patrimoine_history_service.py`. Toujours
+    borné entre 0 et `capital_initial`."""
     n = mois_ecoules(loan.date_debut, a_la_date)
     if n <= 0:
         return loan.capital_initial
@@ -54,3 +51,13 @@ def compute_capital_restant_du(loan: Loan, a_la_date: datetime | None = None) ->
         restant = loan.capital_initial * facteur - loan.mensualite * (facteur - 1) / taux_mensuel
 
     return max(0.0, min(loan.capital_initial, restant))
+
+
+def compute_capital_restant_du(loan: Loan, a_la_date: datetime | None = None) -> float:
+    """Capital restant dû à `a_la_date` (aujourd'hui par défaut). Toujours borné entre
+    0 et `capital_initial` — un arrondi ou un décalage de mensualité ne doit jamais
+    produire un solde négatif ou supérieur au capital emprunté."""
+    if loan.capital_restant_du_manuel is not None:
+        return max(0.0, min(loan.capital_initial, loan.capital_restant_du_manuel))
+
+    return compute_capital_restant_du_theorique(loan, a_la_date or maintenant_naif())

@@ -79,6 +79,7 @@ def test_aucune_donnee_renvoie_des_totaux_nuls(db):
         "patrimoine_net": 0,
         "patrimoine_financier": 0,
         "repartition_par_classe": [],
+        "repartition_par_classe_financiere": [],
     }
 
 
@@ -92,6 +93,34 @@ def test_patrimoine_financier_exclut_le_patrimoine_manuel(db):
 
     assert resultat["actifs_totaux"] == 1000.0 + 250000.0
     assert resultat["patrimoine_financier"] == 1000.0
+
+
+def test_repartition_par_classe_financiere_exclut_le_patrimoine_manuel(db):
+    """Feature Net/Brut/Financier sur toute la page Synthèse : le camembert/liste en
+    lentille "financier" doit filtrer aux seules catégories financières, sans deviner
+    la frontière depuis le libellé côté frontend."""
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    make_holding(db, ticker="BBB", type_actif="FUND", quantite=1, prix_revient_moyen=500.0)
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+
+    par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_financiere"]}
+    assert par_categorie == {"Actions": 1000.0, "ETF / Fonds": 500.0}
+    # La répartition tous-actifs, elle, garde l'immobilier — les deux champs coexistent.
+    assert "Immobilier" in {item["categorie"] for item in resultat["repartition_par_classe"]}
+
+
+def test_repartition_par_classe_financiere_filtree_par_detenteur(db):
+    h_action = make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h_action, [(alice.id, 100.0)])
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+
+    par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_financiere"]}
+    assert par_categorie == {"Actions": 1000.0}
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +155,7 @@ def test_actif_non_reparti_est_invisible_dans_la_vue_dun_detenteur(db):
         "patrimoine_net": 0,
         "patrimoine_financier": 0,
         "repartition_par_classe": [],
+        "repartition_par_classe_financiere": [],
     }
 
 

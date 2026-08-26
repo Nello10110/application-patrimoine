@@ -1892,6 +1892,57 @@ l'écran Épargne que sur la fiche détaillée. +3 tests frontend nouveaux, suit
 (430 passés), `tsc -b`/`oxlint`/`npm run build` propres. Aucun changement backend nécessaire (routes
 déjà existantes).
 
+#### S.2 — `majeur` · `L` · `P2` · `traité` (26/08/2026) — Lentille Net/Brut/Financier sur toute la page Synthèse
+
+Demande directe de l'utilisateur : le sélecteur Net/Brut/Financier (`BarreControles.tsx`) ne pilotait
+jusqu'ici que le gros chiffre de `PatrimoineNetCard` — la courbe d'évolution, le camembert/liste et la
+variation restaient tous scopés « portefeuille financier » ou « tous actifs » sans jamais suivre le
+toggle. Souhait exprimé : que toute la page réagisse, « notamment les graphiques », pour que
+l'immobilier et les autres actifs valorisés manuellement soient bien pris en compte.
+
+**Lève le manque documenté en K.6/§P.1** : ces deux entrées notaient qu'aucun historique daté
+consolidé (tous actifs) n'existait, renvoyant au « futur P.1, Lot 7 » — mais P.1 (livré 24/08/2026,
+`compute_exposition_consolidee`) n'a livré qu'une vue **instantanée** (géo/classe), jamais la série
+**historique** que K.6 attendait. Ce manque restait donc réellement ouvert jusqu'à cette entrée.
+
+**Plan d'implémentation** : nouveau service `services/patrimoine_history_service.py`
+(`compute_patrimoine_history`) qui fusionne, sur une grille hebdomadaire commune (réutilise
+`historical_performance_service._weekly_grid`/`._value_at`) : la série financière déjà existante
+(`compute_portfolio_history`, inchangée) ; un historique daté par ligne valorisée manuellement
+(`HoldingValuationHistory`, dernier point connu reporté — LOCF — dégradant vers une ligne plate à
+`valeur_estimee` depuis `created_at` si aucun point n'existe) ; et un amortissement théorique par date
+pour chaque emprunt (`loan_service.compute_capital_restant_du_theorique`, nouvelle fonction extraite de
+`compute_capital_restant_du` pour ignorer volontairement un recalage manuel avant sa date). Nouvel
+endpoint `GET /api/patrimoine/historique`. Nouveau champ `repartition_par_classe_financiere` sur
+`compute_patrimoine_net` pour que le camembert/liste filtre proprement en lentille « financier ».
+Côté frontend : `DashboardPage` charge cette série en plus de l'historique financier existant et les
+transmet toutes les deux à `PatrimoineNetCard` (variation + camembert/liste) et
+`PortfolioHistoryChart` (courbe), qui choisissent la bonne source selon la lentille active.
+
+**Deux limites assumées et documentées** (docstring de `patrimoine_history_service.py`, légendes
+utilisateur) :
+1. **Données manuelles clairsemées** : un bien avec un seul point d'historique donne une ligne plate
+   tant qu'un second point n'est pas saisi — assumé plutôt que d'inventer une interpolation, cohérent
+   avec la philosophie de transparence déjà appliquée ailleurs (repli `None` du TWR, § 2.P.2).
+2. **Scoping par détenteur de la poche financière** : les quotités ne sont pas historisées, seule la
+   répartition d'aujourd'hui existe. Les lignes manuelles et les emprunts qui leur sont rattachés sont
+   scindés de façon exacte (pourcentage d'aujourd'hui appliqué à la série propre de chaque ligne) ; la
+   poche financière, elle, n'a pas de série par ligne exposée par `compute_portfolio_history` (agrégée)
+   et est donc scindée par un simple ratio d'aujourd'hui appliqué à toute la série — suppose que cette
+   répartition n'a pas changé dans le temps.
+
+Restent volontairement scopées au seul portefeuille financier (aucun changement) : `MetriquesAvanceesCard`
+(le TWR retranche des flux investis semaine par semaine, sans équivalent pour l'immobilier/l'épargne),
+la répartition géo/sectorielle, la qualité des données, le coût de gestion et la répartition par compte
+(look-through financier sans objet pour un bien immobilier), et le mode étagé Investi/Gains de la
+courbe (désactivé hors lentille « financier », pas de grand livre de versements pour l'immobilier).
+
+9 tests backend nouveaux (`test_patrimoine_history_service.py` : LOCF, dégradation gracieuse, emprunt
+avant sa date de début, recalage manuel théorique puis gelé, scoping détenteur exact et emprunt non
+rattaché, cache) + tests étendus (`test_loan_service.py`, `test_patrimoine_service.py`,
+`test_patrimoine_router.py`) ; côté frontend, tests étendus de `PatrimoineNetCard.test.tsx` et nouveau
+`PortfolioHistoryChart.test.tsx`, `tsc -b`/`vitest`/`oxlint` propres.
+
 ---
 ## 3. Hors périmètre (assumé)
 

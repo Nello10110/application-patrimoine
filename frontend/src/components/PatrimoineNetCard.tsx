@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { api } from '../api/client'
-import type { PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
+import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import { bornesPeriode, libellePeriodeEcoulee, variationSurPeriode } from '../utils/periode'
@@ -23,16 +23,29 @@ const TUILE_PRINCIPALE = {
   financier: (p: PatrimoineNet) => ({ label: 'Patrimoine financier', valeur: p.patrimoine_financier, tone: 'neutral' as const }),
 }
 
+// Légende sous le chiffre principal, une par lentille (feature Net/Brut/Financier sur
+// toute la page Synthèse) — la même honnêteté que partout ailleurs dans le projet sur
+// la portée réelle de la donnée affichée.
+const LEGENDE_VARIATION = {
+  financier: 'portefeuille suivi, hors immobilier/épargne/dettes',
+  brut: "patrimoine brut suivi — immobilier/épargne valorisés à leurs derniers points connus, parfois espacés",
+  net: "patrimoine net suivi — immobilier/épargne valorisés à leurs derniers points connus, parfois espacés",
+}
+
 interface PatrimoineNetCardProps {
-  /** Historique du portefeuille (backlog 2.K.6), remonté par `DashboardPage` — sert
-   * uniquement à afficher une variation + phrase sous le chiffre principal. Mesure
-   * le portefeuille FINANCIER suivi (courbe déjà affichée juste en dessous), pas le
-   * patrimoine net lui-même (qui inclut aussi l'immobilier/l'épargne/les dettes,
-   * sans historique daté consolidé disponible) — volontairement absent (`undefined`)
-   * pour tout appelant hors tableau de bord : la variation ne s'affiche alors pas,
-   * plutôt que d'afficher un chiffre dont la définition serait ambiguë hors contexte.
+  /** Historique du PORTEFEUILLE FINANCIER (backlog 2.K.6), remonté par
+   * `DashboardPage` — sert à la variation + phrase sous le chiffre principal
+   * UNIQUEMENT en lentille "financier". Volontairement absent (`undefined`) pour
+   * tout appelant hors tableau de bord : la variation ne s'affiche alors pas, plutôt
+   * que d'afficher un chiffre dont la définition serait ambiguë hors contexte.
    */
   historiquePortefeuille?: { points: PortfolioHistoryPoint[] | null; loading: boolean }
+  /** Historique combiné financier + immobilier/épargne − emprunts (feature Net/Brut/
+   * Financier sur toute la page Synthèse) — sert à la variation en lentille "brut"/
+   * "net". Cf. `patrimoine_history_service` pour les limites assumées (données
+   * manuelles clairsemées, ratio flou pour le scoping détenteur de la poche
+   * financière). */
+  historiquePatrimoine?: { points: PatrimoineHistoryPoint[] | null; loading: boolean }
 }
 
 /** Patrimoine net global (roadmap Phase 1) — actifs (portefeuille financier +
@@ -40,7 +53,7 @@ interface PatrimoineNetCardProps {
  * indépendante de l'année sélectionnée et du reste du tableau de bord (comme
  * `PerformanceCard`) : chargée et affichée même si l'analyse géo/sectorielle
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
-export default function PatrimoineNetCard({ historiquePortefeuille }: PatrimoineNetCardProps = {}) {
+export default function PatrimoineNetCard({ historiquePortefeuille, historiquePatrimoine }: PatrimoineNetCardProps = {}) {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,15 +62,19 @@ export default function PatrimoineNetCard({ historiquePortefeuille }: Patrimoine
   // Variation + phrase en langage naturel (backlog 2.K.6) : calculée sur la même
   // série et le même filtrage de Période transverse que `PortfolioHistoryChart`
   // (mode ligne, jamais le mode étagé) — les deux composants doivent toujours
-  // raconter la même histoire pour la même période.
+  // raconter la même histoire pour la même période. Source différente selon la
+  // lentille (feature Net/Brut/Financier sur toute la page Synthèse) : le
+  // portefeuille financier seul en "financier", l'historique combiné en "brut"/"net".
   const variationPct = useMemo(() => {
-    if (!historiquePortefeuille?.points) return null
+    const source =
+      lentille === 'financier'
+        ? historiquePortefeuille?.points?.map((p) => ({ date: p.date, valeur: p.valeur_portefeuille }))
+        : historiquePatrimoine?.points?.map((p) => ({ date: p.date, valeur: lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net }))
+    if (!source) return null
     const bornes = bornesPeriode(periode)
-    const filtres = bornes
-      ? historiquePortefeuille.points.filter((p) => p.date >= bornes.dateDebut && p.date <= bornes.dateFin)
-      : historiquePortefeuille.points
-    return variationSurPeriode(filtres.map((p) => ({ valeur: p.valeur_portefeuille })))
-  }, [historiquePortefeuille?.points, periode])
+    const filtres = bornes ? source.filter((p) => p.date >= bornes.dateDebut && p.date <= bornes.dateFin) : source
+    return variationSurPeriode(filtres)
+  }, [lentille, historiquePortefeuille?.points, historiquePatrimoine?.points, periode])
 
   function charger() {
     setLoading(true)
@@ -96,6 +113,13 @@ export default function PatrimoineNetCard({ historiquePortefeuille }: Patrimoine
   const principale = TUILE_PRINCIPALE[lentille](patrimoine)
   const toneClassPrincipale = { good: 'text-positif', warning: 'text-avertissement', neutral: 'text-texte' }[principale.tone]
 
+  // Camembert/liste (feature Net/Brut/Financier sur toute la page Synthèse) : en
+  // lentille "financier", filtre aux seules catégories financières (champ dédié côté
+  // backend, cf. `compute_patrimoine_net`) — "brut"/"net" restent tous-actifs, comme
+  // avant cette feature.
+  const repartitionAffichee = lentille === 'financier' ? patrimoine.repartition_par_classe_financiere : patrimoine.repartition_par_classe
+  const totalRepartition = lentille === 'financier' ? patrimoine.patrimoine_financier : patrimoine.actifs_totaux
+
   return (
     <Card title="Patrimoine net">
       {/* Le chiffre (backlog 2.K.6) : très grand, avec sa variation et une phrase en
@@ -111,7 +135,7 @@ export default function PatrimoineNetCard({ historiquePortefeuille }: Patrimoine
               {variationPct.toFixed(1)}%
             </span>{' '}
             <span className="text-texte-attenue">
-              {libellePeriodeEcoulee(periode)} — portefeuille suivi, hors immobilier/épargne/dettes
+              {libellePeriodeEcoulee(periode)} — {LEGENDE_VARIATION[lentille]}
             </span>
           </p>
         )}
@@ -126,27 +150,27 @@ export default function PatrimoineNetCard({ historiquePortefeuille }: Patrimoine
         />
       </div>
 
-      {patrimoine.repartition_par_classe.length > 0 && (
+      {repartitionAffichee.length > 0 && (
         <div className="mt-4 border-t border-bordure pt-2">
           <p className="pt-2 text-xs font-medium uppercase tracking-wide text-texte-attenue">Par type d'investissement</p>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
               <Pie
-                data={patrimoine.repartition_par_classe}
+                data={repartitionAffichee}
                 dataKey="valeur"
                 nameKey="categorie"
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                label={(d) => `${((d.value / patrimoine.actifs_totaux) * 100).toFixed(0)}%`}
+                label={(d) => `${((d.value / totalRepartition) * 100).toFixed(0)}%`}
               >
-                {patrimoine.repartition_par_classe.map((_, i) => (
+                {repartitionAffichee.map((_, i) => (
                   <Cell key={i} fill={COULEURS_CLASSE[i % COULEURS_CLASSE.length]} />
                 ))}
               </Pie>
               <Tooltip
                 formatter={(value, _name, item) => [
-                  `${formatEuro(Number(value), 0, montantsMasques)} (${((Number(value) / patrimoine.actifs_totaux) * 100).toFixed(1)}%)`,
+                  `${formatEuro(Number(value), 0, montantsMasques)} (${((Number(value) / totalRepartition) * 100).toFixed(1)}%)`,
                   item?.payload?.categorie,
                 ]}
                 {...STYLE_INFOBULLE}
@@ -155,7 +179,7 @@ export default function PatrimoineNetCard({ historiquePortefeuille }: Patrimoine
             </PieChart>
           </ResponsiveContainer>
           <ul className="divide-y divide-bordure border-t border-bordure pt-2">
-            {patrimoine.repartition_par_classe.map((item) => (
+            {repartitionAffichee.map((item) => (
               <li key={item.categorie} className="flex items-center justify-between py-1.5 text-sm">
                 <span className="text-texte">{item.categorie}</span>
                 <span className="font-medium text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</span>

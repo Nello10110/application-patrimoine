@@ -49,6 +49,7 @@ import type {
   LienPartageInput,
   PartageMeta,
   PartagePayload,
+  PatrimoineHistoryResponse,
   PatrimoineNet,
   PerformanceSummary,
   Preferences,
@@ -270,6 +271,8 @@ export const api = {
   // départ.
   getPatrimoineNet: (detenteurId?: number | null) =>
     request<PatrimoineNet>(`/patrimoine/net${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
+  getPatrimoineHistory: (detenteurId?: number | null) =>
+    request<PatrimoineHistoryResponse>(`/patrimoine/historique${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
   getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
 
   // Liens de partage révocables (backlog 2.Q.1) : gestion réservée au propriétaire.

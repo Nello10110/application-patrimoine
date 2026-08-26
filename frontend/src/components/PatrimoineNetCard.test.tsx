@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
+import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
 import { PreferencesAffichageContext, type Lentille } from '../contexts/preferencesAffichageContextObject'
 import { PERIODE_DEFAUT, type Periode } from '../utils/periode'
 import PatrimoineNetCard from './PatrimoineNetCard'
@@ -19,6 +19,7 @@ function patrimoine(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
     patrimoine_net: 0,
     patrimoine_financier: 0,
     repartition_par_classe: [],
+    repartition_par_classe_financiere: [],
     ...overrides,
   }
 }
@@ -33,6 +34,7 @@ function renderCard(
   detenteurId: number | null = null,
   historiquePortefeuille?: { points: PortfolioHistoryPoint[] | null; loading: boolean },
   periode: Periode = PERIODE_DEFAUT,
+  historiquePatrimoine?: { points: PatrimoineHistoryPoint[] | null; loading: boolean },
 ) {
   return render(
     <PreferencesAffichageContext.Provider
@@ -47,13 +49,17 @@ function renderCard(
         setPeriode: vi.fn(),
       }}
     >
-      <PatrimoineNetCard historiquePortefeuille={historiquePortefeuille} />
+      <PatrimoineNetCard historiquePortefeuille={historiquePortefeuille} historiquePatrimoine={historiquePatrimoine} />
     </PreferencesAffichageContext.Provider>,
   )
 }
 
 function point(overrides: Partial<PortfolioHistoryPoint> = {}): PortfolioHistoryPoint {
   return { date: '2026-01-01', valeur_portefeuille: 0, valeur_investie: 0, valeur_realisee_cumulee: 0, ...overrides }
+}
+
+function pointPatrimoine(overrides: Partial<PatrimoineHistoryPoint> = {}): PatrimoineHistoryPoint {
+  return { date: '2026-01-01', valeur_financiere: 0, valeur_manuelle: 0, actifs_totaux: 0, passifs_totaux: 0, patrimoine_net: 0, patrimoine_financier: 0, ...overrides }
 }
 
 describe('PatrimoineNetCard', () => {
@@ -180,6 +186,26 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     await screen.findByText('Patrimoine financier')
     expect(screen.getByText('90 000 €')).toBeInTheDocument()
   })
+
+  it('lentille "financier" : le camembert/liste utilise `repartition_par_classe_financiere`, pas la répartition tous-actifs', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(
+      patrimoine({
+        actifs_totaux: 300000,
+        patrimoine_net: 300000,
+        patrimoine_financier: 50000,
+        repartition_par_classe: [
+          { categorie: 'Immobilier', valeur: 250000 },
+          { categorie: 'Actions', valeur: 50000 },
+        ],
+        repartition_par_classe_financiere: [{ categorie: 'Actions', valeur: 50000 }],
+      }),
+    )
+    renderCard('financier')
+
+    await screen.findByText('Par type d\'investissement')
+    expect(screen.getByText('Actions')).toBeInTheDocument()
+    expect(screen.queryByText('Immobilier')).not.toBeInTheDocument()
+  })
 })
 
 describe('PatrimoineNetCard — filtre détenteur (backlog 2.L.1)', () => {
@@ -215,9 +241,17 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
     expect(screen.queryByText(/depuis|derniers?|dernière/)).not.toBeInTheDocument()
   })
 
-  it('affiche la variation positive et la phrase "depuis le début du suivi" (période TOUT par défaut)', async () => {
-    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1600, passifs_totaux: 500, patrimoine_net: 1100 }))
-    renderCard('net', null, {
+  // Les quatre tests suivants portaient historiquement sur `renderCard('net', ...)` :
+  // avant la feature Net/Brut/Financier sur toute la page Synthèse, la variation
+  // venait TOUJOURS de `historiquePortefeuille` (portefeuille financier) quelle que
+  // soit la lentille — précisément le bug que cette feature corrige (cf. contexte du
+  // plan). Ces tests portent donc désormais explicitement sur la lentille
+  // "financier", seule à encore lire `historiquePortefeuille` pour sa variation ; de
+  // nouveaux tests couvrent "brut"/"net" via `historiquePatrimoine` juste après.
+
+  it('lentille "financier" : affiche la variation positive et la phrase "depuis le début du suivi" (période TOUT par défaut)', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1600, passifs_totaux: 500, patrimoine_net: 1100, patrimoine_financier: 1100 }))
+    renderCard('financier', null, {
       points: [point({ date: '2026-01-01', valeur_portefeuille: 1000 }), point({ date: '2026-06-01', valeur_portefeuille: 1100 })],
       loading: false,
     })
@@ -226,9 +260,9 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
     expect(screen.getByText(/depuis le début du suivi/)).toBeInTheDocument()
   })
 
-  it('affiche la variation négative en rouge (texte-negatif), signe "-" inclus', async () => {
-    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1400, passifs_totaux: 500, patrimoine_net: 900 }))
-    renderCard('net', null, {
+  it('lentille "financier" : affiche la variation négative en rouge (texte-negatif), signe "-" inclus', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1400, passifs_totaux: 500, patrimoine_net: 900, patrimoine_financier: 900 }))
+    renderCard('financier', null, {
       points: [point({ date: '2026-01-01', valeur_portefeuille: 1000 }), point({ date: '2026-06-01', valeur_portefeuille: 900 })],
       loading: false,
     })
@@ -237,15 +271,15 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
     expect(variation).toHaveClass('text-negatif')
   })
 
-  it('filtre la série sur la Période transverse active avant de calculer la variation', async () => {
+  it('lentille "financier" : filtre la série sur la Période transverse active avant de calculer la variation', async () => {
     // Bornes du dernier point calées sur "aujourd'hui" (pas un mois fixe) pour que
     // ce test reste vrai toute l'année, y compris en janvier — `bornesPeriode` en
     // YTD fixe `dateFin` à la date du jour.
     const anneeEnCours = new Date().getFullYear()
     const aujourdhui = new Date().toISOString().slice(0, 10)
-    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1700, passifs_totaux: 500, patrimoine_net: 1200 }))
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1700, passifs_totaux: 500, patrimoine_net: 1200, patrimoine_financier: 1200 }))
     renderCard(
-      'net',
+      'financier',
       null,
       {
         points: [
@@ -260,5 +294,27 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
 
     await screen.findByText('+20.0%')
     expect(screen.getByText(/depuis janvier/)).toBeInTheDocument()
+  })
+
+  it('lentille "brut" : la variation vient de `historiquePatrimoine.actifs_totaux`, pas du portefeuille financier', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1100, passifs_totaux: 0, patrimoine_net: 1100 }))
+    renderCard('brut', null, undefined, PERIODE_DEFAUT, {
+      points: [pointPatrimoine({ date: '2026-01-01', actifs_totaux: 1000 }), pointPatrimoine({ date: '2026-06-01', actifs_totaux: 1100 })],
+      loading: false,
+    })
+
+    await screen.findByText('+10.0%')
+    expect(screen.getByText(/depuis le début du suivi/)).toBeInTheDocument()
+  })
+
+  it('lentille "net" : la variation vient de `historiquePatrimoine.patrimoine_net`, pas du portefeuille financier', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 900, passifs_totaux: 0, patrimoine_net: 900 }))
+    renderCard('net', null, undefined, PERIODE_DEFAUT, {
+      points: [pointPatrimoine({ date: '2026-01-01', patrimoine_net: 1000 }), pointPatrimoine({ date: '2026-06-01', patrimoine_net: 900 })],
+      loading: false,
+    })
+
+    const variation = await screen.findByText('-10.0%')
+    expect(variation).toHaveClass('text-negatif')
   })
 })

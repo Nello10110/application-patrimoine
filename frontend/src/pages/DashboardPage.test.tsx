@@ -16,6 +16,9 @@ vi.mock('../api/client', () => ({
     // `PortfolioHistoryChart`/`PatrimoineNetCard` (tous deux mis de côté ci-dessous) —
     // hors de l'objet de ce fichier, stub neutre.
     getPortfolioHistory: vi.fn().mockResolvedValue({ points: [] }),
+    // Historique combiné patrimoine (feature Net/Brut/Financier sur toute la page
+    // Synthèse) : même philosophie que ci-dessus, stub neutre.
+    getPatrimoineHistory: vi.fn().mockResolvedValue({ points: [] }),
   },
 }))
 
@@ -36,7 +39,7 @@ vi.mock('../components/PatrimoineNetCard', () => ({ default: () => <div /> }))
 // Contrôles transverses (backlog 2.K.3) : `DashboardPage` lit
 // `usePreferencesAffichage()` (montants masqués) — non testé ici, stub neutre.
 vi.mock('../hooks/usePreferencesAffichage', () => ({
-  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
+  usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn(), detenteurId: null, setDetenteurId: vi.fn() }),
 }))
 
 function analyse(overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
@@ -216,6 +219,13 @@ describe('DashboardPage — hiérarchie de lecture (backlog 2.K.6)', () => {
 
     await screen.findByText('Score de diversification')
     expect(api.getPortfolioHistory).toHaveBeenCalledTimes(1)
+  })
+
+  it('charge aussi l\'historique combiné patrimoine (feature Net/Brut/Financier), scopé par détenteur', async () => {
+    renderPage()
+
+    await screen.findByText('Score de diversification')
+    expect(api.getPatrimoineHistory).toHaveBeenCalledWith(null)
   })
 
   it('le détail (répartition, score de diversification, exposition consolidée...) est ouvert par défaut, et se replie au clic', async () => {

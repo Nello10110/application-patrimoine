@@ -89,6 +89,26 @@ def set_quotites_loan(db: Session, user_id: int, loan: Loan, quotites: list[tupl
     db.commit()
 
 
+def compute_pourcentages(db: Session, holding: Holding) -> dict[int, float]:
+    """{detenteur_id: quotite_pct} pour cet actif, découplé de toute `valeur` — pour un
+    besoin qui doit appliquer le même pourcentage à plusieurs dates d'une série
+    (`patrimoine_history_service`), contrairement à `compute_parts` qui rend une part
+    déjà multipliée par une `valeur` propre à une seule date. `{}` si aucune quotité
+    saisie (100 % foyer implicite, même contrat que `compute_parts`)."""
+    quotites = db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).all()
+    return {q.detenteur_id: q.quotite_pct for q in quotites}
+
+
+def compute_pourcentage_emprunt(db: Session, holding: Holding, emprunt: Loan) -> dict[int, float]:
+    """Quotités de l'emprunt rattaché à `holding` : ses propres `QuotiteLoan` si
+    saisies, sinon héritées de `compute_pourcentages(db, holding)` — même règle de
+    repli que `compute_parts`."""
+    lignes_emprunt = db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == emprunt.id).all()
+    if lignes_emprunt:
+        return {q.detenteur_id: q.quotite_pct for q in lignes_emprunt}
+    return compute_pourcentages(db, holding)
+
+
 def compute_parts(db: Session, holding: Holding, valeur: float) -> dict[int, dict[str, float]]:
     """Part détenue et part nette par détenteur pour cette ligne (backlog 2.L.1).
     `valeur` : valeur déjà calculée de la ligne (`analysis_service.value_holdings`),

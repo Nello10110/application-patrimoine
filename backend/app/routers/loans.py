@@ -9,7 +9,7 @@ from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import Holding, Loan, QuotiteHolding, QuotiteLoan, ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, User
 from ..schemas import LoanCreate, LoanOut, LoanUpdate
-from ..services import auth_service, detenteurs_service, loan_service
+from ..services import auth_service, detenteurs_service, historique_cache, loan_service
 
 router = APIRouter(prefix="/api/loans", tags=["loans"])
 
@@ -57,6 +57,7 @@ def create_loan(payload: LoanCreate, db: Session = Depends(get_db), current_user
     db.add(loan)
     db.commit()
     db.refresh(loan)
+    historique_cache.invalider_historiques_patrimoine(db)
     return _vers_loan_out(loan)
 
 
@@ -83,6 +84,7 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: Session = Depends(get_db)
         setattr(loan, key, value)
     db.commit()
     db.refresh(loan)
+    historique_cache.invalider_historiques_patrimoine(db)
     return _vers_loan_out(loan)
 
 
@@ -93,4 +95,5 @@ def delete_loan(loan_id: int, db: Session = Depends(get_db), current_user: User 
         raise HTTPException(status_code=404, detail="Emprunt introuvable")
     db.delete(loan)
     db.commit()
+    historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}

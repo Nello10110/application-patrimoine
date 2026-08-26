@@ -1035,6 +1035,29 @@ class PatrimoineNetResponse(BaseModel):
     # sans retrancher les emprunts (aucun rattachement emprunt↔actif n'existe encore, cf. M.2).
     patrimoine_financier: float
     repartition_par_classe: list[RepartitionParClasseItem]
+    # Lentille "financier" (feature Net/Brut/Financier sur toute la page Synthèse) :
+    # même répartition, restreinte au seul portefeuille financier — évite au frontend de
+    # deviner quelles catégories de `repartition_par_classe` sont "financières" à partir
+    # du seul libellé.
+    repartition_par_classe_financiere: list[RepartitionParClasseItem]
+
+
+class PatrimoineHistoryPoint(BaseModel):
+    """Un point de la série combinée (`services/patrimoine_history_service`) — cf. sa
+    docstring de module pour les deux limites assumées (données manuelles clairsemées,
+    ratio flou pour le scoping détenteur de la poche financière)."""
+
+    date: str
+    valeur_financiere: float
+    valeur_manuelle: float
+    actifs_totaux: float
+    passifs_totaux: float
+    patrimoine_net: float
+    patrimoine_financier: float
+
+
+class PatrimoineHistoryResponse(BaseModel):
+    points: list[PatrimoineHistoryPoint]
 
 
 class ZoneGeographiqueInfo(BaseModel):
