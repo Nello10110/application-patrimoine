@@ -201,8 +201,13 @@ courbe, puis le détail replié) :
    (somme des emprunts), patrimoine net, puis un **camembert « Par type d'investissement »**
    (Actions, ETF/Fonds, Immobilier, Crypto...) — survoler une part affiche le montant exact et son
    pourcentage — et, juste en dessous, la **liste détaillée** des mêmes catégories avec leur montant
-   exact toujours visible (le camembert vient en plus de cette liste, pas à sa place ; en lentille
-   Financier, § "Barre de contrôles" ci-dessous, il se restreint aux seules catégories financières).
+   exact toujours visible (le camembert vient en plus de cette liste, pas à sa place). Suit lui aussi la
+   lentille Net/Brut/Financier (§ "Barre de contrôles" ci-dessous) : en **Brut**, valeur brute de
+   chaque ligne, comme avant ; en **Financier**, restreint aux seules catégories financières ; en
+   **Net**, chaque ligne est nettée de SON emprunt (ex. l'appartement affiche sa valeur moins ce qu'il
+   reste à rembourser dessus, pas sa valeur brute) — une ligne peut alors apparaître en négatif (montant
+   en rouge) si l'emprunt dépasse la valeur du bien, auquel cas elle n'est pas représentée dans le
+   camembert (qui ne peut pas afficher une part négative) mais reste visible dans la liste.
    Sous le chiffre, une ligne de variation (« +10,0 % depuis le début du suivi », ou selon la Période
    active dans la barre de contrôles) qui suit elle aussi la lentille Net/Brut/Financier : en
    Financier, elle porte sur le portefeuille suivi (le même que la courbe ci-dessous) ; en Brut/Net,

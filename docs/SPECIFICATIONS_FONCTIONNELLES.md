@@ -298,8 +298,9 @@ Au-delà du graphique, un **tableau de détail** (bascule Annuelle/Mensuelle) li
 Trois temps : **le chiffre** (`PatrimoineNetCard`, patrimoine net en très grand — jeton `text-display`
 du système de design, § 2.K.1 — avec la répartition actifs/passifs juste en dessous, puis un camembert
 « Par type d'investissement » ET la liste détaillée des montants exacts, l'un n'ayant jamais remplacé
-l'autre (retour utilisateur), sur `repartition_par_classe` dès qu'elle n'est pas vide — pourcentages du
-camembert toujours affichés, contrairement aux montants en euros qui respectent le masquage), **la
+l'autre (retour utilisateur), sur la répartition par classe pertinente pour la lentille active (§ ci-
+dessous) dès qu'elle n'est pas vide — pourcentages du camembert toujours affichés, contrairement aux
+montants en euros qui respectent le masquage), **la
 courbe** (`PortfolioHistoryChart`, évolution du portefeuille financier), **le détail** (tout le reste :
 indicateurs de risque, répartitions géo/sectorielles réelles, qualité des données, exposition
 consolidée tous actifs — § 3.20, coût de gestion, répartition par compte) regroupé dans un composant
@@ -317,11 +318,18 @@ lentille **Brut**/**Net**, la source devient `GET /api/patrimoine/historique`
 (`patrimoine_history_service.compute_patrimoine_history`) — une série combinée qui fusionne, sur une
 grille hebdomadaire commune : la série financière déjà existante, un historique daté par ligne
 valorisée manuellement (`HoldingValuationHistory`, dernier point connu reporté), et l'amortissement
-théorique de chaque emprunt par date. Le camembert/liste (`repartition_par_classe`) suit la même
-logique : tous-actifs en Brut/Net (inchangé), restreint aux catégories financières
-(`repartition_par_classe_financiere`) en lentille Financier. Le mode étagé Investi/Gains de la courbe
-reste réservé à la lentille Financier (désactivé sinon, avec une explication) : l'immobilier/l'épargne
-n'ont pas de grand livre de versements équivalent pour construire cette décomposition.
+théorique de chaque emprunt par date. Le camembert/liste suit lui aussi la lentille, mais sur trois
+répartitions distinctes calculées par `compute_patrimoine_net` : `repartition_par_classe` (valeur
+BRUTE par ligne, inchangée) en lentille Brut ; `repartition_par_classe_financiere` (restreinte aux
+catégories financières) en lentille Financier ; `repartition_par_classe_nette` en lentille Net —
+retour utilisateur (26/08/2026) : chaque ligne y est nettée de SON emprunt rattaché (`Loan.holding_id`,
+réutilise `part_nette` de `detenteurs_service.compute_parts`), pas seulement le grand total, avec un
+bucket « Dettes non rattachées » pour un emprunt sans actif associé — la somme correspond toujours
+exactement à `patrimoine_net`. Une ligne peut y être négative (équité négative) : jamais masquée dans
+la liste (affichée en rouge), mais exclue du camembert, qui ne peut pas représenter une part négative.
+Le mode étagé Investi/Gains de la courbe reste réservé à la lentille Financier (désactivé sinon, avec
+une explication) : l'immobilier/l'épargne n'ont pas de grand livre de versements équivalent pour
+construire cette décomposition.
 
 **Deux limites assumées et affichées** (même philosophie de transparence que la qualité des données de
 répartition, § 3.4, ou la valorisation immobilière datée, § 3.11 — jamais de fausse précision) :

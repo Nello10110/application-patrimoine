@@ -114,11 +114,21 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
   const toneClassPrincipale = { good: 'text-positif', warning: 'text-avertissement', neutral: 'text-texte' }[principale.tone]
 
   // Camembert/liste (feature Net/Brut/Financier sur toute la page Synthèse) : en
-  // lentille "financier", filtre aux seules catégories financières (champ dédié côté
-  // backend, cf. `compute_patrimoine_net`) — "brut"/"net" restent tous-actifs, comme
-  // avant cette feature.
-  const repartitionAffichee = lentille === 'financier' ? patrimoine.repartition_par_classe_financiere : patrimoine.repartition_par_classe
-  const totalRepartition = lentille === 'financier' ? patrimoine.patrimoine_financier : patrimoine.actifs_totaux
+  // lentille "financier", filtre aux seules catégories financières ; en "net", nette
+  // chaque ligne de SON emprunt rattaché plutôt que la valeur brute (retour
+  // utilisateur : l'actif net d'un bien, c'est sa valeur moins ce qu'il reste à
+  // rembourser dessus) — "brut" reste tous-actifs en valeur brute, inchangé.
+  const repartitionAffichee =
+    lentille === 'financier'
+      ? patrimoine.repartition_par_classe_financiere
+      : lentille === 'net'
+        ? patrimoine.repartition_par_classe_nette
+        : patrimoine.repartition_par_classe
+  const totalRepartition = lentille === 'financier' ? patrimoine.patrimoine_financier : lentille === 'net' ? patrimoine.patrimoine_net : patrimoine.actifs_totaux
+  // Le camembert ne peut pas représenter une part négative (équité négative sur une
+  // ligne, ou le bucket "Dettes non rattachées") — la liste, elle, l'affiche telle
+  // quelle juste en dessous, comme n'importe quel montant négatif ailleurs dans l'app.
+  const repartitionCamembert = repartitionAffichee.filter((item) => item.valeur > 0)
 
   return (
     <Card title="Patrimoine net">
@@ -153,36 +163,40 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
       {repartitionAffichee.length > 0 && (
         <div className="mt-4 border-t border-bordure pt-2">
           <p className="pt-2 text-xs font-medium uppercase tracking-wide text-texte-attenue">Par type d'investissement</p>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-              <Pie
-                data={repartitionAffichee}
-                dataKey="valeur"
-                nameKey="categorie"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                label={(d) => `${((d.value / totalRepartition) * 100).toFixed(0)}%`}
-              >
-                {repartitionAffichee.map((_, i) => (
-                  <Cell key={i} fill={COULEURS_CLASSE[i % COULEURS_CLASSE.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value, _name, item) => [
-                  `${formatEuro(Number(value), 0, montantsMasques)} (${((Number(value) / totalRepartition) * 100).toFixed(1)}%)`,
-                  item?.payload?.categorie,
-                ]}
-                {...STYLE_INFOBULLE}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-            </PieChart>
-          </ResponsiveContainer>
+          {repartitionCamembert.length > 0 && (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                <Pie
+                  data={repartitionCamembert}
+                  dataKey="valeur"
+                  nameKey="categorie"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={(d) => `${((d.value / totalRepartition) * 100).toFixed(0)}%`}
+                >
+                  {repartitionCamembert.map((_, i) => (
+                    <Cell key={i} fill={COULEURS_CLASSE[i % COULEURS_CLASSE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value, _name, item) => [
+                    `${formatEuro(Number(value), 0, montantsMasques)} (${((Number(value) / totalRepartition) * 100).toFixed(1)}%)`,
+                    item?.payload?.categorie,
+                  ]}
+                  {...STYLE_INFOBULLE}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
           <ul className="divide-y divide-bordure border-t border-bordure pt-2">
             {repartitionAffichee.map((item) => (
               <li key={item.categorie} className="flex items-center justify-between py-1.5 text-sm">
                 <span className="text-texte">{item.categorie}</span>
-                <span className="font-medium text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</span>
+                <span className={`font-medium ${item.valeur < 0 ? 'text-negatif' : 'text-texte'}`}>
+                  {formatEuro(item.valeur, 0, montantsMasques)}
+                </span>
               </li>
             ))}
           </ul>

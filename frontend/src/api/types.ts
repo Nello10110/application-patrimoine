@@ -268,6 +268,10 @@ export interface PatrimoineNet {
   // Lentille "financier" (feature Net/Brut/Financier sur toute la page Synthèse) :
   // même répartition, restreinte au seul portefeuille financier.
   repartition_par_classe_financiere: RepartitionParClasseItem[]
+  // Lentille "net" : même répartition, chaque ligne nettée de SON emprunt rattaché
+  // (pas seulement le grand total) — peut contenir des valeurs négatives (équité
+  // négative sur une ligne, ou un bucket "Dettes non rattachées"), jamais masquées.
+  repartition_par_classe_nette: RepartitionParClasseItem[]
 }
 
 // Historique combiné financier + immobilier/épargne − emprunts (feature Net/Brut/

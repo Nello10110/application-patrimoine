@@ -35,6 +35,7 @@ function patrimoineNet(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
     patrimoine_financier: 10000,
     repartition_par_classe: [],
     repartition_par_classe_financiere: [],
+    repartition_par_classe_nette: [],
     ...overrides,
   }
 }

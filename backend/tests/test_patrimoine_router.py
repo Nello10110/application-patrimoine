@@ -24,6 +24,7 @@ def test_patrimoine_net_vide(client):
         "patrimoine_financier": 0,
         "repartition_par_classe": [],
         "repartition_par_classe_financiere": [],
+        "repartition_par_classe_nette": [],
     }
 
 

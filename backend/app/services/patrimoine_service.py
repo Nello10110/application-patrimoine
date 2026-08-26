@@ -41,6 +41,11 @@ LABEL_TYPE_ACTIF: dict[str | None, str] = {
     "OTHER_ASSET": "Autre actif",
 }
 LABEL_NON_RENSEIGNE = "Non renseigné"
+# Lentille "net" (retour utilisateur : l'actif net d'un bien, c'est sa valeur moins
+# SON emprunt rattaché, pas la valeur brute) — bucket dédié pour un emprunt qui ne
+# finance aucune ligne en particulier (`Loan.holding_id is None`), afin que la somme
+# de `repartition_par_classe_nette` corresponde toujours exactement à `patrimoine_net`.
+LABEL_DETTES_NON_RATTACHEES = "Dettes non rattachées"
 
 
 def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None = None) -> dict:
@@ -55,11 +60,28 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
     if detenteur_id is None:
         actifs_totaux = sum(v.valeur for v in valued)
         loans = db.query(Loan).filter(Loan.user_id == user_id).all()
-        passifs_totaux = sum(loan_service.compute_capital_restant_du(loan) for loan in loans)
+        # Capital restant dû réparti par ligne rattachée (backlog : lentille Net sur
+        # le camembert/liste), pour nettoyer chaque catégorie de SON emprunt plutôt
+        # que de ne retrancher les emprunts qu'au niveau du grand total.
+        crd_par_holding: dict[int, float] = {}
+        crd_non_rattache = 0.0
+        for loan in loans:
+            crd = loan_service.compute_capital_restant_du(loan)
+            if loan.holding_id is not None:
+                crd_par_holding[loan.holding_id] = crd_par_holding.get(loan.holding_id, 0.0) + crd
+            else:
+                crd_non_rattache += crd
+        passifs_totaux = sum(crd_par_holding.values()) + crd_non_rattache
+
         par_classe: dict[str, float] = {}
+        par_classe_nette: dict[str, float] = {}
         for v in valued:
             label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
             par_classe[label] = par_classe.get(label, 0.0) + v.valeur
+            valeur_nette = v.valeur - crd_par_holding.get(v.holding.id, 0.0)
+            par_classe_nette[label] = par_classe_nette.get(label, 0.0) + valeur_nette
+        if crd_non_rattache != 0.0:
+            par_classe_nette[LABEL_DETTES_NON_RATTACHEES] = par_classe_nette.get(LABEL_DETTES_NON_RATTACHEES, 0.0) - crd_non_rattache
 
         # Lentille "financier" (backlog 2.K.3) : réutilise `holdings_financiers` (déjà
         # la définition du portefeuille financier ailleurs dans l'app) plutôt que de
@@ -75,6 +97,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         actifs_totaux = 0.0
         passifs_totaux = 0.0
         par_classe = {}
+        par_classe_nette = {}
         for v in valued:
             part = detenteurs_service.compute_parts(db, v.holding, v.valeur).get(detenteur_id)
             if part is None:
@@ -83,6 +106,12 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
             passifs_totaux += part["part_detenue"] - part["part_nette"]
             label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
             par_classe[label] = par_classe.get(label, 0.0) + part["part_detenue"]
+            # `part_nette` (déjà = part_detenue − part de l'emprunt rattaché à CETTE
+            # ligne, cf. `detenteurs_service.compute_parts`) est exactement la même
+            # notion que ci-dessus pour la vue foyer — aucun bucket "non rattaché" ici,
+            # un emprunt sans actif n'a de toute façon aucun cas d'usage par détenteur
+            # individuel (cf. docstring de `compute_parts`).
+            par_classe_nette[label] = par_classe_nette.get(label, 0.0) + part["part_nette"]
 
         patrimoine_financier = 0.0
         par_classe_financiere = {}
@@ -94,9 +123,9 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
                 label = LABEL_TYPE_ACTIF.get(h.type_actif, LABEL_NON_RENSEIGNE)
                 par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + part["part_detenue"]
 
-    def _repartition_triee(totaux: dict[str, float]) -> list[dict]:
+    def _repartition_triee(totaux: dict[str, float], garder_negatifs: bool = False) -> list[dict]:
         return sorted(
-            ({"categorie": categorie, "valeur": round(valeur, 2)} for categorie, valeur in totaux.items() if valeur > 0),
+            ({"categorie": categorie, "valeur": round(valeur, 2)} for categorie, valeur in totaux.items() if garder_negatifs or valeur > 0),
             key=lambda item: item["valeur"],
             reverse=True,
         )
@@ -108,6 +137,11 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         "patrimoine_financier": round(patrimoine_financier, 2),
         "repartition_par_classe": _repartition_triee(par_classe),
         "repartition_par_classe_financiere": _repartition_triee(par_classe_financiere),
+        # `garder_negatifs=True` : une ligne dont l'emprunt rattaché dépasse sa valeur
+        # (équité négative) ou le bucket "Dettes non rattachées" doivent rester visibles
+        # tels quels (jamais de fausse précision en les masquant) — la somme de ce champ
+        # vaut toujours exactement `patrimoine_net` ci-dessus.
+        "repartition_par_classe_nette": _repartition_triee(par_classe_nette, garder_negatifs=True),
     }
 
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
@@ -20,6 +20,7 @@ function patrimoine(overrides: Partial<PatrimoineNet> = {}): PatrimoineNet {
     patrimoine_financier: 0,
     repartition_par_classe: [],
     repartition_par_classe_financiere: [],
+    repartition_par_classe_nette: [],
     ...overrides,
   }
 }
@@ -124,14 +125,20 @@ describe('PatrimoineNetCard', () => {
   })
 
   it('affiche un camembert ET la liste détaillée (montants exacts) de la répartition par type d\'investissement (retour utilisateur : garder les deux)', async () => {
+    const repartition = [
+      { categorie: 'Immobilier', valeur: 250000 },
+      { categorie: 'Actions', valeur: 50000 },
+    ]
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(
       patrimoine({
         actifs_totaux: 300000,
         patrimoine_net: 300000,
-        repartition_par_classe: [
-          { categorie: 'Immobilier', valeur: 250000 },
-          { categorie: 'Actions', valeur: 50000 },
-        ],
+        // `renderCard()` par défaut = lentille "net" (comportement historique de ce
+        // test, antérieur à la feature Net/Brut/Financier) : `repartition_par_classe_nette`
+        // renseignée à l'identique, ce test portant sur la coexistence camembert+liste,
+        // pas sur le calcul de nettage par ligne (couvert par des tests dédiés plus bas).
+        repartition_par_classe: repartition,
+        repartition_par_classe_nette: repartition,
       }),
     )
     renderCard()
@@ -205,6 +212,59 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     await screen.findByText('Par type d\'investissement')
     expect(screen.getByText('Actions')).toBeInTheDocument()
     expect(screen.queryByText('Immobilier')).not.toBeInTheDocument()
+  })
+
+  it('lentille "brut" : le camembert/liste garde `repartition_par_classe` en valeur BRUTE (retour utilisateur : Brut inchangé)', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(
+      patrimoine({
+        actifs_totaux: 300000,
+        patrimoine_net: 180000,
+        repartition_par_classe: [{ categorie: 'Immobilier', valeur: 300000 }],
+        repartition_par_classe_nette: [{ categorie: 'Immobilier', valeur: 180000 }],
+      }),
+    )
+    renderCard('brut')
+
+    await screen.findByText('Par type d\'investissement')
+    const liste = screen.getByRole('list')
+    expect(within(liste).getByText('300 000 €')).toBeInTheDocument()
+  })
+
+  it('lentille "net" : le camembert/liste utilise `repartition_par_classe_nette` (chaque ligne nettée de son emprunt rattaché)', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(
+      patrimoine({
+        actifs_totaux: 300000,
+        passifs_totaux: 120000,
+        patrimoine_net: 180000,
+        repartition_par_classe: [{ categorie: 'Immobilier', valeur: 300000 }],
+        repartition_par_classe_nette: [{ categorie: 'Immobilier', valeur: 180000 }],
+      }),
+    )
+    renderCard('net')
+
+    await screen.findByText('Par type d\'investissement')
+    const liste = screen.getByRole('list')
+    expect(within(liste).getByText('180 000 €')).toBeInTheDocument()
+  })
+
+  it('lentille "net" : une catégorie à valeur négative (équité négative) s\'affiche dans la liste en rouge, jamais dans le camembert', async () => {
+    vi.mocked(api.getPatrimoineNet).mockResolvedValue(
+      patrimoine({
+        actifs_totaux: 100000,
+        passifs_totaux: 150000,
+        patrimoine_net: -50000,
+        repartition_par_classe_nette: [{ categorie: 'Immobilier', valeur: -50000 }],
+      }),
+    )
+    renderCard('net')
+
+    await screen.findByText('Par type d\'investissement')
+    const liste = screen.getByRole('list')
+    const montant = within(liste).getByText('-50 000 €')
+    expect(montant).toHaveClass('text-negatif')
+    // Recharts ne rend pas de secteur pour une donnée filtrée : pas de conteneur de
+    // camembert du tout ici (seule catégorie disponible, négative).
+    expect(document.querySelector('.recharts-responsive-container')).not.toBeInTheDocument()
   })
 })
 

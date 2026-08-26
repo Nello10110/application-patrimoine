@@ -1943,6 +1943,24 @@ rattaché, cache) + tests étendus (`test_loan_service.py`, `test_patrimoine_ser
 `test_patrimoine_router.py`) ; côté frontend, tests étendus de `PatrimoineNetCard.test.tsx` et nouveau
 `PortfolioHistoryChart.test.tsx`, `tsc -b`/`vitest`/`oxlint` propres.
 
+**Retour utilisateur après premier usage réel (26/08/2026), un manque corrigé le jour même** : le
+camembert/liste ne changeait pas entre les lentilles Brut et Net — comportement voulu à la livraison
+initiale (`repartition_par_classe` n'a jamais été autre chose qu'une répartition BRUTE par type
+d'actif, la dette n'y était retranchée qu'au niveau du grand total, jamais ligne par ligne), mais
+jugé contre-intuitif par l'utilisateur : « l'actif net de l'appartement, c'est sa valeur à la vente
+prévue moins le reste à rembourser à la banque ». Nouveau champ `repartition_par_classe_nette` sur
+`compute_patrimoine_net` : chaque ligne est nettée de SON emprunt rattaché (`Loan.holding_id`), pas
+seulement le total — réutilise `part_nette` déjà calculée par `detenteurs_service.compute_parts` pour
+la vue par détenteur, exactement la même notion. Un emprunt non rattaché à un actif tombe dans un
+bucket dédié « Dettes non rattachées » pour que la somme de ce champ corresponde toujours exactement à
+`patrimoine_net`. Une ligne peut afficher une valeur nette négative (équité négative, emprunt >
+valeur du bien) — jamais masquée ni clampée à 0, même philosophie de transparence que le reste du
+projet ; côté frontend, le camembert (qui ne peut pas représenter une part négative) filtre ces
+catégories, la liste juste en dessous les affiche telles quelles en rouge. Lentille Brut confirmée
+inchangée par l'utilisateur (valeur brute, sans nettage par ligne). 4 tests backend nouveaux
+(`test_patrimoine_service.py`), 3 tests frontend nouveaux (`PatrimoineNetCard.test.tsx`), suites
+complètes toujours au vert, `tsc -b`/`vitest`/`oxlint` propres.
+
 ---
 ## 3. Hors périmètre (assumé)
 

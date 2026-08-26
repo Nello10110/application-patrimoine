@@ -80,6 +80,7 @@ def test_aucune_donnee_renvoie_des_totaux_nuls(db):
         "patrimoine_financier": 0,
         "repartition_par_classe": [],
         "repartition_par_classe_financiere": [],
+        "repartition_par_classe_nette": [],
     }
 
 
@@ -124,6 +125,114 @@ def test_repartition_par_classe_financiere_filtree_par_detenteur(db):
 
 
 # ---------------------------------------------------------------------------
+# Lentille "net" du camembert/liste : chaque ligne nettée de SON emprunt rattaché
+# (retour utilisateur : l'actif net d'un bien, c'est sa valeur moins ce qu'il reste à
+# rembourser à la banque dessus, pas la valeur brute du bien)
+# ---------------------------------------------------------------------------
+
+
+def test_repartition_par_classe_nette_soustrait_lemprunt_rattache_a_sa_propre_ligne(db):
+    h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
+    db.add(
+        Loan(
+            user_id=ID_UTILISATEUR_TEST,
+            libelle="Crédit immo",
+            capital_initial=200000.0,
+            taux_annuel_pct=0.0,
+            mensualite=1000.0,
+            date_debut=datetime(2020, 1, 1),
+            duree_mois=200,
+            capital_restant_du_manuel=120000.0,
+            holding_id=h.id,
+        )
+    )
+    db.commit()
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+
+    par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
+    # Immobilier : 300000 - 120000 (son propre emprunt). Actions : 1000, jamais touché
+    # (aucun emprunt qui lui est rattaché) — comportement "brut" inchangé pour cette ligne.
+    assert par_categorie == {"Immobilier": 180000.0, "Actions": 1000.0}
+    # La somme correspond toujours exactement au patrimoine net global.
+    assert sum(par_categorie.values()) == resultat["patrimoine_net"]
+
+
+def test_repartition_par_classe_nette_peut_etre_negative_si_lemprunt_depasse_la_valeur(db):
+    """Jamais masqué ni clampé à 0 — une équité négative reste une donnée réelle."""
+    h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=100000.0)
+    db.add(
+        Loan(
+            user_id=ID_UTILISATEUR_TEST,
+            libelle="Crédit immo",
+            capital_initial=200000.0,
+            taux_annuel_pct=0.0,
+            mensualite=1000.0,
+            date_debut=datetime(2020, 1, 1),
+            duree_mois=200,
+            capital_restant_du_manuel=150000.0,
+            holding_id=h.id,
+        )
+    )
+    db.commit()
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+
+    par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
+    assert par_categorie == {"Immobilier": -50000.0}
+
+
+def test_repartition_par_classe_nette_bucket_dettes_non_rattachees(db):
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
+    db.add(
+        Loan(
+            user_id=ID_UTILISATEUR_TEST,
+            libelle="Prêt perso",
+            capital_initial=10000.0,
+            taux_annuel_pct=0.0,
+            mensualite=500.0,
+            date_debut=datetime(2020, 1, 1),
+            duree_mois=200,
+            capital_restant_du_manuel=8000.0,
+        )
+    )
+    db.commit()
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+
+    par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
+    assert par_categorie == {"Actions": 1000.0, "Dettes non rattachées": -8000.0}
+    assert sum(par_categorie.values()) == resultat["patrimoine_net"]
+
+
+def test_repartition_par_classe_nette_detenteur_reutilise_part_nette(db):
+    h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+    db.add(
+        Loan(
+            user_id=ID_UTILISATEUR_TEST,
+            libelle="Crédit immo",
+            capital_initial=200000.0,
+            taux_annuel_pct=0.0,
+            mensualite=1000.0,
+            date_debut=datetime(2020, 1, 1),
+            duree_mois=200,
+            capital_restant_du_manuel=120000.0,
+            holding_id=h.id,
+        )
+    )
+    db.commit()
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+
+    resultat = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+
+    par_categorie = {item["categorie"]: item["valeur"] for item in resultat["repartition_par_classe_nette"]}
+    assert par_categorie == {"Immobilier": 180000.0}
+    assert par_categorie["Immobilier"] == resultat["patrimoine_net"]
+
+
+# ---------------------------------------------------------------------------
 # Filtre détenteur (backlog 2.L.1/2.K.3)
 # ---------------------------------------------------------------------------
 
@@ -156,6 +265,7 @@ def test_actif_non_reparti_est_invisible_dans_la_vue_dun_detenteur(db):
         "patrimoine_financier": 0,
         "repartition_par_classe": [],
         "repartition_par_classe_financiere": [],
+        "repartition_par_classe_nette": [],
     }
 
 
