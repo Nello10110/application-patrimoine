@@ -1,7 +1,7 @@
 """Verrouille le comportement actuel du calcul de rentabilité : `xirr`,
 `compute_holding_returns` et `compute_performance`."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -82,8 +82,54 @@ def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
     resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
 
     assert resultats["MAISON"]["rendement_depuis_achat_pct"] == 15.0
-    # Pas d'historique de transactions pour cette ligne : pas de XIRR possible.
+    # Pas d'historique de transactions pour cette ligne, ni de date d'acquisition
+    # renseignée : pas de flux connu, pas de XIRR possible.
     assert resultats["MAISON"]["rendement_annualise_pct"] is None
+
+
+def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):
+    """Retour utilisateur (26/08/2026) : `date_acquisition` permet un CAGR à un seul
+    flux pour un actif valorisé manuellement, là où aucun grand livre de transactions
+    n'existe pour fournir un flux réel — `xirr` avec exactement un flux entrant et un
+    flux sortant se réduit à la formule CAGR classique."""
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="MAISON_DATEE",
+            nom="Résidence",
+            quantite=1.0,
+            prix_revient_moyen=200000.0,
+            type_actif="REAL_ESTATE",
+            valeur_estimee=242000.0,
+            date_acquisition=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=730),
+        )
+    )
+    db.commit()
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+
+    # (1 + r)^2 = 242000 / 200000 = 1.21 -> r = 10 %.
+    assert resultats["MAISON_DATEE"]["rendement_annualise_pct"] == pytest.approx(10.0, abs=1.0)
+
+
+def test_pas_de_rendement_annualise_si_detention_trop_courte_meme_avec_date_acquisition(db):
+    db.add(
+        Holding(
+            user_id=ID_UTILISATEUR_TEST,
+            ticker="MAISON_RECENTE",
+            nom="Achat récent",
+            quantite=1.0,
+            prix_revient_moyen=200000.0,
+            type_actif="REAL_ESTATE",
+            valeur_estimee=205000.0,
+            date_acquisition=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=10),
+        )
+    )
+    db.commit()
+
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+
+    assert resultats["MAISON_RECENTE"]["rendement_annualise_pct"] is None
 
 
 def test_compute_performance_exclut_le_patrimoine_valorise_manuellement(db):

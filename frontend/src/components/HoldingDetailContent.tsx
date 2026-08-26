@@ -334,23 +334,43 @@ function ImmobilierParametresForm({
 
 /** Historique daté des valorisations manuelles (backlog 2.M.3, généralisé en 2.S.1
  * à l'écran Épargne) — jamais écrasé, une nouvelle ligne à chaque point saisi.
- * Partagé entre `ImmobilierApercu`, `EpargneApercu` et `EpargnePage`. */
-export function ValorisationHistoriqueCard({ historique }: { historique: ValuationHistoryPoint[] }) {
+ * Partagé entre `ImmobilierApercu`, `EpargneApercu` et `EpargnePage`.
+ *
+ * `dateAcquisition`/`prixRevientMoyen` (backlog § 2.S.3, retour utilisateur
+ * 26/08/2026) : quand la date d'acquisition déclarée est antérieure au premier point
+ * d'historique connu, un point de départ au coût d'acquisition y est ajouté pour le
+ * SEUL graphique (jamais dans le tableau ci-dessous, qui reste le reflet exact des
+ * points réellement saisis par l'utilisateur) — même logique d'ancrage que la courbe
+ * combinée du Tableau de bord (`patrimoine_history_service._serie_holding_manuel`). */
+export function ValorisationHistoriqueCard({
+  historique,
+  dateAcquisition = null,
+  prixRevientMoyen = null,
+}: {
+  historique: ValuationHistoryPoint[]
+  dateAcquisition?: string | null
+  prixRevientMoyen?: number | null
+}) {
   const { montantsMasques } = usePreferencesAffichage()
   if (historique.length === 0) return null
 
+  const pointAcquisition =
+    dateAcquisition && prixRevientMoyen !== null && dateAcquisition < historique[0].date_valeur
+      ? [{ date_valeur: dateAcquisition, valeur: prixRevientMoyen }]
+      : []
   // `historique` est déjà trié chronologiquement par le backend (`immobilier_service.
   // historique_valorisation`, ORDER BY date_valeur) : directement exploitable par le
-  // graphique sans retri. Le tableau ci-dessous l'inverse séparément pour son propre
-  // affichage (le plus récent en premier), sans affecter cet ordre.
-  const donneesGraphique = historique.map((p) => ({ date: p.date_valeur, Valeur: p.valeur }))
+  // graphique sans retri, une fois le point d'acquisition (le cas échéant) placé en tête.
+  const historiqueGraphique = [...pointAcquisition, ...historique]
+  const donneesGraphique = historiqueGraphique.map((p) => ({ date: p.date_valeur, Valeur: p.valeur }))
 
   return (
     <Card title="Historique de valorisation">
       <p className="mb-3 text-xs text-texte-attenue">
         Chaque estimation est datée et conservée — l'ancienne n'est jamais écrasée.
+        {pointAcquisition.length > 0 && ' Le premier point (coût d\'acquisition) est ajouté au graphique, pas au tableau ci-dessous.'}
       </p>
-      {historique.length > 1 && (
+      {historiqueGraphique.length > 1 && (
         <ResponsiveContainer width="100%" height={180} className="mb-4">
           <LineChart data={donneesGraphique}>
             <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
@@ -492,7 +512,7 @@ function EpargneApercu({
         </div>
       </Card>
 
-      <ValorisationHistoriqueCard historique={historique} />
+      <ValorisationHistoriqueCard historique={historique} dateAcquisition={detail.date_acquisition} prixRevientMoyen={detail.prix_revient_moyen} />
 
       <Card title="Ajouter une valorisation">
         <p className="mb-3 text-xs text-texte-attenue">
@@ -512,9 +532,13 @@ function EpargneApercu({
 function ImmobilierApercu({
   immobilier,
   historique,
+  dateAcquisition,
+  prixRevientMoyen,
 }: {
   immobilier: HoldingDetail['immobilier']
   historique: ValuationHistoryPoint[]
+  dateAcquisition: HoldingDetail['date_acquisition']
+  prixRevientMoyen: HoldingDetail['prix_revient_moyen']
 }) {
   const { montantsMasques } = usePreferencesAffichage()
 
@@ -562,7 +586,7 @@ function ImmobilierApercu({
         </Card>
       )}
 
-      <ValorisationHistoriqueCard historique={historique} />
+      <ValorisationHistoriqueCard historique={historique} dateAcquisition={dateAcquisition} prixRevientMoyen={prixRevientMoyen} />
     </>
   )
 }
@@ -672,7 +696,12 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           </Card>
 
           {estImmobilier ? (
-            <ImmobilierApercu immobilier={immo.immobilier} historique={immo.historique} />
+            <ImmobilierApercu
+              immobilier={immo.immobilier}
+              historique={immo.historique}
+              dateAcquisition={detail.date_acquisition}
+              prixRevientMoyen={detail.prix_revient_moyen}
+            />
           ) : estEpargne ? (
             <EpargneApercu detail={detail} historique={immo.historique} onValorisationAjoutee={immo.rechargerHistorique} />
           ) : (

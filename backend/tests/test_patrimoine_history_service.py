@@ -46,6 +46,72 @@ def test_serie_manuelle_sans_historique_degrade_vers_valeur_estimee_a_plat(db):
     assert all(p["valeur_manuelle"] == 250000.0 for p in points)
 
 
+def test_serie_manuelle_ancree_sur_le_cout_dacquisition_avant_le_premier_point_connu(db):
+    """Retour utilisateur (26/08/2026) : une date d'acquisition antérieure au premier
+    point d'historique connu ancre la courbe sur `prix_revient_moyen` (coût
+    d'acquisition) à cette date, plutôt que de démarrer artificiellement tard."""
+    holding = make_holding(
+        db,
+        ticker="MAISON",
+        type_actif="REAL_ESTATE",
+        quantite=1,
+        prix_revient_moyen=200000.0,
+        valeur_estimee=300000.0,
+        date_acquisition=datetime(2019, 1, 1),
+    )
+    immobilier_service.enregistrer_point_historique(db, holding.id, 300000.0, datetime(2024, 6, 1))
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    avant_2024 = [p for p in points if p["date"] < "2024-06-01"]
+    apres_2024 = [p for p in points if p["date"] >= "2024-06-01"]
+    assert avant_2024 and apres_2024
+    assert points[0]["date"] == "2019-01-01"
+    assert all(p["valeur_manuelle"] == 200000.0 for p in avant_2024)
+    assert all(p["valeur_manuelle"] == 300000.0 for p in apres_2024)
+
+
+def test_serie_manuelle_ignore_la_date_dacquisition_si_posterieure_au_premier_point_connu(db):
+    """Une date d'acquisition plus RÉCENTE que le premier point d'historique connu ne
+    doit jamais raccourcir la série ni écraser une donnée déjà plus ancienne et plus
+    fiable."""
+    holding = make_holding(
+        db,
+        ticker="MAISON",
+        type_actif="REAL_ESTATE",
+        quantite=1,
+        prix_revient_moyen=200000.0,
+        valeur_estimee=300000.0,
+        date_acquisition=datetime(2024, 6, 1),
+    )
+    immobilier_service.enregistrer_point_historique(db, holding.id, 250000.0, datetime(2020, 1, 1))
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    assert points[0]["date"] == "2020-01-01"
+    assert points[0]["valeur_manuelle"] == 250000.0
+
+
+def test_serie_manuelle_ancree_sur_le_cout_dacquisition_sans_aucun_historique_ni_valeur(db):
+    """Cas dégradé : ni `HoldingValuationHistory` ni `valeur_estimee`, mais une date
+    d'acquisition et un prix de revient suffisent à donner un point de départ."""
+    make_holding(
+        db,
+        ticker="MAISON",
+        type_actif="REAL_ESTATE",
+        quantite=1,
+        prix_revient_moyen=200000.0,
+        valeur_estimee=None,
+        date_acquisition=datetime(2019, 1, 1),
+    )
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    assert points
+    assert points[0]["date"] == "2019-01-01"
+    assert all(p["valeur_manuelle"] == 200000.0 for p in points)
+
+
 def test_emprunt_ne_contribue_pas_avant_sa_date_de_debut(db):
     """Contrairement au contrat de `compute_capital_restant_du_theorique` (qui
     renverrait `capital_initial` pour toute date <= `date_debut`), une dette qui

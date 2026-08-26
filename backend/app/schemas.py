@@ -631,6 +631,10 @@ class HoldingDetail(BaseModel):
     date_valeur_estimee: datetime | None = None
     # Versement mensuel déclaré (écran Épargne, backlog 2.S.1) — cf. `Holding.versement_mensuel`.
     versement_mensuel: float | None = None
+    # Date d'acquisition déclarée (backlog § 2.S.3) — cf. `Holding.date_acquisition`,
+    # utilisée par `rendement_annualise_pct` ci-dessus et pour ancrer le graphique
+    # d'historique de valorisation (`ValorisationHistoriqueCard`, côté frontend).
+    date_acquisition: datetime | None = None
 
 
 TYPES_DETENTEUR_VALIDES = {"personne", "societe"}

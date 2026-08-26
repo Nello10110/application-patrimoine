@@ -240,6 +240,19 @@ tableau), affichée uniquement pour les 9 types valorisés manuellement ci-dessu
 `zone_geo`, `TYPES_PATRIMOINE` côté frontend) — sans objet pour une ligne financière reconstruite,
 qui a déjà ses propres dates de transaction.
 
+**Utilisée dans les calculs de rentabilité et les graphiques** (même jour, retour utilisateur) :
+- `performance_service._rendement_pour_ligne` : sans aucun grand livre de transactions pour ces
+  lignes, `rendement_annualise_pct` restait toujours `None`. Avec `date_acquisition` renseignée, un
+  flux à un seul mouvement (`[(date_acquisition, -prix_revient_moyen), (maintenant, valeur_estimee)]`)
+  passé à `xirr()` se réduit exactement à un CAGR — mêmes garde-fous que le portefeuille financier
+  (durée minimale 90 jours, plafond 1000 %, § 3.5).
+- `patrimoine_history_service._serie_holding_manuel` (§ 3.11 courbe combinée, § 2.S.2) : si
+  `date_acquisition` est antérieure au premier point d'historique connu, un point de départ à
+  `prix_revient_moyen` y est inséré, plutôt que de démarrer artificiellement tard (`created_at`).
+- `ValorisationHistoriqueCard` (fiche détaillée, frontend) : même principe, appliqué SEULEMENT au
+  graphique — jamais au tableau juste en dessous, qui reste le reflet exact des points réellement
+  saisis.
+
 **`Holding.taux_pct`** (backlog § 2.M.1, épargne réglementée/salariale et véhicule) : un pourcentage annuel purement **informatif**, jamais appliqué automatiquement à `valeur_estimee` — positif pour un taux d'intérêt attendu, négatif pour une décote annuelle attendue. Sert uniquement à calculer, côté client, une « valeur projetée dans 1 an » affichée en repère ; l'utilisateur reporte lui-même ce montant dans `valeur_estimee` s'il souhaite l'adopter — même philosophie que la valorisation immobilière datée (jamais de mutation silencieuse d'une donnée financière).
 
 **Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps).

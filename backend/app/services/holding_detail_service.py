@@ -145,4 +145,5 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
         "valeur_estimee": holding.valeur_estimee,
         "date_valeur_estimee": holding.date_valeur_estimee,
         "versement_mensuel": holding.versement_mensuel,
+        "date_acquisition": holding.date_acquisition,
     }

@@ -2047,6 +2047,36 @@ modification, effacement, non-effet sur les autres champs), 5 tests frontend nou
 le tableau), suite complète au vert, `tsc -b`/`vitest`/`oxlint` propres, vérifié en conditions
 réelles (backend isolé, création/modification/rejet de format).
 
+**Étendu le jour même aux calculs de rentabilité et aux graphiques** : la première livraison ne
+faisait que stocker/afficher la date, sans qu'elle influence quoi que ce soit ailleurs — l'utilisateur
+a demandé qu'elle soit réellement prise en compte.
+
+- **Rendement annualisé** (`performance_service._rendement_pour_ligne`) : jusqu'ici toujours `None`
+  pour un actif valorisé manuellement (« Annualisé : — » dans le tableau et sur la fiche détaillée),
+  faute de tout flux de trésorerie daté (`state.cash_flows` ne vient que du grand livre de
+  transactions, vide pour ces types). Avec `date_acquisition` renseignée, un flux à un seul mouvement
+  (`[(date_acquisition, -prix_revient_moyen), (maintenant, valeur_estimee)]`) suffit à `xirr()`, qui
+  se réduit alors exactement à un CAGR classique — mêmes garde-fous que le portefeuille financier
+  (durée minimale 90 jours, plafond 1000 %). `HoldingDetail` expose désormais aussi
+  `date_acquisition` (absente jusqu'ici de la fiche détaillée, seulement du `Holding` de la liste).
+- **Courbe combinée du Tableau de bord** (`patrimoine_history_service._serie_holding_manuel`) : si
+  `date_acquisition` est antérieure au premier point d'historique connu (cas courant — un bien est
+  souvent saisi dans l'appli bien après son achat réel), un point de départ à `prix_revient_moyen`
+  (coût d'acquisition) est inséré à cette date plutôt que de démarrer artificiellement tard
+  (`created_at`) ou de laisser croire que la valeur actuelle était déjà celle du jour de l'achat.
+- **Graphique « Historique de valorisation » de la fiche détaillée** (`ValorisationHistoriqueCard`,
+  frontend) : même principe, mais appliqué SEULEMENT au graphique — jamais au tableau juste en dessous,
+  qui reste le reflet exact des points réellement saisis par l'utilisateur (aucune ligne fabriquée).
+  Permet désormais d'afficher un graphique même avec un seul point d'historique réel, dès lors qu'une
+  date d'acquisition antérieure existe.
+
+5 tests backend nouveaux (`test_performance_service.py` : CAGR à un flux, absence sans date
+d'acquisition, détention trop courte ; `test_patrimoine_history_service.py` : ancrage avant/après le
+premier point connu, cas sans aucun historique ni valeur), 2 tests frontend nouveaux
+(`HoldingDetailContent.test.tsx` : graphique affiché malgré un seul point réel grâce à l'ancrage,
+absence d'effet si la date d'acquisition est postérieure), suite complète au vert,
+`tsc -b`/`vitest`/`oxlint`/`build` propres.
+
 ---
 ## 3. Hors périmètre (assumé)
 

@@ -194,7 +194,7 @@ function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding
       )}
 
       <div className="mt-4">
-        <ValorisationHistoriqueCard historique={historique} />
+        <ValorisationHistoriqueCard historique={historique} dateAcquisition={holding.date_acquisition} prixRevientMoyen={holding.prix_revient_moyen} />
       </div>
 
       {confirmSuppression && (

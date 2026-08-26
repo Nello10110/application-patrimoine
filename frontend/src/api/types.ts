@@ -657,6 +657,10 @@ export interface HoldingDetail {
   valeur_estimee: number | null
   date_valeur_estimee: string | null
   versement_mensuel: number | null
+  // Date d'acquisition déclarée (backlog § 2.S.3) — utilisée par
+  // `rendement_annualise_pct` ci-dessus et pour ancrer le graphique d'historique de
+  // valorisation (`ValorisationHistoriqueCard`).
+  date_acquisition: string | null
 }
 
 // Fiche immobilier (backlog 2.M.3) : bloc location + caractéristiques saisis par

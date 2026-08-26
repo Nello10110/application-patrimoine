@@ -46,12 +46,23 @@ def _serie_holding_manuel(holding: Holding, points_historique: list) -> TimeSeri
     """`points_historique` : déjà chargé par l'appelant (une requête, pas une par
     holding). Dégrade avec grâce vers une ligne plate à `valeur_estimee` depuis
     `created_at` quand aucun point daté n'existe encore (ligne créée avant
-    l'auto-horodatage, ou jamais valorisée) — jamais 0 ou une exception."""
-    if points_historique:
-        return [(p.date_valeur, p.valeur) for p in points_historique]
-    if holding.valeur_estimee is not None:
-        return [(holding.created_at, holding.valeur_estimee)]
-    return []
+    l'auto-horodatage, ou jamais valorisée) — jamais 0 ou une exception.
+
+    Ancrage sur le coût d'acquisition (retour utilisateur, 26/08/2026) : si
+    `Holding.date_acquisition` est renseignée et ANTÉRIEURE au premier point connu
+    ci-dessus (cas courant — un bien est souvent saisi dans l'appli bien après son
+    achat réel, cf. § 2.S.3), un point de départ à `prix_revient_moyen` (coût
+    d'acquisition) est inséré à cette date : la courbe part alors du prix payé plutôt
+    que de démarrer artificiellement tard (`created_at`) ou de laisser croire que la
+    valeur actuelle était déjà celle du jour de l'achat. Sans effet si
+    `prix_revient_moyen` n'est pas renseigné (rien à représenter à cette date)."""
+    serie: TimeSeries = [(p.date_valeur, p.valeur) for p in points_historique] if points_historique else []
+    if not serie and holding.valeur_estimee is not None:
+        serie = [(holding.created_at, holding.valeur_estimee)]
+    if holding.date_acquisition is not None and holding.prix_revient_moyen is not None:
+        if not serie or holding.date_acquisition < serie[0][0]:
+            serie.insert(0, (holding.date_acquisition, holding.prix_revient_moyen))
+    return serie
 
 
 def _valeur_emprunt_a_date(loan: Loan, date: datetime) -> float:

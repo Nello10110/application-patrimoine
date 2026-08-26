@@ -51,6 +51,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     valeur_estimee: null,
     date_valeur_estimee: null,
     versement_mensuel: null,
+    date_acquisition: null,
     ...overrides,
   }
 }
@@ -241,6 +242,49 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
     await screen.findByText('Historique de valorisation')
     expect(document.querySelector('.recharts-responsive-container')).not.toBeInTheDocument()
+  })
+
+  it("un unique point d'historique + une date d'acquisition antérieure affiche quand même le graphique (retour utilisateur, 26/08/2026)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    render(
+      <HoldingDetailContent
+        detail={detail({
+          type_actif: 'REAL_ESTATE',
+          immobilier: immobilier(),
+          date_acquisition: '2019-06-15T00:00:00',
+          prix_revient_moyen: 180000,
+        })}
+      />,
+    )
+
+    await screen.findByText('Historique de valorisation')
+    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+    expect(screen.getByText(/coût d'acquisition.*ajouté au graphique/)).toBeInTheDocument()
+    // Le tableau, lui, reste le reflet exact des points réellement saisis — pas de
+    // ligne fabriquée à 180 000,00 €.
+    const lignes = screen.getAllByRole('row').slice(1)
+    expect(lignes).toHaveLength(1)
+    expect(within(lignes[0]).getByText('220 000,00 €')).toBeInTheDocument()
+  })
+
+  it("une date d'acquisition POSTÉRIEURE au premier point connu n'ajoute rien (donnée déjà plus ancienne et plus fiable)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2020-01-01T00:00:00', valeur: 200000 }])
+    render(
+      <HoldingDetailContent
+        detail={detail({
+          type_actif: 'REAL_ESTATE',
+          immobilier: immobilier(),
+          date_acquisition: '2024-06-15T00:00:00',
+          prix_revient_moyen: 180000,
+        })}
+      />,
+    )
+
+    await screen.findByText('Historique de valorisation')
+    expect(document.querySelector('.recharts-responsive-container')).not.toBeInTheDocument()
+    expect(screen.queryByText(/coût d'acquisition.*ajouté au graphique/)).not.toBeInTheDocument()
   })
 })
 

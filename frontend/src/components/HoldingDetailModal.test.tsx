@@ -52,6 +52,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     valeur_estimee: null,
     date_valeur_estimee: null,
     versement_mensuel: null,
+    date_acquisition: null,
     ...overrides,
   }
 }

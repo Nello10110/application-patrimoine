@@ -290,6 +290,14 @@ def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionStat
         # vraie mesure de performance. On préfère ne rien afficher dans ce cas.
         flows = list(state.cash_flows) + [(now, v.valeur)]
         annualise = xirr(flows)
+    elif h.date_acquisition is not None and h.prix_revient_moyen and h.prix_revient_moyen > EPSILON and v.a_des_donnees:
+        # Ligne valorisée manuellement (immobilier/épargne... — retour utilisateur,
+        # 26/08/2026) : aucun grand livre de transactions, mais un seul flux connu
+        # (l'achat, à `date_acquisition`) suffit à `xirr()` — avec un seul flux
+        # entrant et un seul sortant, la formule money-weighted se réduit
+        # exactement à un CAGR classique. Mêmes garde-fous que le portefeuille
+        # financier (durée minimale 90 jours, plafond 1000 %, cf. `xirr`).
+        annualise = xirr([(h.date_acquisition, -h.prix_revient_moyen), (now, prix_actuel_effectif)])
 
     return {
         "rendement_depuis_achat_pct": round(depuis_achat, 2) if depuis_achat is not None else None,
@@ -301,9 +309,11 @@ def compute_holding_returns(db: Session, user_id: int, positions: dict[str, Posi
     """Rendement par ligne du portefeuille :
     - `depuis_achat` : simple (prix actuel vs prix de revient), calculable pour toute ligne
       ayant un prix de revient et un prix actuel (y compris les lignes saisies manuellement).
-    - `annualise` : XIRR sur les flux de trésorerie réels de cette ligne (achats/ventes),
-      donc uniquement disponible pour les positions reconstruites depuis l'historique de
-      transactions (une ligne ajoutée manuellement n'a pas de date d'achat connue).
+    - `annualise` : XIRR sur les flux de trésorerie réels de cette ligne (achats/ventes)
+      pour une position reconstruite depuis l'historique de transactions ; pour une ligne
+      valorisée manuellement (immobilier/épargne...), un CAGR à un seul flux si
+      `Holding.date_acquisition` est renseignée (retour utilisateur, 26/08/2026 — cf.
+      `_rendement_pour_ligne`), sinon `None`.
 
     `user_id` : Milestone 2a, multi-utilisateur. `positions` : cf. LOT 4.3, résultat déjà
     calculé de `compute_positions(db, user_id)` à réutiliser si l'appelant l'a déjà en
