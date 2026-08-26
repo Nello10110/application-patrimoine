@@ -67,6 +67,10 @@ export default function ExpositionConsolideeCard() {
                 />
               </div>
 
+              {/* `repartition_geo`/`repartition_classe` sont déjà nettées des emprunts
+                  rattachés côté backend, et n'incluent jamais de catégorie à valeur <= 0
+                  (`compute_exposition_consolidee` les exclut — pas de liste ici, contrairement
+                  à `PatrimoineNetCard`, pour afficher une équité négative en repli). */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <PieChartCard
                   title="Répartition géographique consolidée"
@@ -79,7 +83,8 @@ export default function ExpositionConsolideeCard() {
               </div>
 
               <p className="text-xs text-texte-attenue">
-                Valeur totale consolidée : {formatEuro(donnees.valeur_totale, 0, montantsMasques)}.{' '}
+                Valeur totale consolidée (nette des emprunts rattachés à chaque actif) :{' '}
+                {formatEuro(donnees.valeur_totale, 0, montantsMasques)}.{' '}
                 {donnees.part_estimee_manuelle_pct > 0 &&
                   `${donnees.part_estimee_manuelle_pct}% de cette valeur (immobilier/épargne saisis manuellement) a une zone géographique déclarée, pas mesurée.`}
               </p>

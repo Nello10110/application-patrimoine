@@ -362,3 +362,59 @@ class TestExpositionConsolidee:
         assert resultat["repartition_classe"] == []
         assert resultat["plus_grosse_ligne_ticker"] is None
         assert resultat["part_estimee_manuelle_pct"] == 0.0
+
+    def test_valeur_totale_et_repartition_nettees_de_lemprunt_rattache(self, db):
+        """Retour utilisateur (26/08/2026) : même correction que
+        `compute_patrimoine_net.repartition_par_classe_nette` — `valeur_totale`
+        correspond au patrimoine NET, pas aux actifs bruts."""
+        h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=300000.0)
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST,
+                libelle="Crédit immo",
+                capital_initial=200000.0,
+                taux_annuel_pct=0.0,
+                mensualite=1000.0,
+                date_debut=datetime(2020, 1, 1),
+                duree_mois=200,
+                capital_restant_du_manuel=120000.0,
+                holding_id=h.id,
+            )
+        )
+        db.commit()
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+        patrimoine = patrimoine_service.compute_patrimoine_net(db, ID_UTILISATEUR_TEST)
+
+        # 300000 (Immobilier brut) - 120000 (son emprunt) + 1000 (Actions, jamais touché) = 181000.
+        assert resultat["valeur_totale"] == 181000.0
+        assert resultat["valeur_totale"] == patrimoine["patrimoine_net"]
+        par_classe = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe"]}
+        assert par_classe == {"Immobilier": 180000.0, "Actions": 1000.0}
+        # Immobilier reste la plus grosse ligne (180000 nette > 1000), mais avec sa
+        # valeur NETTE (180000), jamais sa valeur brute (300000).
+        assert resultat["plus_grosse_ligne_ticker"] == "MAISON"
+        assert resultat["plus_grosse_ligne_pct"] == round(180000.0 / 181000.0 * 100, 1)
+
+    def test_emprunt_non_rattache_reduit_la_valeur_totale_sans_categorie_associee(self, db):
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST,
+                libelle="Prêt perso",
+                capital_initial=10000.0,
+                taux_annuel_pct=0.0,
+                mensualite=500.0,
+                date_debut=datetime(2020, 1, 1),
+                duree_mois=200,
+                capital_restant_du_manuel=800.0,
+            )
+        )
+        db.commit()
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        assert resultat["valeur_totale"] == 200.0  # 1000 - 800, sans bucket "Dettes" dédié ici
+        par_classe = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe"]}
+        assert par_classe == {"Actions": 1000.0}  # la ligne elle-même reste inchangée, seul le total baisse

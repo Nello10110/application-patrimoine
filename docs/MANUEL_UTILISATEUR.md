@@ -255,8 +255,11 @@ courbe, puis le détail replié) :
      portefeuille financier. Deux camemberts (géographie et classe d'actif, tout le patrimoine
      confondu — la géographie d'un actif saisi manuellement vient de sa **zone géographique**
      déclarée, écran Portefeuille), la plus grosse ligne du patrimoine et son poids, le poids des 5
-     plus grosses lignes réunies, la première zone géographique et son poids. Une note rappelle
-     quelle part du patrimoine a une géographie *déclarée* plutôt que *mesurée*.
+     plus grosses lignes réunies, la première zone géographique et son poids. Chaque ligne y est
+     nettée de son emprunt rattaché (même logique que le camembert/liste du chiffre principal en
+     lentille Net, ci-dessus) : la valeur totale consolidée correspond au patrimoine net, pas aux
+     actifs bruts. Une note rappelle quelle part du patrimoine a une géographie *déclarée* plutôt que
+     *mesurée*.
    - **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût
      annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la
      part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est

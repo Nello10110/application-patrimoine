@@ -431,6 +431,13 @@ d'objectifs de répartition annuelle, cf. § 3.6 devenue vacante).
 - **Concentration** : plus grosse ligne (ticker + %), part des 5 plus grosses lignes, première zone
   géographique — « premier émetteur » interprété comme la plus grosse LIGNE (pas un vrai agrégat
   multi-fonds par émetteur réel, limite assumée).
+- **Valeurs NETTES par ligne** (backlog § 2.S.2, retour utilisateur 26/08/2026, même correction que
+  `repartition_par_classe_nette` du patrimoine net § 3.11) : chaque ligne est nettée de SON emprunt
+  rattaché (`Loan.holding_id`) avant d'entrer dans `valeur_totale`/la répartition géo/classe/la
+  concentration — `valeur_totale` correspond ainsi exactement au patrimoine NET, plus aux actifs bruts.
+  Contrairement à `repartition_par_classe_nette`, pas de bucket "Dettes non rattachées" ni de valeur
+  négative conservée ici (uniquement des camemberts en pourcentage, pas de liste en euros pour servir
+  de repli) : un emprunt non rattaché réduit `valeur_totale` sans catégorie géo/classe associée.
 - **`part_estimee_manuelle_pct`** : part du patrimoine dont la géo est déclarée (via `zone_geo`)
   plutôt que mesurée (look-through) — rappel honnête sans dupliquer l'encart de qualité des données
   existant (§ 3.4), qui reste affiché tel quel sur l'écran Répartition pour le seul financier.

@@ -1961,6 +1961,41 @@ inchangée par l'utilisateur (valeur brute, sans nettage par ligne). 4 tests bac
 (`test_patrimoine_service.py`), 3 tests frontend nouveaux (`PatrimoineNetCard.test.tsx`), suites
 complètes toujours au vert, `tsc -b`/`vitest`/`oxlint` propres.
 
+**Étendu le même jour à `ExpositionConsolideeCard`** (« Exposition consolidée — tous actifs », détail
+repliable du Tableau de bord) — même correction demandée par l'utilisateur, repérée par lui sur cette
+seconde carte : `compute_exposition_consolidee` n'avait jusqu'ici AUCUNE notion d'emprunt (elle
+sommait `Holding.valeur_estimee` brute, sans jamais toucher `Loan`), donc « Plus grosse ligne » pouvait
+pointer un bien très endetté comme si sa valeur brute constituait du vrai patrimoine. Nouvelle fonction
+partagée `_crd_par_ligne` (factorisée depuis `compute_patrimoine_net`, réutilisée par les deux) ;
+`valeur_totale`/`repartition_geo`/`repartition_classe`/`plus_grosse_ligne_*`/`top5_lignes_pct` sont
+désormais calculés sur des lignes nettées de leur emprunt rattaché (`dataclasses.replace` sur
+`ValuedHolding`) — `valeur_totale` correspond ainsi exactement à `patrimoine_net`, plus à
+`actifs_totaux`. Contrairement à `repartition_par_classe_nette`, pas de bucket "Dettes non rattachées"
+ni de valeurs négatives conservées ici : la carte n'affiche que des camemberts en pourcentage (pas de
+liste en euros pour servir de repli), donc `repartition_triee` garde son filtre `> 0` existant — un
+emprunt non rattaché réduit `valeur_totale` sans être imputable à une catégorie géo/classe précise.
+
+**Audit demandé par l'utilisateur des autres sections potentiellement oubliées** : recherche de tout
+consommateur de `compute_patrimoine_net`/`compute_exposition_consolidee`/`repartition_par_classe` côté
+backend ET frontend. Trois autres endroits identifiés, examinés et volontairement **non modifiés**,
+chacun pour une raison différente :
+- `services/partage_service.py` (liens de partage, § 2.Q.1) : sa section "exposition" transmet
+  directement `compute_exposition_consolidee`, donc hérite automatiquement du nettage sans code
+  supplémentaire ; sa section "patrimoine_net" expose en revanche toujours l'ancien
+  `repartition_par_classe` (brut), jamais le nouveau `repartition_par_classe_nette` — écart non corrigé
+  ici faute de demande explicite sur cette surface, à traiter dans un futur incrément si besoin.
+- `services/pdf_export_service.py` (export PDF, écran Rapport) : affiche `repartition_par_classe`
+  (brut) à côté des totaux actifs/passifs/patrimoine net déjà présents séparément — cohérent avec la
+  lentille Brut, non modifié.
+- `services/declaration_patrimoine_service.py` (Déclaration de patrimoine, § 2.Q.2, document
+  administratif) : liste volontairement actifs et emprunts SÉPARÉMENT (format attendu d'une
+  déclaration officielle, ex. IFI) — un nettage par ligne y serait un contresens, non modifié
+  délibérément.
+
+2 tests backend nouveaux (`TestExpositionConsolidee`), 2 tests frontend nouveaux (nouveau fichier
+`ExpositionConsolideeCard.test.tsx`, qui n'existait pas encore), suites complètes toujours au vert,
+`tsc -b`/`vitest`/`oxlint` propres.
+
 ---
 ## 3. Hors périmètre (assumé)
 

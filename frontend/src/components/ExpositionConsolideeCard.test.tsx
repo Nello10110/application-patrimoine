@@ -107,4 +107,23 @@ describe('ExpositionConsolideeCard', () => {
 
     await screen.findByText(/90% de cette valeur/)
   })
+
+  it('affiche la valeur totale comme une valeur NETTE des emprunts rattachés (retour utilisateur : même correction que PatrimoineNetCard)', async () => {
+    // 300000 (Immobilier brut) - 120000 (emprunt rattaché) = 180000, déjà nettée côté backend
+    // (`compute_exposition_consolidee`) — cette carte n'a plus aucun code de nettage propre, elle
+    // affiche telle quelle la valeur déjà nette reçue de l'API.
+    vi.mocked(api.getExpositionConsolidee).mockResolvedValue(
+      donnees({
+        valeur_totale: 180000,
+        repartition_classe: [{ categorie: 'Immobilier', valeur: 180000 }],
+        plus_grosse_ligne_ticker: 'MAISON',
+        plus_grosse_ligne_pct: 100,
+      }),
+    )
+    renderCard()
+
+    expect(await screen.findByText(/nette des emprunts rattachés/)).toBeInTheDocument()
+    expect(screen.getByText(/180 000 €/)).toBeInTheDocument()
+    expect(screen.getByText('MAISON')).toBeInTheDocument()
+  })
 })

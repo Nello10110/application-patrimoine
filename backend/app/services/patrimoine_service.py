@@ -13,6 +13,8 @@ ce détenteur (`detenteurs_service.compute_parts`) ; une ligne jamais répartie
 n'apparaît alors dans la vue d'AUCUN détenteur individuel (seulement dans la vue
 foyer) — cohérent avec la règle « pas de quotité saisie = 100 % foyer implicite »."""
 
+from dataclasses import replace
+
 from sqlalchemy.orm import Session
 
 from ..models import TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Loan
@@ -48,6 +50,27 @@ LABEL_NON_RENSEIGNE = "Non renseigné"
 LABEL_DETTES_NON_RATTACHEES = "Dettes non rattachées"
 
 
+def _crd_par_ligne(db: Session, user_id: int) -> tuple[dict[int, float], float]:
+    """Capital restant dû de chaque emprunt de cet utilisateur, regroupé par ligne
+    rattachée (`Loan.holding_id` -> somme des CRD des emprunts qui lui sont
+    rattachés). Réutilisé par `compute_patrimoine_net` (vue foyer) ET
+    `compute_exposition_consolidee` pour nettoyer chaque ligne de SON emprunt plutôt
+    que de ne retrancher les emprunts qu'au niveau du grand total (retour
+    utilisateur : l'actif net d'un bien, c'est sa valeur moins ce qu'il reste à
+    rembourser dessus). Second élément du tuple : cumul des emprunts non rattachés à
+    un actif (bucket "Dettes non rattachées" côté appelant)."""
+    loans = db.query(Loan).filter(Loan.user_id == user_id).all()
+    crd_par_holding: dict[int, float] = {}
+    crd_non_rattache = 0.0
+    for loan in loans:
+        crd = loan_service.compute_capital_restant_du(loan)
+        if loan.holding_id is not None:
+            crd_par_holding[loan.holding_id] = crd_par_holding.get(loan.holding_id, 0.0) + crd
+        else:
+            crd_non_rattache += crd
+    return crd_par_holding, crd_non_rattache
+
+
 def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None = None) -> dict:
     """`actifs_totaux` couvre toutes les lignes de CET utilisateur (`user_id`,
     Milestone 2a — `Holding.valeur_estimee` en priorité, sinon la même règle que
@@ -59,18 +82,7 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
 
     if detenteur_id is None:
         actifs_totaux = sum(v.valeur for v in valued)
-        loans = db.query(Loan).filter(Loan.user_id == user_id).all()
-        # Capital restant dû réparti par ligne rattachée (backlog : lentille Net sur
-        # le camembert/liste), pour nettoyer chaque catégorie de SON emprunt plutôt
-        # que de ne retrancher les emprunts qu'au niveau du grand total.
-        crd_par_holding: dict[int, float] = {}
-        crd_non_rattache = 0.0
-        for loan in loans:
-            crd = loan_service.compute_capital_restant_du(loan)
-            if loan.holding_id is not None:
-                crd_par_holding[loan.holding_id] = crd_par_holding.get(loan.holding_id, 0.0) + crd
-            else:
-                crd_non_rattache += crd
+        crd_par_holding, crd_non_rattache = _crd_par_ligne(db, user_id)
         passifs_totaux = sum(crd_par_holding.values()) + crd_non_rattache
 
         par_classe: dict[str, float] = {}
@@ -152,6 +164,18 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     volontairement scopé au seul portefeuille financier pour les objectifs/la
     rentabilité boursière, cf. sa docstring).
 
+    **Valeurs NETTES par ligne** (retour utilisateur, même correction que
+    `compute_patrimoine_net.repartition_par_classe_nette`) : chaque ligne est nettée
+    de SON emprunt rattaché (`_crd_par_ligne`) avant d'entrer dans `valeur_totale`, la
+    répartition géo/classe et le calcul de concentration — sans quoi « plus grosse
+    ligne » aurait pu pointer un bien très endetté comme si sa valeur brute constituait
+    du patrimoine réel. `valeur_totale` correspond donc exactement à `patrimoine_net`
+    de `compute_patrimoine_net`, pas à `actifs_totaux`. Un emprunt non rattaché à un
+    actif réduit `valeur_totale` sans être imputable à une catégorie géo/classe
+    précise (cohérent avec `repartition_par_classe_nette`, qui le range dans un bucket
+    "Dettes non rattachées" séparé — inutile ici, la géo/classe consolidées n'ont pas
+    cette notion de bucket dédié, seul le total en tient compte).
+
     Géo : réutilise `analysis_service.breakdown_with_lookthrough`, qui éclate déjà les
     fonds sur leur composition interne — les actifs valorisés manuellement y
     contribuent via `Holding.zone_geo` (repli `ZONE_EUROPE`, cf. `value_holdings`),
@@ -167,7 +191,9 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     limite assumée et documentée)."""
     holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
     valued = analysis_service.value_holdings(holdings)
-    valeur_totale = sum(v.valeur for v in valued)
+    crd_par_holding, crd_non_rattache = _crd_par_ligne(db, user_id)
+    valued_net = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, 0.0)) for v in valued]
+    valeur_totale = sum(v.valeur for v in valued_net) - crd_non_rattache
 
     def repartition_triee(totaux: dict[str, float]) -> list[dict]:
         return sorted(
@@ -176,15 +202,15 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
             reverse=True,
         )
 
-    repartition_geo = repartition_triee(analysis_service.breakdown_with_lookthrough(db, valued, "geo"))
+    repartition_geo = repartition_triee(analysis_service.breakdown_with_lookthrough(db, valued_net, "geo"))
 
     totaux_classe: dict[str, float] = {}
-    for v in valued:
+    for v in valued_net:
         label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
         totaux_classe[label] = totaux_classe.get(label, 0.0) + v.valeur
     repartition_classe = repartition_triee(totaux_classe)
 
-    lignes_triees = sorted(valued, key=lambda v: v.valeur, reverse=True)
+    lignes_triees = sorted(valued_net, key=lambda v: v.valeur, reverse=True)
     plus_grosse_ligne_ticker = lignes_triees[0].holding.ticker if lignes_triees and valeur_totale > 0 else None
     plus_grosse_ligne_pct = round(lignes_triees[0].valeur / valeur_totale * 100, 1) if lignes_triees and valeur_totale > 0 else None
     top5_lignes_pct = round(sum(v.valeur for v in lignes_triees[:5]) / valeur_totale * 100, 1) if valeur_totale > 0 else None
@@ -192,7 +218,7 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     premiere_zone_geo = repartition_geo[0]["categorie"] if repartition_geo else None
     premiere_zone_geo_pct = round(repartition_geo[0]["valeur"] / valeur_totale * 100, 1) if repartition_geo and valeur_totale > 0 else None
 
-    valeur_manuelle = sum(v.valeur for v in valued if v.holding.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL)
+    valeur_manuelle = sum(v.valeur for v in valued_net if v.holding.type_actif in TYPES_ACTIF_PATRIMOINE_MANUEL)
     part_estimee_manuelle_pct = round(valeur_manuelle / valeur_totale * 100, 1) if valeur_totale > 0 else 0.0
 
     return {
