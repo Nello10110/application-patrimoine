@@ -189,7 +189,7 @@ function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding
 
       {ouvert && (
         <div className="mt-4 border-t border-bordure pt-4">
-          <AjoutValorisationForm ticker={holding.ticker} onAdded={handleValorisationAjoutee} />
+          <AjoutValorisationForm ticker={holding.ticker} historique={historique} onAdded={handleValorisationAjoutee} />
         </div>
       )}
 

@@ -2396,6 +2396,35 @@ versements sommés, un versement hors période ne compte pas), 2 nouveaux côté
 (`HoldingDetailContent.test.tsx` — ajout avec versement, pré-remplissage et sauvegarde à l'édition ;
 `RapportPage.test.tsx` — libellés du régime déclaré).
 
+#### U.3 — `mineur` · `S` · `P2` · `traité` (30/08/2026) — Choisir de saisir le versement OU la plus-value
+
+Demande directe de l'utilisateur, en suite de § U.2 : le champ « Dont versement » n'imposait qu'une
+seule façon de décomposer l'évolution d'un point — versement connu, plus-value déduite. Or c'est
+souvent l'inverse que l'utilisateur lit sur son contrat (le relevé annonce une plus-value, pas un
+montant de versement précis).
+
+**Aucun changement de schéma** : `versement` reste l'unique donnée stockée
+(`HoldingValuationHistory.versement`, § U.2) — versement et plus-value ne sont que les deux faces de
+la même somme (`valeur − valeurPrécédente = versement + plus_value`), connaître l'une donne l'autre
+par simple soustraction. Le changement est entièrement frontend : une bascule « Versement / Plus-value »
+(nouveau composant interne `ChampDecomposition`, partagé entre le formulaire d'ajout et l'édition en
+ligne d'un point) précède le champ ; l'utilisateur choisit lequel des deux il connaît, l'autre est
+calculé côté client avant l'appel API et c'est toujours `versement` qui part sur le réseau — le
+backend ne voit aucune différence. Un indice sous le champ affiche en direct l'autre montant déduit
+(« → plus-value déduite : 800,00 € »).
+
+La bascule « Plus-value » est désactivée sans point antérieur connu (rien dont déduire une plus-value :
+première valorisation d'un compte, ou point le plus ancien de son historique) — le versement reste
+alors la seule saisie possible, comme avant cette fonctionnalité. Basculer de mode efface le montant
+déjà tapé plutôt que de le réinterpréter silencieusement sous une autre signification.
+
+**Vérifié en conditions réelles** (30/08/2026) : compte de test avec un point antérieur à 10 000 €,
+nouvelle valorisation à 12 000 € avec la bascule sur « Plus-value » et 1 200 € saisis → indice affiché
+« versement déduit : 800,00 € » (2 000 € d'évolution − 1 200 € de plus-value), confirmé identique côté
+édition d'un point existant. 3 nouveaux tests (`HoldingDetailContent.test.tsx` : bascule désactivée
+sans historique, ajout en mode plus-value, édition en mode plus-value), suite complète au vert (463
+tests frontend), `tsc -b`/`oxlint`/`vite build` propres.
+
 #### V.1 — `mineur` · `S` · `P1` · `traité` (30/08/2026) — Audit de la navigation : plus une seule liste à maintenir
 
 Demande directe de l'utilisateur : « la partie Menus est un peu en bordel, certaines pages ne sont
@@ -2515,6 +2544,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Livré** 30/08/2026 |
 | **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Livré** 30/08/2026 |
 | **Hors lot — U.2** | Versement déclaré (investi/gain) sur un point d'épargne + lissage du graphique combiné | U.1 (schéma étendu) | `M` | **Livré** 30/08/2026 |
+| **Hors lot — U.3** | Bascule versement/plus-value au choix, sur un point d'épargne | U.2 | `S` | **Livré** 30/08/2026 |
 | **Hors lot — V.1** | Audit de la navigation (source unique routes/icônes/menus, fil d'Ariane revérifié) | — | `S` | **Livré** 30/08/2026 |
 
 **Pourquoi cet ordre.**
