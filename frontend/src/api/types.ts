@@ -298,6 +298,13 @@ export interface PatrimoineHistoryPoint {
   passifs_totaux: number
   patrimoine_net: number
   patrimoine_financier: number
+  // Mode étagé Investi/Gains hors lentille Financier (backlog § U.3, 30/08/2026) —
+  // mêmes noms que `PortfolioHistoryPoint`, même formule de décomposition côté
+  // composant. La part manuelle de `valeur_investie` ne progresse qu'aux points où
+  // un versement a été explicitement déclaré (`Holding`/`HoldingValuationHistory.
+  // versement`, § U.2) ; `valeur_realisee_cumulee` reste exclusivement financière.
+  valeur_investie: number
+  valeur_realisee_cumulee: number
 }
 
 export interface PatrimoineHistoryResponse {

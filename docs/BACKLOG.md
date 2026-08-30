@@ -2424,6 +2424,46 @@ nouvelle valorisation à 12 000 € avec la bascule sur « Plus-value » et 1 20
 édition d'un point existant. 3 nouveaux tests (`HoldingDetailContent.test.tsx` : bascule désactivée
 sans historique, ajout en mode plus-value, édition en mode plus-value), suite complète au vert (463
 tests frontend), `tsc -b`/`oxlint`/`vite build` propres.
+#### U.3 — `majeur` · `M` · `P2` · `traité` (30/08/2026) — Mode étagé Investi/Gains hors lentille Financier
+
+Demande directe de l'utilisateur : le mode étagé (investi + gains) de la courbe d'évolution du Tableau
+de bord n'était disponible qu'en lentille Financier — case décochable désactivée, avec l'explication
+« pas de suivi investi/gains pour l'immobilier et l'épargne » (§ 2.K.6/S.2). Le versement déclaré tout
+juste livré (§ U.2) fournit désormais exactement la donnée qui manquait pour lever cette limite.
+
+**Audit avant implémentation** : `PortfolioHistoryChart.tsx` calcule déjà, en Financier,
+`Gains = valeur_portefeuille + valeur_realisee_cumulee − valeur_investie` à partir de trois champs du
+point (`PortfolioHistoryPoint`, alimentés par le grand livre de transactions dans
+`historical_performance_service.compute_portfolio_history`). Hors Financier, ces trois champs
+n'existaient tout simplement pas sur `PatrimoineHistoryPoint` — la case n'était pas juste grisée par
+prudence, elle n'avait littéralement rien à tracer.
+
+**Implémenté** : `PatrimoineHistoryPoint` gagne `valeur_investie`/`valeur_realisee_cumulee` (mêmes noms
+que côté Financier, pour que le composant frontend applique la MÊME formule sans distinguo).
+`patrimoine_history_service._serie_investie_manuel` (nouvelle fonction, même ancrage sur le coût
+d'acquisition que `_serie_holding_manuel`) construit, PAR LIGNE manuelle, une série d'investi cumulé :
+au premier point connu (l'ancrage à `prix_revient_moyen` s'il s'applique, sinon le premier point réel),
+l'investi est supposé égal à la valeur affichée à ce moment — ensuite, il ne progresse QU'aux points où
+`HoldingValuationHistory.versement` (§ U.2) est explicitement déclaré ; tout écart non déclaré reste un
+gain, jamais un ajout d'investi (même convention que le résidu du bloc épargne du Rapport, § U.1/U.2).
+**Bug trouvé et corrigé pendant les tests** : la première version initialisait le cumul sur la valeur
+du premier point RÉEL même quand un ancrage s'appliquait, faisant compter à tort toute la performance
+entre l'achat et la première estimation comme de l'investi plutôt que du gain — corrigé pour que
+l'ancrage (`prix_revient_moyen`), quand il s'applique, serve toujours de base, y compris pour le tout
+premier point réel (qui peut alors lui-même déclarer un versement depuis l'achat). `valeur_investie`
+d'une ligne manuelle reste TOUJOURS en escalier (jamais interpolée comme la valeur brute d'une ligne
+`TYPES_EPARGNE`, § U.2) : un versement est un événement ponctuel, jamais une progression continue à
+lisser. `valeur_realisee_cumulee` reste exclusivement financière (aucun équivalent « réalisé » pour un
+bien qui ne se cède pas par petites parts).
+
+Frontend : la case « Mode étagé » n'est plus jamais désactivée ; le texte d'accompagnement s'adapte
+selon la lentille (rappel du calcul du Gain/Perte total en Financier ; rappel que seul un versement
+déclaré compte comme investi hors Financier, sinon la hausse est traitée comme un gain).
+
+7 tests backend nouveaux (`test_patrimoine_history_service.py` : investi borné aux versements
+déclarés, escalier même pour une ligne épargne interpolée, ancrage sur le coût d'acquisition, poche
+financière + manuelle combinées, réalisé exclusivement financier, scoping détenteur), 3 tests frontend
+mis à jour/nouveaux (`PortfolioHistoryChart.test.tsx`).
 
 #### V.1 — `mineur` · `S` · `P1` · `traité` (30/08/2026) — Audit de la navigation : plus une seule liste à maintenir
 
@@ -2545,6 +2585,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Livré** 30/08/2026 |
 | **Hors lot — U.2** | Versement déclaré (investi/gain) sur un point d'épargne + lissage du graphique combiné | U.1 (schéma étendu) | `M` | **Livré** 30/08/2026 |
 | **Hors lot — U.3** | Bascule versement/plus-value au choix, sur un point d'épargne | U.2 | `S` | **Livré** 30/08/2026 |
+| **Hors lot — U.3** | Mode étagé Investi/Gains disponible en lentille Net/Brut (plus seulement Financier) | U.2 (versement déclaré) | `M` | **Livré** 30/08/2026 |
 | **Hors lot — V.1** | Audit de la navigation (source unique routes/icônes/menus, fil d'Ariane revérifié) | — | `S` | **Livré** 30/08/2026 |
 
 **Pourquoi cet ordre.**

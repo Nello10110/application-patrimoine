@@ -26,6 +26,22 @@ l'impression d'un rattrapage instantané. Toujours pas d'extrapolation dans le f
 (valeur plaquée au dernier point connu au-delà) ni avant le premier point (`None`,
 rien à représenter) — seul l'ENTRE-DEUX points change de comportement.
 
+**Mode étagé Investi/Gains hors lentille Financier (backlog § U.3, retour utilisateur
+30/08/2026)** : `valeur_investie`/`valeur_realisee_cumulee` (mêmes noms de champs que
+`historical_performance_service.compute_portfolio_history`, pour que le frontend
+réutilise la même formule de décomposition sans distinguo) sont désormais exposés ici
+aussi. `valeur_investie` combine la part financière (grand livre de transactions
+inchangé) et la part manuelle — cette dernière ne peut croître/décroître qu'aux points
+où un versement est EXPLICITEMENT déclaré (`HoldingValuationHistory.versement`, § U.2) :
+toute hausse/baisse non déclarée reste attribuée au gain, jamais à l'investi (même
+convention que le résidu du bloc épargne du Rapport, § U.1/U.2). Contrairement à la
+valeur brute d'une ligne `TYPES_EPARGNE` (interpolée, ci-dessus), la part investie reste
+TOUJOURS en escalier (`_serie_investie_manuel` n'utilise jamais `_valeur_interpolee`) :
+un versement est un événement ponctuel, jamais une progression continue à lisser.
+`valeur_realisee_cumulee` reste exclusivement financière (ventes/dividendes/intérêts) —
+aucun équivalent « réalisé » pour un bien valorisé manuellement, qui ne se cède pas par
+petites parts comme une action.
+
 **Limite assumée sur le scoping par détenteur** : les quotités (`QuotiteHolding`/
 `QuotiteLoan`) ne sont pas historisées, seule la répartition D'AUJOURD'HUI existe. Les
 lignes valorisées manuellement et les emprunts qui leur sont rattachés sont traités de
@@ -81,9 +97,15 @@ def _valeur_ligne_a_date(holding: Holding, serie: TimeSeries, date: datetime) ->
     return historical_performance_service._value_at(serie, date)
 
 
-def _serie_financiere(db: Session, user_id: int) -> TimeSeries:
+def _series_financieres(db: Session, user_id: int) -> tuple[TimeSeries, TimeSeries, TimeSeries]:
+    """`(valeur, investie, realisee_cumulee)` — un seul appel à `compute_portfolio_history`
+    (déjà mis en cache par ce module, coûteux en réseau) plutôt que trois, pour
+    alimenter à la fois la valeur brute et le mode étagé Investi/Gains (§ U.3)."""
     points = historical_performance_service.compute_portfolio_history(db, user_id)
-    return [(datetime.fromisoformat(p["date"]), p["valeur_portefeuille"]) for p in points]
+    valeur = [(datetime.fromisoformat(p["date"]), p["valeur_portefeuille"]) for p in points]
+    investie = [(datetime.fromisoformat(p["date"]), p["valeur_investie"]) for p in points]
+    realisee = [(datetime.fromisoformat(p["date"]), p["valeur_realisee_cumulee"]) for p in points]
+    return valeur, investie, realisee
 
 
 def _serie_holding_manuel(holding: Holding, points_historique: list) -> TimeSeries:
@@ -106,6 +128,57 @@ def _serie_holding_manuel(holding: Holding, points_historique: list) -> TimeSeri
     if holding.date_acquisition is not None and holding.prix_revient_moyen is not None:
         if not serie or holding.date_acquisition < serie[0][0]:
             serie.insert(0, (holding.date_acquisition, holding.prix_revient_moyen))
+    return serie
+
+
+def _serie_investie_manuel(holding: Holding, points_historique: list) -> TimeSeries:
+    """Série de la part INVESTIE (cumulée) d'une ligne manuelle — pour le mode étagé
+    Investi/Gains hors lentille Financier (backlog § U.3). Même ancrage que
+    `_serie_holding_manuel` ci-dessus (coût d'acquisition à `prix_revient_moyen` si
+    connu et antérieur au premier point) : au tout premier point connu de la ligne
+    (l'ancrage s'il existe, sinon le premier point réel, sinon `valeur_estimee`),
+    l'investi est supposé égal à la valeur affichée à ce moment-là — faute de mieux,
+    c'est la meilleure hypothèse possible sur ce qui a été mis dedans jusque-là — SAUF
+    quand un ancrage sur le coût d'acquisition s'applique (même condition que
+    `_serie_holding_manuel`) : c'est alors `prix_revient_moyen` qui sert de base, pas
+    la valeur du premier point réel (qui peut déjà inclure une performance depuis
+    l'achat — sans quoi cette performance serait comptée à tort dans l'investi plutôt
+    que dans le gain). Ensuite, l'investi cumulé ne bouge QU'aux points où
+    `HoldingValuationHistory.versement` est explicitement déclaré (§ U.2) — tout écart
+    non déclaré entre deux points reste un gain, jamais un ajout d'investi (même
+    convention que le résidu du Rapport). L'ancrage synthétique lui-même (pas une
+    ligne de la table, jamais de `versement`) ne peut jamais faire varier ce cumul,
+    par construction — mais SI l'ancrage s'applique, même le PREMIER point réel est
+    alors évalué pour un versement déclaré (l'argent injecté entre l'achat et cette
+    première estimation a pu être précisé)."""
+    if points_historique:
+        premiere_date, premiere_valeur = points_historique[0].date_valeur, points_historique[0].valeur
+    elif holding.valeur_estimee is not None:
+        premiere_date, premiere_valeur = holding.created_at, holding.valeur_estimee
+    else:
+        premiere_date, premiere_valeur = None, None
+
+    ancrage = (
+        holding.date_acquisition is not None
+        and holding.prix_revient_moyen is not None
+        and (premiere_date is None or holding.date_acquisition < premiere_date)
+    )
+
+    if ancrage:
+        cumul = holding.prix_revient_moyen
+        serie: TimeSeries = [(holding.date_acquisition, cumul)]
+        points_a_evaluer = points_historique
+    elif premiere_date is not None:
+        cumul = premiere_valeur
+        serie = [(premiere_date, cumul)]
+        points_a_evaluer = points_historique[1:] if points_historique else []
+    else:
+        return []
+
+    for p in points_a_evaluer:
+        if p.versement is not None:
+            cumul += p.versement
+        serie.append((p.date_valeur, cumul))
     return serie
 
 
@@ -139,15 +212,17 @@ def compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | No
 
 
 def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | None) -> list[dict]:
-    serie_financiere = _serie_financiere(db, user_id)
+    serie_financiere, serie_financiere_investie, serie_financiere_realisee = _series_financieres(db, user_id)
 
     holdings_manuels = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL)).all()
     holdings_manuels_par_id = {h.id: h for h in holdings_manuels}
     series_manuelles: dict[int, TimeSeries] = {}
+    series_investies_manuelles: dict[int, TimeSeries] = {}
     pourcentages_manuels: dict[int, dict[int, float]] = {}
     for holding in holdings_manuels:
         historique = immobilier_service.historique_valorisation(db, holding.id)
         series_manuelles[holding.id] = _serie_holding_manuel(holding, historique)
+        series_investies_manuelles[holding.id] = _serie_investie_manuel(holding, historique)
         if detenteur_id is not None:
             pourcentages_manuels[holding.id] = detenteurs_service.compute_pourcentages(db, holding)
 
@@ -194,6 +269,11 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
                 for holding_id, serie in series_manuelles.items()
             )
             passifs_totaux = sum(_valeur_emprunt_a_date(loan, date) for loan in loans)
+            valeur_investie = historical_performance_service._value_at(serie_financiere_investie, date) or 0.0
+            valeur_investie += sum(
+                historical_performance_service._value_at(serie, date) or 0.0 for serie in series_investies_manuelles.values()
+            )
+            valeur_realisee_cumulee = historical_performance_service._value_at(serie_financiere_realisee, date) or 0.0
         else:
             valeur_financiere = (historical_performance_service._value_at(serie_financiere, date) or 0.0) * ratio_financier
             valeur_manuelle = 0.0
@@ -208,6 +288,13 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
                 if pct is None:
                     continue
                 passifs_totaux += _valeur_emprunt_a_date(loan, date) * pct / 100
+            valeur_investie = (historical_performance_service._value_at(serie_financiere_investie, date) or 0.0) * ratio_financier
+            for holding_id, serie in series_investies_manuelles.items():
+                pct = pourcentages_manuels.get(holding_id, {}).get(detenteur_id)
+                if pct is None:
+                    continue
+                valeur_investie += (historical_performance_service._value_at(serie, date) or 0.0) * pct / 100
+            valeur_realisee_cumulee = (historical_performance_service._value_at(serie_financiere_realisee, date) or 0.0) * ratio_financier
 
         actifs_totaux = valeur_financiere + valeur_manuelle
         points.append(
@@ -219,6 +306,8 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
                 "passifs_totaux": round(passifs_totaux, 2),
                 "patrimoine_net": round(actifs_totaux - passifs_totaux, 2),
                 "patrimoine_financier": round(valeur_financiere, 2),
+                "valeur_investie": round(valeur_investie, 2),
+                "valeur_realisee_cumulee": round(valeur_realisee_cumulee, 2),
             }
         )
 

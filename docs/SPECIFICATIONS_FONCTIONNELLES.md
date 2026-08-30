@@ -394,9 +394,15 @@ réutilise `part_nette` de `detenteurs_service.compute_parts`), pas seulement le
 bucket « Dettes non rattachées » pour un emprunt sans actif associé — la somme correspond toujours
 exactement à `patrimoine_net`. Une ligne peut y être négative (équité négative) : jamais masquée dans
 la liste (affichée en rouge), mais exclue du camembert, qui ne peut pas représenter une part négative.
-Le mode étagé Investi/Gains de la courbe reste réservé à la lentille Financier (désactivé sinon, avec
-une explication) : l'immobilier/l'épargne n'ont pas de grand livre de versements équivalent pour
-construire cette décomposition.
+Le mode étagé Investi/Gains de la courbe, initialement réservé à la lentille Financier faute de
+décomposition possible pour l'immobilier/l'épargne, est désormais disponible aussi en Net/Brut
+(backlog § U.3, retour utilisateur 30/08/2026) : `PatrimoineHistoryPoint` expose `valeur_investie`
+(part financière du grand livre de transactions + part manuelle bornée aux versements EXPLICITEMENT
+déclarés, § U.2) et `valeur_realisee_cumulee` (exclusivement financière, aucun équivalent « réalisé »
+pour un bien qui ne se cède pas par petites parts). `PortfolioHistoryChart` applique alors la MÊME
+formule de décomposition (`Gains = valeur_portefeuille + valeur_realisee_cumulee − valeur_investie`)
+qu'en Financier — avec une légende adaptée hors Financier précisant qu'une hausse non déclarée reste
+comptée en gain.
 
 **Deux limites assumées et affichées** (même philosophie de transparence que la qualité des données de
 répartition, § 3.4, ou la valorisation immobilière datée, § 3.11 — jamais de fausse précision) :
