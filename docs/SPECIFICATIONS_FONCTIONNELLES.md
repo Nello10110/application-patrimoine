@@ -255,7 +255,7 @@ qui a déjà ses propres dates de transaction.
 
 **`Holding.taux_pct`** (backlog § 2.M.1, épargne réglementée/salariale et véhicule) : un pourcentage annuel purement **informatif**, jamais appliqué automatiquement à `valeur_estimee` — positif pour un taux d'intérêt attendu, négatif pour une décote annuelle attendue. Sert uniquement à calculer, côté client, une « valeur projetée dans 1 an » affichée en repère ; l'utilisateur reporte lui-même ce montant dans `valeur_estimee` s'il souhaite l'adopter — même philosophie que la valorisation immobilière datée (jamais de mutation silencieuse d'une donnée financière).
 
-**Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps).
+**Premier passif de l'application** : un emprunt (`Loan`) porte un capital initial, un taux annuel, une mensualité, une date de début et une durée. Le capital restant dû est calculé par amortissement standard à taux fixe (`services/loan_service.py`), sauf recalage manuel explicite (`capital_restant_du_manuel`, prioritaire — utile après un remboursement anticipé ou pour recaler sur un relevé bancaire réel, le calcul théorique pouvant dériver du réel avec le temps). Les six autres caractéristiques du prêt restent librement modifiables après création (backlog quickwin § T.1, `PATCH /api/loans/{id}`, déjà supporté par `LoanUpdate`) — en cas d'erreur de saisie ou de renégociation, sans jamais toucher `capital_restant_du_manuel`, qui garde sa sémantique propre de recalage.
 
 **Deux périmètres volontairement distincts.** Le portefeuille FINANCIER (actions, ETF, crypto, obligations, private equity — `analysis_service.holdings_financiers`) reste seul concerné par le look-through géo/sectoriel et la carte Rentabilité boursière (§ 3.2, § 3.4, § 3.5) : y mélanger un bien immobilier n'aurait pas de sens (pas de géographie/secteur boursier, pas de coût de base dans le grand livre de transactions). Le **patrimoine net global** (`GET /api/patrimoine/net`, `services/patrimoine_service.py`) est une vue **additive** : actifs totaux (portefeuille financier + immobilier/SCPI/assurance-vie/PER/autre actif, valorisés par la même règle que `value_holdings`) moins passifs totaux (somme des capitaux restants dus), avec une répartition par grande classe d'actif. Il n'écrase ni ne remplace les écrans existants.
 
@@ -282,6 +282,15 @@ immobilière comme un fait alors qu'elle vient d'un algorithme non maîtrisé.
 `Holding.valeur_estimee`/`date_valeur_estimee` restent la valeur COURANTE (accès rapide, comportement
 inchangé partout ailleurs dans l'application) ; `GET /holdings/{ticker}/immobilier-history` expose
 l'historique complet, affiché en tableau chronologique sur la fiche détaillée.
+
+**Correction/suppression d'un point** (backlog quickwin § T.3) : `PATCH`/`DELETE
+/holdings/{ticker}/immobilier-history/{point_id}` permettent de corriger ou retirer un point déjà
+saisi (ex. une valeur tapée par erreur), jusqu'ici impossible — `enregistrer_point_historique`
+n'ajoutait qu'en aveugle. Si le point touché est (ou devient) le plus récent de l'historique,
+`valeur_estimee`/`date_valeur_estimee` sont resynchronisés sur le nouveau point le plus récent restant
+(`None` si l'historique devient vide) — recalculé À CHAQUE fois, contrairement à `PUT .../valorisation`
+qui ne resynchronise que si le nouveau point est déjà le plus récent (un rattrapage antidaté ne devant
+jamais écraser une valeur plus récente déjà connue).
 
 ### 3.12 Simulateur : projection, tableau de détail et indépendance financière
 

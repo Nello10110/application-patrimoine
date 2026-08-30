@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Holding, Loan } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
@@ -32,11 +32,18 @@ function LoanCardMobile({
   setRecalageValeur,
   recalageSaving,
   rattachementSaving,
+  editionId,
+  editForm,
+  setEditForm,
+  editionSaving,
   onStartRecalage,
   onSaveRecalage,
   onCancelRecalage,
   onRattacher,
   onRequestDelete,
+  onStartEdition,
+  onSaveEdition,
+  onCancelEdition,
 }: {
   loan: Loan
   holdings: Holding[]
@@ -46,13 +53,106 @@ function LoanCardMobile({
   setRecalageValeur: (v: string) => void
   recalageSaving: boolean
   rattachementSaving: number | null
+  editionId: number | null
+  editForm: LoanForm
+  setEditForm: (f: LoanForm) => void
+  editionSaving: boolean
   onStartRecalage: () => void
   onSaveRecalage: () => void
   onCancelRecalage: () => void
   onRattacher: (holdingId: number | null) => void
   onRequestDelete: () => void
+  onStartEdition: () => void
+  onSaveEdition: () => void
+  onCancelEdition: () => void
 }) {
   const enRecalage = recalageId === loan.id
+  const enEdition = editionId === loan.id
+
+  if (enEdition) {
+    return (
+      <div className="rounded-lg border border-bordure bg-surface p-4">
+        <div className="space-y-3">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Libellé
+            <input
+              value={editForm.libelle}
+              onChange={(e) => setEditForm({ ...editForm, libelle: e.target.value })}
+              aria-label={`Libellé de ${loan.libelle} (édition)`}
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Capital initial
+            <input
+              value={editForm.capital_initial}
+              onChange={(e) => setEditForm({ ...editForm, capital_initial: e.target.value })}
+              type="number"
+              step="any"
+              aria-label={`Capital initial de ${loan.libelle} (édition)`}
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Taux annuel (%)
+            <input
+              value={editForm.taux_annuel_pct}
+              onChange={(e) => setEditForm({ ...editForm, taux_annuel_pct: e.target.value })}
+              type="number"
+              step="any"
+              aria-label={`Taux annuel de ${loan.libelle} (édition)`}
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Mensualité
+            <input
+              value={editForm.mensualite}
+              onChange={(e) => setEditForm({ ...editForm, mensualite: e.target.value })}
+              type="number"
+              step="any"
+              aria-label={`Mensualité de ${loan.libelle} (édition)`}
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Date de début
+            <input
+              value={editForm.date_debut}
+              onChange={(e) => setEditForm({ ...editForm, date_debut: e.target.value })}
+              type="date"
+              aria-label={`Date de début de ${loan.libelle} (édition)`}
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Durée (mois)
+            <input
+              value={editForm.duree_mois}
+              onChange={(e) => setEditForm({ ...editForm, duree_mois: e.target.value })}
+              type="number"
+              step="1"
+              aria-label={`Durée de ${loan.libelle} (édition)`}
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            />
+          </label>
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onSaveEdition}
+            disabled={editionSaving}
+            className="min-h-11 flex-1 rounded-md bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+          >
+            Enregistrer
+          </button>
+          <button onClick={onCancelEdition} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+            Annuler
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-lg border border-bordure bg-surface p-4">
@@ -127,6 +227,9 @@ function LoanCardMobile({
           </>
         ) : (
           <>
+            <button onClick={onStartEdition} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+              Modifier
+            </button>
             <button onClick={onStartRecalage} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
               Recaler
             </button>
@@ -162,6 +265,15 @@ export default function LoansCard() {
   const [recalageId, setRecalageId] = useState<number | null>(null)
   const [recalageValeur, setRecalageValeur] = useState('')
   const [recalageSaving, setRecalageSaving] = useState(false)
+
+  // Édition complète d'un emprunt (backlog quickwin § T.1, retour utilisateur
+  // 30/08/2026) : `capital_restant_du_manuel` reste hors de ce formulaire — il
+  // garde sa sémantique propre via « Recaler » (relevé bancaire réel qui prime sur
+  // le calcul théorique), les deux actions ne se recouvrent jamais sur une même
+  // ligne (`startEdition`/`startRecalage` s'excluent mutuellement ci-dessous).
+  const [editionId, setEditionId] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState<LoanForm>(FORM_VIDE)
+  const [editionSaving, setEditionSaving] = useState(false)
 
   const [confirmSuppression, setConfirmSuppression] = useState<{ id: number; libelle: string } | null>(null)
   const [suppressionEnCours, setSuppressionEnCours] = useState(false)
@@ -223,6 +335,7 @@ export default function LoansCard() {
   }
 
   function startRecalage(loan: Loan) {
+    setEditionId(null)
     setRecalageId(loan.id)
     setRecalageValeur(String(loan.capital_restant_du))
   }
@@ -238,6 +351,53 @@ export default function LoansCard() {
       setError((err as Error).message)
     } finally {
       setRecalageSaving(false)
+    }
+  }
+
+  function startEdition(loan: Loan) {
+    setRecalageId(null)
+    setEditionId(loan.id)
+    setEditForm({
+      libelle: loan.libelle,
+      capital_initial: String(loan.capital_initial),
+      taux_annuel_pct: String(loan.taux_annuel_pct),
+      mensualite: String(loan.mensualite),
+      date_debut: loan.date_debut.slice(0, 10),
+      duree_mois: String(loan.duree_mois),
+    })
+  }
+
+  function cancelEdition() {
+    setEditionId(null)
+  }
+
+  async function saveEdition(id: number) {
+    if (
+      !editForm.libelle.trim() ||
+      !editForm.capital_initial ||
+      !editForm.taux_annuel_pct ||
+      !editForm.mensualite ||
+      !editForm.date_debut ||
+      !editForm.duree_mois
+    )
+      return
+    setEditionSaving(true)
+    setError(null)
+    try {
+      await api.updateLoan(id, {
+        libelle: editForm.libelle.trim(),
+        capital_initial: Number(editForm.capital_initial),
+        taux_annuel_pct: Number(editForm.taux_annuel_pct),
+        mensualite: Number(editForm.mensualite),
+        date_debut: editForm.date_debut,
+        duree_mois: Number(editForm.duree_mois),
+      })
+      setEditionId(null)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setEditionSaving(false)
     }
   }
 
@@ -283,11 +443,18 @@ export default function LoansCard() {
               setRecalageValeur={setRecalageValeur}
               recalageSaving={recalageSaving}
               rattachementSaving={rattachementSaving}
+              editionId={editionId}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              editionSaving={editionSaving}
               onStartRecalage={() => startRecalage(loan)}
               onSaveRecalage={() => saveRecalage(loan.id)}
               onCancelRecalage={() => setRecalageId(null)}
               onRattacher={(holdingId) => handleRattacher(loan.id, holdingId)}
               onRequestDelete={() => setConfirmSuppression({ id: loan.id, libelle: loan.libelle })}
+              onStartEdition={() => startEdition(loan)}
+              onSaveEdition={() => saveEdition(loan.id)}
+              onCancelEdition={cancelEdition}
             />
           ))}
           <p className="pt-1 text-sm font-semibold text-texte">
@@ -310,7 +477,8 @@ export default function LoansCard() {
             </thead>
             <tbody className="divide-y divide-bordure">
               {loans.map((loan) => (
-                <tr key={loan.id}>
+                <Fragment key={loan.id}>
+                <tr>
                   <td className="py-2 pr-4 font-medium text-texte">{loan.libelle}</td>
                   <td className="py-2 pr-4 text-texte">{formatEuro(loan.capital_initial, 0, montantsMasques)}</td>
                   <td className="py-2 pr-4 text-texte">{loan.taux_annuel_pct.toFixed(2)}%</td>
@@ -364,8 +532,11 @@ export default function LoansCard() {
                     </select>
                   </td>
                   <td className="py-2 pr-4 text-right">
-                    {recalageId !== loan.id && (
+                    {recalageId !== loan.id && editionId !== loan.id && (
                       <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => startEdition(loan)} className="text-xs text-texte-attenue hover:underline">
+                          Modifier
+                        </button>
                         <button onClick={() => startRecalage(loan)} className="text-xs text-texte-attenue hover:underline">
                           Recaler
                         </button>
@@ -379,7 +550,92 @@ export default function LoansCard() {
                     )}
                   </td>
                 </tr>
-              ))}
+                {editionId === loan.id && (
+                  <tr key={`${loan.id}-edition`}>
+                    <td colSpan={7} className="bg-surface-elevee py-3 pr-4">
+                      <div className="flex flex-wrap items-end gap-3">
+                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                          Libellé
+                          <input
+                            value={editForm.libelle}
+                            onChange={(e) => setEditForm({ ...editForm, libelle: e.target.value })}
+                            aria-label={`Libellé de ${loan.libelle} (édition)`}
+                            className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                          Capital initial
+                          <input
+                            value={editForm.capital_initial}
+                            onChange={(e) => setEditForm({ ...editForm, capital_initial: e.target.value })}
+                            type="number"
+                            step="any"
+                            aria-label={`Capital initial de ${loan.libelle} (édition)`}
+                            className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                          Taux annuel (%)
+                          <input
+                            value={editForm.taux_annuel_pct}
+                            onChange={(e) => setEditForm({ ...editForm, taux_annuel_pct: e.target.value })}
+                            type="number"
+                            step="any"
+                            aria-label={`Taux annuel de ${loan.libelle} (édition)`}
+                            className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                          Mensualité
+                          <input
+                            value={editForm.mensualite}
+                            onChange={(e) => setEditForm({ ...editForm, mensualite: e.target.value })}
+                            type="number"
+                            step="any"
+                            aria-label={`Mensualité de ${loan.libelle} (édition)`}
+                            className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                          Date de début
+                          <input
+                            value={editForm.date_debut}
+                            onChange={(e) => setEditForm({ ...editForm, date_debut: e.target.value })}
+                            type="date"
+                            aria-label={`Date de début de ${loan.libelle} (édition)`}
+                            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                          Durée (mois)
+                          <input
+                            value={editForm.duree_mois}
+                            onChange={(e) => setEditForm({ ...editForm, duree_mois: e.target.value })}
+                            type="number"
+                            step="1"
+                            aria-label={`Durée de ${loan.libelle} (édition)`}
+                            className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                          />
+                        </label>
+                        <button
+                          onClick={() => saveEdition(loan.id)}
+                          disabled={editionSaving}
+                          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+                        >
+                          Enregistrer
+                        </button>
+                        <button
+                          onClick={cancelEdition}
+                          className="rounded-md border border-bordure px-4 py-2 text-sm font-medium text-texte"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
             </tbody>
             <tfoot>
               <tr className="border-t border-bordure text-sm font-semibold text-texte">

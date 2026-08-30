@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import ORIGINE_MANUEL, ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Holding, QuotiteHolding, User
+from ..models import ORIGINE_MANUEL, ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Holding, HoldingValuationHistory, QuotiteHolding, User
 from ..schemas import (
     ColumnMapping,
     HoldingCreate,
@@ -247,7 +247,81 @@ def get_holding_valuation_history(ticker: str, db: Session = Depends(get_db), cu
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     points = immobilier_service.historique_valorisation(db, holding.id)
-    return [ValuationHistoryPoint(date_valeur=p.date_valeur, valeur=p.valeur) for p in points]
+    return [ValuationHistoryPoint(id=p.id, date_valeur=p.date_valeur, valeur=p.valeur) for p in points]
+
+
+def _resynchroniser_valeur_courante(db: Session, holding: Holding) -> None:
+    """Après correction/suppression d'un point d'historique (backlog quickwin § T.3,
+    retour utilisateur 30/08/2026), la valeur « courante » dupliquée sur `Holding`
+    (`valeur_estimee`/`date_valeur_estimee` — lue partout ailleurs pour un accès
+    rapide, cf. docstring de `HoldingValuationHistory`) doit refléter le nouveau
+    point le plus récent restant, jamais rester sur une valeur qui vient d'être
+    corrigée ou supprimée. Contrairement à `set_holding_valorisation` (qui ne
+    resynchronise QUE si le nouveau point est déjà le plus récent, un rattrapage
+    antidaté ne devant jamais écraser une valeur plus récente), ici on recalcule
+    TOUJOURS le point le plus récent restant : modifier/supprimer un point peut
+    changer lequel est le plus récent dans n'importe quel sens."""
+    points = immobilier_service.historique_valorisation(db, holding.id)
+    if points:
+        dernier = points[-1]
+        holding.valeur_estimee = dernier.valeur
+        holding.date_valeur_estimee = dernier.date_valeur
+    else:
+        holding.valeur_estimee = None
+        holding.date_valeur_estimee = None
+    db.commit()
+    db.refresh(holding)
+
+
+def _recuperer_point_du_foyer(db: Session, holding: Holding, point_id: int) -> HoldingValuationHistory:
+    point = db.get(HoldingValuationHistory, point_id)
+    if point is None or point.holding_id != holding.id:
+        raise HTTPException(status_code=404, detail="Point d'historique introuvable")
+    return point
+
+
+@router.patch("/holdings/{ticker}/immobilier-history/{point_id}", response_model=HoldingOut)
+def update_holding_valuation_point(
+    ticker: str,
+    point_id: int,
+    payload: ValorisationInput,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_peut_ecrire),
+):
+    """Corrige un point déjà saisi (backlog quickwin § T.3) — ex. une valeur tapée
+    par erreur, qui resterait sinon figée pour toujours (`enregistrer_point_historique`
+    n'écrase jamais un point existant, par design). Renvoie le `Holding` à jour :
+    si le point corrigé est (ou devient) le plus récent, `valeur_estimee`/
+    `date_valeur_estimee` suivent — cf. `_resynchroniser_valeur_courante`."""
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    if holding is None:
+        raise HTTPException(status_code=404, detail="Ligne introuvable")
+    _recuperer_point_du_foyer(db, holding, point_id)
+    date_dt = datetime.strptime(payload.date, "%Y-%m-%d")
+    immobilier_service.modifier_point_historique(db, point_id, payload.valeur, date_dt)
+    historique_cache.invalider_historiques_patrimoine(db)
+    _resynchroniser_valeur_courante(db, holding)
+    return holding
+
+
+@router.delete("/holdings/{ticker}/immobilier-history/{point_id}", response_model=HoldingOut)
+def delete_holding_valuation_point(
+    ticker: str,
+    point_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_peut_ecrire),
+):
+    """Supprime un point saisi par erreur (backlog quickwin § T.3). Renvoie le
+    `Holding` à jour, `valeur_estimee`/`date_valeur_estimee` resynchronisés sur le
+    nouveau point le plus récent restant (ou `None` si l'historique devient vide)."""
+    holding = db.query(Holding).filter(Holding.ticker == ticker, Holding.user_id == auth_service.id_foyer(current_user)).first()
+    if holding is None:
+        raise HTTPException(status_code=404, detail="Ligne introuvable")
+    _recuperer_point_du_foyer(db, holding, point_id)
+    immobilier_service.supprimer_point_historique(db, point_id)
+    historique_cache.invalider_historiques_patrimoine(db)
+    _resynchroniser_valeur_courante(db, holding)
+    return holding
 
 
 @router.put("/holdings/{ticker}/valorisation", response_model=HoldingOut)

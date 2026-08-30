@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Detenteur, HoldingDetail, HoldingImmobilier } from '../api/types'
+import type { Detenteur, Holding, HoldingDetail, HoldingImmobilier } from '../api/types'
 import HoldingDetailContent from './HoldingDetailContent'
 
 // Ce fichier verrouille la section "Détenteurs" (backlog 2.L.1), la fiche immobilier
@@ -16,6 +16,8 @@ vi.mock('../api/client', () => ({
     updateHoldingImmobilier: vi.fn(),
     getHoldingValuationHistory: vi.fn().mockResolvedValue([]),
     setHoldingValorisation: vi.fn(),
+    updateHoldingValuationPoint: vi.fn(),
+    deleteHoldingValuationPoint: vi.fn(),
   },
 }))
 
@@ -155,6 +157,36 @@ function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobili
   }
 }
 
+// `Holding` renvoyé par `updateHoldingValuationPoint`/`deleteHoldingValuationPoint`
+// (backlog quickwin § T.3) — sa valeur n'est pas exploitée par `ImmobilierApercu`
+// (seul `EpargneApercu`/`EpargnePage` en tirent la "valeur actuelle" resynchronisée,
+// couverts ailleurs) : un objet minimal type-complet suffit ici.
+function holdingApresAction(): Holding {
+  return {
+    id: 1,
+    ticker: 'AAPL',
+    nom: null,
+    quantite: 1,
+    prix_revient_moyen: null,
+    compte: null,
+    devise: null,
+    type_actif: 'REAL_ESTATE',
+    origine: 'manuel',
+    created_at: '2026-01-01T00:00:00',
+    updated_at: '2026-01-01T00:00:00',
+    market_data: null,
+    rendement_depuis_achat_pct: null,
+    rendement_annualise_pct: null,
+    valeur: null,
+    valeur_estimee: 220000,
+    date_valeur_estimee: '2026-01-01T00:00:00',
+    taux_pct: null,
+    zone_geo: null,
+    versement_mensuel: null,
+    date_acquisition: null,
+  }
+}
+
 describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it("n'affiche pas la fiche immobilier pour une position boursière", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
@@ -212,8 +244,8 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it("affiche l'historique de valorisation, la ligne la plus récente en premier", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
-      { date_valeur: '2025-01-01T00:00:00', valeur: 200000 },
-      { date_valeur: '2026-01-01T00:00:00', valeur: 220000 },
+      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000 },
+      { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000 },
     ])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
 
@@ -226,8 +258,8 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it("affiche un graphique d'évolution dès que l'historique compte au moins deux points (retour utilisateur 25/08)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
-      { date_valeur: '2025-01-01T00:00:00', valeur: 200000 },
-      { date_valeur: '2026-01-01T00:00:00', valeur: 220000 },
+      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000 },
+      { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000 },
     ])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
 
@@ -237,7 +269,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("n'affiche pas de graphique pour un unique point d'historique (rien à tracer)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
 
     await screen.findByText('Historique de valorisation')
@@ -246,7 +278,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("un unique point d'historique + une date d'acquisition antérieure affiche quand même le graphique (retour utilisateur, 26/08/2026)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
     render(
       <HoldingDetailContent
         detail={detail({
@@ -270,7 +302,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("une date d'acquisition POSTÉRIEURE au premier point connu n'ajoute rien (donnée déjà plus ancienne et plus fiable)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2020-01-01T00:00:00', valeur: 200000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2020-01-01T00:00:00', valeur: 200000 }])
     render(
       <HoldingDetailContent
         detail={detail({
@@ -285,6 +317,44 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     await screen.findByText('Historique de valorisation')
     expect(document.querySelector('.recharts-responsive-container')).not.toBeInTheDocument()
     expect(screen.queryByText(/coût d'acquisition.*ajouté au graphique/)).not.toBeInTheDocument()
+  })
+
+  it("Modifier pré-remplit le point puis Enregistrer appelle updateHoldingValuationPoint (backlog quickwin § T.3)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 0 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.updateHoldingValuationPoint).mockResolvedValue(holdingApresAction())
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+
+    await screen.findByText('Historique de valorisation')
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+
+    expect(screen.getByLabelText('Valeur du 01/01/2026 (édition)')).toHaveValue(0)
+    expect(screen.getByLabelText('Date du 01/01/2026 (édition)')).toHaveValue('2026-01-01')
+    fireEvent.change(screen.getByLabelText('Valeur du 01/01/2026 (édition)'), { target: { value: '220000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() => expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7, { valeur: 220000, date: '2026-01-01' }))
+    // Rafraîchit l'historique après coup — la nouvelle valeur remplace l'ancienne dans le tableau.
+    await screen.findByText('220 000,00 €')
+    expect(screen.queryByLabelText('Valeur du 01/01/2026 (édition)')).not.toBeInTheDocument()
+  })
+
+  it('Supprimer demande confirmation avant deleteHoldingValuationPoint (backlog quickwin § T.3)', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([])
+    vi.mocked(api.deleteHoldingValuationPoint).mockResolvedValue(holdingApresAction())
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
+
+    await screen.findByText('Historique de valorisation')
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+
+    const dialogue = screen.getByRole('dialog')
+    expect(api.deleteHoldingValuationPoint).not.toHaveBeenCalled()
+    fireEvent.click(within(dialogue).getByRole('button', { name: 'Supprimer' }))
+
+    await vi.waitFor(() => expect(api.deleteHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7))
   })
 })
 
@@ -304,7 +374,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
 
   it("charge et affiche l'historique daté pour un compte Épargne (pas seulement l'immobilier)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ date_valeur: '2026-01-01T00:00:00', valeur: 10000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 10000 }])
     render(
       <HoldingDetailContent
         detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000, date_valeur_estimee: '2026-01-01T00:00:00' })}

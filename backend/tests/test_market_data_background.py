@@ -159,6 +159,31 @@ def test_rafraichissement_reussi_invalide_le_cache_dhistorique_du_portefeuille(m
         db.close()
 
 
+def test_connexion_configuree_en_wal_avec_busy_timeout_genereux():
+    """Verrouille le correctif § T.2 (retour utilisateur 30/08/2026, « Rafraîchir
+    les cours » échouait par intermittence en `database is locked`) : sans mode WAL
+    ni `busy_timeout` généreux, une écriture concurrente pendant qu'une transaction
+    reste ouverte échoue immédiatement plutôt que d'attendre — exactement ce que
+    faisait un rafraîchissement des cours qui ne committait qu'une fois tout le
+    portefeuille traité (`market_data_service.refresh_tickers`, désormais corrigé en
+    plus par un commit par ticker).
+
+    Vérifie la configuration RÉELLEMENT appliquée à la connexion (`app.database`),
+    plutôt qu'une course contre la montre entre deux fils : le réglage par défaut de
+    `sqlite3` (`timeout=5.0`) masquerait de toute façon une régression sur un test
+    qui ne tiendrait le verrou que quelques centaines de millisecondes — seule une
+    contention de plusieurs secondes reproduit fidèlement le bug réel (portefeuille
+    de ~50 positions, rafraîchissement qui « dépasse largement la minute »)."""
+    from app.database import engine
+
+    with engine.connect() as connexion:
+        mode_journal = connexion.exec_driver_sql("PRAGMA journal_mode").scalar()
+        busy_timeout_ms = connexion.exec_driver_sql("PRAGMA busy_timeout").scalar()
+
+    assert mode_journal == "wal"
+    assert busy_timeout_ms >= 30_000
+
+
 def test_route_refresh_202_puis_status_puis_409_si_deja_en_cours(client, db, monkeypatch):
     """Bout en bout via les routes HTTP : `POST /refresh` (202), `GET /refresh/status`,
     puis un second `POST` immédiat refusé en 409 tant que le premier tourne encore."""

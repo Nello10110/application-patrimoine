@@ -696,6 +696,7 @@ export interface HoldingImmobilierInput {
 // Un point d'historique de valorisation (backlog 2.M.3) — jamais écrasé, contrairement
 // à `Holding.valeur_estimee`/`date_valeur_estimee` (valeur courante seule).
 export interface ValuationHistoryPoint {
+  id: number
   date_valeur: string
   valeur: number
 }

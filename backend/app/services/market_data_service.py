@@ -442,8 +442,20 @@ def refresh_tickers(
                         )
                     )
 
+        # Un commit PAR TICKER (pas un unique commit en fin de boucle) — backlog
+        # § T.2, retour utilisateur 30/08/2026 : sur le foyer réel (~50 positions,
+        # cf. docstring de `refresh_tickers` ci-dessus, « dépasse largement la
+        # minute »), un commit unique gardait la transaction d'écriture SQLite
+        # ouverte pendant toute la durée du rafraîchissement. Toute autre écriture
+        # concurrente pendant ce temps — y compris `auth.get_current_token`, qui
+        # touche `auth_tokens` sur CHAQUE requête authentifiée, donc aussi les
+        # propres sondages `GET /api/market-data/refresh/status` du frontend —
+        # échouait alors en `database is locked`. Committer ici borne la durée du
+        # verrou à un seul ticker plutôt qu'à tout le job, en complément du
+        # `busy_timeout`/mode WAL posés sur la connexion (`database.py`).
+        db.commit()
+
         if on_progression:
             on_progression(index, total)
 
-    db.commit()
     return results

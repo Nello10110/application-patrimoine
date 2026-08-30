@@ -2090,7 +2090,7 @@ rapport comme `nom` n'invalide toujours pas). Vérifié en conditions réelles :
 la ligne réelle « APPARTEMENT », requête `GET /api/patrimoine/historique` confirmée recalculée avec
 un premier point au 15/06/2021 (coût d'acquisition) au lieu de la série figée précédente.
 
-#### T.1 — `mineur` · `S` · `P2` · `non traité` (30/08/2026) — Édition complète d'un emprunt
+#### T.1 — `mineur` · `S` · `P2` · `traité` (30/08/2026) — Édition complète d'un emprunt
 
 Demande directe de l'utilisateur : sur l'écran Patrimoine, un emprunt existant ne peut être corrigé
 QUE via « Recaler » — qui ne touche que le capital restant dû (`capital_restant_du_manuel`, un relevé
@@ -2139,7 +2139,14 @@ d'édition en ligne côté frontend).
   (`capital_initial`, `taux_annuel_pct`, `mensualite`, `date_debut`, `duree_mois`) si l'implémentation
   révèle un doute sur l'un d'eux — non bloquant, la couverture générique existante suffit a priori.
 
-#### T.2 — `majeur` · `S` · `P0` · `non traité` (30/08/2026) — Bug : « Rafraîchir les cours » échoue par intermittence
+**Livré tel que spécifié** : bouton « Modifier » desktop (ligne appended, `colSpan`) et mobile
+(`LoanCardMobile`, formulaire en pleine carte), `capital_restant_du_manuel` exclu, `startEdition`/
+`startRecalage` s'excluent mutuellement sur une même ligne. 5 tests nouveaux dans `LoansCard.test.tsx`
+(pré-remplissage, sauvegarde avec les 6 champs, annulation sans appel réseau, libellé vide bloqué côté
+client, fonctionne aussi en vue carte mobile). Aucun test backend individualisé par champ : la
+couverture générique existante s'est révélée suffisante, comme anticipé.
+
+#### T.2 — `majeur` · `S` · `P0` · `traité` (30/08/2026) — Bug : « Rafraîchir les cours » échoue par intermittence
 
 Signalé par l'utilisateur : le bouton « Rafraîchir les cours » (écran Patrimoine) échoue avec
 « Une erreur interne est survenue côté serveur. Réessayez plus tard. ».
@@ -2184,7 +2191,17 @@ plus d'une minute sur le foyer réel) échoue en 500 sans retry ni attente, faut
   d'isolation entre utilisateurs (`test_isolation_utilisateurs.py`), le mode WAL changeant le fichier
   physique créé à côté de la base (`-wal`, `-shm`).
 
-#### T.3 — `mineur` · `S` · `P2` · `non traité` (30/08/2026) — Corriger/supprimer un point de l'historique de valorisation
+**Livré tel que spécifié, plus un correctif complémentaire** : WAL + `busy_timeout=30s` sur la
+connexion (`database.py`, via un `event.listens_for(engine, "connect")` — une PRAGMA par connexion,
+pas globale au fichier), ET commit par ticker dans `refresh_tickers` (pas seulement « à évaluer » comme
+envisagé — borne la durée du verrou à un seul ticker plutôt qu'à tout le job, correctif le plus direct
+pour CE bug précis). Test déterministe plutôt qu'une course contre la montre entre deux fils : vérifie
+la configuration réellement appliquée (`PRAGMA journal_mode`/`PRAGMA busy_timeout`) — un test chronométré
+avec le timeout par défaut de `sqlite3` (5 s) aurait masqué une régression sur une contention de
+quelques centaines de millisecondes seulement. Confirmé qu'il échoue bien sans le correctif
+(`git stash` temporaire sur `database.py` pendant la vérification) avant de le committer.
+
+#### T.3 — `mineur` · `S` · `P2` · `traité` (30/08/2026) — Corriger/supprimer un point de l'historique de valorisation
 
 Demande directe de l'utilisateur, avec capture d'écran à l'appui : sur l'écran Épargne (et la fiche
 immobilier), l'historique de valorisation d'un bien n'est manipulable que dans un seul sens —
@@ -2231,6 +2248,18 @@ cibler un point précis sans étendre aussi ce schéma. Côté frontend, `Valori
   resynchronisation de `valeur_estimee` quand le point le plus récent est touché, 404 sur un point
   d'un autre foyer ; frontend (`HoldingDetailContent.test.tsx`) — édition et suppression d'une ligne,
   rafraîchissement du graphique après coup.
+
+**Livré tel que spécifié** : la resynchronisation recalcule TOUJOURS le point le plus récent restant
+après une modification/suppression (contrairement à `PUT .../valorisation`, qui ne resynchronise que
+si le nouveau point est déjà le plus récent — modifier la DATE d'un point existant peut changer lequel
+est le plus récent dans n'importe quel sens, un simple ajout ne le peut pas). Confirmation de
+suppression via `Modale`, cohérent avec le reste de l'application. Nouveau fichier de tests dédié
+(`test_holding_valuation_history_edit.py`, 10 tests : modification/suppression d'un point non récent
+vs. le plus récent, avancer une date rend un point le plus récent, dernier point supprimé vide la
+valeur courante, 404 point inexistant/autre foyer, valeur négative rejetée, invalidation du cache), 2
+tests frontend nouveaux (`HoldingDetailContent.test.tsx`). `ValorisationHistoriqueCard` reçoit
+désormais `ticker`/`onChanged` — câblé aux 3 lieux d'utilisation (`EpargneApercu`, `ImmobilierApercu`,
+`EpargnePage.tsx`), les deux premiers en réutilisant leur callback de rafraîchissement déjà existant.
 
 #### U.1 — `majeur` · `M` · `P2` · `non traité` (30/08/2026) — Métriques d'épargne sur l'écran Rapport
 
@@ -2356,9 +2385,9 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2, P.3 traités (2/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
 | **Hors lot — R.1** | Calculateur brut/net + taux d'épargne | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 | **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
-| **Lot quickwin — T.1** | Édition complète d'un emprunt (libellé, capital initial, taux, mensualité, date de début, durée) | — | `S` | **Non traité** — demande directe de l'utilisateur ; backend déjà prêt (`LoanUpdate`), pur ajout de formulaire frontend |
-| **Lot quickwin — T.2** | Bug : « Rafraîchir les cours » échoue par intermittence (`database is locked`) | — | `S` | **Non traité** — reproduit et diagnostiqué (30/08/2026) ; correctif = config SQLite (WAL + busy_timeout), pas une réécriture du job |
-| **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Non traité** — demande directe de l'utilisateur, capture à l'appui ; `id` déjà en base, reste à l'exposer et ajouter les routes/UI |
+| **Lot quickwin — T.1** | Édition complète d'un emprunt (libellé, capital initial, taux, mensualité, date de début, durée) | — | `S` | **Livré** 30/08/2026 |
+| **Lot quickwin — T.2** | Bug : « Rafraîchir les cours » échoue par intermittence (`database is locked`) | — | `S` | **Livré** 30/08/2026 — WAL + busy_timeout + commit par ticker |
+| **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Livré** 30/08/2026 |
 | **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Non traité** — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 
 **Pourquoi cet ordre.**

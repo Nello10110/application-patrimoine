@@ -5,6 +5,7 @@ import type { Detenteur, Holding, HoldingDetail, ValuationHistoryPoint } from '.
 import Card from './Card'
 import EtatVide from './EtatVide'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
+import Modale from './Modale'
 import PieChartCard from './PieChartCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
@@ -343,16 +344,69 @@ function ImmobilierParametresForm({
  * points réellement saisis par l'utilisateur) — même logique d'ancrage que la courbe
  * combinée du Tableau de bord (`patrimoine_history_service._serie_holding_manuel`). */
 export function ValorisationHistoriqueCard({
+  ticker,
   historique,
+  onChanged,
   dateAcquisition = null,
   prixRevientMoyen = null,
 }: {
+  ticker: string
   historique: ValuationHistoryPoint[]
+  onChanged: (holding: Holding) => void
   dateAcquisition?: string | null
   prixRevientMoyen?: number | null
 }) {
   const { montantsMasques } = usePreferencesAffichage()
+  // Correction/suppression d'un point déjà saisi (backlog quickwin § T.3, retour
+  // utilisateur 30/08/2026, capture à l'appui) : jusqu'ici seul l'ajout était
+  // possible, une valeur tapée par erreur (ex. 0 €) restait figée pour toujours.
+  const [editionId, setEditionId] = useState<number | null>(null)
+  const [editValeur, setEditValeur] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editionSaving, setEditionSaving] = useState(false)
+  const [erreurAction, setErreurAction] = useState<string | null>(null)
+  const [confirmSuppression, setConfirmSuppression] = useState<ValuationHistoryPoint | null>(null)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
+
   if (historique.length === 0) return null
+
+  function startEdition(p: ValuationHistoryPoint) {
+    setErreurAction(null)
+    setEditionId(p.id)
+    setEditValeur(String(p.valeur))
+    setEditDate(p.date_valeur.slice(0, 10))
+  }
+
+  async function saveEdition(pointId: number) {
+    if (!editValeur || !editDate) return
+    setEditionSaving(true)
+    setErreurAction(null)
+    try {
+      const holding = await api.updateHoldingValuationPoint(ticker, pointId, { valeur: Number(editValeur), date: editDate })
+      setEditionId(null)
+      onChanged(holding)
+    } catch (err) {
+      setErreurAction((err as Error).message)
+    } finally {
+      setEditionSaving(false)
+    }
+  }
+
+  async function confirmerSuppression() {
+    if (!confirmSuppression) return
+    setSuppressionEnCours(true)
+    setErreurAction(null)
+    try {
+      const holding = await api.deleteHoldingValuationPoint(ticker, confirmSuppression.id)
+      setConfirmSuppression(null)
+      onChanged(holding)
+    } catch (err) {
+      setErreurAction((err as Error).message)
+      setConfirmSuppression(null)
+    } finally {
+      setSuppressionEnCours(false)
+    }
+  }
 
   const pointAcquisition =
     dateAcquisition && prixRevientMoyen !== null && dateAcquisition < historique[0].date_valeur
@@ -391,17 +445,106 @@ export function ValorisationHistoriqueCard({
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
             <th className="py-2 pr-4">Date</th>
             <th className="py-2 pr-4 text-right">Valeur estimée</th>
+            <th className="py-2 pr-4"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">
-          {[...historique].reverse().map((p, i) => (
-            <tr key={`${p.date_valeur}-${i}`}>
-              <td className="py-2 pr-4 text-texte">{formatDate(p.date_valeur)}</td>
-              <td className="py-2 pr-4 text-right font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</td>
-            </tr>
-          ))}
+          {[...historique].reverse().map((p) =>
+            editionId === p.id ? (
+              <tr key={p.id}>
+                <td colSpan={3} className="py-2">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                      Valeur (€)
+                      <input
+                        value={editValeur}
+                        onChange={(e) => setEditValeur(e.target.value)}
+                        type="number"
+                        step="any"
+                        min={0}
+                        aria-label={`Valeur du ${formatDate(p.date_valeur)} (édition)`}
+                        className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                      Date
+                      <input
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        type="date"
+                        aria-label={`Date du ${formatDate(p.date_valeur)} (édition)`}
+                        className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                      />
+                    </label>
+                    <button
+                      onClick={() => saveEdition(p.id)}
+                      disabled={editionSaving}
+                      className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-40"
+                    >
+                      Enregistrer
+                    </button>
+                    <button
+                      onClick={() => setEditionId(null)}
+                      className="rounded-md border border-bordure px-3 py-1.5 text-sm font-medium text-texte"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              <tr key={p.id}>
+                <td className="py-2 pr-4 text-texte">{formatDate(p.date_valeur)}</td>
+                <td className="py-2 pr-4 text-right font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</td>
+                <td className="py-2 pr-4 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => startEdition(p)} className="text-xs text-texte-attenue hover:underline">
+                      Modifier
+                    </button>
+                    <button onClick={() => setConfirmSuppression(p)} className="text-xs text-negatif hover:underline">
+                      Supprimer
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ),
+          )}
         </tbody>
       </table>
+      {erreurAction && <p className="mt-2 text-sm text-negatif">{erreurAction}</p>}
+
+      {confirmSuppression && (
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+          {({ titleId }) => (
+            <>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">
+                Supprimer ce point d'historique ?
+              </h2>
+              <p className="mt-2 text-sm text-texte">
+                Le point du{' '}
+                <span className="font-medium text-texte">{formatDate(confirmSuppression.date_valeur)}</span> (
+                {formatEuro(confirmSuppression.valeur, 2, montantsMasques)}) sera définitivement supprimé.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmSuppression(null)}
+                  disabled={suppressionEnCours}
+                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmerSuppression}
+                  disabled={suppressionEnCours}
+                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                >
+                  {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+            </>
+          )}
+        </Modale>
+      )}
     </Card>
   )
 }
@@ -512,7 +655,13 @@ function EpargneApercu({
         </div>
       </Card>
 
-      <ValorisationHistoriqueCard historique={historique} dateAcquisition={detail.date_acquisition} prixRevientMoyen={detail.prix_revient_moyen} />
+      <ValorisationHistoriqueCard
+        ticker={detail.ticker}
+        historique={historique}
+        onChanged={handleValorisationAjoutee}
+        dateAcquisition={detail.date_acquisition}
+        prixRevientMoyen={detail.prix_revient_moyen}
+      />
 
       <Card title="Ajouter une valorisation">
         <p className="mb-3 text-xs text-texte-attenue">
@@ -530,13 +679,17 @@ function EpargneApercu({
  * jamais écrasé, une nouvelle ligne à chaque changement réel de `valeur_estimee`.
  * Remplace la courbe de cours (sans objet pour un bien non coté). */
 function ImmobilierApercu({
+  ticker,
   immobilier,
   historique,
+  onHistoriqueChanged,
   dateAcquisition,
   prixRevientMoyen,
 }: {
+  ticker: string
   immobilier: HoldingDetail['immobilier']
   historique: ValuationHistoryPoint[]
+  onHistoriqueChanged: (holding: Holding) => void
   dateAcquisition: HoldingDetail['date_acquisition']
   prixRevientMoyen: HoldingDetail['prix_revient_moyen']
 }) {
@@ -586,7 +739,13 @@ function ImmobilierApercu({
         </Card>
       )}
 
-      <ValorisationHistoriqueCard historique={historique} dateAcquisition={dateAcquisition} prixRevientMoyen={prixRevientMoyen} />
+      <ValorisationHistoriqueCard
+        ticker={ticker}
+        historique={historique}
+        onChanged={onHistoriqueChanged}
+        dateAcquisition={dateAcquisition}
+        prixRevientMoyen={prixRevientMoyen}
+      />
     </>
   )
 }
@@ -697,8 +856,10 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
 
           {estImmobilier ? (
             <ImmobilierApercu
+              ticker={detail.ticker}
               immobilier={immo.immobilier}
               historique={immo.historique}
+              onHistoriqueChanged={() => immo.rechargerHistorique()}
               dateAcquisition={detail.date_acquisition}
               prixRevientMoyen={detail.prix_revient_moyen}
             />

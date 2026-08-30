@@ -588,6 +588,7 @@ class HoldingImmobilierUpdate(BaseModel):
 
 
 class ValuationHistoryPoint(BaseModel):
+    id: int
     date_valeur: datetime
     valeur: float
 

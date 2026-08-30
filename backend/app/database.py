@@ -22,7 +22,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 logger = logging.getLogger("patrimoine.database")
@@ -89,8 +89,24 @@ def _chemin_base_par_defaut() -> Path:
 DB_PATH = Path(os.environ["PATRIMOINE_DB"]) if os.environ.get("PATRIMOINE_DB") else _chemin_base_par_defaut()
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# `timeout` (secondes) : passé tel quel à `sqlite3.connect`, il règle le
+# `busy_timeout` SQLite de la connexion — une écriture concurrente ATTEND ce délai
+# avant d'échouer en `database is locked`, plutôt que d'échouer immédiatement (repli
+# par défaut de `sqlite3`, 5 s — trop court face à un job de fond qui peut tenir la
+# connexion plusieurs dizaines de secondes, cf. `market_data_refresh.py`, backlog
+# § T.2). Le mode WAL (`PRAGMA journal_mode=WAL`, posé sur chaque nouvelle connexion
+# ci-dessous — c'est un réglage par connexion, pas par requête) réduit en plus la
+# contention en autorisant les lecteurs à ne jamais attendre un écrivain en cours ;
+# les deux réglages sont complémentaires, ni l'un ni l'autre ne suffit seul face à
+# une transaction d'écriture tenue longtemps (cf. aussi le commit par ticker dans
+# `market_data_service.refresh_tickers`, qui borne cette durée à la source).
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@event.listens_for(engine, "connect")
+def _activer_mode_wal(dbapi_connection, _connection_record) -> None:
+    dbapi_connection.execute("PRAGMA journal_mode=WAL")
 
 
 class Base(DeclarativeBase):

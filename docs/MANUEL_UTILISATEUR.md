@@ -76,7 +76,7 @@ remplace le graphique de cours (sans objet, un bien immobilier n'a pas de cotati
 
 ### Dettes et emprunts
 
-Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Supprimer** retire définitivement un emprunt, après confirmation.
+Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Modifier** permet de corriger les autres caractéristiques (libellé, capital initial, taux, mensualité, date de début, durée) en cas d'erreur de saisie ou de renégociation — jamais le capital restant dû, qui reste sous « Recaler ». **Supprimer** retire définitivement un emprunt, après confirmation.
 
 ## Fiche détaillée d'une position
 
@@ -137,6 +137,9 @@ mise à jour, versement mensuel déclaré, et un petit historique daté.
   écrasé — l'historique s'affiche en dessous, le plus récent en premier. Si tu saisis un point plus
   ancien qu'une date déjà connue (un rattrapage a posteriori), la **valeur actuelle affichée en haut
   ne change pas** : elle ne reflète toujours que le point le plus récent, jamais le dernier saisi.
+  Chaque ligne de l'historique peut ensuite être **corrigée** (montant et/ou date) ou **supprimée**
+  (avec confirmation) — utile après une erreur de saisie ; la valeur actuelle affichée en haut se
+  resynchronise alors automatiquement sur le point le plus récent restant.
 - **Versement mensuel** (optionnel) : le montant que tu verses régulièrement sur ce compte (ex. 200 €
   par mois sur une assurance-vie). Renseigné à la création du compte ou depuis Portefeuille (le champ
   n'apparaît que pour ces types de compte). Ce montant est **additionné** au versement mensuel suggéré

@@ -40,6 +40,35 @@ def enregistrer_point_historique(db: Session, holding_id: int, valeur: float, da
     db.commit()
 
 
+def modifier_point_historique(db: Session, point_id: int, valeur: float, date_valeur: datetime) -> HoldingValuationHistory | None:
+    """Corrige un point déjà saisi (backlog quickwin § T.3, retour utilisateur
+    30/08/2026) — jusqu'ici, `enregistrer_point_historique` n'ajoutait qu'en
+    aveugle, sans aucun moyen de revenir sur une valeur tapée par erreur.
+    `None` si `point_id` n'existe pas ; l'appartenance au bon foyer (via
+    `holding_id`) est vérifiée par l'appelant (`routers/portfolio.py`), pas ici —
+    cette fonction ne connaît que la table, pas l'utilisateur courant."""
+    point = db.get(HoldingValuationHistory, point_id)
+    if point is None:
+        return None
+    point.valeur = valeur
+    point.date_valeur = date_valeur
+    db.commit()
+    db.refresh(point)
+    return point
+
+
+def supprimer_point_historique(db: Session, point_id: int) -> bool:
+    """Supprime un point saisi par erreur (backlog quickwin § T.3). `False` si
+    `point_id` n'existe pas déjà — même contrat de vérification d'appartenance
+    que `modifier_point_historique` ci-dessus."""
+    point = db.get(HoldingValuationHistory, point_id)
+    if point is None:
+        return False
+    db.delete(point)
+    db.commit()
+    return True
+
+
 def historique_valorisation(db: Session, holding_id: int) -> list[HoldingValuationHistory]:
     return (
         db.query(HoldingValuationHistory)

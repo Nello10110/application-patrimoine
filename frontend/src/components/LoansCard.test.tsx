@@ -156,6 +156,97 @@ describe('LoansCard', () => {
   })
 })
 
+describe('LoansCard — édition complète (backlog quickwin § T.1)', () => {
+  it('Modifier pré-remplit le formulaire avec les valeurs actuelles', async () => {
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+
+    expect(screen.getByLabelText('Libellé de Crédit immobilier (édition)')).toHaveValue('Crédit immobilier')
+    expect(screen.getByLabelText('Capital initial de Crédit immobilier (édition)')).toHaveValue(200000)
+    expect(screen.getByLabelText('Taux annuel de Crédit immobilier (édition)')).toHaveValue(3.5)
+    expect(screen.getByLabelText('Mensualité de Crédit immobilier (édition)')).toHaveValue(1200)
+    expect(screen.getByLabelText('Date de début de Crédit immobilier (édition)')).toHaveValue('2020-01-01')
+    expect(screen.getByLabelText('Durée de Crédit immobilier (édition)')).toHaveValue(240)
+  })
+
+  it("l'enregistrement appelle updateLoan avec les champs modifiés, jamais capital_restant_du_manuel", async () => {
+    vi.mocked(api.listLoans).mockResolvedValueOnce([loan()]).mockResolvedValueOnce([loan({ libelle: 'Crédit renégocié', taux_annuel_pct: 2.1 })])
+    vi.mocked(api.updateLoan).mockResolvedValue(loan({ libelle: 'Crédit renégocié', taux_annuel_pct: 2.1 }))
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+
+    fireEvent.change(screen.getByLabelText('Libellé de Crédit immobilier (édition)'), { target: { value: 'Crédit renégocié' } })
+    fireEvent.change(screen.getByLabelText('Taux annuel de Crédit immobilier (édition)'), { target: { value: '2.1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() =>
+      expect(api.updateLoan).toHaveBeenCalledWith(1, {
+        libelle: 'Crédit renégocié',
+        capital_initial: 200000,
+        taux_annuel_pct: 2.1,
+        mensualite: 1200,
+        date_debut: '2020-01-01',
+        duree_mois: 240,
+      }),
+    )
+    await screen.findByText('Crédit renégocié')
+  })
+
+  it('Annuler ferme le formulaire sans appeler updateLoan', async () => {
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+    vi.mocked(api.updateLoan).mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+
+    expect(api.updateLoan).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('Libellé de Crédit immobilier (édition)')).not.toBeInTheDocument()
+  })
+
+  it('un libellé vidé bloque la sauvegarde côté client', async () => {
+    vi.mocked(api.listLoans).mockResolvedValue([loan()])
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+    fireEvent.change(screen.getByLabelText('Libellé de Crédit immobilier (édition)'), { target: { value: '  ' } })
+    vi.mocked(api.updateLoan).mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(api.updateLoan).not.toHaveBeenCalled()
+  })
+
+  it("l'édition fonctionne aussi dans la vue carte (mobile)", async () => {
+    simulerLargeurEcran(true)
+    vi.mocked(api.listLoans).mockResolvedValueOnce([loan()]).mockResolvedValueOnce([loan({ mensualite: 1500 })])
+    vi.mocked(api.updateLoan).mockResolvedValue(loan({ mensualite: 1500 }))
+    render(<LoansCard />)
+
+    await screen.findByText('Crédit immobilier')
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+    fireEvent.change(screen.getByLabelText('Mensualité de Crédit immobilier (édition)'), { target: { value: '1500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() =>
+      expect(api.updateLoan).toHaveBeenCalledWith(1, {
+        libelle: 'Crédit immobilier',
+        capital_initial: 200000,
+        taux_annuel_pct: 3.5,
+        mensualite: 1500,
+        date_debut: '2020-01-01',
+        duree_mois: 240,
+      }),
+    )
+  })
+})
+
 describe('LoansCard — rattachement à un actif (backlog 2.M.2)', () => {
   it('propose "Aucun" + chaque actif du portefeuille dans le sélecteur de rattachement', async () => {
     vi.mocked(api.listLoans).mockResolvedValue([loan()])

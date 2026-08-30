@@ -194,6 +194,17 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+  // Corriger/supprimer un point déjà saisi (backlog quickwin § T.3, retour
+  // utilisateur 30/08/2026) — jusqu'ici seul l'ajout (`setHoldingValorisation`
+  // ci-dessus) était possible, une valeur tapée par erreur restait figée pour
+  // toujours dans l'historique.
+  updateHoldingValuationPoint: (ticker: string, pointId: number, payload: ValorisationInput) =>
+    request<Holding>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier-history/${pointId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteHoldingValuationPoint: (ticker: string, pointId: number) =>
+    request<Holding>(`/portfolio/holdings/${encodeURIComponent(ticker)}/immobilier-history/${pointId}`, { method: 'DELETE' }),
 
   importPreview: (file: File) => {
     const form = new FormData()
