@@ -3,34 +3,8 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang, type RouteMeta } from '../layout/routes'
 import BasculeTheme from './BasculeTheme'
-import {
-  IconAide,
-  IconAnalyse,
-  IconBudget,
-  IconDeconnexion,
-  IconDividendes,
-  IconEpargne,
-  IconImport,
-  IconObjectifs,
-  IconPlusOptions,
-  IconRapport,
-  IconReglages,
-  IconSalaire,
-} from './icons'
+import { IconDeconnexion, IconPlusOptions } from './icons'
 import Modale from './Modale'
-
-const ICONES = {
-  Épargne: IconEpargne,
-  Analyse: IconAnalyse,
-  Objectifs: IconObjectifs,
-  Dividendes: IconDividendes,
-  Budget: IconBudget,
-  Rapport: IconRapport,
-  Salaire: IconSalaire,
-  Import: IconImport,
-  Réglages: IconReglages,
-  Aide: IconAide,
-} as const
 
 /** Entrée "Plus" de la barre de navigation inférieure (backlog 2.K.4, mobile) —
  * feuille glissante regroupant les écrans de consultation qui ne tiennent pas dans
@@ -71,7 +45,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
               <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-bordure" aria-hidden="true" />
 
               {routesConsultationRestantes.map((r) => {
-                const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined
+                const Icone = r.icone
                 return (
                   <NavLink
                     key={r.path}
@@ -88,7 +62,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
               {routesConsultationRestantes.length > 0 && routesAdministration.length > 0 && <div className="my-1 border-t border-bordure" />}
 
               {routesAdministration.map((r) => {
-                const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined
+                const Icone = r.icone
                 return (
                   <NavLink
                     key={r.path}

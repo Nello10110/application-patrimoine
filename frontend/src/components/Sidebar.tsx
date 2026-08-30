@@ -2,32 +2,9 @@ import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useSidebarRepliee } from '../hooks/useSidebarRepliee'
 import { routesDuRang } from '../layout/routes'
-import {
-  IconAnalyse,
-  IconBudget,
-  IconChevron,
-  IconDividendes,
-  IconEpargne,
-  IconObjectifs,
-  IconPatrimoine,
-  IconRapport,
-  IconSalaire,
-  IconSynthese,
-} from './icons'
+import { IconChevron } from './icons'
 import MenuCompte from './MenuCompte'
 import PaletteRecherche from './PaletteRecherche'
-
-const ICONES = {
-  Synthèse: IconSynthese,
-  Patrimoine: IconPatrimoine,
-  Épargne: IconEpargne,
-  Analyse: IconAnalyse,
-  Objectifs: IconObjectifs,
-  Dividendes: IconDividendes,
-  Budget: IconBudget,
-  Rapport: IconRapport,
-  Salaire: IconSalaire,
-} as const
 
 /** Barre latérale verticale repliable (backlog 2.K.2), remplace l'ancien en-tête
  * horizontal à 9 onglets qui ne tenait plus sous ~1000 px de large (audit UX).
@@ -66,7 +43,7 @@ export default function Sidebar() {
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2" aria-label="Navigation principale">
         {routesDuRang('consultation', user?.role).map((r) => {
-          const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined
+          const Icone = r.icone
           return (
             <NavLink
               key={r.path}
