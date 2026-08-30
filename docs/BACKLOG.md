@@ -2396,6 +2396,59 @@ versements sommés, un versement hors période ne compte pas), 2 nouveaux côté
 (`HoldingDetailContent.test.tsx` — ajout avec versement, pré-remplissage et sauvegarde à l'édition ;
 `RapportPage.test.tsx` — libellés du régime déclaré).
 
+#### V.1 — `mineur` · `S` · `P1` · `traité` (30/08/2026) — Audit de la navigation : plus une seule liste à maintenir
+
+Demande directe de l'utilisateur : « la partie Menus est un peu en bordel, certaines pages ne sont
+pas dans les menus » — avec la consigne explicite d'en revoir la structure pour que ça ne se
+reproduise plus, et d'ajouter un fil d'Ariane au passage.
+
+**Constat.** Au moment de l'audit, aucune page n'était réellement absente d'un menu : les 12 écrans
+et leurs 4 menus (barre latérale, barre inférieure mobile, feuille « Plus », menu du compte)
+partageaient déjà `ROUTES` (`layout/routes.ts`, backlog 2.K.2) comme source unique pour le chemin, le
+libellé et le titre d'onglet — et un fil d'Ariane (`FilDAriane.tsx`) dérivé de ce même tableau
+existait déjà depuis le même lot. Le risque réel n'était donc pas déjà matérialisé, mais bien présent
+à deux endroits :
+
+1. **`App.tsx` maintenait sa propre liste de `<Route>` en parallèle de `ROUTES`**, recopiée à la
+   main : rien n'empêchait d'ajouter un écran dans l'une sans penser à l'autre — silencieusement
+   absent des menus s'il manquait dans `ROUTES`, ou accessible par aucune URL s'il manquait dans
+   `App.tsx`.
+2. **Chaque menu dupliquait sa propre correspondance libellé → icône** (`Sidebar`, `BottomNav`,
+   `MenuPlusSheet`, `MenuCompte` : jusqu'à 4 tableaux `ICONES` à tenir à jour pour un seul nouvel
+   écran). La preuve que ce risque n'était pas que théorique : une entrée « Analyse » orpheline
+   survivait identiquement dans 3 de ces 4 fichiers, cinq jours après le retrait réel de cette route
+   (25/08/2026) — aucun des trois ne le signalait, ni au build ni aux tests.
+
+**Correctif : les deux tableaux fusionnés en un seul, et la génération des routes inversée.**
+`RouteMeta` (`layout/routes.ts`) gagne un champ `icone` (composant, plus une chaîne à faire
+correspondre à la main) — un écran s'édite désormais à un seul endroit pour son chemin, son libellé,
+son icône, son rang de menu et ses rôles autorisés. Les 4 tableaux `ICONES` dupliqués sont supprimés,
+chaque composant de menu lit `r.icone` directement. L'entrée orpheline « Analyse » disparaît avec eux
+(et `IconAnalyse`, devenue inutilisée nulle part dans le code, est retirée d'`icons.tsx`).
+
+Le vrai verrou est ailleurs : la constante `PAGE_COMPONENTS` (association chemin → composant
+paresseux, déplacée dans un nouveau fichier `layout/pageComponents.ts` — la garder dans `App.tsx`
+cassait le fast-refresh de Vite, `oxlint` le signalait) n'est plus référencée à la main dans une
+liste de `<Route>` séparée : `App.tsx` génère désormais son `<Routes>` en itérant `ROUTES` et en
+résolvant chaque chemin dans `PAGE_COMPONENTS`. Un chemin ajouté à `ROUTES` sans entrée dans
+`PAGE_COMPONENTS` (ou l'inverse) ne fonctionne tout simplement pas — l'oubli devient un bug visible
+au premier clic, pas une absence silencieuse. Nouveau `layout/routes.test.ts` : chemins uniques,
+`navLabel`/`rang`/`icone` toujours posés ensemble ou jamais, titre jamais vide, et `ROUTES`/
+`PAGE_COMPONENTS` couvrant exactement les mêmes chemins (aucune divergence possible sans faire
+échouer la suite).
+
+Fil d'Ariane : déjà livré au lot 4 (`FilDAriane.tsx`, K.2), inchangé — revérifié à cette occasion
+qu'il s'affiche correctement sur les 12 écrans, y compris ceux du menu du compte (Import/Réglages/
+Aide), dérivés de la même source unique.
+
+**Vérifié en conditions réelles** (30/08/2026) : backend + frontend lancés ensemble, connexion réelle
+par formulaire, capture d'écran de chacun des 12 écrans depuis chacun des 4 menus (barre latérale
+1440 px, barre inférieure + feuille « Plus » 390 px, menu du compte) — icônes et libellés cohérents
+partout, fil d'Ariane correct sur un écran de consultation (`Synthèse › Salaire`) et un écran
+d'administration (`Synthèse › Import`). Suite complète au vert (460 tests frontend, dont 4 nouveaux
+sur `routes.test.ts`), `tsc -b`/`oxlint`/`vite build` propres, découpage par route toujours effectif
+(un fichier JS séparé par page dans le build).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2462,6 +2515,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Livré** 30/08/2026 |
 | **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Livré** 30/08/2026 |
 | **Hors lot — U.2** | Versement déclaré (investi/gain) sur un point d'épargne + lissage du graphique combiné | U.1 (schéma étendu) | `M` | **Livré** 30/08/2026 |
+| **Hors lot — V.1** | Audit de la navigation (source unique routes/icônes/menus, fil d'Ariane revérifié) | — | `S` | **Livré** 30/08/2026 |
 
 **Pourquoi cet ordre.**
 

@@ -37,15 +37,6 @@ export function IconPatrimoine({ className }: IconProps) {
   )
 }
 
-export function IconAnalyse({ className }: IconProps) {
-  return (
-    <svg {...base} className={className}>
-      <path d="M10 10 V3 A7 7 0 0 1 17 10 Z" />
-      <path d="M10 10 L4.3 13.5 A7 7 0 1 1 10 3" />
-    </svg>
-  )
-}
-
 export function IconObjectifs({ className }: IconProps) {
   return (
     <svg {...base} className={className}>
