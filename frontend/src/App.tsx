@@ -7,28 +7,14 @@ import Sidebar from './components/Sidebar'
 import { AuthProvider } from './contexts/AuthContext'
 import { PreferencesAffichageProvider } from './contexts/PreferencesAffichageContext'
 import { useAuth } from './hooks/useAuth'
+import { PAGE_COMPONENTS } from './layout/pageComponents'
 import { ROUTES } from './layout/routes'
 import LoginPage from './pages/LoginPage'
 
-// Découpage par route (LOT 4.8) : `recharts` (utilisé par le Tableau de bord et la
-// fiche détaillée d'une position) pesait à lui seul une bonne part du bundle unique
-// d'origine (~690 ko), chargé même sur les pages qui n'affichent aucun graphique
-// (Portefeuille, Import, Réglages). `React.lazy` fait charger le code de chaque
-// page à la demande (au moment de la navigation) plutôt que tout d'un bloc au
-// premier chargement de l'application.
-const AidePage = lazy(() => import('./pages/AidePage'))
-const BudgetPage = lazy(() => import('./pages/BudgetPage'))
-const DashboardPage = lazy(() => import('./pages/DashboardPage'))
-const DividendesPage = lazy(() => import('./pages/DividendesPage'))
-const EpargnePage = lazy(() => import('./pages/EpargnePage'))
-const HoldingDetailPage = lazy(() => import('./pages/HoldingDetailPage'))
-const ImportPage = lazy(() => import('./pages/ImportPage'))
+// `/partage/:token` (backlog 2.Q.1) est une page publique, jamais dans `ROUTES`
+// (réservé aux écrans de l'application authentifiée) : lazy-chargée séparément de
+// `layout/pageComponents.ts`.
 const PartagePublicPage = lazy(() => import('./pages/PartagePublicPage'))
-const PortefeuillePage = lazy(() => import('./pages/PortefeuillePage'))
-const RapportPage = lazy(() => import('./pages/RapportPage'))
-const ReglagesPage = lazy(() => import('./pages/ReglagesPage'))
-const SalairePage = lazy(() => import('./pages/SalairePage'))
-const SimulateurPage = lazy(() => import('./pages/SimulateurPage'))
 
 // Anciennes URL (avant le renommage backlog 2.K.2) : redirigées plutôt que
 // supprimées, pour ne pas casser les marque-pages ou l'historique du navigateur.
@@ -80,18 +66,10 @@ function AppAuthentifiee() {
           <div className="mx-auto max-w-6xl px-6 py-8 pb-24 md:pb-8">
             <Suspense fallback={<p className="text-sm text-texte-attenue">Chargement...</p>}>
               <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/patrimoine" element={<PortefeuillePage />} />
-                <Route path="/patrimoine/:ticker" element={<HoldingDetailPage />} />
-                <Route path="/epargne" element={<EpargnePage />} />
-                <Route path="/objectifs" element={<SimulateurPage />} />
-                <Route path="/dividendes" element={<DividendesPage />} />
-                <Route path="/budget" element={<BudgetPage />} />
-                <Route path="/rapport" element={<RapportPage />} />
-                <Route path="/salaire" element={<SalairePage />} />
-                <Route path="/import" element={<ImportPage />} />
-                <Route path="/reglages" element={<ReglagesPage />} />
-                <Route path="/aide" element={<AidePage />} />
+                {ROUTES.map((r) => {
+                  const Composant = PAGE_COMPONENTS[r.path]
+                  return Composant ? <Route key={r.path} path={r.path} element={<Composant />} /> : null
+                })}
 
                 <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
                 <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />

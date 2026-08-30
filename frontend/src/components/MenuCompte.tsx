@@ -3,13 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang } from '../layout/routes'
 import BasculeTheme from './BasculeTheme'
-import { IconAide, IconDeconnexion, IconImport, IconReglages } from './icons'
-
-const ICONES = {
-  Import: IconImport,
-  Réglages: IconReglages,
-  Aide: IconAide,
-} as const
+import { IconDeconnexion } from './icons'
 
 // Avatar généré (initiale + couleur dérivée du nom d'utilisateur — déterministe,
 // stable d'une connexion à l'autre, pas d'upload d'image).
@@ -80,7 +74,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
           <p className="px-2.5 py-1.5 text-xs font-medium uppercase tracking-wide text-texte-attenue">{nomAffiche}</p>
 
           {routesDuRang('administration', user.role).map((r) => {
-            const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined
+            const Icone = r.icone
             return (
               <NavLink
                 key={r.path}

@@ -1,11 +1,23 @@
 """Verrouille `routers/budget.py` : catégories, règles, import CSV/OFX/QIF,
 mouvements, cibles, résumé — et l'isolation entre utilisateurs (IDOR)."""
 
-from datetime import date, timedelta
+import calendar
+from datetime import date
 
 from app.services import budget_categories_service
 
 from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur
+
+
+def _mois_precedent(d: date, n: int) -> date:
+    """Soustrait `n` mois calendaires (pas `n * 30` jours, dont la durée varie
+    selon les mois) : garantit que deux appels avec des `n` différents tombent
+    toujours dans des mois distincts, quelle que soit la date du jour."""
+    mois_total = d.month - 1 - n
+    annee = d.year + mois_total // 12
+    mois = mois_total % 12 + 1
+    dernier_jour_du_mois = calendar.monthrange(annee, mois)[1]
+    return date(annee, mois, min(d.day, dernier_jour_du_mois))
 
 
 def test_list_categories_cree_l_arbre_par_defaut_au_premier_appel(client):
@@ -170,8 +182,8 @@ def test_recurrences(client):
     # l'API, à dessein — jamais une fausse date acceptée du client) : un mois pile
     # et deux mois pile en arrière, pour tomber dans la fenêtre de récence réelle.
     aujourdhui = date.today()
-    il_y_a_1_mois = aujourdhui - timedelta(days=30)
-    il_y_a_2_mois = aujourdhui - timedelta(days=60)
+    il_y_a_1_mois = _mois_precedent(aujourdhui, 1)
+    il_y_a_2_mois = _mois_precedent(aujourdhui, 2)
     qif = (
         f"D{il_y_a_2_mois.month:02d}/{il_y_a_2_mois.day:02d}/{il_y_a_2_mois.year}\nT-12.99\nPNetflix\n^\n"
         f"D{il_y_a_1_mois.month:02d}/{il_y_a_1_mois.day:02d}/{il_y_a_1_mois.year}\nT-12.99\nPNetflix\n^\n"
