@@ -12,9 +12,19 @@ en-tête) : ce module ne remplace pas cette série, il la complète.
 
 **Limite assumée et documentée (données réelles clairsemées, cf. `docs/BACKLOG.md`)** :
 les points de valorisation manuelle sont rares (parfois un seul par bien) — la portion
-"manuelle" de la courbe combinée est donc en escalier/plate tant que peu de points sont
-saisis, pas une vraie courbe continue. C'est un choix assumé plutôt qu'une extrapolation
-inventée : mieux vaut une ligne plate honnête qu'une fausse précision.
+"manuelle" de la courbe combinée reste donc en escalier/plate pour l'immobilier/SCPI/
+autre actif/véhicule tant que peu de points sont saisis, pas une vraie courbe continue.
+C'est un choix assumé plutôt qu'une extrapolation inventée : mieux vaut une ligne plate
+honnête qu'une fausse précision.
+
+**Exception : lignes `TYPES_EPARGNE`, interpolées linéairement (backlog § U.2, retour
+utilisateur 30/08/2026)** — livrets, PEE/PERCO, assurance-vie, PER, comptes courants
+sont, à la différence de l'immobilier ci-dessus, INTERPOLÉS entre deux points connus
+plutôt que plaqués en escalier (`_valeur_interpolee`) : le foyer a explicitement demandé
+un lissage visuel entre deux actualisations, plutôt que le saut brutal donnant
+l'impression d'un rattrapage instantané. Toujours pas d'extrapolation dans le futur
+(valeur plaquée au dernier point connu au-delà) ni avant le premier point (`None`,
+rien à représenter) — seul l'ENTRE-DEUX points change de comportement.
 
 **Limite assumée sur le scoping par détenteur** : les quotités (`QuotiteHolding`/
 `QuotiteLoan`) ne sont pas historisées, seule la répartition D'AUJOURD'HUI existe. Les
@@ -28,13 +38,47 @@ temps. Un emprunt rattaché à une ligne financière (cas non observé en pratiq
 emprunt finance typiquement un bien immobilier, pas une action) tomberait dans ce même
 flou plutôt que d'être netté avec la précision du cas manuel."""
 
+import bisect
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from ..models import TYPES_ACTIF_PATRIMOINE_MANUEL, Holding, Loan
+from ..models import TYPES_ACTIF_PATRIMOINE_MANUEL, TYPES_EPARGNE, Holding, Loan
 from . import detenteurs_service, historical_performance_service, historique_cache, immobilier_service, loan_service, patrimoine_service
 from .historical_performance_service import TimeSeries
+
+
+def _valeur_interpolee(serie: TimeSeries, date: datetime) -> float | None:
+    """Comme `historical_performance_service._value_at`, mais INTERPOLE
+    linéairement entre les deux points connus qui encadrent `date`, plutôt que de
+    plaquer platement la dernière valeur connue (LOCF) jusqu'au point suivant —
+    utilisée uniquement pour les lignes `TYPES_EPARGNE` (retour utilisateur
+    30/08/2026, cf. docstring du module). `serie` doit être triée par date
+    croissante (même contrat que `_value_at`). `None` avant le premier point ou
+    série vide (rien à représenter) ; plaquée à la dernière valeur connue au-delà
+    du dernier point (aucune extrapolation dans le futur — seule différence avec
+    une interpolation "pure")."""
+    if not serie:
+        return None
+    if date < serie[0][0]:
+        return None
+    if date >= serie[-1][0]:
+        return serie[-1][1]
+    idx = bisect.bisect_right(serie, date, key=lambda point: point[0])
+    date_avant, valeur_avant = serie[idx - 1]
+    date_apres, valeur_apres = serie[idx]
+    if date_apres == date_avant:
+        return valeur_apres
+    fraction = (date - date_avant).total_seconds() / (date_apres - date_avant).total_seconds()
+    return valeur_avant + (valeur_apres - valeur_avant) * fraction
+
+
+def _valeur_ligne_a_date(holding: Holding, serie: TimeSeries, date: datetime) -> float | None:
+    """Bascule entre les deux régimes ci-dessus selon le type de ligne — voir le
+    docstring du module pour la justification de cette distinction."""
+    if holding.type_actif in TYPES_EPARGNE:
+        return _valeur_interpolee(serie, date)
+    return historical_performance_service._value_at(serie, date)
 
 
 def _serie_financiere(db: Session, user_id: int) -> TimeSeries:
@@ -98,6 +142,7 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
     serie_financiere = _serie_financiere(db, user_id)
 
     holdings_manuels = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL)).all()
+    holdings_manuels_par_id = {h.id: h for h in holdings_manuels}
     series_manuelles: dict[int, TimeSeries] = {}
     pourcentages_manuels: dict[int, dict[int, float]] = {}
     for holding in holdings_manuels:
@@ -109,7 +154,7 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
     loans = db.query(Loan).filter(Loan.user_id == user_id).all()
     pourcentages_emprunts: dict[int, dict[int, float]] = {}
     if detenteur_id is not None:
-        holdings_par_id = {h.id: h for h in holdings_manuels}
+        holdings_par_id = holdings_manuels_par_id
         for loan in loans:
             if loan.holding_id is None:
                 continue  # emprunt non rattaché : jamais visible pour un détenteur individuel
@@ -144,7 +189,10 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
     for date in grille:
         if detenteur_id is None:
             valeur_financiere = historical_performance_service._value_at(serie_financiere, date) or 0.0
-            valeur_manuelle = sum(historical_performance_service._value_at(serie, date) or 0.0 for serie in series_manuelles.values())
+            valeur_manuelle = sum(
+                _valeur_ligne_a_date(holdings_manuels_par_id[holding_id], serie, date) or 0.0
+                for holding_id, serie in series_manuelles.items()
+            )
             passifs_totaux = sum(_valeur_emprunt_a_date(loan, date) for loan in loans)
         else:
             valeur_financiere = (historical_performance_service._value_at(serie_financiere, date) or 0.0) * ratio_financier
@@ -153,7 +201,7 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
                 pct = pourcentages_manuels.get(holding_id, {}).get(detenteur_id)
                 if pct is None:
                     continue
-                valeur_manuelle += (historical_performance_service._value_at(serie, date) or 0.0) * pct / 100
+                valeur_manuelle += (_valeur_ligne_a_date(holdings_manuels_par_id[holding_id], serie, date) or 0.0) * pct / 100
             passifs_totaux = 0.0
             for loan in loans:
                 pct = pourcentages_emprunts.get(loan.id, {}).get(detenteur_id)

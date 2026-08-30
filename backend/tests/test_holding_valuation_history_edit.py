@@ -152,3 +152,30 @@ def test_modifier_un_point_invalide_le_cache_du_patrimoine(client, db):
     client.patch(f"/api/portfolio/holdings/AV1/immobilier-history/{point_id}", json={"valeur": 150.0, "date": "2026-01-01"})
 
     assert historique_cache.lire(db, cle) is None
+
+
+def test_modifier_peut_ajouter_ou_corriger_le_versement_declare(client, db):
+    """Backlog § U.2 (retour utilisateur 30/08/2026) : un point saisi sans versement
+    déclaré peut être corrigé après coup pour le préciser."""
+    make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE")
+    client.put("/api/portfolio/holdings/AV1/valorisation", json={"valeur": 10500.0, "date": "2026-01-01"})
+    point_id = _point_id(client, "AV1", "2026-01-01")
+
+    reponse = client.patch(
+        f"/api/portfolio/holdings/AV1/immobilier-history/{point_id}", json={"valeur": 10500.0, "date": "2026-01-01", "versement": 500.0}
+    )
+
+    assert reponse.status_code == 200
+    historique = client.get("/api/portfolio/holdings/AV1/immobilier-history").json()
+    assert historique[0]["versement"] == 500.0
+
+
+def test_modifier_sans_versement_efface_un_versement_precedemment_declare(client, db):
+    make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE")
+    client.put("/api/portfolio/holdings/AV1/valorisation", json={"valeur": 10500.0, "date": "2026-01-01", "versement": 500.0})
+    point_id = _point_id(client, "AV1", "2026-01-01")
+
+    client.patch(f"/api/portfolio/holdings/AV1/immobilier-history/{point_id}", json={"valeur": 10500.0, "date": "2026-01-01"})
+
+    historique = client.get("/api/portfolio/holdings/AV1/immobilier-history").json()
+    assert historique[0]["versement"] is None

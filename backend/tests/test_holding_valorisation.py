@@ -19,6 +19,27 @@ def test_ajoute_un_point_dhistorique_a_la_date_choisie(client, db):
     assert historique[0]["date_valeur"].startswith("2026-03-15")
 
 
+def test_versement_declare_est_conserve_sur_le_point(client, db):
+    """Backlog § U.2 (retour utilisateur 30/08/2026) : le foyer peut préciser la part
+    de la hausse qui vient d'un versement plutôt que d'une performance du contrat."""
+    make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE")
+
+    reponse = client.put("/api/portfolio/holdings/AV1/valorisation", json={"valeur": 10500.0, "date": "2026-03-15", "versement": 500.0})
+
+    assert reponse.status_code == 200
+    historique = client.get("/api/portfolio/holdings/AV1/immobilier-history").json()
+    assert historique[0]["versement"] == 500.0
+
+
+def test_versement_absent_reste_none(client, db):
+    make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE")
+
+    client.put("/api/portfolio/holdings/AV1/valorisation", json={"valeur": 10000.0, "date": "2026-03-15"})
+
+    historique = client.get("/api/portfolio/holdings/AV1/immobilier-history").json()
+    assert historique[0]["versement"] is None
+
+
 def test_met_a_jour_la_valeur_courante_quand_le_point_est_le_plus_recent(client, db):
     make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE")
     client.put("/api/portfolio/holdings/AV1/valorisation", json={"valeur": 10000.0, "date": "2026-01-01"})

@@ -249,22 +249,39 @@ export default function RapportPage() {
                     </Card>
                   </div>
 
-                  <Card title="D'où vient l'évolution de l'épargne ? (estimation)">
+                  <Card
+                    title={
+                      rapport.epargne.decomposition_estimee
+                        ? "D'où vient l'évolution de l'épargne ? (estimation)"
+                        : "D'où vient l'évolution de l'épargne ?"
+                    }
+                  >
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <StatTile
-                        label="Versements estimés"
-                        value={formatEuro(rapport.epargne.versements_estimes_periode, 0, montantsMasques)}
+                        label={rapport.epargne.decomposition_estimee ? 'Versements estimés' : 'Versements déclarés'}
+                        value={formatEuro(rapport.epargne.versements_periode, 0, montantsMasques)}
                       />
                       <StatTile
-                        label="Intérêts estimés (livrets)"
-                        value={formatEuro(rapport.epargne.interets_estimes_periode, 0, montantsMasques)}
+                        label={rapport.epargne.decomposition_estimee ? 'Intérêts estimés (livrets)' : 'Intérêts (résidu)'}
+                        value={formatEuro(rapport.epargne.interets_periode, 0, montantsMasques)}
                         tone="good"
                       />
                     </div>
                     <p className="mt-3 text-sm text-texte-attenue">
-                      Contrairement au portefeuille financier, l'épargne n'a pas de grand livre de versements : « Intérêts
-                      estimés » applique le taux déclaré de chaque livret, proratisé sur la période ; « Versements estimés »
-                      est le reste de l'évolution — une estimation, jamais un montant mesuré.
+                      {rapport.epargne.decomposition_estimee ? (
+                        <>
+                          Contrairement au portefeuille financier, l'épargne n'a pas de grand livre de versements : « Intérêts
+                          estimés » applique le taux déclaré de chaque livret, proratisé sur la période ; « Versements estimés »
+                          est le reste de l'évolution — une estimation, jamais un montant mesuré. Précisez « dont versement » en
+                          ajoutant une valorisation pour remplacer cette estimation par une donnée réelle.
+                        </>
+                      ) : (
+                        <>
+                          « Versements déclarés » est la somme des montants que vous avez précisés (« dont versement ») sur les
+                          points de valorisation de la période — une donnée réelle. « Intérêts » est le reste de l'évolution :
+                          si un versement de la période n'a pas été précisé, il serait alors compté ici par erreur.
+                        </>
+                      )}
                     </p>
                   </Card>
 

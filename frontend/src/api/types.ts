@@ -209,6 +209,10 @@ export interface HoldingUpdateInput {
 export interface ValorisationInput {
   valeur: number
   date: string
+  // Part de la hausse (ou baisse, valeur négative = retrait) depuis le point
+  // précédent qui vient d'un versement plutôt que d'une performance du contrat
+  // (backlog § U.2, retour utilisateur 30/08/2026) — optionnel.
+  versement?: number | null
 }
 
 // Types d'actifs valorisés manuellement (roadmap Phase 1, patrimoine net) — aucune
@@ -699,6 +703,7 @@ export interface ValuationHistoryPoint {
   id: number
   date_valeur: string
   valeur: number
+  versement: number | null
 }
 
 // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
@@ -757,13 +762,20 @@ export interface RepartitionEpargneLigne {
 // montants mesurés — à toujours étiqueter comme tels dans l'UI. `a_des_donnees`
 // à `false` (avec tous les autres champs à leur valeur neutre) si le foyer n'a
 // aucune ligne de type épargne : la page masque alors ce bloc entièrement.
+// `decomposition_estimee` (backlog § U.2, 30/08/2026) : `true` (par défaut, aucun
+// versement déclaré sur la période) — `interets_periode`/`versements_periode` sont
+// une ESTIMATION (taux_pct proratisé, résidu). `false` — au moins un point de
+// l'historique de la période porte un versement RÉELLEMENT déclaré par le foyer :
+// `versements_periode` est alors la somme de ces montants, `interets_periode` le
+// résidu de l'évolution — une donnée réelle, pas une estimation.
 export interface RapportEpargnePeriode {
   a_des_donnees: boolean
   valeur_debut_periode: number
   valeur_fin_periode: number
   evolution_pct: number | null
-  interets_estimes_periode: number
-  versements_estimes_periode: number
+  interets_periode: number
+  versements_periode: number
+  decomposition_estimee: boolean
   repartition_par_type: RepartitionEpargneLigne[]
 }
 

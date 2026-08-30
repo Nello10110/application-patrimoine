@@ -252,6 +252,13 @@ class HoldingValuationHistory(Base):
     holding_id: Mapped[int] = mapped_column(ForeignKey("holdings.id"), index=True)
     valeur: Mapped[float] = mapped_column(Float)
     date_valeur: Mapped[datetime] = mapped_column(DateTime)
+    # Part de la hausse (ou de la baisse) depuis le point précédent qui vient d'un
+    # versement (ou retrait, valeur négative) plutôt que d'une performance du contrat
+    # — retour utilisateur 30/08/2026, backlog § U.2. `None` (par défaut, jamais
+    # rétro-rempli sur l'historique existant) : le foyer n'a pas précisé, le reste
+    # (`valeur − point précédent`) est alors traité comme un GAIN, purement estimé,
+    # même logique que l'ancien calcul via `taux_pct` (cf. `rapport_service`).
+    versement: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class Detenteur(Base):

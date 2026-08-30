@@ -178,6 +178,14 @@ class HoldingUpdate(BaseModel):
 class ValorisationInput(BaseModel):
     valeur: float
     date: str
+    # Part de la hausse (ou baisse, valeur négative = retrait) depuis le point
+    # précédent qui vient d'un versement plutôt que d'une performance du contrat
+    # (backlog § U.2, retour utilisateur 30/08/2026) — optionnel, `None` si le foyer
+    # ne précise pas (le reste de l'évolution reste alors traité comme un gain estimé,
+    # comportement inchangé). Jamais validé contre l'écart réel avec le point
+    # précédent : rien n'empêche un versement déclaré supérieur à la hausse observée
+    # (ex. un retrait simultané non détaillé), la déclaration du foyer prime.
+    versement: float | None = None
 
     @field_validator("valeur")
     @classmethod
@@ -481,20 +489,30 @@ class RepartitionEpargneLigne(BaseModel):
 
 class RapportEpargnePeriode(BaseModel):
     """Bloc épargne du rapport (backlog § U.1, demande directe de l'utilisateur
-    30/08/2026) : contrairement au portefeuille financier, l'épargne n'a aucun grand
-    livre de versements — `interets_estimes_periode`/`versements_estimes_periode`
-    sont donc des ESTIMATIONS (intérêts = `taux_pct` proratisé sur la période,
-    versements = résidu de l'évolution moins cette estimation), jamais des montants
-    mesurés, à distinguer clairement côté UI. `a_des_donnees=False` (et tous les
-    autres champs à leur valeur neutre) si le foyer n'a aucune ligne `TYPES_EPARGNE`
-    — l'écran masque alors ce bloc entièrement plutôt que d'afficher des zéros."""
+    30/08/2026 ; § U.2 pour la déclaration réelle du versement, même jour) :
+    contrairement au portefeuille financier, l'épargne n'a par défaut aucun grand
+    livre de versements. Deux régimes possibles pour `interets_periode`/
+    `versements_periode`, signalés par `decomposition_estimee` :
+    - **`True` (par défaut, aucun versement déclaré sur la période)** : ESTIMATION —
+      intérêts = `taux_pct` proratisé sur la période, versements = résidu de
+      l'évolution moins cette estimation. Jamais un montant mesuré.
+    - **`False` (au moins un point de `HoldingValuationHistory` de la période porte
+      un `versement` déclaré par le foyer, § U.2)** : versements = somme des
+      montants réellement déclarés, intérêts = résidu de l'évolution moins ces
+      versements — une donnée réelle, pas une estimation (limite assumée : un
+      versement non déclaré sur un AUTRE point de la même période serait alors
+      compté à tort comme du gain).
+    `a_des_donnees=False` (et tous les autres champs à leur valeur neutre) si le
+    foyer n'a aucune ligne `TYPES_EPARGNE` — l'écran masque alors ce bloc entièrement
+    plutôt que d'afficher des zéros."""
 
     a_des_donnees: bool
     valeur_debut_periode: float
     valeur_fin_periode: float
     evolution_pct: float | None
-    interets_estimes_periode: float
-    versements_estimes_periode: float
+    interets_periode: float
+    versements_periode: float
+    decomposition_estimee: bool
     repartition_par_type: list[RepartitionEpargneLigne]
 
 
@@ -618,6 +636,7 @@ class ValuationHistoryPoint(BaseModel):
     id: int
     date_valeur: datetime
     valeur: float
+    versement: float | None = None
 
 
 class HoldingDetail(BaseModel):

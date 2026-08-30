@@ -1,7 +1,8 @@
 """Verrouille le bloc épargne du rapport (backlog § U.1, demande directe de
-l'utilisateur 30/08/2026) : `rapport_service.compute_rapport_epargne_periode` — la
-partie 100% financière de `compute_rapport_periode` reste couverte par
-`test_rapport_service.py`, inchangée par cette extension."""
+l'utilisateur 30/08/2026 ; § U.2 pour la déclaration réelle du versement, même jour) :
+`rapport_service.compute_rapport_epargne_periode` — la partie 100% financière de
+`compute_rapport_periode` reste couverte par `test_rapport_service.py`, inchangée par
+cette extension."""
 
 from datetime import datetime
 
@@ -18,8 +19,9 @@ def test_aucune_ligne_epargne_renvoie_a_des_donnees_false(db):
     assert epargne["valeur_debut_periode"] == 0.0
     assert epargne["valeur_fin_periode"] == 0.0
     assert epargne["evolution_pct"] is None
-    assert epargne["interets_estimes_periode"] == 0.0
-    assert epargne["versements_estimes_periode"] == 0.0
+    assert epargne["interets_periode"] == 0.0
+    assert epargne["versements_periode"] == 0.0
+    assert epargne["decomposition_estimee"] is True
     assert epargne["repartition_par_type"] == []
 
 
@@ -53,15 +55,17 @@ def test_repartition_par_type_en_fin_de_periode_triee_par_valeur_decroissante(db
 def test_interets_estimes_proratises_sur_la_duree_de_la_periode(db):
     """Un livret à 4%/an, sur une période d'exactement un an, doit produire
     l'intérêt annuel plein — sur un DEMI-an, la moitié (extension proratisée de
-    `revenus_passifs_service._interets_livrets_annuels`, jusqu'ici fixée à 12 mois)."""
+    `revenus_passifs_service._interets_livrets_annuels`, jusqu'ici fixée à 12 mois).
+    Aucun versement déclaré sur cette ligne : régime estimé (`decomposition_estimee`)."""
     holding = make_holding(db, ticker="LDD1", type_actif="REGULATED_SAVINGS", quantite=1, valeur_estimee=10000.0, taux_pct=4.0)
     immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
 
     epargne_un_an = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
     epargne_six_mois = compute_rapport_epargne_periode(db, "2025-01-01", "2025-07-01", ID_UTILISATEUR_TEST)
 
-    assert epargne_un_an["interets_estimes_periode"] == 400.0  # 10000 * 4% (365j / 365)
-    assert epargne_six_mois["interets_estimes_periode"] == 199.45  # 182j (1er janv. au 1er juil. inclus) / 365 * 400
+    assert epargne_un_an["interets_periode"] == 400.0  # 10000 * 4% (365j / 365)
+    assert epargne_un_an["decomposition_estimee"] is True
+    assert epargne_six_mois["interets_periode"] == 199.45  # 182j (1er janv. au 1er juil. inclus) / 365 * 400
 
 
 def test_type_sans_taux_declare_necoule_aucun_interet(db):
@@ -70,7 +74,7 @@ def test_type_sans_taux_declare_necoule_aucun_interet(db):
 
     epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
 
-    assert epargne["interets_estimes_periode"] == 0.0
+    assert epargne["interets_periode"] == 0.0
 
 
 def test_versements_estimes_est_le_residu_apres_les_interets_estimes(db):
@@ -83,7 +87,8 @@ def test_versements_estimes_est_le_residu_apres_les_interets_estimes(db):
     # Évolution totale 500 € ; intérêt estimé ~420 € (10500 * 4% sur la période) ;
     # le reste (résidu) est attribué au versement estimé.
     variation = epargne["valeur_fin_periode"] - epargne["valeur_debut_periode"]
-    assert epargne["versements_estimes_periode"] == round(variation - epargne["interets_estimes_periode"], 2)
+    assert epargne["decomposition_estimee"] is True
+    assert epargne["versements_periode"] == round(variation - epargne["interets_periode"], 2)
 
 
 def test_type_immobilier_ninflue_pas_sur_le_bloc_epargne(db):
@@ -109,3 +114,47 @@ def test_compute_rapport_periode_inclut_le_bloc_epargne(db, monkeypatch):
 
     assert rapport["epargne"]["a_des_donnees"] is True
     assert rapport["epargne"]["valeur_fin_periode"] == 5000.0
+
+
+def test_versement_declare_prime_sur_lestimation(db):
+    """Backlog § U.2 : un versement RÉELLEMENT déclaré sur au moins un point de la
+    période bascule le calcul en régime « déclaré » (`decomposition_estimee=False`)
+    — versements = somme des montants déclarés, intérêts = résidu de l'évolution,
+    même quand un `taux_pct` est renseigné (la déclaration explicite prime sur
+    l'estimation via taux)."""
+    holding = make_holding(db, ticker="LDD1", type_actif="REGULATED_SAVINGS", quantite=1, valeur_estimee=10500.0, taux_pct=4.0)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 10500.0, datetime(2025, 6, 1), versement=300.0)
+
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+
+    assert epargne["decomposition_estimee"] is False
+    assert epargne["versements_periode"] == 300.0
+    assert epargne["interets_periode"] == 200.0  # évolution totale 500 - 300 déclarés
+
+
+def test_plusieurs_versements_declares_sur_la_periode_sont_additionnes(db):
+    holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1, valeur_estimee=12000.0)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 11000.0, datetime(2025, 4, 1), versement=900.0)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 12000.0, datetime(2025, 9, 1), versement=800.0)
+
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+
+    assert epargne["decomposition_estimee"] is False
+    assert epargne["versements_periode"] == 1700.0
+    assert epargne["interets_periode"] == 300.0  # évolution totale 2000 - 1700 déclarés
+
+
+def test_versement_declare_hors_periode_nest_pas_compte(db):
+    """Un versement déclaré sur un point ANTÉRIEUR à la période demandée ne doit ni
+    être sommé dans `versements_periode`, ni faire basculer le régime en `déclaré` —
+    seuls les points DANS la période comptent."""
+    holding = make_holding(db, ticker="LDD1", type_actif="REGULATED_SAVINGS", quantite=1, valeur_estimee=10500.0, taux_pct=4.0)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 9000.0, datetime(2024, 6, 1), versement=1000.0)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 10000.0, datetime(2025, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 10500.0, datetime(2025, 12, 31))
+
+    epargne = compute_rapport_epargne_periode(db, "2025-01-01", "2025-12-31", ID_UTILISATEUR_TEST)
+
+    assert epargne["decomposition_estimee"] is True

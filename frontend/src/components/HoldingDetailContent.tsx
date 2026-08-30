@@ -363,6 +363,7 @@ export function ValorisationHistoriqueCard({
   const [editionId, setEditionId] = useState<number | null>(null)
   const [editValeur, setEditValeur] = useState('')
   const [editDate, setEditDate] = useState('')
+  const [editVersement, setEditVersement] = useState('')
   const [editionSaving, setEditionSaving] = useState(false)
   const [erreurAction, setErreurAction] = useState<string | null>(null)
   const [confirmSuppression, setConfirmSuppression] = useState<ValuationHistoryPoint | null>(null)
@@ -375,6 +376,7 @@ export function ValorisationHistoriqueCard({
     setEditionId(p.id)
     setEditValeur(String(p.valeur))
     setEditDate(p.date_valeur.slice(0, 10))
+    setEditVersement(p.versement !== null ? String(p.versement) : '')
   }
 
   async function saveEdition(pointId: number) {
@@ -382,7 +384,11 @@ export function ValorisationHistoriqueCard({
     setEditionSaving(true)
     setErreurAction(null)
     try {
-      const holding = await api.updateHoldingValuationPoint(ticker, pointId, { valeur: Number(editValeur), date: editDate })
+      const holding = await api.updateHoldingValuationPoint(ticker, pointId, {
+        valeur: Number(editValeur),
+        date: editDate,
+        versement: editVersement ? Number(editVersement) : null,
+      })
       setEditionId(null)
       onChanged(holding)
     } catch (err) {
@@ -476,6 +482,18 @@ export function ValorisationHistoriqueCard({
                         className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                      Dont versement (€)
+                      <input
+                        value={editVersement}
+                        onChange={(e) => setEditVersement(e.target.value)}
+                        type="number"
+                        step="any"
+                        placeholder="optionnel"
+                        aria-label={`Versement du ${formatDate(p.date_valeur)} (édition)`}
+                        className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                      />
+                    </label>
                     <button
                       onClick={() => saveEdition(p.id)}
                       disabled={editionSaving}
@@ -495,7 +513,14 @@ export function ValorisationHistoriqueCard({
             ) : (
               <tr key={p.id}>
                 <td className="py-2 pr-4 text-texte">{formatDate(p.date_valeur)}</td>
-                <td className="py-2 pr-4 text-right font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</td>
+                <td className="py-2 pr-4 text-right">
+                  <span className="font-medium text-texte">{formatEuro(p.valeur, 2, montantsMasques)}</span>
+                  {p.versement !== null && (
+                    <span className="block text-xs text-texte-attenue">
+                      dont {formatEuro(p.versement, 2, montantsMasques)} versés
+                    </span>
+                  )}
+                </td>
                 <td className="py-2 pr-4 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => startEdition(p)} className="text-xs text-texte-attenue hover:underline">
@@ -556,6 +581,7 @@ export function ValorisationHistoriqueCard({
 export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onAdded: (holding: Holding) => void }) {
   const [valeur, setValeur] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [versement, setVersement] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -565,8 +591,13 @@ export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onA
     setSaving(true)
     setError(null)
     try {
-      const holding = await api.setHoldingValorisation(ticker, { valeur: Number(valeur), date })
+      const holding = await api.setHoldingValorisation(ticker, {
+        valeur: Number(valeur),
+        date,
+        versement: versement ? Number(versement) : null,
+      })
       setValeur('')
+      setVersement('')
       onAdded(holding)
     } catch (err) {
       setError((err as Error).message)
@@ -599,6 +630,17 @@ export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onA
           className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
+      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+        Dont versement (€)
+        <input
+          type="number"
+          step="any"
+          value={versement}
+          onChange={(e) => setVersement(e.target.value)}
+          placeholder="optionnel"
+          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+        />
+      </label>
       <button
         type="submit"
         disabled={saving}
@@ -607,6 +649,11 @@ export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onA
         {saving ? 'Enregistrement...' : 'Ajouter une valorisation'}
       </button>
       {error && <span className="text-sm text-negatif">{error}</span>}
+      <p className="w-full text-xs text-texte-attenue">
+        « Dont versement » : la part de la hausse (ou baisse — valeur négative pour un retrait) qui vient d'un versement plutôt
+        que d'une performance du contrat. Laisser vide si vous ne savez pas : l'écran Rapport continuera d'estimer le gain via le
+        taux déclaré.
+      </p>
     </form>
   )
 }

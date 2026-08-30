@@ -2341,6 +2341,61 @@ désactivée par sécurité — n'a pas semblé justifier de contourner cette pr
 identifiants réels de l'utilisateur) ; suite de tests complète au vert (838 backend, 453 frontend) en
 compensation.
 
+#### U.2 — `majeur` · `M` · `P2` · `traité` (30/08/2026) — Versement déclaré + lissage du graphique combiné pour l'épargne
+
+Demande directe de l'utilisateur, en suite de § U.1 : pour un PER, une assurance-vie... pouvoir
+préciser la part investie (versement) de la part en gain sur chaque point de valorisation, ET que ce
+soit pris en compte dans les graphiques — plus un lissage de la courbe combinée entre deux
+actualisations plutôt qu'un saut brutal.
+
+**Décisions arbitrées avec l'utilisateur avant implémentation** (deux questions posées, les deux
+options recommandées retenues) :
+- Le versement se déclare via un champ optionnel **à chaque valorisation** (« dont versement »), pas
+  un total cumulé modifiable séparément — cohérent avec le mécanisme déjà existant (« Ajouter une
+  valorisation », § 2.S.1), rétrocompatible (`None` par défaut, rien à ressaisir sur l'historique
+  existant).
+- Le lissage s'applique **partout où l'historique épargne apparaît**.
+
+**Versement déclaré** (`HoldingValuationHistory.versement`, nouvelle colonne nullable, migration
+`db31d671e2e4`) : part de la hausse (ou baisse — valeur négative pour un retrait) depuis le point
+précédent qui vient d'un versement plutôt que d'une performance du contrat. Nouveau champ optionnel
+sur `ValorisationInput` (`PUT .../valorisation` ET `PATCH .../immobilier-history/{id}`, § T.3, donc
+corrigeable après coup) et exposé par `ValuationHistoryPoint`. `rapport_service.
+compute_rapport_epargne_periode` (§ U.1) préfère désormais les versements RÉELLEMENT déclarés quand au
+moins un point de la période en porte un — nouveau champ `decomposition_estimee` sur
+`RapportEpargnePeriode` (`interets_estimes_periode`/`versements_estimes_periode` renommés
+`interets_periode`/`versements_periode`, valables dans les deux régimes) :
+- `True` (par défaut, aucun versement déclaré sur la période) : régime estimé inchangé (`taux_pct`
+  proratisé, résidu).
+- `False` (au moins un point déclaré) : `versements_periode` = somme des montants déclarés,
+  `interets_periode` = résidu de l'évolution — une donnée réelle, pas une estimation. **Limite
+  assumée, documentée dans le docstring du schéma** : un versement non déclaré sur un AUTRE point de
+  la même période serait alors compté à tort comme du gain (pas de solution parfaite sans exiger une
+  déclaration exhaustive, jugée trop contraignante).
+
+**Lissage du graphique combiné** (`patrimoine_history_service._valeur_interpolee`) : contrairement à
+l'immobilier/SCPI/autre actif/véhicule, qui restent en escalier (LOCF, choix assumé documenté depuis §
+S.2 — « mieux vaut une ligne plate honnête qu'une fausse précision »), les lignes `TYPES_EPARGNE` sont
+désormais INTERPOLÉES linéairement entre deux points connus. Bascule ligne par ligne selon
+`type_actif` (`_valeur_ligne_a_date`), jamais globale. Toujours aucune extrapolation dans le futur
+(plaqué au dernier point connu) ni avant le premier point (rien à représenter). Le graphique par
+compte (`ValorisationHistoriqueCard`) n'a pas eu besoin de changement : Recharts relie déjà chaque
+point réel par une ligne droite, sans palier — seule la courbe combinée du Tableau de bord/Synthèse
+(grille hebdomadaire, § S.2) souffrait de l'effet d'escalier que l'utilisateur décrit.
+
+**UI** : « Ajouter une valorisation » et l'édition en ligne d'un point (§ T.3) gagnent un champ
+optionnel « Dont versement (€) », avec une légende expliquant l'effet du champ vide (repli sur
+l'estimation). Chaque ligne de l'historique affiche « dont X € versés » quand renseigné. L'écran
+Rapport bascule ses libellés (« Versements estimés » → « Versements déclarés », etc.) et son texte
+explicatif selon `decomposition_estimee`.
+
+Tests : 6 nouveaux côté `rapport_service` (versement déclaré prime sur l'estimation, plusieurs
+versements sommés, un versement hors période ne compte pas), 2 nouveaux côté
+`patrimoine_history_service` (interpolation vs escalier ligne par ligne), 4 nouveaux sur les routes
+`PUT`/`PATCH` (conservation/effacement du versement). Frontend : 3 nouveaux tests
+(`HoldingDetailContent.test.tsx` — ajout avec versement, pré-remplissage et sauvegarde à l'édition ;
+`RapportPage.test.tsx` — libellés du régime déclaré).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2406,6 +2461,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot quickwin — T.2** | Bug : « Rafraîchir les cours » échoue par intermittence (`database is locked`) | — | `S` | **Livré** 30/08/2026 — WAL + busy_timeout + commit par ticker |
 | **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Livré** 30/08/2026 |
 | **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Livré** 30/08/2026 |
+| **Hors lot — U.2** | Versement déclaré (investi/gain) sur un point d'épargne + lissage du graphique combiné | U.1 (schéma étendu) | `M` | **Livré** 30/08/2026 |
 
 **Pourquoi cet ordre.**
 

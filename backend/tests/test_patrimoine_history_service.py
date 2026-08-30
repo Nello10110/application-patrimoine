@@ -34,6 +34,43 @@ def test_serie_manuelle_locf_entre_deux_points(db):
     assert all(p["valeur_financiere"] == 0.0 for p in points)
 
 
+def test_ligne_epargne_interpolee_lineairement_entre_deux_points(db):
+    """Backlog § U.2 (retour utilisateur 30/08/2026) : contrairement à l'immobilier
+    ci-dessus (`test_serie_manuelle_locf_entre_deux_points`, en escalier), une ligne
+    `TYPES_EPARGNE` est INTERPOLÉE entre deux points connus — la grille hebdomadaire
+    démarre exactement au premier point ici (seule donnée du foyer), donc le point à
+    J+7 (exactement à mi-chemin entre J+0 et J+14) doit valoir la moyenne des deux
+    valeurs connues, pas la valeur du premier point plaquée platement."""
+    holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1200.0, datetime(2024, 1, 15))
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
+    assert point_mi_chemin["valeur_manuelle"] == 1100.0  # (1000 + 1200) / 2, pile à mi-chemin
+    assert points[0]["valeur_manuelle"] == 1000.0  # au tout premier point, pas d'interpolation à faire
+    assert points[-1]["valeur_manuelle"] == 1200.0  # plaqué au dernier point connu, jamais extrapolé au-delà
+
+
+def test_immobilier_reste_en_escalier_meme_a_cote_dune_ligne_epargne_interpolee(db):
+    """Garde-fou de non-régression : le choix interpolation/escalier se fait ligne
+    par ligne selon `type_actif`, pas globalement dès qu'une ligne épargne existe
+    dans le foyer."""
+    bien = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0)
+    av = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, bien.id, 250000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, bien.id, 300000.0, datetime(2024, 1, 15))
+    immobilier_service.enregistrer_point_historique(db, av.id, 1000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, av.id, 1200.0, datetime(2024, 1, 15))
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
+    # 250000 (immobilier, encore plaqué au premier point) + 1100 (épargne, interpolée)
+    assert point_mi_chemin["valeur_manuelle"] == 251100.0
+
+
 def test_serie_manuelle_sans_historique_degrade_vers_valeur_estimee_a_plat(db):
     """Une ligne créée directement (comme une ligne pré-existant à l'auto-horodatage
     de `routers/portfolio.py`) n'a aucun point `HoldingValuationHistory` — dégrade
