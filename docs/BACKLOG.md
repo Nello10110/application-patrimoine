@@ -2261,7 +2261,7 @@ tests frontend nouveaux (`HoldingDetailContent.test.tsx`). `ValorisationHistoriq
 désormais `ticker`/`onChanged` — câblé aux 3 lieux d'utilisation (`EpargneApercu`, `ImmobilierApercu`,
 `EpargnePage.tsx`), les deux premiers en réutilisant leur callback de rafraîchissement déjà existant.
 
-#### U.1 — `majeur` · `M` · `P2` · `non traité` (30/08/2026) — Métriques d'épargne sur l'écran Rapport
+#### U.1 — `majeur` · `M` · `P2` · `traité` (30/08/2026) — Métriques d'épargne sur l'écran Rapport
 
 Demande directe de l'utilisateur : l'écran Rapport (`rapport_service.py`) est aujourd'hui **100 %
 financier** — valeur du portefeuille, évolution investi/généré, dividendes, plus gros mouvements —
@@ -2323,6 +2323,23 @@ Tests à prévoir : nouveaux tests `rapport_service.py`/`test_rapport_service.py
 même style de fixtures LOCF déjà en place dans `test_patrimoine_history_service.py`), tests frontend
 `RapportPage.test.tsx` pour l'affichage conditionnel (masquer les tuiles épargne si aucun actif
 `TYPES_EPARGNE` sur la période, même pattern que `EtatVide` déjà utilisé ailleurs sur cet écran).
+
+**Livré, tuiles 1 à 4 (tuile 5 — taux d'épargne généralisé — restée hors scope, cf. « à trancher
+séparément » ci-dessus)** : `compute_rapport_epargne_periode` (nouvelle fonction dans
+`rapport_service.py`, embarquée dans le champ `epargne` de `compute_rapport_periode`, réutilisée sans
+dupliquer `patrimoine_history_service._serie_holding_manuel` pour évaluer chaque ligne aux deux bornes
+de la période) : évolution de l'épargne (valeur, %), répartition par type en fin de période
+(`PieChartCard`, déjà existant, réutilisé tel quel via une conversion euros → poids), intérêts estimés
+sur les livrets proratisés sur la durée exacte de la période, versements estimés (résidu). Bloc entier
+masqué (`a_des_donnees=false`) si le foyer n'a aucune ligne `TYPES_EPARGNE`. 8 nouveaux tests backend
+(`test_rapport_service_epargne.py` — nouveau fichier, dont un verrouillant explicitement que
+l'immobilier n'entre jamais dans ce calcul), 2 tests frontend nouveaux (`RapportPage.test.tsx`).
+Vérifié via un backend isolé (base de test dédiée, deux lignes d'épargne datées) : les valeurs
+calculées par l'API correspondent exactement au calcul attendu à la main. Vérification visuelle en
+navigateur non réalisée (session utilisateur expirée pendant la vérification, auto-inscription
+désactivée par sécurité — n'a pas semblé justifier de contourner cette protection ni de deviner les
+identifiants réels de l'utilisateur) ; suite de tests complète au vert (838 backend, 453 frontend) en
+compensation.
 
 ---
 ## 3. Hors périmètre (assumé)
@@ -2388,7 +2405,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot quickwin — T.1** | Édition complète d'un emprunt (libellé, capital initial, taux, mensualité, date de début, durée) | — | `S` | **Livré** 30/08/2026 |
 | **Lot quickwin — T.2** | Bug : « Rafraîchir les cours » échoue par intermittence (`database is locked`) | — | `S` | **Livré** 30/08/2026 — WAL + busy_timeout + commit par ticker |
 | **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Livré** 30/08/2026 |
-| **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Non traité** — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
+| **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Livré** 30/08/2026 |
 
 **Pourquoi cet ordre.**
 

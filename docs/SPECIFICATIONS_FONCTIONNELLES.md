@@ -318,6 +318,20 @@ Toute la suite (projection, tableau de détail, FIRE) est calculée **entièreme
 
 Aucun nouveau calcul de fond : uniquement une agrégation par mois de données déjà exposées ailleurs.
 
+**Bloc épargne** (backlog § U.1, demande directe 30/08/2026, champ `epargne` de la même réponse) :
+contrairement aux points ci-dessus, entièrement dérivé des lignes `TYPES_EPARGNE` (livrets, PEE/PERCO,
+assurance-vie, PER, comptes courants), jamais du grand livre de transactions boursières —
+`rapport_service.compute_rapport_epargne_periode`. Réutilise `patrimoine_history_service.
+_serie_holding_manuel` (même bloc de construction que la courbe combinée du Tableau de bord, § 3.16)
+pour évaluer chaque ligne aux deux bornes de la période plutôt qu'en série complète : valeur/évolution
+de l'épargne, répartition par type en fin de période. **Intérêts estimés** étend `revenus_passifs_
+service._interets_livrets_annuels` (`valeur_estimee * taux_pct / 100`, jusqu'ici fixée à 12 mois
+glissants) en la proratisant sur le nombre de jours exact de la période. **Versements estimés** est le
+résidu (évolution totale moins intérêts estimés) — les deux sont des ESTIMATIONS explicitement
+étiquetées comme telles côté écran : contrairement au portefeuille financier, l'épargne n'a aucun
+journal de versements permettant une décomposition exacte. `a_des_donnees=false` (bloc masqué côté
+écran) si le foyer n'a aucune ligne `TYPES_EPARGNE`.
+
 ### 3.15 Application installable (PWA, roadmap Phase 3, § H.1)
 
 Le frontend est installable comme une application (icône, plein écran) via un manifeste web et un service worker générés par `vite-plugin-pwa` (Workbox) au moment du build — jamais écrits à la main, pour éviter le piège classique d'un service worker maison qui sert indéfiniment une version périmée. L'API (`/api/*`) est explicitement exclue du cache du service worker (`navigateFallbackDenylist`) : les données financières affichées viennent toujours du backend en direct, jamais d'une réponse mise en cache hors-ligne — seuls les fichiers statiques du build (JS, CSS, icônes) bénéficient du cache.

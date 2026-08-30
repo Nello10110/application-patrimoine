@@ -746,6 +746,27 @@ export interface MouvementRapport {
   montant: number
 }
 
+export interface RepartitionEpargneLigne {
+  label: string
+  valeur: number
+}
+
+// Bloc épargne du rapport (backlog § U.1, 30/08/2026) : `interets_estimes_periode`/
+// `versements_estimes_periode` sont des ESTIMATIONS (l'épargne n'a pas de grand
+// livre de versements contrairement au portefeuille financier), jamais des
+// montants mesurés — à toujours étiqueter comme tels dans l'UI. `a_des_donnees`
+// à `false` (avec tous les autres champs à leur valeur neutre) si le foyer n'a
+// aucune ligne de type épargne : la page masque alors ce bloc entièrement.
+export interface RapportEpargnePeriode {
+  a_des_donnees: boolean
+  valeur_debut_periode: number
+  valeur_fin_periode: number
+  evolution_pct: number | null
+  interets_estimes_periode: number
+  versements_estimes_periode: number
+  repartition_par_type: RepartitionEpargneLigne[]
+}
+
 export interface RapportPeriode {
   date_debut: string
   date_fin: string
@@ -759,6 +780,7 @@ export interface RapportPeriode {
   dividendes_percus: number
   nombre_transactions: number
   plus_gros_mouvements: MouvementRapport[]
+  epargne: RapportEpargnePeriode
 }
 
 export interface DividendeLigne {

@@ -4,6 +4,7 @@ import type { RapportPeriode } from '../api/types'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
+import PieChartCard from '../components/PieChartCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -219,6 +220,63 @@ export default function RapportPage() {
                   </ul>
                 )}
               </Card>
+
+              {rapport.epargne.a_des_donnees && (
+                <>
+                  <h3 className="pt-2 text-sm font-semibold uppercase tracking-wide text-texte-attenue">Épargne</h3>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Card title="Épargne en fin de période">
+                      <p className="text-2xl font-semibold text-texte">
+                        {formatEuro(rapport.epargne.valeur_fin_periode, 0, montantsMasques)}
+                      </p>
+                      <p className="mt-1 text-xs text-texte-attenue">
+                        livrets, PEE/PERCO, assurance-vie, PER, comptes courants
+                      </p>
+                    </Card>
+                    <Card title="Évolution de l'épargne">
+                      <p
+                        className={`text-2xl font-semibold ${
+                          rapport.epargne.evolution_pct === null
+                            ? 'text-texte'
+                            : rapport.epargne.evolution_pct >= 0
+                              ? 'text-positif'
+                              : 'text-negatif'
+                        }`}
+                      >
+                        {formatPct(rapport.epargne.evolution_pct)}
+                      </p>
+                    </Card>
+                  </div>
+
+                  <Card title="D'où vient l'évolution de l'épargne ? (estimation)">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <StatTile
+                        label="Versements estimés"
+                        value={formatEuro(rapport.epargne.versements_estimes_periode, 0, montantsMasques)}
+                      />
+                      <StatTile
+                        label="Intérêts estimés (livrets)"
+                        value={formatEuro(rapport.epargne.interets_estimes_periode, 0, montantsMasques)}
+                        tone="good"
+                      />
+                    </div>
+                    <p className="mt-3 text-sm text-texte-attenue">
+                      Contrairement au portefeuille financier, l'épargne n'a pas de grand livre de versements : « Intérêts
+                      estimés » applique le taux déclaré de chaque livret, proratisé sur la période ; « Versements estimés »
+                      est le reste de l'évolution — une estimation, jamais un montant mesuré.
+                    </p>
+                  </Card>
+
+                  <PieChartCard
+                    title="Répartition de l'épargne par type"
+                    items={rapport.epargne.repartition_par_type.map((l) => ({
+                      categorie: l.label,
+                      poids: rapport.epargne.valeur_fin_periode > 0 ? l.valeur / rapport.epargne.valeur_fin_periode : 0,
+                    }))}
+                  />
+                </>
+              )}
             </>
           )}
         </>

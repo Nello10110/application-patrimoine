@@ -474,6 +474,30 @@ class MouvementRapport(BaseModel):
     montant: float
 
 
+class RepartitionEpargneLigne(BaseModel):
+    label: str
+    valeur: float
+
+
+class RapportEpargnePeriode(BaseModel):
+    """Bloc épargne du rapport (backlog § U.1, demande directe de l'utilisateur
+    30/08/2026) : contrairement au portefeuille financier, l'épargne n'a aucun grand
+    livre de versements — `interets_estimes_periode`/`versements_estimes_periode`
+    sont donc des ESTIMATIONS (intérêts = `taux_pct` proratisé sur la période,
+    versements = résidu de l'évolution moins cette estimation), jamais des montants
+    mesurés, à distinguer clairement côté UI. `a_des_donnees=False` (et tous les
+    autres champs à leur valeur neutre) si le foyer n'a aucune ligne `TYPES_EPARGNE`
+    — l'écran masque alors ce bloc entièrement plutôt que d'afficher des zéros."""
+
+    a_des_donnees: bool
+    valeur_debut_periode: float
+    valeur_fin_periode: float
+    evolution_pct: float | None
+    interets_estimes_periode: float
+    versements_estimes_periode: float
+    repartition_par_type: list[RepartitionEpargneLigne]
+
+
 class RapportPeriode(BaseModel):
     """Réponse de `GET /api/performance/rapport` (roadmap Phase 4, § D.2 — étendu à
     l'annuel et aux périodes personnalisées) : `date_debut`/`date_fin` sont les
@@ -494,6 +518,9 @@ class RapportPeriode(BaseModel):
     dividendes_percus: float
     nombre_transactions: int
     plus_gros_mouvements: list[MouvementRapport]
+    # Épargne (backlog § U.1, 30/08/2026) : bloc indépendant du reste, dérivé des
+    # lignes `TYPES_EPARGNE` plutôt que du grand livre de transactions boursières.
+    epargne: RapportEpargnePeriode
 
 
 class HoldingPricePoint(BaseModel):

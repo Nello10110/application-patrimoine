@@ -185,6 +185,8 @@ Quel que soit le mode : valeur du portefeuille en fin de période, évolution su
 
 **« D'où vient l'évolution ? »** répond à la question « est-ce que mon patrimoine augmente parce que j'y mets de l'argent, ou parce qu'il en génère lui-même ? » : **Investi sur la période** (ce que tu as toi-même ajouté — tes achats réels) et **Généré sur la période** (plus-value, dividendes et intérêts — ce que le portefeuille a produit tout seul). Les deux s'additionnent pour expliquer l'évolution affichée juste au-dessus.
 
+**Bloc Épargne** : si tu as au moins un compte Épargne (livret, PEE/PERCO, assurance-vie, PER, compte courant), un second bloc apparaît sous les mouvements — valeur en fin de période, évolution, répartition par type (camembert), et « D'où vient l'évolution de l'épargne ? ». Contrairement au bloc financier ci-dessus, ce dernier point est une **estimation** : l'épargne n'a pas de journal de versements comme le portefeuille boursier — **Intérêts estimés** applique le taux déclaré de chaque livret (Réglages) proratisé sur la période, **Versements estimés** est simplement ce qui reste de l'évolution une fois les intérêts retirés. Absent si aucun compte Épargne n'est renseigné.
+
 ## Écran Salaire
 
 Réservé au propriétaire du compte. **Plusieurs salaires peuvent être ajoutés pour une même année** — un par revenu du foyer (toi, ton/ta conjoint·e, un complément...), chacun nommé librement et avec son propre taux d'imposition, puisque deux personnes du même foyer peuvent être imposées différemment.

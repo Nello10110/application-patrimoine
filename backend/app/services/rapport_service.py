@@ -13,10 +13,13 @@ l'écran calcule lui-même les bornes du mois ou de l'année choisie (1er jour a
 dernier jour), une période personnalisée n'étant qu'un intervalle de dates comme un
 autre — voir `routers/performance.py`."""
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
-from ..models import Transaction
-from . import historical_performance_service, performance_service
+from ..models import TYPES_EPARGNE, Holding, Transaction
+from . import historical_performance_service, immobilier_service, patrimoine_history_service, performance_service, revenus_passifs_service
+from .patrimoine_service import LABEL_NON_RENSEIGNE, LABEL_TYPE_ACTIF
 
 NOMBRE_PLUS_GROS_MOUVEMENTS = 5
 
@@ -59,6 +62,81 @@ def _champ_strict_a_ou_avant(points: list[dict], date_str: str, champ: str) -> f
         return 0.0
     valeur = _champ_a_ou_avant(points, date_str, champ)
     return valeur if valeur is not None else 0.0
+
+
+def _valeur_epargne_a_date(db: Session, holdings: list[Holding], date_dt: datetime) -> tuple[float, dict[str, float]]:
+    """Valeur totale de l'épargne (`TYPES_EPARGNE`) à `date_dt`, et sa répartition par
+    type (libellé -> valeur) — réutilise `patrimoine_history_service._serie_holding_manuel`
+    (même bloc de construction, historique réel + ancrage sur le coût d'acquisition, § S.3,
+    que la courbe combinée du Tableau de bord) évaluée à une seule date plutôt qu'en série
+    complète."""
+    total = 0.0
+    par_type: dict[str, float] = {}
+    for h in holdings:
+        historique = immobilier_service.historique_valorisation(db, h.id)
+        serie = patrimoine_history_service._serie_holding_manuel(h, historique)
+        valeur = historical_performance_service._value_at(serie, date_dt) or 0.0
+        total += valeur
+        label = LABEL_TYPE_ACTIF.get(h.type_actif, LABEL_NON_RENSEIGNE)
+        par_type[label] = par_type.get(label, 0.0) + valeur
+    return total, par_type
+
+
+def _interets_epargne_periode(holdings: list[Holding], date_debut_dt: datetime, date_fin_dt: datetime) -> float:
+    """Intérêts ESTIMÉS sur la période pour les livrets à taux déclaré
+    (`REGULATED_SAVINGS`/`EMPLOYEE_SAVINGS`) : extension directe de
+    `revenus_passifs_service._interets_livrets_annuels` (même formule
+    `valeur_estimee * taux_pct / 100`), proratisée sur le nombre de jours de la
+    période plutôt que fixée à 12 mois glissants. Utilise la valeur/le taux ACTUELS
+    (pas ceux en vigueur au début de la période, non conservés) — même
+    approximation que la projection à 12 mois dont cette fonction s'inspire."""
+    jours_periode = (date_fin_dt - date_debut_dt).days + 1  # bornes inclusives, comme le reste du rapport
+    interets_annuels = sum(
+        h.valeur_estimee * h.taux_pct / 100
+        for h in holdings
+        if h.type_actif in revenus_passifs_service.TYPES_LIVRETS_AVEC_TAUX and h.valeur_estimee and h.taux_pct
+    )
+    return interets_annuels * jours_periode / 365
+
+
+def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str, user_id: int) -> dict:
+    """Bloc épargne du rapport (backlog § U.1) — voir le docstring de
+    `RapportEpargnePeriode` pour la limite assumée sur `interets_estimes_periode`/
+    `versements_estimes_periode` (estimations, pas des montants mesurés : l'épargne
+    n'a pas de grand livre de versements contrairement au portefeuille financier)."""
+    holdings = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_EPARGNE)).all()
+    if not holdings:
+        return {
+            "a_des_donnees": False,
+            "valeur_debut_periode": 0.0,
+            "valeur_fin_periode": 0.0,
+            "evolution_pct": None,
+            "interets_estimes_periode": 0.0,
+            "versements_estimes_periode": 0.0,
+            "repartition_par_type": [],
+        }
+
+    date_debut_dt = datetime.strptime(date_debut, "%Y-%m-%d")
+    date_fin_dt = datetime.strptime(date_fin, "%Y-%m-%d")
+    valeur_debut, _ = _valeur_epargne_a_date(db, holdings, date_debut_dt)
+    valeur_fin, repartition_fin = _valeur_epargne_a_date(db, holdings, date_fin_dt)
+    evolution_pct = round((valeur_fin - valeur_debut) / valeur_debut * 100, 2) if valeur_debut > 1e-9 else None
+    interets_estimes = round(_interets_epargne_periode(holdings, date_debut_dt, date_fin_dt), 2)
+    versements_estimes = round((valeur_fin - valeur_debut) - interets_estimes, 2)
+
+    return {
+        "a_des_donnees": True,
+        "valeur_debut_periode": round(valeur_debut, 2),
+        "valeur_fin_periode": round(valeur_fin, 2),
+        "evolution_pct": evolution_pct,
+        "interets_estimes_periode": interets_estimes,
+        "versements_estimes_periode": versements_estimes,
+        "repartition_par_type": [
+            {"label": label, "valeur": round(valeur, 2)}
+            for label, valeur in sorted(repartition_fin.items(), key=lambda kv: -kv[1])
+            if abs(valeur) > 1e-9
+        ],
+    }
 
 
 def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id: int) -> dict:
@@ -129,4 +207,5 @@ def compute_rapport_periode(db: Session, date_debut: str, date_fin: str, user_id
             }
             for tx in plus_gros_mouvements
         ],
+        "epargne": compute_rapport_epargne_periode(db, date_debut, date_fin, user_id),
     }

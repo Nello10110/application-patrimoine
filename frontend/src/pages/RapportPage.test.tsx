@@ -37,6 +37,15 @@ function rapport(overrides: Partial<RapportPeriode> = {}): RapportPeriode {
     dividendes_percus: 8.5,
     nombre_transactions: 3,
     plus_gros_mouvements: [{ date: '2026-07-15', type: 'BUY', symbol: 'AAA', nom: 'Titre AAA', montant: -500 }],
+    epargne: {
+      a_des_donnees: false,
+      valeur_debut_periode: 0,
+      valeur_fin_periode: 0,
+      evolution_pct: null,
+      interets_estimes_periode: 0,
+      versements_estimes_periode: 0,
+      repartition_par_type: [],
+    },
     ...overrides,
   }
 }
@@ -167,5 +176,48 @@ describe('RapportPage — mode personnalisé', () => {
 
     await screen.findByText(/La date de fin doit être postérieure ou égale à la date de début/)
     expect(api.getRapportPeriode).not.toHaveBeenCalled()
+  })
+})
+
+describe("RapportPage — bloc épargne (backlog § U.1)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("masque entièrement le bloc épargne quand le foyer n'a aucune ligne d'épargne", async () => {
+    vi.mocked(api.getRapportPeriode).mockResolvedValue(rapport())
+    render(<RapportPage />)
+
+    await waitFor(() => expect(api.getRapportPeriode).toHaveBeenCalled())
+    expect(screen.queryByText('Épargne en fin de période')).not.toBeInTheDocument()
+  })
+
+  it('affiche les tuiles épargne quand le foyer a des lignes valorisées', async () => {
+    vi.mocked(api.getRapportPeriode).mockResolvedValue(
+      rapport({
+        epargne: {
+          a_des_donnees: true,
+          valeur_debut_periode: 10000,
+          valeur_fin_periode: 10500,
+          evolution_pct: 5,
+          interets_estimes_periode: 200,
+          versements_estimes_periode: 300,
+          repartition_par_type: [
+            { label: 'Assurance-vie', valeur: 8000 },
+            { label: 'Épargne réglementée', valeur: 2500 },
+          ],
+        },
+      }),
+    )
+    render(<RapportPage />)
+
+    await screen.findByText('Épargne en fin de période')
+    expect(screen.getByText('10 500 €')).toBeInTheDocument()
+    expect(screen.getByText('+5.0%')).toBeInTheDocument()
+    expect(screen.getByText("D'où vient l'évolution de l'épargne ? (estimation)")).toBeInTheDocument()
+    expect(screen.getByText('300 €')).toBeInTheDocument()
+    expect(screen.getByText('200 €')).toBeInTheDocument()
+    expect(screen.getByText('Répartition de l\'épargne par type')).toBeInTheDocument()
+    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
   })
 })
