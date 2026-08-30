@@ -2090,6 +2090,55 @@ rapport comme `nom` n'invalide toujours pas). Vérifié en conditions réelles :
 la ligne réelle « APPARTEMENT », requête `GET /api/patrimoine/historique` confirmée recalculée avec
 un premier point au 15/06/2021 (coût d'acquisition) au lieu de la série figée précédente.
 
+#### T.1 — `mineur` · `S` · `P2` · `non traité` (30/08/2026) — Édition complète d'un emprunt
+
+Demande directe de l'utilisateur : sur l'écran Patrimoine, un emprunt existant ne peut être corrigé
+QUE via « Recaler » — qui ne touche que le capital restant dû (`capital_restant_du_manuel`, un relevé
+bancaire réel qui prime sur le calcul théorique). Aucun moyen de corriger une erreur de saisie ou un
+changement réel sur les autres caractéristiques du prêt (libellé, capital initial, taux, mensualité,
+date de début, durée) une fois l'emprunt créé.
+
+**Audit avant écriture de cette entrée** : le blocage est PUREMENT FRONTEND. `LoanUpdate`
+(`backend/app/schemas.py:978`) accepte déjà `libelle`, `capital_initial`, `taux_annuel_pct`,
+`mensualite`, `date_debut`, `duree_mois` (en plus de `capital_restant_du_manuel` et `holding_id`), et
+`PATCH /api/loans/{id}` (`routers/loans.py`) les applique déjà génériquement (même mécanisme que la
+mise à jour d'un `Holding`) — `backend/tests/test_loans_router.py::test_modifier_un_autre_champ_ne_touche_pas_la_date_de_recalage`
+verrouille déjà qu'un changement de `libelle` fonctionne et ne perturbe pas l'état de recalage.
+`LoansCard.tsx` (frontend), lui, n'expose que deux actions ciblées : le recalage (patch sur
+`capital_restant_du_manuel` seul) et le rattachement à un actif (patch sur `holding_id` seul) — aucun
+formulaire n'appelle `api.updateLoan` avec les autres champs. Aucun travail backend nécessaire : d'où
+le classement en lot quickwin (effort `S`, la totalité du travail restant est un formulaire
+d'édition en ligne côté frontend).
+
+**Spécification de ce qui est attendu :**
+
+- Un bouton **« Modifier »** par emprunt, à côté de « Recaler » et « Supprimer » (desktop : dernière
+  colonne du tableau ; mobile : `LoanCardMobile`, à côté des boutons existants) — même position
+  relative que le couple Modifier/Supprimer déjà utilisé pour les lignes du portefeuille
+  (`PositionsTable.tsx`), pour rester cohérent avec le reste de l'écran Patrimoine.
+- Au clic, la ligne (ou la carte mobile) bascule en mode édition : les champs `libelle`,
+  `capital_initial`, `taux_annuel_pct`, `mensualite`, `date_debut`, `duree_mois` deviennent des
+  champs de saisie pré-remplis avec les valeurs actuelles — même pattern d'état local que
+  `recalageId`/`recalageValeur` déjà présent dans `LoansCard.tsx` (un `editionId`/`editForm` en plus,
+  pas une refonte du composant), et même paire de boutons Enregistrer/Annuler.
+- **`capital_restant_du_manuel` reste EXCLU de ce formulaire** — cette édition ne doit jamais toucher
+  au recalage : les deux actions gardent leur sémantique distincte (recalage = relevé bancaire réel
+  qui prime sur le théorique ; édition = correction des caractéristiques déclarées du prêt). Si les
+  deux actions sont ouvertes en même temps sur des emprunts différents, pas de contrainte particulière
+  attendue (cas déjà couvert par le `id` distinct de chaque état local).
+- Validation : réutiliser les mêmes contraintes déjà appliquées à la création (`LoanCreate`, même
+  schéma que `LoanBase`) — pas de nouvelle règle à inventer côté backend. Une erreur serveur (400)
+  s'affiche via le pattern déjà en place (`setError`/`EtatErreur`) dans `LoansCard.tsx`.
+- Aucune invalidation de cache à ajouter : `routers/loans.py` appelle déjà
+  `historique_cache.invalider_historiques_patrimoine(db)` sur `update_loan` — la courbe combinée du
+  Tableau de bord (lentille Net/Brut) reste donc à jour après une édition, comme après un recalage.
+- Tests : nouveaux cas dans `LoansCard.test.tsx` (ouverture du formulaire pré-rempli, sauvegarde avec
+  `api.updateLoan` appelé avec les seuls champs modifiés, annulation sans appel réseau, un champ requis
+  vide bloque la sauvegarde côté client comme au formulaire de création). Côté backend, envisager
+  d'individualiser `test_modifier_un_autre_champ_ne_touche_pas_la_date_de_recalage` en un test par champ
+  (`capital_initial`, `taux_annuel_pct`, `mensualite`, `date_debut`, `duree_mois`) si l'implémentation
+  révèle un doute sur l'un d'eux — non bloquant, la couverture générique existante suffit a priori.
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2151,6 +2200,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2, P.3 traités (2/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
 | **Hors lot — R.1** | Calculateur brut/net + taux d'épargne | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 | **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
+| **Lot quickwin — T.1** | Édition complète d'un emprunt (libellé, capital initial, taux, mensualité, date de début, durée) | — | `S` | **Non traité** — demande directe de l'utilisateur ; backend déjà prêt (`LoanUpdate`), pur ajout de formulaire frontend |
 
 **Pourquoi cet ordre.**
 

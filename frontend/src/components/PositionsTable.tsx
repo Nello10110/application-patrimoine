@@ -3,8 +3,17 @@ import { api } from '../api/client'
 import type { Holding } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { TYPES_PATRIMOINE, TYPE_ACTIF_OPTIONS, TYPES_AVEC_TAUX, libelleTaux, valeurProjeteeUnAn } from '../utils/holdingCategories'
+import {
+  TEXTE_PRIX_REVIENT,
+  TEXTE_VALEUR_ESTIMEE,
+  TYPES_PATRIMOINE,
+  TYPE_ACTIF_OPTIONS,
+  TYPES_AVEC_TAUX,
+  libelleTaux,
+  valeurProjeteeUnAn,
+} from '../utils/holdingCategories'
 import { formatDate, formatEuro, formatQuantite } from '../utils/format'
+import InfoBulle from './InfoBulle'
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
@@ -125,7 +134,10 @@ function PositionCard({
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Prix de revient
+            <span className="inline-flex items-center gap-1">
+              Prix de revient
+              <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+            </span>
             <input
               value={editForm.prix_revient_moyen}
               onChange={(e) => setEditForm({ ...editForm, prix_revient_moyen: e.target.value })}
@@ -160,7 +172,10 @@ function PositionCard({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Valeur estimée
+            <span className="inline-flex items-center gap-1">
+              Valeur estimée
+              <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+            </span>
             <input
               value={editForm.valeur_estimee}
               onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
@@ -590,7 +605,10 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
               <td colSpan={10} className="bg-surface-elevee py-3 pr-4">
                 <div className="flex flex-wrap items-end gap-3">
                   <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                    Prix de revient
+                    <span className="inline-flex items-center gap-1">
+                      Prix de revient
+                      <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+                    </span>
                     <input
                       value={editForm.prix_revient_moyen}
                       onChange={(e) => setEditForm({ ...editForm, prix_revient_moyen: e.target.value })}
@@ -628,7 +646,10 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                     </select>
                   </label>
                   <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                    Valeur estimée
+                    <span className="inline-flex items-center gap-1">
+                      Valeur estimée
+                      <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+                    </span>
                     <input
                       value={editForm.valeur_estimee}
                       onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}

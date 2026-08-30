@@ -6,6 +6,7 @@ import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import HoldingDetailModal from '../components/HoldingDetailModal'
+import InfoBulle from '../components/InfoBulle'
 import LoansCard from '../components/LoansCard'
 import Modale from '../components/Modale'
 import PositionsTable from '../components/PositionsTable'
@@ -17,6 +18,8 @@ import {
   FILTRE_SANS_COMPTE,
   FILTRE_TOUS_COMPTES,
   SEUIL_PEREMPTION_HEURES,
+  TEXTE_PRIX_REVIENT,
+  TEXTE_VALEUR_ESTIMEE,
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
   TYPES_EPARGNE,
@@ -316,7 +319,10 @@ export default function PortefeuillePage() {
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Prix de revient
+            <span className="inline-flex items-center gap-1">
+              Prix de revient
+              <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+            </span>
             <input
               value={form.prix_revient_moyen}
               onChange={(e) => setForm({ ...form, prix_revient_moyen: e.target.value })}
@@ -349,7 +355,10 @@ export default function PortefeuillePage() {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Valeur estimée
+            <span className="inline-flex items-center gap-1">
+              Valeur estimée
+              <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+            </span>
             <input
               value={form.valeur_estimee}
               onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
