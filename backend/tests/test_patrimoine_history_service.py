@@ -4,12 +4,15 @@ toute la page Synthèse) : `services/patrimoine_history_service.compute_patrimoi
 Volontairement sans aucune `Transaction` dans ces tests : `compute_portfolio_history`
 (poche financière) renvoie `[]` sans appel réseau tant qu'aucune position financière
 n'existe (cf. son propre contrat) — ces tests portent donc uniquement sur la poche
-manuelle/emprunts, rapides et déterministes."""
+manuelle/emprunts, rapides et déterministes. Les tests sur la part financière du mode
+étagé (§ U.3) monkeypatchent directement `compute_portfolio_history`, même pattern que
+`test_rapport_service_epargne.py::test_compute_rapport_periode_inclut_le_bloc_epargne`,
+pour rester sans appel réseau."""
 
 from datetime import datetime
 
 from app.models import Loan
-from app.services import detenteurs_service, historique_cache, immobilier_service, patrimoine_history_service
+from app.services import detenteurs_service, historical_performance_service, historique_cache, immobilier_service, patrimoine_history_service
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
 
@@ -69,6 +72,107 @@ def test_immobilier_reste_en_escalier_meme_a_cote_dune_ligne_epargne_interpolee(
     point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
     # 250000 (immobilier, encore plaqué au premier point) + 1100 (épargne, interpolée)
     assert point_mi_chemin["valeur_manuelle"] == 251100.0
+
+
+def test_valeur_investie_ne_bouge_quaux_points_ou_un_versement_est_declare(db):
+    """Backlog § U.3 (retour utilisateur 30/08/2026, mode étagé hors lentille
+    Financier) : l'investi cumulé démarre à la valeur du tout premier point connu,
+    puis ne progresse qu'aux points portant un `versement` explicitement déclaré
+    (§ U.2) — un point sans versement déclaré est traité comme du gain pur, jamais
+    ajouté à l'investi."""
+    holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1300.0, datetime(2024, 2, 1), versement=250.0)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1500.0, datetime(2024, 3, 1))  # pas de versement déclaré
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    point_avant_versement = next(p for p in points if p["date"] == "2024-01-01")
+    point_apres_versement = next(p for p in points if p["date"] == "2024-02-05")
+    point_final = points[-1]
+    assert point_avant_versement["valeur_investie"] == 1000.0
+    assert point_apres_versement["valeur_investie"] == 1250.0  # 1000 + 250 déclarés
+    assert point_final["valeur_investie"] == 1250.0  # inchangé : le +200 de mars n'est pas déclaré, pur gain
+    assert point_final["valeur_manuelle"] == 1500.0  # la valeur brute, elle, suit bien le dernier point connu
+
+
+def test_valeur_investie_reste_en_escalier_meme_pour_une_ligne_epargne_interpolee(db):
+    """Contrairement à la valeur brute (interpolée pour `TYPES_EPARGNE`, § U.2),
+    l'investi reste TOUJOURS en escalier : un versement est un événement ponctuel,
+    jamais une progression continue à lisser."""
+    holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1200.0, datetime(2024, 1, 15), versement=200.0)
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    point_mi_chemin = next(p for p in points if p["date"] == "2024-01-08")
+    assert point_mi_chemin["valeur_manuelle"] == 1100.0  # brute : interpolée à mi-chemin
+    assert point_mi_chemin["valeur_investie"] == 1000.0  # investi : encore plaqué au premier point (escalier)
+
+
+def test_ancrage_cout_dacquisition_definit_linvesti_initial(db):
+    """Quand un coût d'acquisition (§ S.3) est connu et antérieur au premier point
+    réel, l'investi part de `prix_revient_moyen` — pas de la valeur du premier point
+    réel, qui peut déjà inclure une performance depuis l'achat."""
+    holding = make_holding(
+        db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, date_acquisition=datetime(2019, 1, 1)
+    )
+    immobilier_service.enregistrer_point_historique(db, holding.id, 250000.0, datetime(2024, 1, 1))  # pas de versement déclaré
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    assert points[0]["valeur_investie"] == 200000.0  # l'ancrage, pas 250000
+    assert points[-1]["valeur_investie"] == 200000.0  # la hausse de 2024 n'est pas déclarée : pur gain
+    assert points[-1]["valeur_manuelle"] == 250000.0
+
+
+def test_valeur_investie_combine_poche_financiere_et_manuelle(db, monkeypatch):
+    """L'investi total (§ U.3) additionne la part financière (grand livre de
+    transactions, inchangée) et la part manuelle (versements déclarés)."""
+    monkeypatch.setattr(
+        historical_performance_service,
+        "compute_portfolio_history",
+        lambda db_, user_id_: [
+            {"date": "2024-01-01", "valeur_portefeuille": 5000.0, "valeur_investie": 4000.0, "valeur_realisee_cumulee": 100.0},
+        ],
+    )
+    holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    dernier = points[-1]
+    assert dernier["valeur_investie"] == 5000.0  # 4000 (financier) + 1000 (manuel, premier point)
+    assert dernier["valeur_realisee_cumulee"] == 100.0  # exclusivement financier
+
+
+def test_valeur_realisee_cumulee_reste_exclusivement_financiere(db):
+    """Aucun équivalent « réalisé » pour une ligne manuelle — jamais de contribution
+    de la poche manuelle à `valeur_realisee_cumulee`, même avec un historique riche."""
+    holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1500.0, datetime(2024, 2, 1), versement=100.0)
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    assert all(p["valeur_realisee_cumulee"] == 0.0 for p in points)
+
+
+def test_valeur_investie_scoping_detenteur(db):
+    holding = make_holding(db, ticker="AV1", type_actif="LIFE_INSURANCE", quantite=1)
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1000.0, datetime(2024, 1, 1))
+    immobilier_service.enregistrer_point_historique(db, holding.id, 1300.0, datetime(2024, 2, 1), versement=300.0)
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
+    bob = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bob", "personne")
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice.id, 100.0)])
+
+    points_foyer = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+    points_alice = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=alice.id)
+    points_bob = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST, detenteur_id=bob.id)
+
+    assert points_alice[-1]["valeur_investie"] == points_foyer[-1]["valeur_investie"] == 1300.0
+    assert points_bob[-1]["valeur_investie"] == 0.0
 
 
 def test_serie_manuelle_sans_historique_degrade_vers_valeur_estimee_a_plat(db):

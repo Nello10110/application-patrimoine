@@ -60,7 +60,18 @@ function point(overrides: Partial<PortfolioHistoryPoint> = {}): PortfolioHistory
 }
 
 function pointPatrimoine(overrides: Partial<PatrimoineHistoryPoint> = {}): PatrimoineHistoryPoint {
-  return { date: '2026-01-01', valeur_financiere: 0, valeur_manuelle: 0, actifs_totaux: 0, passifs_totaux: 0, patrimoine_net: 0, patrimoine_financier: 0, ...overrides }
+  return {
+    date: '2026-01-01',
+    valeur_financiere: 0,
+    valeur_manuelle: 0,
+    actifs_totaux: 0,
+    passifs_totaux: 0,
+    patrimoine_net: 0,
+    patrimoine_financier: 0,
+    valeur_investie: 0,
+    valeur_realisee_cumulee: 0,
+    ...overrides,
+  }
 }
 
 describe('PatrimoineNetCard', () => {
