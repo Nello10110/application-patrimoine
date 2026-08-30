@@ -2139,6 +2139,114 @@ d'édition en ligne côté frontend).
   (`capital_initial`, `taux_annuel_pct`, `mensualite`, `date_debut`, `duree_mois`) si l'implémentation
   révèle un doute sur l'un d'eux — non bloquant, la couverture générique existante suffit a priori.
 
+#### T.2 — `majeur` · `S` · `P0` · `non traité` (30/08/2026) — Bug : « Rafraîchir les cours » échoue par intermittence
+
+Signalé par l'utilisateur : le bouton « Rafraîchir les cours » (écran Patrimoine) échoue avec
+« Une erreur interne est survenue côté serveur. Réessayez plus tard. ».
+
+**Reproduit et diagnostiqué en conditions réelles** (backend isolé, déclenchement du rafraîchissement
+depuis le navigateur, lecture des logs serveur) : `GET /api/market-data/refresh/status` — le point de
+sondage que le frontend interroge en boucle pendant tout le rafraîchissement — répond parfois `500`,
+avec en cause :
+
+```
+sqlite3.OperationalError: database is locked
+[SQL: UPDATE auth_tokens SET derniere_utilisation=? WHERE auth_tokens.token = ?]
+```
+
+**Cause racine** : `market_data_service.refresh_tickers` (`backend/app/services/market_data_service.py:311-449`)
+boucle sur CHAQUE position (jusqu'à ~50 sur le foyer réel), avec une temporisation de 0,25 s entre
+deux appels réseau (yfinance/justETF) — le commentaire du module l'assume déjà lui-même : « dépasse
+largement la minute ». Or un SEUL `db.commit()` clôture toute la boucle, ligne 448 : SQLAlchemy ouvre
+une transaction d'écriture implicite dès le premier `db.add`/attribut modifié, et SQLite (mode
+journal par défaut, pas de `busy_timeout` configuré — `backend/app/database.py:92`,
+`connect_args={"check_same_thread": False}` seulement) verrouille alors TOUT LE FICHIER en écriture
+pour toute la durée du rafraîchissement. Or `auth.get_current_token` (`backend/app/auth.py`) écrit
+`derniere_utilisation` sur CHAQUE requête authentifiée — y compris les propres sondages
+`GET /api/market-data/refresh/status` du frontend pendant que le rafraîchissement tourne. Résultat :
+une bonne partie des sondages pendant la fenêtre (potentiellement plusieurs dizaines de secondes à
+plus d'une minute sur le foyer réel) échoue en 500 sans retry ni attente, faute de `busy_timeout`.
+
+**Correctif attendu** (standard SQLite face à ce type de contention, pas une réécriture du job) :
+
+- Activer le mode WAL (`PRAGMA journal_mode=WAL`) sur la connexion (`backend/app/database.py`) —
+  autorise les lecteurs concurrents pendant un écrivain, réduit drastiquement la fenêtre de blocage.
+- Configurer un `busy_timeout` (`connect_args={"check_same_thread": False, "timeout": 30}` côté
+  `create_engine`, ou `PRAGMA busy_timeout` explicite) — un écrivain concurrent ATTEND puis réessaie
+  au lieu d'échouer immédiatement ; élimine la classe d'erreur pour CE cas ET tout autre cas similaire
+  futur (pas un correctif ponctuel à ce seul endpoint).
+- À évaluer en complément (pas strictement nécessaire si WAL + busy_timeout suffisent) : committer par
+  lot dans la boucle de `refresh_tickers` (ex. tous les N tickers) plutôt qu'un unique commit final,
+  pour réduire la durée de toute façon.
+- Tests : un test d'intégration simulant une écriture concurrente pendant un rafraîchissement
+  (`test_market_data_background.py`, déjà le fichier qui couvre ce job) — actuellement aucun test ne
+  couvre la contention SQLite. Vérifier aussi qu'aucune régression n'apparaît sur les tests
+  d'isolation entre utilisateurs (`test_isolation_utilisateurs.py`), le mode WAL changeant le fichier
+  physique créé à côté de la base (`-wal`, `-shm`).
+
+#### U.1 — `majeur` · `M` · `P2` · `non traité` (30/08/2026) — Métriques d'épargne sur l'écran Rapport
+
+Demande directe de l'utilisateur : l'écran Rapport (`rapport_service.py`) est aujourd'hui **100 %
+financier** — valeur du portefeuille, évolution investi/généré, dividendes, plus gros mouvements —
+tous dérivés du grand livre de transactions boursières. Aucune de ces tuiles ne reflète l'épargne
+(livrets, PEE/PERCO, assurance-vie, PER, comptes courants — `TYPES_EPARGNE`, `models.py:88`), pourtant
+déjà valorisée manuellement et suivie dans le temps (écran Épargne, § S.1) depuis le 25/08/2026.
+
+**Audit avant écriture de cette entrée — ce qui existe déjà et est réutilisable, ce qui manque :**
+
+- `patrimoine_history_service._serie_holding_manuel` : construit déjà, PAR LIGNE, une série datée
+  (historique réel + ancrage sur le coût d'acquisition, § S.3) pour tout type de
+  `TYPES_ACTIF_PATRIMOINE_MANUEL` — c'est le bloc de construction pour évaluer la valeur de l'épargne
+  À UNE DATE DONNÉE (début/fin de période), pas seulement la série complète qu'expose aujourd'hui
+  `compute_patrimoine_history`.
+- `revenus_passifs_service._interets_livrets_annuels` : calcule déjà `valeur_estimee * taux_pct / 100`
+  par ligne `REGULATED_SAVINGS`/`EMPLOYEE_SAVINGS` — mais UNIQUEMENT comme projection à 12 mois
+  glissants, jamais proratisé sur une période arbitraire (mensuel/annuel/personnalisé).
+  `Holding.taux_pct` (`models.py`) n'est aujourd'hui JAMAIS utilisé pour calculer un intérêt
+  RÉELLEMENT perçu sur une période passée — seulement projectif.
+  - **Limite assumée à documenter, pas à résoudre ici** : contrairement au portefeuille financier (un
+    vrai grand livre de transactions permet une décomposition investi/généré exacte), l'épargne n'a
+    aucun journal des versements — toute distinction « argent ajouté » vs « intérêts produits » sur la
+    période sera nécessairement une ESTIMATION (intérêts = `taux_pct` proratisé ; versements = résidu
+    de l'évolution totale moins cette estimation), à étiqueter explicitement comme telle dans l'UI —
+    même philosophie que le repli `None` du TWR ou la légende de `PatrimoineNetCard`.
+- `salaire_service.compute_synthese_annee` (R.1) : calcule déjà un `taux_epargne_pct`, mais UNIQUEMENT
+  pour une année calendaire entière (paramètre `annee: int`), pas pour une période arbitraire — à
+  généraliser (même changement de signature que `rapport_service.compute_rapport_periode`,
+  `date_debut`/`date_fin`) si cette tuile est retenue ; sinon, ne l'afficher que quand le mode Rapport
+  est « Annuel » et coïncide avec une année de `Salaire` renseignée.
+- `objectifs_service.compute_indicateurs_situation` (O.2) calcule déjà `matelas_securite_mois`
+  (épargne liquide ÷ dépenses mensuelles moyennes) — mais c'est un INSTANTANÉ (aujourd'hui), pas une
+  métrique de période : hors périmètre de cette entrée (resterait un doublon décontextualisé sur un
+  écran organisé autour d'une période), déjà consultable sur l'écran Objectifs.
+
+**Tuiles proposées (par ordre décroissant de simplicité d'implémentation) :**
+
+1. **Évolution de l'épargne sur la période** (miroir de la tuile « Évolution sur la période » déjà
+   existante pour le portefeuille) : valeur totale `TYPES_EPARGNE` en début et fin de période (via
+   `_serie_holding_manuel` évaluée aux deux dates), écart en € et en %.
+2. **Répartition de l'épargne par type, en fin de période** : Livret A/LDDS, PEE/PERCO, assurance-vie,
+   PER, comptes courants — même construction que la répartition par type déjà affichée sur le Tableau
+   de bord, simplement restreinte à `TYPES_EPARGNE` et évaluée à `date_fin` plutôt qu'à aujourd'hui.
+3. **Intérêts perçus (estimés) sur les livrets pendant la période** : `_interets_livrets_annuels`
+   proratisé par `(nombre de jours de la période / 365)` plutôt que fixé à 12 mois — extension directe
+   de la fonction existante, pas une réécriture.
+4. **Décomposition « versements estimés / intérêts estimés »** de la tuile 1, sur le modèle de la carte
+   « D'où vient l'évolution ? » déjà existante côté financier — mais explicitement étiquetée comme
+   estimation (résidu, cf. limite assumée ci-dessus), jamais présentée comme un fait mesuré.
+5. *(Optionnel, effort plus élevé — à trancher séparément)* **Taux d'épargne sur la période**, si
+   `salaire_service.compute_synthese_annee` est généralisé à `date_debut`/`date_fin`.
+
+**Hors périmètre explicite de cette entrée** : le coussin de sécurité en mois de dépenses (déjà sur
+Objectifs, § O.2, nature instantanée incompatible avec un écran organisé par période) ; toute
+véritable distinction versement/intérêt basée sur un journal réel (nécessiterait de tracer chaque
+changement de `valeur_estimee` avec un motif saisi par l'utilisateur — hors scope, non demandé).
+
+Tests à prévoir : nouveaux tests `rapport_service.py`/`test_rapport_service.py` par tuile (utiliser le
+même style de fixtures LOCF déjà en place dans `test_patrimoine_history_service.py`), tests frontend
+`RapportPage.test.tsx` pour l'affichage conditionnel (masquer les tuiles épargne si aucun actif
+`TYPES_EPARGNE` sur la période, même pattern que `EtatVide` déjà utilisé ailleurs sur cet écran).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2201,6 +2309,8 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Hors lot — R.1** | Calculateur brut/net + taux d'épargne | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 | **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 | **Lot quickwin — T.1** | Édition complète d'un emprunt (libellé, capital initial, taux, mensualité, date de début, durée) | — | `S` | **Non traité** — demande directe de l'utilisateur ; backend déjà prêt (`LoanUpdate`), pur ajout de formulaire frontend |
+| **Lot quickwin — T.2** | Bug : « Rafraîchir les cours » échoue par intermittence (`database is locked`) | — | `S` | **Non traité** — reproduit et diagnostiqué (30/08/2026) ; correctif = config SQLite (WAL + busy_timeout), pas une réécriture du job |
+| **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Non traité** — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 
 **Pourquoi cet ordre.**
 
