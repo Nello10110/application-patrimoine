@@ -2184,6 +2184,54 @@ plus d'une minute sur le foyer réel) échoue en 500 sans retry ni attente, faut
   d'isolation entre utilisateurs (`test_isolation_utilisateurs.py`), le mode WAL changeant le fichier
   physique créé à côté de la base (`-wal`, `-shm`).
 
+#### T.3 — `mineur` · `S` · `P2` · `non traité` (30/08/2026) — Corriger/supprimer un point de l'historique de valorisation
+
+Demande directe de l'utilisateur, avec capture d'écran à l'appui : sur l'écran Épargne (et la fiche
+immobilier), l'historique de valorisation d'un bien n'est manipulable que dans un seul sens —
+`immobilier_service.enregistrer_point_historique` **ajoute** un point, mais rien ne permet de corriger
+ou supprimer un point déjà saisi (ex. une valeur tapée par erreur, comme le point à 0,00 € visible sur
+la capture — qui casse le graphique en tirant la courbe vers zéro, de façon permanente).
+
+**Audit avant écriture de cette entrée** : la table `HoldingValuationHistory` (`models.py:238`) porte
+déjà un `id` auto-incrémenté — la clé technique existe, elle n'est simplement exposée nulle part.
+`immobilier_service.py` n'a que trois fonctions : `enregistrer_point_historique` (insertion pure,
+docstring explicite « n'écrase jamais un point existant »), `historique_valorisation` (liste triée),
+`upsert_detail_immobilier` (sans rapport, fiche locative). Aucune fonction de modification/suppression
+d'UN point précis n'existe. Côté API, `GET /holdings/{ticker}/immobilier-history`
+(`routers/portfolio.py:239`) renvoie `ValuationHistoryPoint` (`schemas.py:590`), qui expose seulement
+`date_valeur`/`valeur` — **pas `id`** : même en ajoutant les routes, le frontend ne pourrait pas encore
+cibler un point précis sans étendre aussi ce schéma. Côté frontend, `ValorisationHistoriqueCard`
+(`HoldingDetailContent.tsx:396-403`) affiche chaque ligne sans aucun bouton d'action, `key={` `${p.date_valeur}-${i}` `}`
+— un simple index, cohérent avec l'absence d'identifiant côté API.
+
+**Spécification de ce qui est attendu :**
+
+- `schemas.ValuationHistoryPoint` : ajouter le champ `id: int`.
+- `immobilier_service.py` : deux nouvelles fonctions, même style que les fonctions existantes du
+  module — `modifier_point_historique(db, point_id, valeur, date_valeur) -> HoldingValuationHistory | None`
+  (`None` si l'id n'appartient pas à ce holding, pour un contrôle d'accès propre côté routeur) et
+  `supprimer_point_historique(db, point_id) -> bool`.
+- `routers/portfolio.py` : `PATCH`/`DELETE /holdings/{ticker}/immobilier-history/{point_id}` — même
+  garde d'appartenance que les autres routes de ce fichier (le point doit appartenir à un `Holding` du
+  foyer courant, 404 sinon). **Point d'attention spécifique à cette fonctionnalité** : si le point
+  modifié/supprimé est le PLUS RÉCENT de l'historique, `Holding.valeur_estimee`/`date_valeur_estimee`
+  (la valeur « courante », dupliquée pour un accès rapide ailleurs dans l'application — cf. docstring
+  de `HoldingValuationHistory`) doivent être resynchronisés sur le nouveau point le plus récent restant
+  (ou sur `None` si l'historique devient vide) — sans quoi la valeur courante affichée partout
+  (Patrimoine, Tableau de bord...) divergerait silencieusement de l'historique qu'on vient de corriger.
+  Invalider aussi `historique_cache.invalider_historiques_patrimoine(db)` (même raison que le
+  correctif § S.3 : ce point alimente la courbe combinée du Tableau de bord).
+- Frontend (`ValorisationHistoriqueCard`) : bouton **Modifier**/**Supprimer** par ligne du tableau
+  (jamais sur le point de coût d'acquisition synthétique ajouté par § S.3 au graphique — celui-ci n'a
+  pas d'`id`, n'existe pas en base, et n'apparaît déjà pas dans ce tableau, seulement dans le
+  graphique) — même pattern d'édition en ligne que `PositionsTable.tsx`/`LoansCard.tsx` (ligne qui
+  bascule en formulaire Valeur/Date + Enregistrer/Annuler), confirmation avant suppression comme pour
+  une position ou un emprunt (`Modale` déjà utilisée ailleurs pour ce cas).
+- Tests : backend (`test_immobilier_service.py` ou équivalent existant) — modification, suppression,
+  resynchronisation de `valeur_estimee` quand le point le plus récent est touché, 404 sur un point
+  d'un autre foyer ; frontend (`HoldingDetailContent.test.tsx`) — édition et suppression d'une ligne,
+  rafraîchissement du graphique après coup.
+
 #### U.1 — `majeur` · `M` · `P2` · `non traité` (30/08/2026) — Métriques d'épargne sur l'écran Rapport
 
 Demande directe de l'utilisateur : l'écran Rapport (`rapport_service.py`) est aujourd'hui **100 %
@@ -2310,6 +2358,7 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 | **Lot quickwin — T.1** | Édition complète d'un emprunt (libellé, capital initial, taux, mensualité, date de début, durée) | — | `S` | **Non traité** — demande directe de l'utilisateur ; backend déjà prêt (`LoanUpdate`), pur ajout de formulaire frontend |
 | **Lot quickwin — T.2** | Bug : « Rafraîchir les cours » échoue par intermittence (`database is locked`) | — | `S` | **Non traité** — reproduit et diagnostiqué (30/08/2026) ; correctif = config SQLite (WAL + busy_timeout), pas une réécriture du job |
+| **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Non traité** — demande directe de l'utilisateur, capture à l'appui ; `id` déjà en base, reste à l'exposer et ajouter les routes/UI |
 | **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Non traité** — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
 
 **Pourquoi cet ordre.**
