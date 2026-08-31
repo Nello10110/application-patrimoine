@@ -140,12 +140,18 @@ mise à jour, versement mensuel déclaré, et un petit historique daté.
   Chaque ligne de l'historique peut ensuite être **corrigée** (montant et/ou date) ou **supprimée**
   (avec confirmation) — utile après une erreur de saisie ; la valeur actuelle affichée en haut se
   resynchronise alors automatiquement sur le point le plus récent restant.
-- **« Dont versement »** (optionnel, à l'ajout ou à la correction d'un point) : précise la part de la
-  hausse (ou de la baisse, en négatif pour un retrait) qui vient d'un versement de ta part plutôt que
-  d'une performance du contrat — ex. tu verses 500 € et le contrat en gagne 200 : la valorisation
-  augmente de 700 €, dont 500 € de versement. Laissé vide, l'écran Rapport continue d'estimer le gain
-  à partir du taux déclaré (Réglages) ; précisé sur au moins un point de la période, il remplace cette
-  estimation par un chiffre réel.
+- **« Dont versement » / « Dont plus-value »** (optionnel, à l'ajout ou à la correction d'un point) :
+  précise la part de la hausse (ou de la baisse, en négatif pour un retrait) qui vient d'un versement
+  de ta part plutôt que d'une performance du contrat — ex. tu verses 500 € et le contrat en gagne
+  200 € : la valorisation augmente de 700 €, dont 500 € de versement (ou, vu autrement, 200 € de
+  plus-value). Une bascule **Versement / Plus-value** au-dessus du champ laisse choisir lequel des
+  deux tu connais réellement — ton relevé annonce parfois l'un, parfois l'autre — l'autre montant est
+  calculé automatiquement et affiché en dessous (« → plus-value déduite : 200,00 € »), jamais demandé
+  deux fois. La bascule « Plus-value » est grisée sans point antérieur connu (rien dont déduire une
+  plus-value, sur la toute première valorisation d'un compte) ; le versement reste alors la seule
+  saisie possible. Laissé vide, l'écran Rapport continue d'estimer le gain à partir du taux déclaré
+  (Réglages) ; précisé sur au moins un point de la période, il remplace cette estimation par un
+  chiffre réel.
 - **Versement mensuel** (optionnel) : le montant que tu verses régulièrement sur ce compte (ex. 200 €
   par mois sur une assurance-vie). Renseigné à la création du compte ou depuis Portefeuille (le champ
   n'apparaît que pour ces types de compte). Ce montant est **additionné** au versement mensuel suggéré

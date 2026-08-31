@@ -17,6 +17,114 @@ function libelleTypeActif(typeActif: string | null): string | null {
   return TYPE_ACTIF_OPTIONS.find((o) => o.value === typeActif)?.label ?? typeActif
 }
 
+type ModeDecomposition = 'versement' | 'plus_value'
+
+/** Le versement et la plus-value d'un point d'historique sont les deux faces de la
+ * même somme (`valeur - valeurPrécédente`, backlog § U.2) : connaître l'une donne
+ * l'autre par soustraction. Un seul champ est jamais stocké (`versement`, sur
+ * `HoldingValuationHistory`) — cette fonction traduit la saisie de l'utilisateur
+ * (quel que soit le champ qu'il a choisi de remplir) vers cette seule donnée. */
+function versementDepuisDecomposition(
+  mode: ModeDecomposition,
+  montant: string,
+  valeur: string,
+  valeurPrecedente: number | null,
+): number | null {
+  if (!montant) return null
+  if (mode === 'versement') return Number(montant)
+  if (valeurPrecedente === null || !valeur) return null
+  return Number(valeur) - valeurPrecedente - Number(montant)
+}
+
+/** Bascule versement/plus-value (retour utilisateur 30/08/2026, suite § U.2) :
+ * selon ce que l'utilisateur connaît réellement (un versement précis relevé sur son
+ * compte, ou directement la plus-value affichée par son contrat), il choisit lequel
+ * saisir — l'autre est toujours déduit, jamais demandé deux fois. La bascule
+ * « Plus-value » est désactivée sans point antérieur connu (rien dont déduire une
+ * plus-value) ; le versement reste alors la seule saisie possible, comme avant
+ * cette fonctionnalité. */
+function ChampDecomposition({
+  mode,
+  onModeChange,
+  montant,
+  onMontantChange,
+  valeur,
+  valeurPrecedente,
+  montantsMasques,
+  libelleVersement,
+  libellePlusValue,
+  ariaLabelVersement,
+  ariaLabelPlusValue,
+}: {
+  mode: ModeDecomposition
+  onModeChange: (m: ModeDecomposition) => void
+  montant: string
+  onMontantChange: (v: string) => void
+  valeur: string
+  valeurPrecedente: number | null
+  montantsMasques: boolean
+  libelleVersement: string
+  libellePlusValue: string
+  ariaLabelVersement?: string
+  ariaLabelPlusValue?: string
+}) {
+  const delta = valeurPrecedente !== null && valeur ? Number(valeur) - valeurPrecedente : null
+  const autre = delta !== null && montant ? delta - Number(montant) : null
+
+  return (
+    <div className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+      {/* Bascule hors du `<label>` ci-dessous : son texte doit rester exactement le
+          libellé du champ (nom accessible de l'input), pas concaténé à "Versement
+          Plus-value". */}
+      <span className="inline-flex w-fit overflow-hidden rounded border border-bordure text-[11px] normal-case">
+        <button
+          type="button"
+          onClick={() => {
+            onModeChange('versement')
+            onMontantChange('')
+          }}
+          aria-pressed={mode === 'versement'}
+          className={`px-1.5 py-0.5 ${mode === 'versement' ? 'bg-texte text-surface' : 'text-texte-attenue hover:bg-surface-elevee'}`}
+        >
+          Versement
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onModeChange('plus_value')
+            onMontantChange('')
+          }}
+          disabled={valeurPrecedente === null}
+          aria-pressed={mode === 'plus_value'}
+          title={valeurPrecedente === null ? 'Nécessite un point antérieur connu' : undefined}
+          className={`border-l border-bordure px-1.5 py-0.5 disabled:cursor-not-allowed disabled:opacity-40 ${
+            mode === 'plus_value' ? 'bg-texte text-surface' : 'text-texte-attenue hover:bg-surface-elevee'
+          }`}
+        >
+          Plus-value
+        </button>
+      </span>
+      <label className="flex flex-col gap-1">
+        {mode === 'versement' ? libelleVersement : libellePlusValue}
+        <input
+          value={montant}
+          onChange={(e) => onMontantChange(e.target.value)}
+          type="number"
+          step="any"
+          placeholder="optionnel"
+          aria-label={mode === 'versement' ? ariaLabelVersement : ariaLabelPlusValue}
+          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+        />
+      </label>
+      {autre !== null && (
+        <span className="font-normal">
+          → {mode === 'versement' ? 'plus-value déduite' : 'versement déduit'} : {formatEuro(autre, 2, montantsMasques)}
+        </span>
+      )}
+    </div>
+  )
+}
+
 /** Répartition entre détenteurs (backlog 2.L.1) — n'apparaît que si l'utilisateur a
  * déclaré au moins un détenteur (Réglages). Gère son propre état, indépendant du
  * `detail` du composant parent : après enregistrement, recharge la fiche pour
@@ -363,7 +471,8 @@ export function ValorisationHistoriqueCard({
   const [editionId, setEditionId] = useState<number | null>(null)
   const [editValeur, setEditValeur] = useState('')
   const [editDate, setEditDate] = useState('')
-  const [editVersement, setEditVersement] = useState('')
+  const [editMode, setEditMode] = useState<ModeDecomposition>('versement')
+  const [editMontant, setEditMontant] = useState('')
   const [editionSaving, setEditionSaving] = useState(false)
   const [erreurAction, setErreurAction] = useState<string | null>(null)
   const [confirmSuppression, setConfirmSuppression] = useState<ValuationHistoryPoint | null>(null)
@@ -376,18 +485,24 @@ export function ValorisationHistoriqueCard({
     setEditionId(p.id)
     setEditValeur(String(p.valeur))
     setEditDate(p.date_valeur.slice(0, 10))
-    setEditVersement(p.versement !== null ? String(p.versement) : '')
+    // Le versement stocké est toujours ré-affiché en mode « versement », qu'il ait
+    // été saisi directement ou déduit d'une plus-value à l'origine — seule cette
+    // donnée est connue, jamais laquelle des deux l'utilisateur avait tapée.
+    setEditMode('versement')
+    setEditMontant(p.versement !== null ? String(p.versement) : '')
   }
 
   async function saveEdition(pointId: number) {
     if (!editValeur || !editDate) return
     setEditionSaving(true)
     setErreurAction(null)
+    const indexEnEdition = historique.findIndex((h) => h.id === pointId)
+    const valeurPrecedente = indexEnEdition > 0 ? historique[indexEnEdition - 1].valeur : null
     try {
       const holding = await api.updateHoldingValuationPoint(ticker, pointId, {
         valeur: Number(editValeur),
         date: editDate,
-        versement: editVersement ? Number(editVersement) : null,
+        versement: versementDepuisDecomposition(editMode, editMontant, editValeur, valeurPrecedente),
       })
       setEditionId(null)
       onChanged(holding)
@@ -455,8 +570,10 @@ export function ValorisationHistoriqueCard({
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">
-          {[...historique].reverse().map((p) =>
-            editionId === p.id ? (
+          {[...historique].reverse().map((p) => {
+            const indexPoint = historique.findIndex((h) => h.id === p.id)
+            const valeurPrecedentePoint = indexPoint > 0 ? historique[indexPoint - 1].valeur : null
+            return editionId === p.id ? (
               <tr key={p.id}>
                 <td colSpan={3} className="py-2">
                   <div className="flex flex-wrap items-end gap-3">
@@ -482,18 +599,19 @@ export function ValorisationHistoriqueCard({
                         className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                      Dont versement (€)
-                      <input
-                        value={editVersement}
-                        onChange={(e) => setEditVersement(e.target.value)}
-                        type="number"
-                        step="any"
-                        placeholder="optionnel"
-                        aria-label={`Versement du ${formatDate(p.date_valeur)} (édition)`}
-                        className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                      />
-                    </label>
+                    <ChampDecomposition
+                      mode={editMode}
+                      onModeChange={setEditMode}
+                      montant={editMontant}
+                      onMontantChange={setEditMontant}
+                      valeur={editValeur}
+                      valeurPrecedente={valeurPrecedentePoint}
+                      montantsMasques={montantsMasques}
+                      libelleVersement="Dont versement (€)"
+                      libellePlusValue="Dont plus-value (€)"
+                      ariaLabelVersement={`Versement du ${formatDate(p.date_valeur)} (édition)`}
+                      ariaLabelPlusValue={`Plus-value du ${formatDate(p.date_valeur)} (édition)`}
+                    />
                     <button
                       onClick={() => saveEdition(p.id)}
                       disabled={editionSaving}
@@ -532,8 +650,8 @@ export function ValorisationHistoriqueCard({
                   </div>
                 </td>
               </tr>
-            ),
-          )}
+            )
+          })}
         </tbody>
       </table>
       {erreurAction && <p className="mt-2 text-sm text-negatif">{erreurAction}</p>}
@@ -578,12 +696,26 @@ export function ValorisationHistoriqueCard({
  * l'utilisateur (backlog 2.S.1) — jamais `datetime.now()` imposé côté serveur pour
  * cette route, contrairement à la création/édition classique d'une ligne. Partagé
  * avec `EpargnePage` (action rapide « Ajouter une valorisation » sur chaque compte). */
-export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onAdded: (holding: Holding) => void }) {
+export function AjoutValorisationForm({
+  ticker,
+  historique,
+  onAdded,
+}: {
+  ticker: string
+  historique: ValuationHistoryPoint[]
+  onAdded: (holding: Holding) => void
+}) {
+  const { montantsMasques } = usePreferencesAffichage()
   const [valeur, setValeur] = useState('')
   const [date, setDate] = useState(() => dateVersISO(new Date()))
-  const [versement, setVersement] = useState('')
+  const [mode, setMode] = useState<ModeDecomposition>('versement')
+  const [montant, setMontant] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // `historique` est trié chronologiquement (croissant) par le backend : le dernier
+  // point est le plus récent, celui dont ce nouveau point marque l'évolution.
+  const valeurPrecedente = historique.length > 0 ? historique[historique.length - 1].valeur : null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -594,10 +726,10 @@ export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onA
       const holding = await api.setHoldingValorisation(ticker, {
         valeur: Number(valeur),
         date,
-        versement: versement ? Number(versement) : null,
+        versement: versementDepuisDecomposition(mode, montant, valeur, valeurPrecedente),
       })
       setValeur('')
-      setVersement('')
+      setMontant('')
       onAdded(holding)
     } catch (err) {
       setError((err as Error).message)
@@ -630,17 +762,17 @@ export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onA
           className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Dont versement (€)
-        <input
-          type="number"
-          step="any"
-          value={versement}
-          onChange={(e) => setVersement(e.target.value)}
-          placeholder="optionnel"
-          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
+      <ChampDecomposition
+        mode={mode}
+        onModeChange={setMode}
+        montant={montant}
+        onMontantChange={setMontant}
+        valeur={valeur}
+        valeurPrecedente={valeurPrecedente}
+        montantsMasques={montantsMasques}
+        libelleVersement="Dont versement (€)"
+        libellePlusValue="Dont plus-value (€)"
+      />
       <button
         type="submit"
         disabled={saving}
@@ -650,9 +782,8 @@ export function AjoutValorisationForm({ ticker, onAdded }: { ticker: string; onA
       </button>
       {error && <span className="text-sm text-negatif">{error}</span>}
       <p className="w-full text-xs text-texte-attenue">
-        « Dont versement » : la part de la hausse (ou baisse — valeur négative pour un retrait) qui vient d'un versement plutôt
-        que d'une performance du contrat. Laisser vide si vous ne savez pas : l'écran Rapport continuera d'estimer le gain via le
-        taux déclaré.
+        Versement ou plus-value, au choix — l'autre se déduit automatiquement de l'évolution depuis le point précédent. Laisser
+        vide si vous ne savez pas : l'écran Rapport continuera d'estimer le gain via le taux déclaré.
       </p>
     </form>
   )
@@ -715,7 +846,7 @@ function EpargneApercu({
           Un point antidaté (rattrapage a posteriori) ne remplace jamais la valeur actuelle si une date plus récente est déjà
           connue.
         </p>
-        <AjoutValorisationForm ticker={detail.ticker} onAdded={handleValorisationAjoutee} />
+        <AjoutValorisationForm ticker={detail.ticker} historique={historique} onAdded={handleValorisationAjoutee} />
       </Card>
     </>
   )

@@ -472,6 +472,61 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7, { valeur: 12000, date: '2026-01-01', versement: 1800 }),
     )
   })
+
+  it("le bouton « Plus-value » est désactivé sans point antérieur connu (première valorisation)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+
+    await screen.findByLabelText('Valeur (€)')
+    expect(screen.getByRole('button', { name: 'Plus-value' })).toBeDisabled()
+  })
+
+  it('ajouter une valorisation en indiquant la plus-value (plutôt que le versement) déduit le versement à envoyer', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
+      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 10000, versement: null },
+    ])
+    vi.mocked(api.setHoldingValorisation).mockResolvedValue(holdingApresAction())
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+    await screen.findByLabelText('Valeur (€)')
+
+    fireEvent.change(screen.getByLabelText('Valeur (€)'), { target: { value: '12000' } })
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-03-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Plus-value' }))
+    fireEvent.change(screen.getByLabelText('Dont plus-value (€)'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
+
+    // Évolution 10 000 -> 12 000 = 2 000 ; plus-value déclarée 1 200 => versement déduit 800.
+    await vi.waitFor(() =>
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15', versement: 800 }),
+    )
+  })
+
+  it('modifier un point en indiquant la plus-value déduit le versement envoyé (backlog suite § U.2)', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
+      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 10000, versement: null },
+      { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 12000, versement: null },
+    ])
+    vi.mocked(api.updateHoldingValuationPoint).mockResolvedValue(holdingApresAction())
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', immobilier: null })} />)
+
+    await screen.findByText('Historique de valorisation')
+    // Liste affichée du plus récent au plus ancien : le premier "Modifier" édite le
+    // point 2026 (id 2), dont le prédécesseur chronologique est le point 2025.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Modifier' })[0])
+    const ligneEdition = screen.getByRole('button', { name: 'Enregistrer' }).closest('tr')!
+
+    fireEvent.click(within(ligneEdition).getByRole('button', { name: 'Plus-value' }))
+    fireEvent.change(screen.getByLabelText('Plus-value du 01/01/2026 (édition)'), { target: { value: '500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    // Évolution 10 000 -> 12 000 = 2 000 ; plus-value déclarée 500 => versement déduit 1 500.
+    await vi.waitFor(() =>
+      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 2, { valeur: 12000, date: '2026-01-01', versement: 1500 }),
+    )
+  })
 })
 
 describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
