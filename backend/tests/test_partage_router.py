@@ -4,7 +4,7 @@ directement sans jeton — mêmes routes que verrait un vrai visiteur anonyme)."
 
 from app.services import partage_service
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import make_holding
 
 
 def test_create_lien(client):

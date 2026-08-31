@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { Detenteur } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { Lentille } from '../contexts/preferencesAffichageContextObject'
+import { dateVersISO } from '../utils/format'
 import { PERIODES_RELATIVES, type PeriodeRelative } from '../utils/periode'
 import { IconOeil, IconOeilBarre } from './icons'
 
@@ -71,7 +72,7 @@ export default function BarreControles() {
         onChange={(e) => {
           const valeur = e.target.value
           if (valeur === VALEUR_PERSONNALISEE) {
-            const aujourdhui = new Date().toISOString().slice(0, 10)
+            const aujourdhui = dateVersISO(new Date())
             setPeriode({ type: 'personnalisee', dateDebut: aujourdhui, dateFin: aujourdhui })
           } else {
             setPeriode({ type: 'relative', valeur: valeur as PeriodeRelative })

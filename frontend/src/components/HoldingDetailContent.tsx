@@ -9,7 +9,7 @@ import Modale from './Modale'
 import PieChartCard from './PieChartCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
-import { formatDate, formatEuro, formatPct, formatQuantite } from '../utils/format'
+import { dateVersISO, formatDate, formatEuro, formatPct, formatQuantite } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
 function libelleTypeActif(typeActif: string | null): string | null {
@@ -707,7 +707,7 @@ export function AjoutValorisationForm({
 }) {
   const { montantsMasques } = usePreferencesAffichage()
   const [valeur, setValeur] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => dateVersISO(new Date()))
   const [mode, setMode] = useState<ModeDecomposition>('versement')
   const [montant, setMontant] = useState('')
   const [saving, setSaving] = useState(false)

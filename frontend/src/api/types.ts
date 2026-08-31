@@ -215,12 +215,6 @@ export interface ValorisationInput {
   versement?: number | null
 }
 
-// Types d'actifs valorisés manuellement (roadmap Phase 1, patrimoine net) — aucune
-// cotation automatique, `Holding.valeur_estimee` porte leur valeur. Cf.
-// `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
-export const TYPES_ACTIF_PATRIMOINE_MANUEL = ['REAL_ESTATE', 'SCPI', 'LIFE_INSURANCE', 'PENSION'] as const
-export type TypeActifPatrimoineManuel = (typeof TYPES_ACTIF_PATRIMOINE_MANUEL)[number]
-
 // Emprunt (roadmap Phase 1, patrimoine net) — premier passif de l'application.
 // `capital_restant_du` est toujours calculé côté serveur (`loan_service.py`), jamais
 // recalculé côté frontend.

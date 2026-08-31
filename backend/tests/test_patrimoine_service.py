@@ -407,6 +407,37 @@ class TestExpositionConsolidee:
         assert resultat["plus_grosse_ligne_ticker_nette"] == "MAISON"
         assert resultat["plus_grosse_ligne_pct_nette"] == round(180000.0 / 181000.0 * 100, 1)
 
+    def test_ligne_a_equite_nette_negative_reste_visible_dans_la_repartition_nette(self, db):
+        """Un bien dont l'emprunt rattaché dépasse sa valeur (équité négative, ex. achat
+        très récent, fortement endetté) ne doit jamais disparaître silencieusement de
+        `repartition_classe_nette`/`repartition_geo_nette` : même règle que
+        `repartition_par_classe_nette` de `compute_patrimoine_net`, la somme de ces
+        répartitions doit toujours correspondre exactement à `valeur_totale_nette`."""
+        h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000, sans emprunt
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST,
+                libelle="Crédit immo",
+                capital_initial=250000.0,
+                taux_annuel_pct=0.0,
+                mensualite=1000.0,
+                date_debut=datetime(2020, 1, 1),
+                duree_mois=200,
+                capital_restant_du_manuel=250000.0,  # > valeur_estimee : équité nette négative
+                holding_id=h.id,
+            )
+        )
+        db.commit()
+
+        resultat = patrimoine_service.compute_exposition_consolidee(db, ID_UTILISATEUR_TEST)
+
+        # Nette : 200000 - 250000 (son emprunt) + 1000 (Actions) = -49000.
+        assert resultat["valeur_totale_nette"] == -49000.0
+        par_classe_nette = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe_nette"]}
+        assert par_classe_nette == {"Immobilier": -50000.0, "Actions": 1000.0}
+        assert sum(par_classe_nette.values()) == resultat["valeur_totale_nette"]
+
     def test_emprunt_non_rattache_reduit_la_valeur_totale_nette_sans_categorie_associee(self, db):
         make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)  # 1000
         db.add(

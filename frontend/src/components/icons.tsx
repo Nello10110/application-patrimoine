@@ -205,14 +205,6 @@ export function IconFlecheDroite({ className }: IconProps) {
   )
 }
 
-export function IconValide({ className }: IconProps) {
-  return (
-    <svg {...base} className={className}>
-      <path d="M4 10.5 L8 14.5 L16 5.5" />
-    </svg>
-  )
-}
-
 export function IconSoleil({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

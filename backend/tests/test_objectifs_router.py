@@ -1,7 +1,7 @@
 """Verrouille `routers/objectifs.py` (backlog 2.O.1/2.O.2) : CRUD des objectifs,
 indicateurs de situation, isolation entre comptes de connexion (IDOR)."""
 
-from .conftest import ID_UTILISATEUR_B, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_B, basculer_utilisateur, make_holding
+from .conftest import ID_UTILISATEUR_B, NOM_UTILISATEUR_B, basculer_utilisateur, make_holding
 
 
 def test_creer_lister_objectif(client, db):

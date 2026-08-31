@@ -144,6 +144,36 @@ def test_compute_parts_part_nette_avec_quotite_demprunt_explicite_differente(db)
     assert parts[bob.id]["part_nette"] == 150000.0
 
 
+def test_compute_parts_somme_le_crd_de_plusieurs_emprunts_sur_le_meme_bien(db):
+    """`Loan.holding_id` n'est pas unique : un bien peut porter plusieurs emprunts
+    (ex. prêt principal + prêt travaux). `compute_parts` doit déduire le CRD de
+    CHACUN, pas seulement du premier trouvé (même règle que
+    `patrimoine_service._crd_par_ligne`)."""
+    h = make_holding(db)
+    alice = make_detenteur(db, "Alice")
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(alice.id, 100.0)])
+    for capital_restant_du_manuel in (100000.0, 50000.0):
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST,
+                libelle="Crédit",
+                capital_initial=capital_restant_du_manuel,
+                taux_annuel_pct=0.0,
+                mensualite=1000.0,
+                date_debut=datetime(2020, 1, 1),
+                duree_mois=200,
+                capital_restant_du_manuel=capital_restant_du_manuel,
+                holding_id=h.id,
+            )
+        )
+    db.commit()
+
+    parts = detenteurs_service.compute_parts(db, h, 500000.0)
+
+    # part_nette = 500000 - (100000 + 50000) = 350000, pas 500000 - 100000 = 400000.
+    assert parts[alice.id]["part_nette"] == 350000.0
+
+
 def test_delete_detenteur_supprime_ses_quotites_en_cascade(db):
     h = make_holding(db)
     alice = make_detenteur(db, "Alice")
