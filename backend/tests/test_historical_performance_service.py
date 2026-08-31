@@ -20,7 +20,7 @@ import pytest
 import yfinance as yf
 
 from app.models import HistoriqueCache, Holding, MarketDataCache
-from app.services import historical_performance_service, historique_cache, performance_service, portfolio_reconstruction
+from app.services import historical_performance_service, historique_cache, performance_service
 from app.services.historical_performance_service import (
     _devise_historique_yfinance,
     _value_at,

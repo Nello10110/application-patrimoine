@@ -7,7 +7,7 @@ import EtatVide from '../components/EtatVide'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatDate, formatEuro } from '../utils/format'
+import { dateVersISO, formatDate, formatEuro } from '../utils/format'
 
 type Mode = 'mensuel' | 'annuel' | 'personnalise'
 
@@ -18,7 +18,7 @@ const MODES: { value: Mode; label: string }[] = [
 ]
 
 function aujourdhuiISO(): string {
-  return new Date().toISOString().slice(0, 10)
+  return dateVersISO(new Date())
 }
 
 function moisCourant(): string {

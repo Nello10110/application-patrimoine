@@ -2,6 +2,8 @@
  * ou plage personnalisée — s'applique au graphique d'évolution du patrimoine et au
  * Rapport (cf. `PreferencesAffichageContext`). */
 
+import { dateVersISO } from './format'
+
 export type PeriodeRelative = '1M' | '3M' | '6M' | 'YTD' | '1A' | '3A' | 'TOUT'
 export type Periode = { type: 'relative'; valeur: PeriodeRelative } | { type: 'personnalisee'; dateDebut: string; dateFin: string }
 
@@ -17,10 +19,6 @@ export const PERIODES_RELATIVES: { valeur: PeriodeRelative; label: string }[] = 
 
 const MOIS_PAR_PERIODE: Record<Exclude<PeriodeRelative, 'TOUT' | 'YTD'>, number> = { '1M': 1, '3M': 3, '6M': 6, '1A': 12, '3A': 36 }
 
-function versISO(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
-
 /** `null` = pas de filtrage (`TOUT`, ou aucune restriction). `maintenant` est
  * injectable pour des tests déterministes. */
 export function bornesPeriode(periode: Periode, maintenant = new Date()): { dateDebut: string; dateFin: string } | null {
@@ -28,15 +26,15 @@ export function bornesPeriode(periode: Periode, maintenant = new Date()): { date
 
   if (periode.valeur === 'TOUT') return null
 
-  const dateFin = versISO(maintenant)
+  const dateFin = dateVersISO(maintenant)
 
   if (periode.valeur === 'YTD') {
-    return { dateDebut: versISO(new Date(maintenant.getFullYear(), 0, 1)), dateFin }
+    return { dateDebut: dateVersISO(new Date(maintenant.getFullYear(), 0, 1)), dateFin }
   }
 
   const debut = new Date(maintenant)
   debut.setMonth(debut.getMonth() - MOIS_PAR_PERIODE[periode.valeur])
-  return { dateDebut: versISO(debut), dateFin }
+  return { dateDebut: dateVersISO(debut), dateFin }
 }
 
 export const PERIODE_DEFAUT: Periode = { type: 'relative', valeur: 'TOUT' }

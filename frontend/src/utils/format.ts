@@ -28,6 +28,18 @@ export function formatPct(value: number | null): string {
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
 }
 
+/** Sérialise une `Date` en "YYYY-MM-DD" d'après ses composantes LOCALES (jamais
+ * `toISOString()`, qui convertit en UTC : pour un fuseau en avance sur UTC
+ * — la France toute l'année —, minuit local le 1er du mois redevient le dernier
+ * jour du mois précédent une fois converti, décalant silencieusement toute borne
+ * de période construite en heure locale). */
+export function dateVersISO(d: Date): string {
+  const annee = d.getFullYear()
+  const mois = String(d.getMonth() + 1).padStart(2, '0')
+  const jour = String(d.getDate()).padStart(2, '0')
+  return `${annee}-${mois}-${jour}`
+}
+
 export function formatDate(isoDate: string): string {
   // Accepte aussi bien une date pure ("2026-01-01") qu'un horodatage complet
   // ("2026-01-01T00:00:00", ex. `Holding.date_valeur_estimee`) — sans ce découpage,

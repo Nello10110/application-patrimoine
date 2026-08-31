@@ -123,22 +123,21 @@ def compute_parts(db: Session, holding: Holding, valeur: float) -> dict[int, dic
     if not quotites_actif:
         return {}
 
-    emprunt = db.query(Loan).filter(Loan.holding_id == holding.id).first()
-    crd = loan_service.compute_capital_restant_du(emprunt) if emprunt else 0.0
-
-    quotites_emprunt: dict[int, float] = {}
-    if emprunt:
-        lignes_emprunt = db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == emprunt.id).all()
-        if lignes_emprunt:
-            quotites_emprunt = {q.detenteur_id: q.quotite_pct for q in lignes_emprunt}
-        else:
-            # Aucune quotité d'emprunt explicite : hérite de la répartition de l'actif.
-            quotites_emprunt = {q.detenteur_id: q.quotite_pct for q in quotites_actif}
+    # `Loan.holding_id` n'a pas de contrainte d'unicité (plusieurs emprunts peuvent
+    # financer le même bien) : sommer le CRD de CHAQUE emprunt rattaché, même règle
+    # que `patrimoine_service._crd_par_ligne` — un seul `.first()` sous-évaluerait la
+    # dette dès qu'un bien porte plus d'un emprunt.
+    emprunts = db.query(Loan).filter(Loan.holding_id == holding.id).all()
+    part_dette_par_detenteur: dict[int, float] = {}
+    for emprunt in emprunts:
+        crd = loan_service.compute_capital_restant_du(emprunt)
+        for detenteur_id, pct in compute_pourcentage_emprunt(db, holding, emprunt).items():
+            part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, 0.0) + pct / 100 * crd
 
     resultat: dict[int, dict[str, float]] = {}
     for q in quotites_actif:
         part_detenue = q.quotite_pct / 100 * valeur
-        part_dette = quotites_emprunt.get(q.detenteur_id, 0.0) / 100 * crd
+        part_dette = part_dette_par_detenteur.get(q.detenteur_id, 0.0)
         resultat[q.detenteur_id] = {
             "part_detenue": round(part_detenue, 2),
             "part_nette": round(part_detenue - part_dette, 2),

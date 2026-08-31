@@ -135,13 +135,6 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
                 label = LABEL_TYPE_ACTIF.get(h.type_actif, LABEL_NON_RENSEIGNE)
                 par_classe_financiere[label] = par_classe_financiere.get(label, 0.0) + part["part_detenue"]
 
-    def _repartition_triee(totaux: dict[str, float], garder_negatifs: bool = False) -> list[dict]:
-        return sorted(
-            ({"categorie": categorie, "valeur": round(valeur, 2)} for categorie, valeur in totaux.items() if garder_negatifs or valeur > 0),
-            key=lambda item: item["valeur"],
-            reverse=True,
-        )
-
     return {
         "actifs_totaux": round(actifs_totaux, 2),
         "passifs_totaux": round(passifs_totaux, 2),
@@ -157,28 +150,34 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
     }
 
 
-def _repartition_triee(totaux: dict[str, float]) -> list[dict]:
+def _repartition_triee(totaux: dict[str, float], garder_negatifs: bool = False) -> list[dict]:
     return sorted(
-        ({"categorie": c, "valeur": round(v, 2)} for c, v in totaux.items() if v > 0),
+        ({"categorie": categorie, "valeur": round(valeur, 2)} for categorie, valeur in totaux.items() if garder_negatifs or valeur > 0),
         key=lambda item: item["valeur"],
         reverse=True,
     )
 
 
-def _calculer_expo(db: Session, valued: list, valeur_totale: float) -> dict:
+def _calculer_expo(db: Session, valued: list, valeur_totale: float, *, garder_negatifs: bool = False) -> dict:
     """Calcule les 7 champs dérivés (répartitions + concentration) de
     `compute_exposition_consolidee` à partir d'une liste `valued` déjà valorisée
     (brute OU nette selon l'appelant) — factorisé pour ne pas dupliquer cette logique
     entre les deux variantes Brut/Net (backlog § 2.S.2, retour utilisateur : le
     sélecteur Net/Brut/Financier doit aussi piloter cette carte, pas seulement le
-    chiffre principal)."""
-    repartition_geo = _repartition_triee(analysis_service.breakdown_with_lookthrough(db, valued, "geo"))
+    chiffre principal). `garder_negatifs` (variante Net uniquement, même principe que
+    `compute_patrimoine_net`/`repartition_par_classe_nette`) : une ligne dont l'emprunt
+    rattaché dépasse sa valeur (équité négative) doit rester visible plutôt que
+    disparaître silencieusement, sans quoi la somme de `repartition_geo_nette`/
+    `repartition_classe_nette` ne correspondrait plus à `valeur_totale_nette`."""
+    repartition_geo = _repartition_triee(
+        analysis_service.breakdown_with_lookthrough(db, valued, "geo"), garder_negatifs=garder_negatifs
+    )
 
     totaux_classe: dict[str, float] = {}
     for v in valued:
         label = LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE)
         totaux_classe[label] = totaux_classe.get(label, 0.0) + v.valeur
-    repartition_classe = _repartition_triee(totaux_classe)
+    repartition_classe = _repartition_triee(totaux_classe, garder_negatifs=garder_negatifs)
 
     lignes_triees = sorted(valued, key=lambda v: v.valeur, reverse=True)
     plus_grosse_ligne_ticker = lignes_triees[0].holding.ticker if lignes_triees and valeur_totale > 0 else None
@@ -249,7 +248,7 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
     valeur_totale_nette = sum(v.valeur for v in valued_net) - crd_non_rattache
 
     brut = _calculer_expo(db, valued, valeur_totale_brute)
-    net = _calculer_expo(db, valued_net, valeur_totale_nette)
+    net = _calculer_expo(db, valued_net, valeur_totale_nette, garder_negatifs=True)
 
     return {
         **brut,

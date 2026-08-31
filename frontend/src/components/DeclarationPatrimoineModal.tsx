@@ -5,6 +5,7 @@ import EtatErreur from './EtatErreur'
 import { IconFermer } from './icons'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
+import { dateVersISO } from '../utils/format'
 
 /** Déclaration de patrimoine PDF paramétrable (backlog 2.Q.2) : sélection actif par
  * actif et emprunt par emprunt, filtrage par détenteur, destinataire, et reprise du
@@ -75,7 +76,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
       const url = URL.createObjectURL(blob)
       const lien = document.createElement('a')
       lien.href = url
-      lien.download = `declaration-patrimoine-${new Date().toISOString().slice(0, 10)}.pdf`
+      lien.download = `declaration-patrimoine-${dateVersISO(new Date())}.pdf`
       document.body.appendChild(lien)
       lien.click()
       lien.remove()

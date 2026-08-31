@@ -8,7 +8,7 @@ import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
-import { formatEuro } from '../utils/format'
+import { dateVersISO, formatEuro } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel } from '../utils/interetsComposes'
 
 const DUREES = [5, 10, 20, 30] as const
@@ -21,7 +21,7 @@ type Vue = 'annuelle' | 'mensuelle'
 function bornesTroisDerniersMois(): { dateDebut: string; dateFin: string } {
   const fin = new Date()
   const debut = new Date(fin.getFullYear(), fin.getMonth() - 2, 1)
-  return { dateDebut: debut.toISOString().slice(0, 10), dateFin: fin.toISOString().slice(0, 10) }
+  return { dateDebut: dateVersISO(debut), dateFin: dateVersISO(fin) }
 }
 
 /** Année calendaire projetée, `offset` années après aujourd'hui (0 = cette année). */

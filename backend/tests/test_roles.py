@@ -7,11 +7,9 @@ de la suite) — indispensable pour exercer réellement `require_role`."""
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from app.auth import get_current_user
-from app.database import Base, get_db
+from app.database import get_db
 from app.main import app
 from tests.test_auth_router import db_vide  # noqa: F401 - réutilise la fixture existante
 
