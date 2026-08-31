@@ -292,6 +292,15 @@ n'ajoutait qu'en aveugle. Si le point touché est (ou devient) le plus récent d
 qui ne resynchronise que si le nouveau point est déjà le plus récent (un rattrapage antidaté ne devant
 jamais écraser une valeur plus récente déjà connue).
 
+**Versement déclaré** (backlog § U.2, demande directe 30/08/2026, colonne
+`HoldingValuationHistory.versement`, nullable, migration `db31d671e2e4`) : part de la hausse (ou
+baisse — valeur négative pour un retrait) depuis le point précédent que le foyer déclare venir d'un
+versement plutôt que d'une performance du contrat. Champ optionnel sur `ValorisationInput`, disponible
+aussi bien à l'ajout (`PUT .../valorisation`) qu'à la correction d'un point existant (`PATCH
+.../immobilier-history/{id}`, § T.3) — jamais rétro-rempli sur l'historique existant, `None` par
+défaut. Consommé par le bloc épargne du rapport (§ 3.14) pour remplacer l'estimation via `taux_pct`
+par une donnée réelle dès qu'au moins un point de la période le porte.
+
 ### 3.12 Simulateur : projection, tableau de détail et indépendance financière
 
 Écran unique (`/simulateur`) fusionnant l'ancien Simulateur (projeté depuis le patrimoine net réel) et l'ancienne page Outils (calculateur générique à capital libre) — les deux ne différaient que par la source du capital de départ, jamais par le calcul lui-même. Le capital de départ est **préempli** avec le patrimoine net actuel (`GET /api/patrimoine/net`, § 3.11 — seul appel réseau de la page) mais reste **librement modifiable**, pour couvrir aussi bien « où en sera mon patrimoine réel » que « et si je plaçais 10 000 € à 6 % ».
@@ -324,13 +333,20 @@ assurance-vie, PER, comptes courants), jamais du grand livre de transactions bou
 `rapport_service.compute_rapport_epargne_periode`. Réutilise `patrimoine_history_service.
 _serie_holding_manuel` (même bloc de construction que la courbe combinée du Tableau de bord, § 3.16)
 pour évaluer chaque ligne aux deux bornes de la période plutôt qu'en série complète : valeur/évolution
-de l'épargne, répartition par type en fin de période. **Intérêts estimés** étend `revenus_passifs_
-service._interets_livrets_annuels` (`valeur_estimee * taux_pct / 100`, jusqu'ici fixée à 12 mois
-glissants) en la proratisant sur le nombre de jours exact de la période. **Versements estimés** est le
-résidu (évolution totale moins intérêts estimés) — les deux sont des ESTIMATIONS explicitement
-étiquetées comme telles côté écran : contrairement au portefeuille financier, l'épargne n'a aucun
-journal de versements permettant une décomposition exacte. `a_des_donnees=false` (bloc masqué côté
-écran) si le foyer n'a aucune ligne `TYPES_EPARGNE`.
+de l'épargne, répartition par type en fin de période. `interets_periode`/`versements_periode` (backlog
+§ U.2) suivent deux régimes possibles, signalés par `decomposition_estimee` :
+- **`True` (par défaut)** : ESTIMATION — étend `revenus_passifs_service._interets_livrets_annuels`
+  (`valeur_estimee * taux_pct / 100`, jusqu'ici fixée à 12 mois glissants) en la proratisant sur le
+  nombre de jours exact de la période ; `versements_periode` est alors le résidu (évolution totale
+  moins ces intérêts estimés).
+- **`False`** : dès qu'au moins un point de `HoldingValuationHistory` de la période porte un
+  `versement` RÉELLEMENT DÉCLARÉ par le foyer (§ 3.11), `versements_periode` devient la somme de ces
+  montants (une donnée réelle, pas une estimation) et `interets_periode` le résidu de l'évolution.
+  Limite assumée : un versement non déclaré sur un AUTRE point de la même période serait alors compté
+  à tort comme du gain.
+
+Les deux régimes sont explicitement étiquetés côté écran (« estimés » vs « déclarés »). `a_des_donnees
+=false` (bloc masqué côté écran) si le foyer n'a aucune ligne `TYPES_EPARGNE`.
 
 ### 3.15 Application installable (PWA, roadmap Phase 3, § H.1)
 
@@ -362,8 +378,14 @@ En lentille **Financier**, comportement historique inchangé : série `GET /api/
 lentille **Brut**/**Net**, la source devient `GET /api/patrimoine/historique`
 (`patrimoine_history_service.compute_patrimoine_history`) — une série combinée qui fusionne, sur une
 grille hebdomadaire commune : la série financière déjà existante, un historique daté par ligne
-valorisée manuellement (`HoldingValuationHistory`, dernier point connu reporté), et l'amortissement
-théorique de chaque emprunt par date. Le camembert/liste suit lui aussi la lentille, mais sur trois
+valorisée manuellement (`HoldingValuationHistory`), et l'amortissement théorique de chaque emprunt par
+date. Entre deux points connus d'une ligne manuelle, deux régimes coexistent selon `type_actif`
+(`_valeur_ligne_a_date`) : immobilier/SCPI/autre actif/véhicule restent en ESCALIER (dernier point
+connu reporté — choix assumé, une fausse continuité serait moins honnête qu'un palier) ; les lignes
+`TYPES_EPARGNE` sont INTERPOLÉES LINÉAIREMENT (`_valeur_interpolee`, backlog § U.2, demande directe
+30/08/2026) entre les deux points qui encadrent chaque date de la grille — toujours plaquées au
+dernier point connu au-delà (aucune extrapolation dans le futur), toujours `None` avant le premier
+point. Le camembert/liste suit lui aussi la lentille, mais sur trois
 répartitions distinctes calculées par `compute_patrimoine_net` : `repartition_par_classe` (valeur
 BRUTE par ligne, inchangée) en lentille Brut ; `repartition_par_classe_financiere` (restreinte aux
 catégories financières) en lentille Financier ; `repartition_par_classe_nette` en lentille Net —
@@ -372,9 +394,15 @@ réutilise `part_nette` de `detenteurs_service.compute_parts`), pas seulement le
 bucket « Dettes non rattachées » pour un emprunt sans actif associé — la somme correspond toujours
 exactement à `patrimoine_net`. Une ligne peut y être négative (équité négative) : jamais masquée dans
 la liste (affichée en rouge), mais exclue du camembert, qui ne peut pas représenter une part négative.
-Le mode étagé Investi/Gains de la courbe reste réservé à la lentille Financier (désactivé sinon, avec
-une explication) : l'immobilier/l'épargne n'ont pas de grand livre de versements équivalent pour
-construire cette décomposition.
+Le mode étagé Investi/Gains de la courbe, initialement réservé à la lentille Financier faute de
+décomposition possible pour l'immobilier/l'épargne, est désormais disponible aussi en Net/Brut
+(backlog § U.3, retour utilisateur 30/08/2026) : `PatrimoineHistoryPoint` expose `valeur_investie`
+(part financière du grand livre de transactions + part manuelle bornée aux versements EXPLICITEMENT
+déclarés, § U.2) et `valeur_realisee_cumulee` (exclusivement financière, aucun équivalent « réalisé »
+pour un bien qui ne se cède pas par petites parts). `PortfolioHistoryChart` applique alors la MÊME
+formule de décomposition (`Gains = valeur_portefeuille + valeur_realisee_cumulee − valeur_investie`)
+qu'en Financier — avec une légende adaptée hors Financier précisant qu'une hausse non déclarée reste
+comptée en gain.
 
 **Deux limites assumées et affichées** (même philosophie de transparence que la qualité des données de
 répartition, § 3.4, ou la valorisation immobilière datée, § 3.11 — jamais de fausse précision) :

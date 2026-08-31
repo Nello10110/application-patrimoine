@@ -13,6 +13,8 @@ vi.mock('../api/client', () => ({
     deleteHolding: vi.fn(),
     getHoldingValuationHistory: vi.fn().mockResolvedValue([]),
     setHoldingValorisation: vi.fn(),
+    updateHoldingValuationPoint: vi.fn(),
+    deleteHoldingValuationPoint: vi.fn(),
   },
 }))
 
@@ -149,7 +151,9 @@ describe('EpargnePage (backlog 2.S.1)', () => {
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-02-01' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
 
-    await vi.waitFor(() => expect(api.setHoldingValorisation).toHaveBeenCalledWith('AV1', { valeur: 10500, date: '2026-02-01' }))
+    await vi.waitFor(() =>
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AV1', { valeur: 10500, date: '2026-02-01', versement: null }),
+    )
   })
 
   it('modifier le nom et le versement mensuel appelle updateHolding puis met à jour la carte (retour utilisateur 25/08)', async () => {

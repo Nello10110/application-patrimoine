@@ -17,7 +17,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from ..models import TYPES_EPARGNE, Holding, Transaction
+from ..models import TYPES_EPARGNE, Holding, HoldingValuationHistory, Transaction
 from . import historical_performance_service, immobilier_service, patrimoine_history_service, performance_service, revenus_passifs_service
 from .patrimoine_service import LABEL_NON_RENSEIGNE, LABEL_TYPE_ACTIF
 
@@ -99,11 +99,33 @@ def _interets_epargne_periode(holdings: list[Holding], date_debut_dt: datetime, 
     return interets_annuels * jours_periode / 365
 
 
+def _versements_declares_periode(db: Session, holdings: list[Holding], date_debut_dt: datetime, date_fin_dt: datetime) -> float | None:
+    """Somme des versements RÉELLEMENT déclarés par le foyer (backlog § U.2,
+    `HoldingValuationHistory.versement`) sur les points d'historique de `holdings`
+    compris dans la période — `None` si AUCUN point de la période ne porte de
+    versement déclaré, signal pour l'appelant de retomber sur l'estimation via
+    `taux_pct` (cf. docstring de `RapportEpargnePeriode`)."""
+    if not holdings:
+        return None
+    points = (
+        db.query(HoldingValuationHistory)
+        .filter(
+            HoldingValuationHistory.holding_id.in_([h.id for h in holdings]),
+            HoldingValuationHistory.date_valeur >= date_debut_dt,
+            HoldingValuationHistory.date_valeur <= date_fin_dt,
+            HoldingValuationHistory.versement.isnot(None),
+        )
+        .all()
+    )
+    if not points:
+        return None
+    return sum(p.versement for p in points)
+
+
 def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str, user_id: int) -> dict:
-    """Bloc épargne du rapport (backlog § U.1) — voir le docstring de
-    `RapportEpargnePeriode` pour la limite assumée sur `interets_estimes_periode`/
-    `versements_estimes_periode` (estimations, pas des montants mesurés : l'épargne
-    n'a pas de grand livre de versements contrairement au portefeuille financier)."""
+    """Bloc épargne du rapport (backlog § U.1/U.2) — voir le docstring de
+    `RapportEpargnePeriode` pour les deux régimes possibles (`decomposition_estimee`)
+    d'`interets_periode`/`versements_periode`."""
     holdings = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_EPARGNE)).all()
     if not holdings:
         return {
@@ -111,8 +133,9 @@ def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str,
             "valeur_debut_periode": 0.0,
             "valeur_fin_periode": 0.0,
             "evolution_pct": None,
-            "interets_estimes_periode": 0.0,
-            "versements_estimes_periode": 0.0,
+            "interets_periode": 0.0,
+            "versements_periode": 0.0,
+            "decomposition_estimee": True,
             "repartition_par_type": [],
         }
 
@@ -121,16 +144,26 @@ def compute_rapport_epargne_periode(db: Session, date_debut: str, date_fin: str,
     valeur_debut, _ = _valeur_epargne_a_date(db, holdings, date_debut_dt)
     valeur_fin, repartition_fin = _valeur_epargne_a_date(db, holdings, date_fin_dt)
     evolution_pct = round((valeur_fin - valeur_debut) / valeur_debut * 100, 2) if valeur_debut > 1e-9 else None
-    interets_estimes = round(_interets_epargne_periode(holdings, date_debut_dt, date_fin_dt), 2)
-    versements_estimes = round((valeur_fin - valeur_debut) - interets_estimes, 2)
+    evolution_totale = valeur_fin - valeur_debut
+
+    versements_declares = _versements_declares_periode(db, holdings, date_debut_dt, date_fin_dt)
+    if versements_declares is not None:
+        versements_periode = round(versements_declares, 2)
+        interets_periode = round(evolution_totale - versements_declares, 2)
+        decomposition_estimee = False
+    else:
+        interets_periode = round(_interets_epargne_periode(holdings, date_debut_dt, date_fin_dt), 2)
+        versements_periode = round(evolution_totale - interets_periode, 2)
+        decomposition_estimee = True
 
     return {
         "a_des_donnees": True,
         "valeur_debut_periode": round(valeur_debut, 2),
         "valeur_fin_periode": round(valeur_fin, 2),
         "evolution_pct": evolution_pct,
-        "interets_estimes_periode": interets_estimes,
-        "versements_estimes_periode": versements_estimes,
+        "interets_periode": interets_periode,
+        "versements_periode": versements_periode,
+        "decomposition_estimee": decomposition_estimee,
         "repartition_par_type": [
             {"label": label, "valeur": round(valeur, 2)}
             for label, valeur in sorted(repartition_fin.items(), key=lambda kv: -kv[1])

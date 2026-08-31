@@ -244,8 +244,8 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it("affiche l'historique de valorisation, la ligne la plus récente en premier", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
-      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000 },
-      { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000 },
+      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000, versement: null },
+      { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null },
     ])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
 
@@ -258,8 +258,8 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
   it("affiche un graphique d'évolution dès que l'historique compte au moins deux points (retour utilisateur 25/08)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
-      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000 },
-      { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000 },
+      { id: 1, date_valeur: '2025-01-01T00:00:00', valeur: 200000, versement: null },
+      { id: 2, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null },
     ])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
 
@@ -269,7 +269,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("n'affiche pas de graphique pour un unique point d'historique (rien à tracer)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null }])
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
 
     await screen.findByText('Historique de valorisation')
@@ -278,7 +278,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("un unique point d'historique + une date d'acquisition antérieure affiche quand même le graphique (retour utilisateur, 26/08/2026)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null }])
     render(
       <HoldingDetailContent
         detail={detail({
@@ -302,7 +302,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("une date d'acquisition POSTÉRIEURE au premier point connu n'ajoute rien (donnée déjà plus ancienne et plus fiable)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2020-01-01T00:00:00', valeur: 200000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2020-01-01T00:00:00', valeur: 200000, versement: null }])
     render(
       <HoldingDetailContent
         detail={detail({
@@ -321,8 +321,8 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it("Modifier pré-remplit le point puis Enregistrer appelle updateHoldingValuationPoint (backlog quickwin § T.3)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 0 }])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 0, versement: null }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null }])
     vi.mocked(api.updateHoldingValuationPoint).mockResolvedValue(holdingApresAction())
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
 
@@ -334,7 +334,9 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     fireEvent.change(screen.getByLabelText('Valeur du 01/01/2026 (édition)'), { target: { value: '220000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
-    await vi.waitFor(() => expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7, { valeur: 220000, date: '2026-01-01' }))
+    await vi.waitFor(() =>
+      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7, { valeur: 220000, date: '2026-01-01', versement: null }),
+    )
     // Rafraîchit l'historique après coup — la nouvelle valeur remplace l'ancienne dans le tableau.
     await screen.findByText('220 000,00 €')
     expect(screen.queryByLabelText('Valeur du 01/01/2026 (édition)')).not.toBeInTheDocument()
@@ -342,7 +344,7 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
   it('Supprimer demande confirmation avant deleteHoldingValuationPoint (backlog quickwin § T.3)', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([{ id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 220000, versement: null }])
     vi.mocked(api.getHoldingValuationHistory).mockResolvedValueOnce([])
     vi.mocked(api.deleteHoldingValuationPoint).mockResolvedValue(holdingApresAction())
     render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />)
@@ -374,7 +376,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
 
   it("charge et affiche l'historique daté pour un compte Épargne (pas seulement l'immobilier)", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
-    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 10000 }])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([{ id: 1, date_valeur: '2026-01-01T00:00:00', valeur: 10000, versement: null }])
     render(
       <HoldingDetailContent
         detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000, date_valeur_estimee: '2026-01-01T00:00:00' })}
@@ -427,8 +429,48 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-03-15' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
 
-    await vi.waitFor(() => expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15' }))
+    await vi.waitFor(() =>
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15', versement: null }),
+    )
     expect(await screen.findByText('12 000,00 €')).toBeInTheDocument()
+  })
+
+  it("ajouter une valorisation avec un « dont versement » l'inclut dans l'appel (backlog § U.2)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([])
+    vi.mocked(api.setHoldingValorisation).mockResolvedValue(holdingApresAction())
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000 })} />)
+    await screen.findByLabelText('Valeur (€)')
+
+    fireEvent.change(screen.getByLabelText('Valeur (€)'), { target: { value: '12000' } })
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-03-15' } })
+    fireEvent.change(screen.getByLabelText('Dont versement (€)'), { target: { value: '1500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
+
+    await vi.waitFor(() =>
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AAPL', { valeur: 12000, date: '2026-03-15', versement: 1500 }),
+    )
+  })
+
+  it('modifier un point pré-remplit le versement déclaré et le renvoie à la sauvegarde (backlog § U.2)', async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([
+      { id: 7, date_valeur: '2026-01-01T00:00:00', valeur: 12000, versement: 1500 },
+    ])
+    vi.mocked(api.updateHoldingValuationPoint).mockResolvedValue(holdingApresAction())
+    render(<HoldingDetailContent detail={detail({ type_actif: 'LIFE_INSURANCE', immobilier: null })} />)
+
+    await screen.findByText('Historique de valorisation')
+    expect(screen.getByText('dont 1 500,00 € versés')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+
+    expect(screen.getByLabelText('Versement du 01/01/2026 (édition)')).toHaveValue(1500)
+    fireEvent.change(screen.getByLabelText('Versement du 01/01/2026 (édition)'), { target: { value: '1800' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() =>
+      expect(api.updateHoldingValuationPoint).toHaveBeenCalledWith('AAPL', 7, { valeur: 12000, date: '2026-01-01', versement: 1800 }),
+    )
   })
 })
 

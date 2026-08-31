@@ -1,30 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang } from '../layout/routes'
-import {
-  IconAnalyse,
-  IconBudget,
-  IconDividendes,
-  IconEpargne,
-  IconObjectifs,
-  IconPatrimoine,
-  IconRapport,
-  IconSalaire,
-  IconSynthese,
-} from './icons'
 import MenuPlusSheet from './MenuPlusSheet'
-
-const ICONES = {
-  Synthèse: IconSynthese,
-  Patrimoine: IconPatrimoine,
-  Épargne: IconEpargne,
-  Analyse: IconAnalyse,
-  Objectifs: IconObjectifs,
-  Dividendes: IconDividendes,
-  Budget: IconBudget,
-  Rapport: IconRapport,
-  Salaire: IconSalaire,
-} as const
 
 // Jusqu'à 4 écrans de consultation en accès direct + toujours une entrée "Plus"
 // (backlog 2.K.4) : 5 entrées au total pour un rôle complet (propriétaire), moins
@@ -51,7 +28,7 @@ export default function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-30 flex h-16 border-t border-bordure bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {directes.map((r) => {
-        const Icone = r.navLabel ? ICONES[r.navLabel as keyof typeof ICONES] : undefined
+        const Icone = r.icone
         return (
           <NavLink
             key={r.path}

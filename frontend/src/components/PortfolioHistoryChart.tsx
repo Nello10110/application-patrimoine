@@ -45,21 +45,21 @@ export default function PortfolioHistoryChart({
 
   // Hors lentille "financier" : la courbe vient de l'historique combiné, projeté sur
   // la même forme que `PortfolioHistoryPoint` — `valeur_investie`/`valeur_realisee_cumulee`
-  // à 0, jamais lues dans ce cas (`stackedEffectif` ci-dessous force le mode ligne
-  // simple, pas de décomposition Investi/Gains pour l'immobilier/l'épargne, qui n'ont
-  // pas de grand livre de versements équivalent).
+  // sont désormais de vrais champs calculés côté backend (backlog § U.3, 30/08/2026) :
+  // la part manuelle de l'investi ne progresse qu'aux points où un versement a été
+  // explicitement déclaré (§ U.2), le reste de la hausse restant du gain.
   const pointsActifs = enFinancier
     ? points
     : (pointsPatrimoine?.map((p) => ({
         date: p.date,
         valeur_portefeuille: lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net,
-        valeur_investie: 0,
-        valeur_realisee_cumulee: 0,
+        valeur_investie: p.valeur_investie,
+        valeur_realisee_cumulee: p.valeur_realisee_cumulee,
       })) ?? null)
   const loadingActif = enFinancier ? loading : (loadingPatrimoine ?? false)
   const errorActif = enFinancier ? error : (errorPatrimoine ?? null)
   const onRetryActif = enFinancier ? onRetry : (onRetryPatrimoine ?? (() => {}))
-  const stackedEffectif = stacked && enFinancier
+  const stackedEffectif = stacked
 
   // Filtrage par la Période transverse (backlog 2.K.3), calculé côté client sur la
   // série complète déjà reçue en un seul appel (`getPortfolioHistory` ne prend
@@ -89,22 +89,25 @@ export default function PortfolioHistoryChart({
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Évolution du portefeuille</h2>
-        <label className={`flex items-center gap-1.5 text-xs ${enFinancier ? 'text-texte' : 'text-texte-attenue'}`}>
-          <input type="checkbox" checked={stackedEffectif} disabled={!enFinancier} onChange={(e) => setStacked(e.target.checked)} />
+        <label className="flex items-center gap-1.5 text-xs text-texte">
+          <input type="checkbox" checked={stackedEffectif} onChange={(e) => setStacked(e.target.checked)} />
           Mode étagé (investi + gains)
         </label>
       </div>
 
-      {!enFinancier && (
-        <p className="mb-2 text-xs text-texte-attenue">
-          Mode étagé non disponible hors vue Financier : pas de suivi investi/gains pour l'immobilier et l'épargne.
-        </p>
-      )}
-
       {stackedEffectif && (
         <p className="mb-2 text-xs text-texte-attenue">
-          « Gains » inclut les ventes réalisées, dividendes et intérêts perçus — même chiffre que le
-          Gain/Perte total de la carte Rentabilité globale.
+          {enFinancier ? (
+            <>
+              « Gains » inclut les ventes réalisées, dividendes et intérêts perçus — même chiffre que le Gain/Perte total
+              de la carte Rentabilité globale.
+            </>
+          ) : (
+            <>
+              Pour l'immobilier/l'épargne, seul un versement explicitement déclaré (fiche du bien, champ « dont versement »)
+              compte comme « Investi » — une hausse non déclarée est traitée comme un gain.
+            </>
+          )}
         </p>
       )}
 

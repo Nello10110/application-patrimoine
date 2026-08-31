@@ -96,6 +96,20 @@ def ecrire(db: Session, cle: str, contenu) -> None:
     db.commit()
 
 
+def forme_valide(en_cache: list[dict], champs_attendus: set[str]) -> bool:
+    """`False` si les points en cache n'ont pas exactement les champs attendus par le
+    schéma ACTUEL de l'appelant — sans ce contrôle, une entrée écrite avant l'ajout
+    d'un champ à `PortfolioHistoryPoint`/`PatrimoineHistoryPoint` serait servie telle
+    quelle jusqu'à expiration (`DUREE_VALIDITE_HEURES`), provoquant une erreur de
+    validation Pydantic sur la réponse de l'API (bug constaté le 30/08/2026 :
+    graphique d'évolution vide en lentille Net/Brut juste après le déploiement du mode
+    étagé, `valeur_investie`/`valeur_realisee_cumulee` manquants sur des points mis en
+    cache avant l'ajout de ces champs à `PatrimoineHistoryPoint`). Une liste vide est
+    toujours valide : rien à vérifier, et c'est une réponse légitime (aucun historique
+    disponible)."""
+    return not en_cache or set(en_cache[0].keys()) == champs_attendus
+
+
 def invalider(db: Session, cle: str | None = None) -> None:
     """Purge une entrée (`cle` donnée) ou tout le cache (`cle is None`). Appelée
     depuis `portfolio_reconstruction.rebuild_holdings` : le portefeuille venant de

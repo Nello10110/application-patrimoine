@@ -32,15 +32,25 @@ def upsert_detail_immobilier(db: Session, holding_id: int, **champs) -> HoldingI
     return detail
 
 
-def enregistrer_point_historique(db: Session, holding_id: int, valeur: float, date_valeur: datetime) -> None:
+def enregistrer_point_historique(
+    db: Session, holding_id: int, valeur: float, date_valeur: datetime, versement: float | None = None
+) -> None:
     """Ajoute un point à l'historique — n'écrase jamais un point existant, même à la
     même date (deux estimations le même jour restent deux lignes distinctes, la plus
-    récente en base fait foi pour l'affichage de la valeur "courante" ailleurs)."""
-    db.add(HoldingValuationHistory(holding_id=holding_id, valeur=valeur, date_valeur=date_valeur))
+    récente en base fait foi pour l'affichage de la valeur "courante" ailleurs).
+
+    `versement` (backlog § U.2, retour utilisateur 30/08/2026) : part de la hausse
+    (ou baisse) depuis le point précédent que le foyer déclare venir d'un versement
+    plutôt que d'une performance du contrat — `None` par défaut (jamais renseigné
+    par `create_holding`/`update_holding`, qui stampent une valeur "courante" sans
+    notion de versement ; seule la route dédiée `PUT .../valorisation` le propose)."""
+    db.add(HoldingValuationHistory(holding_id=holding_id, valeur=valeur, date_valeur=date_valeur, versement=versement))
     db.commit()
 
 
-def modifier_point_historique(db: Session, point_id: int, valeur: float, date_valeur: datetime) -> HoldingValuationHistory | None:
+def modifier_point_historique(
+    db: Session, point_id: int, valeur: float, date_valeur: datetime, versement: float | None = None
+) -> HoldingValuationHistory | None:
     """Corrige un point déjà saisi (backlog quickwin § T.3, retour utilisateur
     30/08/2026) — jusqu'ici, `enregistrer_point_historique` n'ajoutait qu'en
     aveugle, sans aucun moyen de revenir sur une valeur tapée par erreur.
@@ -52,6 +62,7 @@ def modifier_point_historique(db: Session, point_id: int, valeur: float, date_va
         return None
     point.valeur = valeur
     point.date_valeur = date_valeur
+    point.versement = versement
     db.commit()
     db.refresh(point)
     return point

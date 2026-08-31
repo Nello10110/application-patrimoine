@@ -247,7 +247,7 @@ def get_holding_valuation_history(ticker: str, db: Session = Depends(get_db), cu
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     points = immobilier_service.historique_valorisation(db, holding.id)
-    return [ValuationHistoryPoint(id=p.id, date_valeur=p.date_valeur, valeur=p.valeur) for p in points]
+    return [ValuationHistoryPoint(id=p.id, date_valeur=p.date_valeur, valeur=p.valeur, versement=p.versement) for p in points]
 
 
 def _resynchroniser_valeur_courante(db: Session, holding: Holding) -> None:
@@ -298,7 +298,7 @@ def update_holding_valuation_point(
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     _recuperer_point_du_foyer(db, holding, point_id)
     date_dt = datetime.strptime(payload.date, "%Y-%m-%d")
-    immobilier_service.modifier_point_historique(db, point_id, payload.valeur, date_dt)
+    immobilier_service.modifier_point_historique(db, point_id, payload.valeur, date_dt, payload.versement)
     historique_cache.invalider_historiques_patrimoine(db)
     _resynchroniser_valeur_courante(db, holding)
     return holding
@@ -341,7 +341,7 @@ def set_holding_valorisation(
     if holding is None:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     date_dt = datetime.strptime(payload.date, "%Y-%m-%d")
-    immobilier_service.enregistrer_point_historique(db, holding.id, payload.valeur, date_dt)
+    immobilier_service.enregistrer_point_historique(db, holding.id, payload.valeur, date_dt, payload.versement)
     historique_cache.invalider_historiques_patrimoine(db)
     if holding.date_valeur_estimee is None or date_dt >= holding.date_valeur_estimee:
         holding.valeur_estimee = payload.valeur

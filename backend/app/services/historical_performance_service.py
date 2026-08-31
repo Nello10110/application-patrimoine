@@ -152,6 +152,12 @@ def _valeur_positions_live(db: Session, user_id: int) -> float:
     return sum(v.valeur for v in valued)
 
 
+# Champs du point tel que produit par `_compute_portfolio_history` ci-dessous — sert à
+# détecter un cache écrit par une version antérieure du schéma, cf.
+# `historique_cache.forme_valide`.
+_CHAMPS_POINT_PORTEFEUILLE = {"date", "valeur_portefeuille", "valeur_investie", "valeur_realisee_cumulee"}
+
+
 def compute_portfolio_history(db: Session, user_id: int, positions: dict[str, PositionState] | None = None) -> list[dict]:
     """Historique de valeur du portefeuille d'UN utilisateur (Milestone 2a, cf. LOT 4.5).
 
@@ -165,7 +171,7 @@ def compute_portfolio_history(db: Session, user_id: int, positions: dict[str, Po
     """
     cle = historique_cache.cle_historique_portefeuille(user_id)
     en_cache = historique_cache.lire(db, cle)
-    if en_cache is not None:
+    if en_cache is not None and historique_cache.forme_valide(en_cache, _CHAMPS_POINT_PORTEFEUILLE):
         return en_cache
 
     points = _compute_portfolio_history(

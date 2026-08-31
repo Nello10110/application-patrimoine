@@ -42,8 +42,9 @@ function rapport(overrides: Partial<RapportPeriode> = {}): RapportPeriode {
       valeur_debut_periode: 0,
       valeur_fin_periode: 0,
       evolution_pct: null,
-      interets_estimes_periode: 0,
-      versements_estimes_periode: 0,
+      interets_periode: 0,
+      versements_periode: 0,
+      decomposition_estimee: true,
       repartition_par_type: [],
     },
     ...overrides,
@@ -200,8 +201,9 @@ describe("RapportPage — bloc épargne (backlog § U.1)", () => {
           valeur_debut_periode: 10000,
           valeur_fin_periode: 10500,
           evolution_pct: 5,
-          interets_estimes_periode: 200,
-          versements_estimes_periode: 300,
+          interets_periode: 200,
+          versements_periode: 300,
+          decomposition_estimee: true,
           repartition_par_type: [
             { label: 'Assurance-vie', valeur: 8000 },
             { label: 'Épargne réglementée', valeur: 2500 },
@@ -219,5 +221,28 @@ describe("RapportPage — bloc épargne (backlog § U.1)", () => {
     expect(screen.getByText('200 €')).toBeInTheDocument()
     expect(screen.getByText('Répartition de l\'épargne par type')).toBeInTheDocument()
     expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+  })
+
+  it("affiche les libellés « déclarés » plutôt qu'« estimés » quand un versement a été précisé (backlog § U.2)", async () => {
+    vi.mocked(api.getRapportPeriode).mockResolvedValue(
+      rapport({
+        epargne: {
+          a_des_donnees: true,
+          valeur_debut_periode: 10000,
+          valeur_fin_periode: 10500,
+          evolution_pct: 5,
+          interets_periode: 200,
+          versements_periode: 300,
+          decomposition_estimee: false,
+          repartition_par_type: [{ label: 'Assurance-vie', valeur: 10500 }],
+        },
+      }),
+    )
+    render(<RapportPage />)
+
+    await screen.findByText("D'où vient l'évolution de l'épargne ?")
+    expect(screen.queryByText("D'où vient l'évolution de l'épargne ? (estimation)")).not.toBeInTheDocument()
+    expect(screen.getByText('Versements déclarés')).toBeInTheDocument()
+    expect(screen.getByText('Intérêts (résidu)')).toBeInTheDocument()
   })
 })

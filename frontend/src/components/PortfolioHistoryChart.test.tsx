@@ -36,7 +36,18 @@ function point(overrides: Partial<PortfolioHistoryPoint> = {}): PortfolioHistory
 }
 
 function pointPatrimoine(overrides: Partial<PatrimoineHistoryPoint> = {}): PatrimoineHistoryPoint {
-  return { date: '2026-01-01', valeur_financiere: 0, valeur_manuelle: 0, actifs_totaux: 0, passifs_totaux: 0, patrimoine_net: 0, patrimoine_financier: 0, ...overrides }
+  return {
+    date: '2026-01-01',
+    valeur_financiere: 0,
+    valeur_manuelle: 0,
+    actifs_totaux: 0,
+    passifs_totaux: 0,
+    patrimoine_net: 0,
+    patrimoine_financier: 0,
+    valeur_investie: 0,
+    valeur_realisee_cumulee: 0,
+    ...overrides,
+  }
 }
 
 describe('PortfolioHistoryChart', () => {
@@ -85,15 +96,23 @@ describe('PortfolioHistoryChart — lentille (feature Net/Brut/Financier sur tou
 
     const case_ = screen.getByRole('checkbox', { name: /Mode étagé/ })
     expect(case_).not.toBeDisabled()
-    expect(screen.queryByText(/non disponible hors vue Financier/)).not.toBeInTheDocument()
   })
 
-  it('lentille "brut" : la case "Mode étagé" est désactivée, avec une explication', () => {
+  it('lentille "brut" : la case "Mode étagé" est désormais disponible (backlog § U.3)', () => {
     renderChart('brut', { pointsPatrimoine: [pointPatrimoine({ actifs_totaux: 1000 })], loadingPatrimoine: false })
 
     const case_ = screen.getByRole('checkbox', { name: /Mode étagé/ })
-    expect(case_).toBeDisabled()
-    expect(screen.getByText(/non disponible hors vue Financier/)).toBeInTheDocument()
+    expect(case_).not.toBeDisabled()
+  })
+
+  it('lentille "brut" activée : affiche l\'explication propre à l\'immobilier/l\'épargne, pas celle de la carte Rentabilité', () => {
+    renderChart('brut', { pointsPatrimoine: [pointPatrimoine({ actifs_totaux: 1000, valeur_investie: 800 })], loadingPatrimoine: false })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Mode étagé/ }))
+
+    expect(screen.getByText(/seul un versement explicitement déclaré/)).toBeInTheDocument()
+    expect(screen.queryByText(/« Gains » inclut les ventes réalisées/)).not.toBeInTheDocument()
+    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
   })
 
   it('lentille "brut" : trace `actifs_totaux` depuis `pointsPatrimoine`, pas `points` (financier)', () => {
