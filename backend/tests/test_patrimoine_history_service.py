@@ -384,6 +384,32 @@ def test_cache_sert_le_meme_resultat_sans_recalcul(db):
     assert historique_cache.lire(db, cle) == premier
 
 
+def test_cache_ecrit_avec_un_schema_anterieur_est_ignore_et_recalcule(db):
+    """Reproduit le bug constaté le 30/08/2026 : une entrée de cache écrite AVANT
+    l'ajout de valeur_investie/valeur_realisee_cumulee à PatrimoineHistoryPoint (§ U.3)
+    était servie telle quelle (moins de 24h), provoquant une erreur de validation
+    Pydantic sur la réponse de l'API — graphique vide en lentille Net/Brut."""
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
+
+    cle = historique_cache.cle_historique_patrimoine(ID_UTILISATEUR_TEST)
+    ancien_point = {
+        "date": "2026-01-01",
+        "valeur_financiere": 0.0,
+        "valeur_manuelle": 250000.0,
+        "actifs_totaux": 250000.0,
+        "passifs_totaux": 0.0,
+        "patrimoine_net": 250000.0,
+        "patrimoine_financier": 0.0,
+    }
+    historique_cache.ecrire(db, cle, [ancien_point])
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    assert points
+    assert "valeur_investie" in points[0]
+    assert "valeur_realisee_cumulee" in points[0]
+
+
 def test_invalidation_purge_le_cache(db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)
     patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)

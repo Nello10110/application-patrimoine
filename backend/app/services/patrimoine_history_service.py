@@ -200,10 +200,20 @@ def _valeur_emprunt_a_date(loan: Loan, date: datetime) -> float:
     return loan_service.compute_capital_restant_du_theorique(loan, date)
 
 
+# Champs du point tel que produit par `_compute_patrimoine_history` ci-dessous — sert
+# à détecter un cache écrit par une version antérieure du schéma, cf.
+# `historique_cache.forme_valide`.
+_CHAMPS_POINT_PATRIMOINE = {
+    "date", "valeur_financiere", "valeur_manuelle", "actifs_totaux",
+    "passifs_totaux", "patrimoine_net", "patrimoine_financier",
+    "valeur_investie", "valeur_realisee_cumulee",
+}
+
+
 def compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | None = None) -> list[dict]:
     cle = historique_cache.cle_historique_patrimoine(user_id, detenteur_id)
     en_cache = historique_cache.lire(db, cle)
-    if en_cache is not None:
+    if en_cache is not None and historique_cache.forme_valide(en_cache, _CHAMPS_POINT_PATRIMOINE):
         return en_cache
 
     points = _compute_patrimoine_history(db, user_id, detenteur_id)
