@@ -20,7 +20,7 @@
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
     {
-      "files": ["src/components/HoldingDetailContent.tsx", "src/components/LoansCard.tsx", "src/components/PreferencesCard.tsx"],
+      "files": ["src/components/ValorisationHistoriqueCard.tsx", "src/components/LoansCard.tsx", "src/components/PreferencesCard.tsx"],
       "rules": {
         "jsx-a11y/control-has-associated-label": "off",
         "jsx-a11y/label-has-associated-control": "off"
