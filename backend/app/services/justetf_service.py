@@ -300,6 +300,15 @@ def refresh_all(db: Session) -> dict:
     En cas d'échec réseau/parsing pour un ISIN (`fetch_composition` renvoie
     `None`), rien n'est touché pour cet ISIN — aucune régression.
 
+    Un commit PAR ISIN (pas un unique commit en fin de boucle) — même correctif et
+    même raison que `market_data_service.refresh_tickers` (backlog § T.2, retour
+    utilisateur 30/08/2026) : ce job tourne en tâche de fond sur la même base
+    SQLite que l'application, et `auth.get_current_token` écrit dans `auth_tokens`
+    à CHAQUE requête authentifiée. Un commit unique en fin de boucle garderait la
+    transaction d'écriture ouverte pendant tout le rafraîchissement (potentiellement
+    plusieurs dizaines de secondes avec la temporisation entre ISIN), au risque du
+    même `database is locked` déjà corrigé côté yfinance.
+
     Renvoie `{"traites": int, "reussis": int}` (`reussis` compte les ISIN où la
     composition a été écrite, pas seulement la description), utilisé par
     `scheduler_service._run_justetf_refresh` pour construire le message de statut
@@ -374,5 +383,6 @@ def refresh_all(db: Session) -> dict:
                     )
                 )
 
-    db.commit()
+        db.commit()
+
     return {"traites": traites, "reussis": reussis}
