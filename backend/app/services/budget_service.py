@@ -2,7 +2,8 @@
 disponible, dépenses récurrentes), répartition des sorties par catégorie comparée
 au budget cible."""
 
-from datetime import date as date_cls, datetime
+from datetime import date as date_cls
+from datetime import datetime
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session

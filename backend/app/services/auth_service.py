@@ -11,7 +11,7 @@ tard sans invalider les mots de passe déjà enregistrés.
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ def _maintenant_naif() -> datetime:
     """Même convention que `loan_service.maintenant_naif` : horodatage naïf (UTC
     implicite), SQLite ne conservant pas `tzinfo` — comparer un `datetime` naïf lu en
     base à un `datetime.now(timezone.utc)` aware lèverait une `TypeError`."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def hash_password(password: str) -> str:
@@ -64,7 +64,9 @@ def id_foyer(user: User) -> int:
     return user.owner_user_id or user.id
 
 
-def creer_utilisateur(db: Session, username: str, password: str, *, role: str = ROLE_PROPRIETAIRE, owner_user_id: int | None = None) -> User:
+def creer_utilisateur(
+    db: Session, username: str, password: str, *, role: str = ROLE_PROPRIETAIRE, owner_user_id: int | None = None
+) -> User:
     user = User(username=username.strip(), password_hash=hash_password(password), role=role, owner_user_id=owner_user_id)
     db.add(user)
     db.commit()
@@ -187,7 +189,9 @@ def revoquer_session(db: Session, auth_token: AuthToken) -> None:
     db.commit()
 
 
-def journaliser_acces(db: Session, username: str, user_id: int | None, ip: str | None, resultat: str, raison: str | None, *, action: str = "login") -> None:
+def journaliser_acces(
+    db: Session, username: str, user_id: int | None, ip: str | None, resultat: str, raison: str | None, *, action: str = "login"
+) -> None:
     entree = AccessLogEntry(username_saisi=username.strip(), user_id=user_id, ip=ip, action=action, resultat=resultat, raison=raison)
     db.add(entree)
     db.commit()

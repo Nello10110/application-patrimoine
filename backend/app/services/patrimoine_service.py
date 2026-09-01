@@ -301,8 +301,8 @@ def compute_composition_categorie_consolidee(db: Session, user_id: int, dimensio
                 for v in valued
                 if LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE) == categorie and abs(v.valeur) > 1e-9
             ),
-            key=lambda l: -l["valeur"],
+            key=lambda ligne: -ligne["valeur"],
         )
 
-    valeur_totale = sum(l["valeur"] for l in lignes)
+    valeur_totale = sum(ligne["valeur"] for ligne in lignes)
     return {"type": dimension, "categorie": categorie, "valeur_totale": round(valeur_totale, 2), "lignes": lignes}

@@ -17,7 +17,7 @@ l'API en développement, et pour rester cohérent avec `database.upgrade_schema(
 """
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -72,7 +72,7 @@ def lire(db: Session, cle: str):
     # SQLite ne conserve pas le fuseau horaire des `datetime` stockés : `derniere_maj`
     # revient nue (naïve) mais a toujours été écrite en UTC (cf. `ecrire` ci-dessous et
     # convention déjà en place dans `performance_service`/`historical_performance_service`).
-    maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
+    maintenant = datetime.now(UTC).replace(tzinfo=None)
     if maintenant - entree.derniere_maj > timedelta(hours=DUREE_VALIDITE_HEURES):
         return None
 
@@ -85,7 +85,7 @@ def ecrire(db: Session, cle: str, contenu) -> None:
     des résultats produits par `historical_performance_service`, qui convertit les
     dates en chaînes ISO avant de renvoyer son résultat)."""
     contenu_json = json.dumps(contenu)
-    maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
+    maintenant = datetime.now(UTC).replace(tzinfo=None)
 
     entree = db.get(HistoriqueCache, cle)
     if entree is None:

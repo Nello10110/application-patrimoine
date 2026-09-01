@@ -12,7 +12,7 @@ convertit chaque montant en pourcentage plutôt que de l'omettre silencieusement
 la forme de la répartition reste visible, jamais son échelle."""
 
 import secrets
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -26,7 +26,7 @@ DUREE_MAX_JOURS = 365
 
 
 def _maintenant_naif() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def creer_lien(

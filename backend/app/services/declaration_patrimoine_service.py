@@ -62,7 +62,7 @@ def _methode_valorisation(v: analysis_service.ValuedHolding) -> str:
 
 
 def _table(lignes: list[tuple[str, str]] | list[tuple[str, str, str]], largeurs: list[float]) -> Table:
-    table = Table(lignes, colWidths=[l * cm for l in largeurs])
+    table = Table(lignes, colWidths=[largeur * cm for largeur in largeurs])
     table.setStyle(
         TableStyle(
             [

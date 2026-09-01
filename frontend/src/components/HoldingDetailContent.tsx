@@ -566,7 +566,9 @@ export function ValorisationHistoriqueCard({
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
             <th className="py-2 pr-4">Date</th>
             <th className="py-2 pr-4 text-right">Valeur estimée</th>
-            <th className="py-2 pr-4"></th>
+            <th className="py-2 pr-4">
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">

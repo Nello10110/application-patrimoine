@@ -1,7 +1,7 @@
 """Portefeuille : import de relevé (mapping manuel de colonnes), CRUD des positions,
 fiche détaillée et historique de prix d'une ligne."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -180,7 +180,7 @@ def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(ge
     # comme convenu pour l'affichage d'une ligne isolée.
     valued = analysis_service.value_holdings(holdings)
     result = []
-    for h, v in zip(holdings, valued):
+    for h, v in zip(holdings, valued, strict=True):
         out = HoldingOut.model_validate(h)
         r = rendements.get(h.ticker, {})
         out.rendement_depuis_achat_pct = r.get("rendement_depuis_achat_pct")
@@ -390,7 +390,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # `docs/ROADMAP.md`) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
     # ici dès qu'une valeur estimée est fournie à la création.
     if donnees.get("valeur_estimee") is not None:
-        donnees["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
+        donnees["date_valeur_estimee"] = datetime.now(UTC).replace(tzinfo=None)
     # `date_acquisition` : chaîne côté saisie (déjà validée AAAA-MM-JJ par le schéma),
     # convertie en `datetime` pour la colonne — même conversion que `set_holding_valorisation`.
     if donnees.get("date_acquisition") is not None:
@@ -420,7 +420,7 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     # appel — pas à chaque modification de la ligne (compte, nom...), pour rester une
     # vraie date de « dernière mise à jour de l'estimation ».
     if "valeur_estimee" in updates:
-        updates["date_valeur_estimee"] = datetime.now(timezone.utc).replace(tzinfo=None)
+        updates["date_valeur_estimee"] = datetime.now(UTC).replace(tzinfo=None)
     # Même conversion qu'à la création — `date_acquisition` peut aussi être effacée
     # (`None` explicite), auquel cas rien à convertir.
     if "date_acquisition" in updates and updates["date_acquisition"] is not None:

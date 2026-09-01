@@ -47,8 +47,8 @@ test de cette suite n'a besoin d'observer un vrai délai, puisque `yf.Ticker`/
 
 import os
 import time
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 import yfinance as yf
 from sqlalchemy.orm import Session
@@ -322,7 +322,7 @@ def refresh_tickers(
     (potentiellement plusieurs dizaines de secondes voire plus d'une minute) tourne
     en tâche de fond."""
     results = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     seen: set[str] = set()
     seen_justetf: set[str] = set()
     fx_cache: dict[str, float | None] = {}

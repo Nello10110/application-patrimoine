@@ -14,7 +14,6 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from .models import ROLE_INVITE, ROLE_MEMBRE
-
 from .services.preferences_service import METHODES_VALIDES
 from .services.salaire_service import PERIODICITES_VALIDES, STATUTS_VALIDES, TYPES_MONTANT_VALIDES
 
@@ -103,7 +102,7 @@ class HoldingBase(BaseModel):
         try:
             datetime.strptime(v, "%Y-%m-%d")
         except ValueError:
-            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ")
+            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ") from None
         return v
 
 
@@ -171,7 +170,7 @@ class HoldingUpdate(BaseModel):
         try:
             datetime.strptime(v, "%Y-%m-%d")
         except ValueError:
-            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ")
+            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ") from None
         return v
 
 
@@ -200,7 +199,7 @@ class ValorisationInput(BaseModel):
         try:
             datetime.strptime(v, "%Y-%m-%d")
         except ValueError:
-            raise ValueError("La date doit être au format AAAA-MM-JJ")
+            raise ValueError("La date doit être au format AAAA-MM-JJ") from None
         return v
 
 

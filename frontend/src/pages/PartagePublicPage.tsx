@@ -78,7 +78,6 @@ export default function PartagePublicPage() {
                   onChange={(e) => setCode(e.target.value)}
                   type="password"
                   className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                  autoFocus
                 />
               </label>
               <button

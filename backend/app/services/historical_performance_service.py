@@ -11,7 +11,7 @@ hebdomadaire qui ne bouge qu'une fois par jour au mieux.
 """
 
 import bisect
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
@@ -59,7 +59,7 @@ def _history_to_series(hist: pd.DataFrame, fx_series: TimeSeries | None) -> Time
         close = row.get("Close")
         if close is None or pd.isna(close):
             continue
-        dt = idx.to_pydatetime().astimezone(timezone.utc).replace(tzinfo=None)
+        dt = idx.to_pydatetime().astimezone(UTC).replace(tzinfo=None)
         prix = float(close)
         if fx_series is not None:
             rate = _value_at(fx_series, dt)
@@ -187,7 +187,7 @@ def _compute_portfolio_history(db: Session, user_id: int, positions: dict[str, P
         return []
 
     start = min(starts)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     grid = _weekly_grid(start, now)
 
     holdings_by_ticker = {h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id).all()}
@@ -281,7 +281,7 @@ def _fetch_benchmark_series(ticker: str) -> TimeSeries:
     if hist is None or hist.empty:
         return []
     devise = _devise_historique_yfinance(ticker_yf)
-    first_date = hist.index[0].to_pydatetime().astimezone(timezone.utc).replace(tzinfo=None)
+    first_date = hist.index[0].to_pydatetime().astimezone(UTC).replace(tzinfo=None)
     fx_series = _fetch_fx_history(devise, first_date) if devise and devise != "EUR" else None
     return _history_to_series(hist, fx_series)
 
@@ -318,7 +318,7 @@ def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict
 
     valeur_base = points[0]["valeur_portefeuille"]
     comparaison = []
-    for date, point in zip(dates, points):
+    for date, point in zip(dates, points, strict=True):
         prix_at = _value_at(serie, date)
         benchmark_pct = round((prix_at / prix_base - 1) * 100, 2) if prix_at is not None else None
         portefeuille_pct = round((point["valeur_portefeuille"] / valeur_base - 1) * 100, 2) if valeur_base > 0 else None
@@ -374,7 +374,7 @@ def _compute_holding_price_history(db: Session, identifiant: str, user_id: int) 
         return None
 
     devise = _devise_historique_yfinance(ticker_yf)
-    first_date = hist.index[0].to_pydatetime().astimezone(timezone.utc).replace(tzinfo=None)
+    first_date = hist.index[0].to_pydatetime().astimezone(UTC).replace(tzinfo=None)
     fx_series = None
     if devise and devise != "EUR":
         fx_series = _fetch_fx_history(devise, first_date)

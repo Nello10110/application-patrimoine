@@ -9,7 +9,7 @@ manuel (`Loan.capital_restant_du_manuel`) prime toujours sur ce calcul théoriqu
 prêt réel dérive du théorique dès qu'il y a eu un remboursement anticipé, un report
 d'échéance, ou simplement une erreur d'arrondi cumulée sur plusieurs années."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ..models import Loan
 
@@ -19,7 +19,7 @@ def maintenant_naif() -> datetime:
     `historical_performance_service`...) : horodatage naïf (sans fuseau), SQLite ne
     conservant pas `tzinfo`. Exposée (pas de `_`) : `routers/loans.py` s'en sert aussi
     pour horodater un recalage manuel du capital restant dû."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def mois_ecoules(date_debut: datetime, a_la_date: datetime) -> int:

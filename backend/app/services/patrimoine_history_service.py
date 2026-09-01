@@ -55,7 +55,7 @@ emprunt finance typiquement un bien immobilier, pas une action) tomberait dans c
 flou plutôt que d'être netté avec la précision du cas manuel."""
 
 import bisect
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -125,9 +125,9 @@ def _serie_holding_manuel(holding: Holding, points_historique: list) -> TimeSeri
     serie: TimeSeries = [(p.date_valeur, p.valeur) for p in points_historique] if points_historique else []
     if not serie and holding.valeur_estimee is not None:
         serie = [(holding.created_at, holding.valeur_estimee)]
-    if holding.date_acquisition is not None and holding.prix_revient_moyen is not None:
-        if not serie or holding.date_acquisition < serie[0][0]:
-            serie.insert(0, (holding.date_acquisition, holding.prix_revient_moyen))
+    ancrage_possible = holding.date_acquisition is not None and holding.prix_revient_moyen is not None
+    if ancrage_possible and (not serie or holding.date_acquisition < serie[0][0]):
+        serie.insert(0, (holding.date_acquisition, holding.prix_revient_moyen))
     return serie
 
 
@@ -239,11 +239,10 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
     loans = db.query(Loan).filter(Loan.user_id == user_id).all()
     pourcentages_emprunts: dict[int, dict[int, float]] = {}
     if detenteur_id is not None:
-        holdings_par_id = holdings_manuels_par_id
         for loan in loans:
             if loan.holding_id is None:
                 continue  # emprunt non rattaché : jamais visible pour un détenteur individuel
-            holding_rattache = holdings_par_id.get(loan.holding_id) or db.get(Holding, loan.holding_id)
+            holding_rattache = holdings_manuels_par_id.get(loan.holding_id) or db.get(Holding, loan.holding_id)
             if holding_rattache is not None:
                 pourcentages_emprunts[loan.id] = detenteurs_service.compute_pourcentage_emprunt(db, holding_rattache, loan)
 
@@ -267,7 +266,7 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
         return []
 
     debut = min(candidats_debut)
-    maintenant = datetime.now(timezone.utc).replace(tzinfo=None)
+    maintenant = datetime.now(UTC).replace(tzinfo=None)
     grille = historical_performance_service._weekly_grid(debut, maintenant)
 
     points = []

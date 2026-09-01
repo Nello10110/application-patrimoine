@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import Holding, Loan, QuotiteHolding, QuotiteLoan, ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, User
+from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Holding, Loan, QuotiteHolding, QuotiteLoan, User
 from ..schemas import LoanCreate, LoanOut, LoanUpdate
 from ..services import auth_service, detenteurs_service, historique_cache, loan_service
 

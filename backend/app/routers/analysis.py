@@ -32,7 +32,7 @@ def get_category_composition(type: str, categorie: str, db: Session = Depends(ge
     holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))
     valued = analysis_service.value_holdings(holdings)
     lignes = analysis_service.holdings_in_category(db, valued, type, categorie)
-    valeur_totale = sum(l["valeur"] for l in lignes)
+    valeur_totale = sum(ligne["valeur"] for ligne in lignes)
 
     return CategoryCompositionResponse(type=type, categorie=categorie, valeur_totale=round(valeur_totale, 2), lignes=lignes)
 

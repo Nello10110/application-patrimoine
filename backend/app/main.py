@@ -16,7 +16,25 @@ from .auth import get_current_user, require_role
 from .database import SessionLocal, upgrade_schema
 from .logging_config import configure_logging
 from .models import ROLE_MEMBRE, ROLE_PROPRIETAIRE
-from .routers import analysis, auth, budget, detenteurs, export, loans, market_data, objectifs, partage, partage_public, patrimoine, performance, portfolio, reference, salaire, settings, transactions
+from .routers import (
+    analysis,
+    auth,
+    budget,
+    detenteurs,
+    export,
+    loans,
+    market_data,
+    objectifs,
+    partage,
+    partage_public,
+    patrimoine,
+    performance,
+    portfolio,
+    reference,
+    salaire,
+    settings,
+    transactions,
+)
 from .services import scheduler_service, startup_maintenance
 
 configure_logging()

@@ -94,7 +94,12 @@ def export_positions(db: Session = Depends(get_db), current_user: User = Depends
 
 @router.get("/transactions")
 def export_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    transactions = db.query(Transaction).filter(Transaction.user_id == auth_service.id_foyer(current_user)).order_by(Transaction.datetime_utc.asc()).all()
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == auth_service.id_foyer(current_user))
+        .order_by(Transaction.datetime_utc.asc())
+        .all()
+    )
 
     en_tetes = [
         "Date",

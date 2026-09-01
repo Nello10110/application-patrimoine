@@ -9,7 +9,7 @@ avant l'import définitif en base.
 import io
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
@@ -33,7 +33,7 @@ def _purger_imports_expires() -> None:
     """Retire du dictionnaire toute entrée déposée depuis plus de
     `DUREE_EXPIRATION_PENDING`. Appelée à chaque nouvel upload et à chaque lecture,
     pour que l'expiration soit effective sans tâche de fond dédiée."""
-    maintenant = datetime.now(timezone.utc)
+    maintenant = datetime.now(UTC)
     expires = [
         token
         for token, (_, depose_le) in _PENDING_IMPORTS.items()
@@ -60,7 +60,7 @@ def parse_upload(filename: str, content: bytes) -> ParsedFile:
     token = uuid.uuid4().hex
     if len(_PENDING_IMPORTS) >= _MAX_PENDING:
         _PENDING_IMPORTS.pop(next(iter(_PENDING_IMPORTS)))
-    _PENDING_IMPORTS[token] = (df, datetime.now(timezone.utc))
+    _PENDING_IMPORTS[token] = (df, datetime.now(UTC))
 
     preview = df.head(10).fillna("").astype(str).to_dict(orient="records")
     return ParsedFile(token=token, columns=list(df.columns), preview_rows=preview, total_rows=len(df))

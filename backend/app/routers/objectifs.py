@@ -34,7 +34,7 @@ def create_objectif(payload: ObjectifCreate, db: Session = Depends(get_db), curr
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return objectifs_service.compute_detail(db, auth_service.id_foyer(current_user), objectif)
+    return objectifs_service.compute_detail(db, objectif)
 
 
 @router.get("/{objectif_id}", response_model=ObjectifDetail)

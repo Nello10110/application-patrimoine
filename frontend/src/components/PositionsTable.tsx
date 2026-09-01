@@ -247,7 +247,23 @@ function PositionCard({
   }
 
   return (
-    <div onClick={onSelect} className="rounded-lg border border-bordure bg-surface p-4 active:bg-surface-elevee">
+    // Carte cliquable (vue mobile) : pas un <button> natif malgré role="button" —
+    // elle contient déjà les boutons Modifier/Supprimer plus bas, et un bouton
+    // dans un bouton est invalide en HTML (voir .oxlintrc.json pour l'exception
+    // jsx-a11y/prefer-tag-over-role correspondante).
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Voir le détail de ${h.ticker}`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
+      className="rounded-lg border border-bordure bg-surface p-4 active:bg-surface-elevee"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium text-texte">
@@ -514,7 +530,9 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
             })}
             <th className="py-2 pr-4">Secteur</th>
             <th className="py-2 pr-4">Pays</th>
-            <th className="py-2 pr-4"></th>
+            <th className="py-2 pr-4">
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">

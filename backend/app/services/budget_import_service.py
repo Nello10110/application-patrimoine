@@ -175,7 +175,9 @@ def parse_qif(content: bytes) -> list[MouvementBrut]:
 # ---------------------------------------------------------------------------
 
 
-def importer_mouvements(db: Session, user_id: int, mouvements: list[MouvementBrut], lignes_ignorees: int = 0, compte: str | None = None) -> ImportResult:
+def importer_mouvements(
+    db: Session, user_id: int, mouvements: list[MouvementBrut], lignes_ignorees: int = 0, compte: str | None = None
+) -> ImportResult:
     budget_categories_service.assurer_categories_par_defaut(db, user_id)
     regles = budget_categories_service.list_regles(db, user_id)
     existants = {

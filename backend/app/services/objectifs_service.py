@@ -8,16 +8,16 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from ..models import (
+    TYPE_ACTIF_CASH_ACCOUNT,
+    TYPE_ACTIF_REGULATED_SAVINGS,
+    TYPES_ACTIF_PATRIMOINE_MANUEL,
+    TYPES_OBJECTIF,
     Detenteur,
     Holding,
     Loan,
     Objectif,
     ObjectifActif,
     ObjectifContributeur,
-    TYPE_ACTIF_CASH_ACCOUNT,
-    TYPE_ACTIF_REGULATED_SAVINGS,
-    TYPES_ACTIF_PATRIMOINE_MANUEL,
-    TYPES_OBJECTIF,
 )
 from . import analysis_service, budget_service, patrimoine_service
 
@@ -118,7 +118,7 @@ def delete_objectif(db: Session, user_id: int, objectif_id: int) -> None:
 # ---------------------------------------------------------------------------
 
 
-def compute_detail(db: Session, user_id: int, objectif: Objectif) -> dict:
+def compute_detail(db: Session, objectif: Objectif) -> dict:
     liens_actifs = db.query(ObjectifActif).filter(ObjectifActif.objectif_id == objectif.id).all()
     holding_ids = [a.holding_id for a in liens_actifs]
     holdings = db.query(Holding).filter(Holding.id.in_(holding_ids)).all() if holding_ids else []
@@ -148,7 +148,8 @@ def compute_detail(db: Session, user_id: int, objectif: Objectif) -> dict:
     # accumulé X à telle date pour rester dans les temps".
     if mois_totaux > 0:
         fraction_ecoulee = min(1.0, max(0.0, mois_ecoules / mois_totaux))
-        valeur_attendue_aujourdhui = objectif.valeur_a_la_creation + (objectif.montant_cible - objectif.valeur_a_la_creation) * fraction_ecoulee
+        progression_visee = (objectif.montant_cible - objectif.valeur_a_la_creation) * fraction_ecoulee
+        valeur_attendue_aujourdhui = objectif.valeur_a_la_creation + progression_visee
     else:
         valeur_attendue_aujourdhui = objectif.montant_cible
 
@@ -222,12 +223,12 @@ def compute_detail(db: Session, user_id: int, objectif: Objectif) -> dict:
 
 
 def list_objectifs_detail(db: Session, user_id: int) -> list[dict]:
-    return [compute_detail(db, user_id, o) for o in list_objectifs(db, user_id)]
+    return [compute_detail(db, o) for o in list_objectifs(db, user_id)]
 
 
 def get_objectif_detail(db: Session, user_id: int, objectif_id: int) -> dict:
     objectif = _objectif_du_foyer(db, user_id, objectif_id)
-    return compute_detail(db, user_id, objectif)
+    return compute_detail(db, objectif)
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from ..models import SOURCE_INDICE, TYPES_ACTIF_PATRIMOINE_MANUEL, FundComposition, Holding
 from .reference_indices import NON_CATEGORISE, ZONE_EUROPE, label_for_sector
 
-
 # Libellé affiché pour regrouper les lignes sans compte renseigné (LOT 5.1), plutôt
 # que de les écarter du total ou de laisser un libellé vide/ambigu dans la répartition.
 COMPTE_SANS_ANNOTATION = "Sans compte renseigné"
@@ -151,7 +150,7 @@ def holdings_in_category(db: Session, valued: list[ValuedHolding], type_: str, c
         if contribution > 1e-9:
             lignes.append({"ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(contribution, 2)})
 
-    lignes.sort(key=lambda l: -l["valeur"])
+    lignes.sort(key=lambda ligne: -ligne["valeur"])
     return lignes
 
 

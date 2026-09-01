@@ -1,8 +1,41 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["react", "typescript", "oxc", "jsx-a11y", "react-perf", "import", "promise"],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/components/Modale.tsx"],
+      "rules": {
+        "jsx-a11y/click-events-have-key-events": "off",
+        "jsx-a11y/no-static-element-interactions": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
+        "jsx-a11y/prefer-tag-over-role": "off"
+      }
+    },
+    {
+      "files": ["src/components/Skeleton.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    },
+    {
+      "files": ["src/components/HoldingDetailContent.tsx", "src/components/LoansCard.tsx", "src/components/PreferencesCard.tsx"],
+      "rules": {
+        "jsx-a11y/control-has-associated-label": "off",
+        "jsx-a11y/label-has-associated-control": "off"
+      }
+    },
+    {
+      "files": ["src/components/PositionsTable.tsx"],
+      "rules": {
+        "jsx-a11y/prefer-tag-over-role": "off",
+        "jsx-a11y/control-has-associated-label": "off"
+      }
+    },
+    {
+      "files": ["src/components/PaletteRecherche.tsx"],
+      "rules": { "jsx-a11y/no-autofocus": "off" }
+    }
+  ]
 }

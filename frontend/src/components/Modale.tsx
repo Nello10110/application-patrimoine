@@ -116,6 +116,10 @@ export default function Modale({
       : 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 dark:bg-black/60'
 
   return (
+    // Fond cliquable pour fermer (backdrop) : mouse-only par construction, la
+    // fermeture clavier passe par Échap ci-dessus — jamais dans l'ordre de
+    // tabulation, un gestionnaire clavier n'aurait rien à écouter (voir les
+    // exceptions jsx-a11y correspondantes dans .oxlintrc.json).
     <div className={conteneurClassName} onClick={onClose}>
       <div
         ref={panelRef}

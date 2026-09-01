@@ -69,10 +69,7 @@ def compute_resume_entree(
         brut_annuel = brut
         net_avant_impot_annuel = net_avant_impot
 
-    if taux_imposition_pct is not None:
-        net_apres_impot_annuel = net_avant_impot_annuel * (1 - taux_imposition_pct / 100)
-    else:
-        net_apres_impot_annuel = None
+    net_apres_impot_annuel = net_avant_impot_annuel * (1 - taux_imposition_pct / 100) if taux_imposition_pct is not None else None
 
     return {
         "brut_annuel": round(brut_annuel, 2),

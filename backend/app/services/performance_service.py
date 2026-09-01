@@ -24,7 +24,7 @@ ajoute des transactions en cours de vie de l'app, et un mécanisme implicite mas
 transporter son résultat, jamais le dupliquer.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -192,7 +192,7 @@ def compute_performance(db: Session, user_id: int, positions: dict[str, Position
     for state in positions.values():
         cash_flows.extend(state.cash_flows)
     if cash_flows:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(UTC).replace(tzinfo=None)
         cash_flows.append((now, valeur_positions))
     rendement_annualise_pct = xirr(cash_flows)
 
@@ -323,7 +323,7 @@ def compute_holding_returns(db: Session, user_id: int, positions: dict[str, Posi
     valued = analysis_service.value_holdings(holdings)
     if positions is None:
         positions = portfolio_reconstruction.compute_positions(db, user_id)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
 
     return {v.holding.ticker: _rendement_pour_ligne(v, positions.get(v.holding.ticker), now) for v in valued}
 
@@ -351,6 +351,6 @@ def compute_holding_return(db: Session, ticker: str, user_id: int, position: Pos
     v = analysis_service.value_holdings([holding])[0]
     if position is None:
         position = portfolio_reconstruction.compute_position(db, ticker, user_id)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
 
     return _rendement_pour_ligne(v, position, now)

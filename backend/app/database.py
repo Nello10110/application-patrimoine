@@ -133,8 +133,9 @@ def upgrade_schema() -> None:
     même résolution dynamique que le reste de l'application (`PATRIMOINE_DB`,
     repli sur l'ancien nom de base), pour qu'Alembic ouvre toujours exactement le
     fichier que `engine` ouvre déjà."""
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     cfg = Config(str(_RACINE_BACKEND / "alembic.ini"))
     cfg.set_main_option("script_location", str(_RACINE_BACKEND / "alembic"))

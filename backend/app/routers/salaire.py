@@ -6,8 +6,8 @@ d'imposition. Réservé au propriétaire (protection au niveau `include_router` 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..database import get_db
 from ..auth import get_current_user
+from ..database import get_db
 from ..models import User
 from ..schemas import SalaireDonnees, SalaireIn, SalaireResume, SyntheseAnnee
 from ..services import auth_service, salaire_service

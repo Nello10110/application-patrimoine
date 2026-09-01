@@ -9,8 +9,8 @@ il réutilise l'exécuteur en tâche de fond de `market_data_refresh`.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
@@ -99,8 +99,12 @@ def _run_sauvegarde_chiffree() -> None:
     clé configurée, le job apparaît simplement en statut "erreur" dans Réglages."""
     db = SessionLocal()
     try:
-        chemin = backup_service.sauvegarder_chiffre(sauvegarde_module.chemin_base_source(), sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT)
-        supprimees = backup_service.appliquer_retention_chiffree(sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT, sauvegarde_module.RETENTION_PAR_DEFAUT)
+        chemin = backup_service.sauvegarder_chiffre(
+            sauvegarde_module.chemin_base_source(), sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT
+        )
+        supprimees = backup_service.appliquer_retention_chiffree(
+            sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT, sauvegarde_module.RETENTION_PAR_DEFAUT
+        )
         message = chemin.name
         if supprimees:
             message += f" ({len(supprimees)} ancienne(s) supprimée(s))"
@@ -141,7 +145,7 @@ def _get_or_create_config(db: Session, job_key: str) -> ScheduledJobConfig:
 
 def _record_result(db: Session, job_key: str, statut: str, message: str) -> None:
     config = _get_or_create_config(db, job_key)
-    config.derniere_execution = datetime.now(timezone.utc)
+    config.derniere_execution = datetime.now(UTC)
     config.dernier_statut = statut
     config.dernier_message = message
     db.commit()

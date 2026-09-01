@@ -7,7 +7,7 @@ classique. Toute évolution de schéma est appliquée automatiquement au démarr
 pour l'historique des révisions.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,7 +16,7 @@ from .database import Base
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # Qualification de l'origine d'une ligne `FundComposition.source` (cf. 2.1) : permet
@@ -111,7 +111,10 @@ class Holding(Base):
     prix_revient_moyen: Mapped[float | None] = mapped_column(Float, nullable=True)
     compte: Mapped[str | None] = mapped_column(String, nullable=True)
     devise: Mapped[str | None] = mapped_column(String, nullable=True)
-    type_actif: Mapped[str | None] = mapped_column(String, nullable=True)  # STOCK | FUND | CRYPTO | BOND | PRIVATE_FUND | REAL_ESTATE | SCPI | LIFE_INSURANCE | PENSION
+    # Chaîne libre, pas un enum SQL : la liste des valeurs connues vit dans
+    # `patrimoine_service.LABEL_TYPE_ACTIF` (source unique, jamais dupliquée ici en
+    # commentaire — cette énumération avait déjà dérivé une fois par le passé).
+    type_actif: Mapped[str | None] = mapped_column(String, nullable=True)
     origine: Mapped[str] = mapped_column(String, default=ORIGINE_RECONSTRUIT, server_default=ORIGINE_RECONSTRUIT)
     # Valorisation manuelle (colonnes additives, cf. `TYPES_ACTIF_PATRIMOINE_MANUEL`
     # ci-dessus) : `valeur_estimee` est un montant ABSOLU en euros (pas un prix par

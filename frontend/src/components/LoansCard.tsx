@@ -472,7 +472,9 @@ export default function LoansCard() {
                 <th className="py-2 pr-4">Mensualité</th>
                 <th className="py-2 pr-4">Capital restant dû</th>
                 <th className="py-2 pr-4">Actif rattaché</th>
-                <th className="py-2 pr-4"></th>
+                <th className="py-2 pr-4">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-bordure">

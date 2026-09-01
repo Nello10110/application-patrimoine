@@ -22,9 +22,9 @@ fois* on a le droit de le faire tourner.
 
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 from ..database import SessionLocal
 from . import market_data_service
@@ -57,7 +57,7 @@ def verifier_et_enregistrer_rafraichissement_manuel() -> None:
     le précédent rafraîchissement manuel accepté ; sinon enregistre celui-ci comme
     référence pour le prochain appel."""
     global _dernier_rafraichissement_manuel
-    maintenant = datetime.now(timezone.utc)
+    maintenant = datetime.now(UTC)
     if _dernier_rafraichissement_manuel is not None:
         ecoule = (maintenant - _dernier_rafraichissement_manuel).total_seconds()
         if ecoule < DELAI_MINIMAL_ENTRE_RAFRAICHISSEMENTS_SECONDES:
@@ -168,7 +168,7 @@ def _executer_rafraichissement(
         db.close()
         with _verrou_etat:
             _etat.en_cours = False
-            _etat.termine_le = datetime.now(timezone.utc)
+            _etat.termine_le = datetime.now(UTC)
             etat_final = replace(_etat)
 
     if on_termine is not None:
@@ -201,7 +201,7 @@ def demarrer_rafraichissement(
         _etat.en_cours = True
         _etat.positions_traitees = 0
         _etat.positions_total = len(items)
-        _etat.demarre_le = datetime.now(timezone.utc)
+        _etat.demarre_le = datetime.now(UTC)
         _etat.termine_le = None
         _etat.statut = None
         _etat.message = None

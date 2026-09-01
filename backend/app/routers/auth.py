@@ -170,11 +170,11 @@ def update_oidc_config(
             claim_email=payload.claim_email,
             claim_nom=payload.claim_nom,
         )
-    except oidc_service.CleChiffrementAbsenteError:
+    except oidc_service.CleChiffrementAbsenteError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Définis {oidc_service.VARIABLE_CLE_CHIFFREMENT} sur le serveur avant d'enregistrer un secret SSO.",
-        )
+        ) from exc
     return OidcConfigOut(**oidc_service.config_admin(db))
 
 
@@ -184,7 +184,11 @@ def delete_oidc_config(db: Session = Depends(get_db), current_user: User = Depen
 
 
 @router.post("/logout", status_code=204)
-def logout(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), token_row: AuthToken = Depends(get_current_token)):
+def logout(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    token_row: AuthToken = Depends(get_current_token),
+):
     auth_service.journaliser_acces(db, current_user.username, current_user.id, token_row.ip, "succes", None, action="logout")
     auth_service.supprimer_token(db, token_row.token)
 
@@ -195,7 +199,11 @@ def me(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/sessions", response_model=list[SessionOut])
-def list_sessions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), token_row: AuthToken = Depends(get_current_token)):
+def list_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    token_row: AuthToken = Depends(get_current_token),
+):
     sessions = auth_service.lister_sessions(db, current_user.id)
     resultats = []
     for session in sessions:
@@ -216,13 +224,22 @@ def revoke_session(id_session: str, db: Session = Depends(get_db), current_user:
 
 
 @router.get("/access-log", response_model=list[AccessLogEntryOut])
-def get_access_log(page: int = 1, page_size: int = 50, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+def get_access_log(
+    page: int = 1,
+    page_size: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
+):
     entrees = auth_service.lister_journal_acces(db, page, max(1, min(page_size, 200)))
     return [AccessLogEntryOut.model_validate(e) for e in entrees]
 
 
 @router.post("/household-members", response_model=HouseholdMemberOut)
-def create_household_member(payload: HouseholdMemberCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+def create_household_member(
+    payload: HouseholdMemberCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
+):
     if auth_service.utilisateur_par_username(db, payload.username) is not None:
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
     membre = auth_service.creer_utilisateur(db, payload.username, payload.password, role=payload.role, owner_user_id=current_user.id)

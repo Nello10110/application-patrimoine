@@ -77,7 +77,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="ATT", quantite=1, prix_revient_moyen=60000.0, type_actif="CASH_ACCOUNT", valeur_estimee=60000.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=50000.0, valeur_a_la_creation=40000.0, jours_ecoules=200)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert detail["diagnostic"] == "atteint"
         assert detail["valeur_actuelle"] == 60000.0
@@ -90,7 +90,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="BV", quantite=1, prix_revient_moyen=6000.0, type_actif="CASH_ACCOUNT", valeur_estimee=6000.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=10000.0, valeur_a_la_creation=1000.0, echeance=echeance, jours_ecoules=180)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert detail["diagnostic"] == "en_bonne_voie"
         assert detail["progression_pct"] == 60.0
@@ -100,7 +100,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="RET", quantite=1, prix_revient_moyen=1500.0, type_actif="CASH_ACCOUNT", valeur_estimee=1500.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=10000.0, valeur_a_la_creation=1000.0, echeance=echeance, jours_ecoules=180)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert detail["diagnostic"] == "en_retard"
         assert detail["retard_mois"] is not None
@@ -111,7 +111,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="ZERO", quantite=1, prix_revient_moyen=1000.0, type_actif="CASH_ACCOUNT", valeur_estimee=1000.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=10000.0, valeur_a_la_creation=1000.0, echeance=echeance, jours_ecoules=180)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert detail["diagnostic"] == "aucune_progression"
         assert detail["retard_mois"] is None
@@ -121,7 +121,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="DEP", quantite=1, prix_revient_moyen=1000.0, type_actif="CASH_ACCOUNT", valeur_estimee=1000.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=10000.0, valeur_a_la_creation=1000.0, echeance=echeance, jours_ecoules=180)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert detail["diagnostic"] == "echeance_depassee"
 
@@ -130,7 +130,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="REND", quantite=1, prix_revient_moyen=10000.0, type_actif="CASH_ACCOUNT", valeur_estimee=10000.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=11000.0, valeur_a_la_creation=10000.0, echeance=echeance, jours_ecoules=0)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         # 10000 * (1+r) = 11000 sur ~1 an => r ~= 10%
         assert detail["rendement_requis_pct"] == pytest.approx(10.0, abs=1.0)
@@ -142,7 +142,7 @@ class TestDiagnosticEtTrajectoire:
             db, holdings=[h], montant_cible=12000.0, valeur_a_la_creation=0.0, echeance=echeance, rendement_hypothese_pct=0.0, jours_ecoules=0
         )
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         # 12000 sur 12 mois à taux 0% => 1000/mois
         assert detail["contribution_mensuelle_necessaire"] == pytest.approx(1000.0, abs=50.0)
@@ -152,7 +152,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="OK", quantite=1, prix_revient_moyen=20000.0, type_actif="CASH_ACCOUNT", valeur_estimee=20000.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=10000.0, valeur_a_la_creation=20000.0, echeance=echeance, jours_ecoules=0)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert detail["contribution_mensuelle_necessaire"] == 0.0
 
@@ -160,7 +160,7 @@ class TestDiagnosticEtTrajectoire:
         h = make_holding(db, ticker="TRAJ", quantite=1, prix_revient_moyen=3000.0, type_actif="CASH_ACCOUNT", valeur_estimee=3000.0)
         objectif = make_objectif(db, holdings=[h], montant_cible=10000.0, valeur_a_la_creation=1000.0, jours_ecoules=30)
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert len(detail["trajectoire_cible"]) == 2
         assert len(detail["trajectoire_reelle"]) == 2
@@ -173,7 +173,7 @@ class TestDiagnosticEtTrajectoire:
         alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Alice", "personne")
         objectif = make_objectif(db, holdings=[h], detenteurs=[alice])
 
-        detail = objectifs_service.compute_detail(db, ID_UTILISATEUR_TEST, objectif)
+        detail = objectifs_service.compute_detail(db, objectif)
 
         assert detail["actifs_rattaches"] == [{"holding_id": h.id, "ticker": "EXPO", "nom": h.nom}]
         assert detail["contributeurs"] == [{"id": alice.id, "nom": "Alice"}]
