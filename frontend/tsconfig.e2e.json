@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* Résolution "bundler" (comme tsconfig.app.json) plutôt que "nodenext" : évite
+       d'imposer l'extension .js sur les imports relatifs entre fichiers .ts, une
+       convention Node ESM stricte que Playwright lui-même n'exige pas (son propre
+       transform à l'exécution résout les extensions sans y penser). */
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["playwright.config.ts", "e2e"]
+}

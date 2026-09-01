@@ -26,16 +26,26 @@ Puis ouvrir `http://localhost:5173`.
 cd backend
 pip install -r requirements-dev.txt
 python -m pytest -q
-python -m ruff check app/
+python -m ruff check app/ scripts/
 
 # Frontend
 cd frontend
 npm run test
 npm run lint    # oxlint
 npm run build   # inclut la vérification des types (tsc)
+
+# Tests IHM de bout en bout (navigateur réel piloté par Playwright, contre un
+# backend isolé sur une base SQLite jetable — jamais la vraie base de l'utilisateur)
+npx playwright install --with-deps chromium   # une seule fois
+npm run test:e2e
 ```
 
-Ces quatre commandes (pytest, ruff, vitest, oxlint + build) sont aussi exécutées automatiquement sur chaque push/PR par [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Ces cinq commandes (pytest, ruff, vitest, oxlint + build, Playwright) sont aussi
+exécutées automatiquement sur chaque push/PR par [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+La suite E2E (`frontend/e2e/`) démarre elle-même un backend dédié (base seedée par
+[`backend/scripts/seed_e2e.py`](backend/scripts/seed_e2e.py)) et une preview de
+production du frontend — rien à lancer à la main au préalable. En cas d'échec,
+`npx playwright show-report` affiche le rapport HTML (traces, captures d'écran).
 
 ## Documentation
 

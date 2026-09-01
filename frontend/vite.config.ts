@@ -1,7 +1,14 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// Cible du proxy /api, configurable (E2E, `e2e/playwright.config.ts`) : pointe par
+// défaut sur le backend de dev habituel (port 8000, comportement strictement
+// inchangé) ; la suite Playwright la fait pointer vers un backend isolé (port 8010,
+// base SQLite jetable) pour ne jamais dépendre d'un `npm run dev` déjà lancé en
+// parallèle ni risquer de toucher la vraie base de l'utilisateur.
+const CIBLE_PROXY_API = process.env.PATRIMOINE_E2E_BACKEND_URL || 'http://127.0.0.1:8000'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -41,20 +48,25 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:8000',
+      '/api': CIBLE_PROXY_API,
     },
   },
   // Même proxy qu'en dev pour `vite preview` (build de production servi localement) :
   // sans lui, vérifier le service worker généré (§ H.1) contre le vrai backend serait
-  // impossible en local.
+  // impossible en local — c'est aussi ce mode que la suite Playwright utilise.
   preview: {
     proxy: {
-      '/api': 'http://127.0.0.1:8000',
+      '/api': CIBLE_PROXY_API,
     },
   },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // `e2e/*.spec.ts` (suite Playwright, `e2e/playwright.config.ts`) utilise le
+    // même motif `*.spec.ts` que le filtre par défaut de Vitest — exclu
+    // explicitement, sinon Vitest tente de les exécuter avec son propre runner
+    // (échec immédiat : ces fichiers importent `@playwright/test`, pas `vitest`).
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     // Fixe le fuseau du runner à UTC : plusieurs tests (ex. `formatDateHeure`)
     // vérifient une conversion UTC → locale et supposaient à tort que l'environnement
     // de test tournait déjà en UTC, sans jamais l'imposer — dépendant silencieusement

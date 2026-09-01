@@ -15,3 +15,10 @@ backend/sauvegardes/
 
 # Sortie générée par l'outil graphify (graphe de code régénérable, cf. graphify-out/manifest.json)
 graphify-out/
+
+# Suite E2E Playwright (frontend/e2e) : base seedée jetable + rapports générés à
+# chaque run, jamais versionnés.
+frontend/e2e/.e2e-data/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
