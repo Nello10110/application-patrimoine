@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { BudgetImportResult, ImportPreview, ImportResult, TransactionImportResult } from '../api/types'
 import Card from '../components/Card'
+import CsvPreviewTable from '../components/CsvPreviewTable'
 import { IconFlecheDroite } from '../components/icons'
 
 function TransactionImportSection() {
@@ -199,30 +200,7 @@ function BankImportSection() {
 
       {preview && (
         <div className="mt-4 space-y-4 border-t border-bordure pt-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-bordure text-left text-texte-attenue">
-                  {preview.columns.map((c) => (
-                    <th key={c} className="py-1.5 pr-4 font-medium">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {preview.rows.slice(0, 5).map((row, i) => (
-                  <tr key={i} className="border-b border-bordure">
-                    {preview.columns.map((c) => (
-                      <td key={c} className="py-1.5 pr-4 text-texte">
-                        {row[c]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -502,29 +480,8 @@ export default function ImportPage() {
 
       {preview && (
         <Card title={`Aperçu (${preview.total_rows} lignes au total)`}>
-          <div className="mb-4 overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-bordure text-left text-texte-attenue">
-                  {preview.columns.map((c) => (
-                    <th key={c} className="py-1.5 pr-4 font-medium">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {preview.rows.slice(0, 5).map((row, i) => (
-                  <tr key={i} className="border-b border-bordure">
-                    {preview.columns.map((c) => (
-                      <td key={c} className="py-1.5 pr-4 text-texte">
-                        {row[c]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mb-4">
+            <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
