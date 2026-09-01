@@ -54,11 +54,22 @@ export default defineConfig({
     // Build de prod + `vite preview` (plus proche du déploiement réel qu'un `vite
     // dev`) — `PATRIMOINE_E2E_BACKEND_URL` fait pointer le proxy /api vers le
     // backend isolé démarré par `global-setup.ts` (cf. `vite.config.ts`), jamais le
-    // port 8000 par défaut d'un `npm run dev` local qui tournerait en parallèle.
+    // port 8000 par défaut d'un `npm run dev` local qui tournerait en parallèle. En
+    // CI, `npm run build` a déjà tourné une première fois comme étape dédiée
+    // (`.github/workflows/ci.yml`) — le rebuild ici est donc quasi instantané
+    // (cache Vite chaud, aucun fichier source changé) ; le garder malgré tout côté
+    // local évite de servir un `dist/` périmé si on lance `npm run test:e2e` sans
+    // avoir rebuild à la main au préalable.
     command: `npm run build && npm run preview -- --port ${FRONTEND_PORT} --strictPort`,
     url: `http://127.0.0.1:${FRONTEND_PORT}`,
     env: { PATRIMOINE_E2E_BACKEND_URL: BACKEND_URL },
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: 180_000,
+    // Sans ceci, un échec de `npm run build`/`preview` (ex. `tsc -b` en erreur)
+    // reste invisible : Playwright n'affiche que "Timed out waiting Nms from
+    // config.webServer", jamais la sortie réelle de la commande — piège rencontré
+    // en CI (job "e2e" échoué sans aucun diagnostic exploitable dans les logs).
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 })

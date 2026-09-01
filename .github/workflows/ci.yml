@@ -89,6 +89,14 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
+      - name: Build frontend
+        # Etape dediee (plutot que de laisser `webServer` de playwright.config.ts le
+        # faire silencieusement) : un echec de build reste sinon invisible, noye
+        # dans le "Timed out waiting Nms from config.webServer" generique de
+        # Playwright, sans acces a la sortie reelle de `tsc -b`/`vite build`.
+        working-directory: frontend
+        run: npm run build
+
       - name: Tests E2E (Playwright)
         working-directory: frontend
         # PATRIMOINE_E2E_PYTHON : le runner installe les dependances backend sur le
