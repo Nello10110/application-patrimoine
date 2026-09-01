@@ -298,6 +298,11 @@ export interface PatrimoineHistoryPoint {
   // un versement a été explicitement déclaré (`Holding`/`HoldingValuationHistory.
   // versement`, § U.2) ; `valeur_realisee_cumulee` reste exclusivement financière.
   valeur_investie: number
+  // Nettée de `passifs_totaux` (retour utilisateur 31/08/2026) : `valeur_investie`
+  // ci-dessus reste BRUTE, jamais réduite d'un emprunt — c'est CE champ qu'utilise le
+  // mode étagé en lentille Net, jamais `valeur_investie` (qui sous-compterait les
+  // gains d'un bien financé à crédit, la dette étant alors soustraite deux fois).
+  valeur_investie_nette: number
   valeur_realisee_cumulee: number
 }
 
@@ -738,7 +743,7 @@ export interface CategoryCompositionItem {
 }
 
 export interface CategoryCompositionResponse {
-  type: 'geo' | 'sector'
+  type: 'geo' | 'sector' | 'classe'
   categorie: string
   valeur_totale: number
   lignes: CategoryCompositionItem[]

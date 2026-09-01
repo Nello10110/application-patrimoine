@@ -45,6 +45,7 @@ function pointPatrimoine(overrides: Partial<PatrimoineHistoryPoint> = {}): Patri
     patrimoine_net: 0,
     patrimoine_financier: 0,
     valeur_investie: 0,
+    valeur_investie_nette: 0,
     valeur_realisee_cumulee: 0,
     ...overrides,
   }
@@ -135,6 +136,17 @@ describe('PortfolioHistoryChart — lentille (feature Net/Brut/Financier sur tou
       pointsPatrimoine: [pointPatrimoine({ date: '2026-01-01', patrimoine_net: -500 })],
       loadingPatrimoine: false,
     })
+
+    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+  })
+
+  it('lentille "net" en mode étagé : ne plante pas (retour utilisateur 31/08/2026 — utilise `valeur_investie_nette`, jamais `valeur_investie` brute)', () => {
+    renderChart('net', {
+      pointsPatrimoine: [pointPatrimoine({ date: '2026-01-01', patrimoine_net: 50000, valeur_investie: 300000, valeur_investie_nette: 50000 })],
+      loadingPatrimoine: false,
+    })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Mode étagé/ }))
 
     expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
   })

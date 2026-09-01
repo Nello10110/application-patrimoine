@@ -48,12 +48,21 @@ export default function PortfolioHistoryChart({
   // sont désormais de vrais champs calculés côté backend (backlog § U.3, 30/08/2026) :
   // la part manuelle de l'investi ne progresse qu'aux points où un versement a été
   // explicitement déclaré (§ U.2), le reste de la hausse restant du gain.
+  //
+  // En lentille Net, `valeur_investie` (toujours BRUTE) doit céder la place à
+  // `valeur_investie_nette` (retour utilisateur 31/08/2026) : comparer un
+  // `patrimoine_net` déjà netté de l'emprunt à un investi resté brut soustrayait la
+  // dette deux fois, sous-comptant massivement les gains d'un bien financé à crédit
+  // (ex. maison à 300k€ avec 250k€ de crédit restant dû affichait ~50k€ de "gains"
+  // fictifs). `valeur_investie_nette` restaure l'invariant : Gains doit valoir le même
+  // montant en Brut et en Net, la dette ne déplaçant jamais une performance
+  // d'investissement, seulement le capital investi affiché.
   const pointsActifs = enFinancier
     ? points
     : (pointsPatrimoine?.map((p) => ({
         date: p.date,
         valeur_portefeuille: lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net,
-        valeur_investie: p.valeur_investie,
+        valeur_investie: lentille === 'brut' ? p.valeur_investie : p.valeur_investie_nette,
         valeur_realisee_cumulee: p.valeur_realisee_cumulee,
       })) ?? null)
   const loadingActif = enFinancier ? loading : (loadingPatrimoine ?? false)

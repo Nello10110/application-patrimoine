@@ -291,7 +291,14 @@ export default function DashboardPage() {
             )}
           </Disclosure>
 
-          {modal && <CompositionModal type={modal.type} categorie={modal.categorie} onClose={() => setModal(null)} />}
+          {modal && (
+            <CompositionModal
+              categorie={modal.categorie}
+              sousTitre={modal.type === 'geo' ? 'Répartition géographique' : 'Répartition sectorielle'}
+              fetchComposition={(categorie) => api.getCategoryComposition(modal.type, categorie)}
+              onClose={() => setModal(null)}
+            />
+          )}
         </>
       )}
     </div>

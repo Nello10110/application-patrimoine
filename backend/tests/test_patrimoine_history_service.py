@@ -147,6 +147,43 @@ def test_valeur_investie_combine_poche_financiere_et_manuelle(db, monkeypatch):
     assert dernier["valeur_realisee_cumulee"] == 100.0  # exclusivement financier
 
 
+def test_valeur_investie_nette_est_nettee_des_passifs(db):
+    """Retour utilisateur (31/08/2026) : le mode étagé Net comparait `patrimoine_net`
+    (déjà netté des emprunts) à `valeur_investie` BRUTE (jamais nettée) — la dette était
+    ainsi soustraite deux fois, sous-comptant massivement les gains d'un bien financé à
+    crédit. `valeur_investie_nette = valeur_investie - passifs_totaux` (même netting
+    global que `patrimoine_net`) restaure l'invariant attendu : Gains (portefeuille +
+    réalisé − investi) doit valoir EXACTEMENT le même montant en Brut et en Net, la
+    dette ne déplaçant jamais une performance d'investissement, seulement le capital
+    investi affiché."""
+    h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=300000.0, valeur_estimee=300000.0)
+    db.add(
+        Loan(
+            user_id=ID_UTILISATEUR_TEST,
+            libelle="Crédit immo",
+            capital_initial=250000.0,
+            taux_annuel_pct=0.0,
+            mensualite=1000.0,
+            date_debut=datetime(2020, 1, 1),
+            duree_mois=200,
+            capital_restant_du_manuel=250000.0,
+            holding_id=h.id,
+        )
+    )
+    db.commit()
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    dernier = points[-1]
+    assert dernier["valeur_investie"] == 300000.0  # ancrage sur le coût d'acquisition, jamais nettée
+    assert dernier["passifs_totaux"] == 250000.0
+    assert dernier["valeur_investie_nette"] == 50000.0  # 300000 - 250000
+
+    gains_brut = dernier["actifs_totaux"] + dernier["valeur_realisee_cumulee"] - dernier["valeur_investie"]
+    gains_net = dernier["patrimoine_net"] + dernier["valeur_realisee_cumulee"] - dernier["valeur_investie_nette"]
+    assert gains_brut == gains_net  # l'invariant : la dette ne crée/ne détruit jamais de gain
+
+
 def test_valeur_realisee_cumulee_reste_exclusivement_financiere(db):
     """Aucun équivalent « réalisé » pour une ligne manuelle — jamais de contribution
     de la poche manuelle à `valeur_realisee_cumulee`, même avec un historique riche."""

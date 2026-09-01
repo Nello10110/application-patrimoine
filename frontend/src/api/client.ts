@@ -285,6 +285,10 @@ export const api = {
   getPatrimoineHistory: (detenteurId?: number | null) =>
     request<PatrimoineHistoryResponse>(`/patrimoine/historique${detenteurId ? `?detenteur_id=${detenteurId}` : ''}`),
   getExpositionConsolidee: () => request<ExpositionConsolidee>('/patrimoine/exposition-consolidee'),
+  getExpositionConsolideeComposition: (dimension: 'geo' | 'classe', categorie: string, net: boolean) =>
+    request<CategoryCompositionResponse>(
+      `/patrimoine/exposition-consolidee/composition?dimension=${dimension}&categorie=${encodeURIComponent(categorie)}&net=${net}`,
+    ),
 
   // Liens de partage révocables (backlog 2.Q.1) : gestion réservée au propriétaire.
   listLiensPartage: () => request<LienPartage[]>('/partage'),

@@ -206,7 +206,7 @@ def _valeur_emprunt_a_date(loan: Loan, date: datetime) -> float:
 _CHAMPS_POINT_PATRIMOINE = {
     "date", "valeur_financiere", "valeur_manuelle", "actifs_totaux",
     "passifs_totaux", "patrimoine_net", "patrimoine_financier",
-    "valeur_investie", "valeur_realisee_cumulee",
+    "valeur_investie", "valeur_investie_nette", "valeur_realisee_cumulee",
 }
 
 
@@ -317,6 +317,21 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
                 "patrimoine_net": round(actifs_totaux - passifs_totaux, 2),
                 "patrimoine_financier": round(valeur_financiere, 2),
                 "valeur_investie": round(valeur_investie, 2),
+                # Mode étagé Net (retour utilisateur 31/08/2026) : `valeur_investie`
+                # ci-dessus reste BRUTE (jamais nettée d'un emprunt) alors que
+                # `patrimoine_net` ci-dessus l'est déjà — les comparer directement en
+                # lentille Net (`Gains = patrimoine_net - valeur_investie`) sous-comptait
+                # massivement les gains d'un bien financé à crédit (la dette était
+                # soustraite deux fois : une fois dans `patrimoine_net`, une fois de
+                # façon détournée puisque `valeur_investie` grossier n'était jamais
+                # réduit en retour). `valeur_investie_nette = valeur_investie -
+                # passifs_totaux` (même netting global que `patrimoine_net`, pas de
+                # rattachement par ligne ici — cohérent avec le reste de ce point,
+                # calculé au niveau agrégé) restaure l'invariant attendu : Gains
+                # (portefeuille + réalisé − investi) doit valoir EXACTEMENT le même
+                # montant en lentille Brut et Net, la dette ne déplaçant jamais une
+                # performance d'investissement, seulement le capital investi affiché.
+                "valeur_investie_nette": round(valeur_investie - passifs_totaux, 2),
                 "valeur_realisee_cumulee": round(valeur_realisee_cumulee, 2),
             }
         )

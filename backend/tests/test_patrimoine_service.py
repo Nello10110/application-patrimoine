@@ -460,3 +460,88 @@ class TestExpositionConsolidee:
         assert resultat["valeur_totale_nette"] == 200.0  # 1000 - 800, sans bucket "Dettes" dédié ici
         par_classe_nette = {item["categorie"]: item["valeur"] for item in resultat["repartition_classe_nette"]}
         assert par_classe_nette == {"Actions": 1000.0}  # la ligne elle-même reste inchangée, seul le total baisse
+
+
+class TestCompositionCategorieConsolidee:
+    """Backlog : détail des lignes d'une catégorie de l'exposition consolidée (clic sur
+    le camembert de `ExpositionConsolideeCard`), `compute_composition_categorie_consolidee`."""
+
+    def test_dimension_classe_liste_les_lignes_de_cette_classe(self, db):
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+        make_holding(db, ticker="BBB", type_actif="STOCK", quantite=5, prix_revient_moyen=50.0)
+        make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+
+        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Actions", net=False)
+
+        tickers = {l["ticker"]: l["valeur"] for l in resultat["lignes"]}
+        assert tickers == {"AAA": 1000.0, "BBB": 250.0}
+        assert resultat["valeur_totale"] == 1250.0
+        assert resultat["type"] == "classe"
+        assert resultat["categorie"] == "Actions"
+
+    def test_dimension_classe_net_utilise_la_valeur_nette_de_lemprunt_rattache(self, db):
+        h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST,
+                libelle="Crédit immo",
+                capital_initial=200000.0,
+                taux_annuel_pct=0.0,
+                mensualite=1000.0,
+                date_debut=datetime(2020, 1, 1),
+                duree_mois=200,
+                capital_restant_du_manuel=120000.0,
+                holding_id=h.id,
+            )
+        )
+        db.commit()
+
+        brut = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Immobilier", net=False)
+        net = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Immobilier", net=True)
+
+        assert brut["lignes"][0]["valeur"] == 200000.0
+        assert net["lignes"][0]["valeur"] == 80000.0
+
+    def test_dimension_classe_negative_reste_visible(self, db):
+        h = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+        db.add(
+            Loan(
+                user_id=ID_UTILISATEUR_TEST,
+                libelle="Crédit immo",
+                capital_initial=250000.0,
+                taux_annuel_pct=0.0,
+                mensualite=1000.0,
+                date_debut=datetime(2020, 1, 1),
+                duree_mois=200,
+                capital_restant_du_manuel=250000.0,
+                holding_id=h.id,
+            )
+        )
+        db.commit()
+
+        net = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Immobilier", net=True)
+
+        assert len(net["lignes"]) == 1
+        assert net["lignes"][0]["ticker"] == "MAISON"
+        assert net["lignes"][0]["valeur"] == -50000.0
+        assert net["valeur_totale"] == -50000.0
+
+    def test_dimension_geo_inclut_le_manuel_via_sa_zone_geo_declaree(self, db):
+        make_holding(
+            db, ticker="APPART_US", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=100000.0, valeur_estimee=100000.0, zone_geo="Amérique du Nord"
+        )
+        make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=200000.0)
+
+        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "geo", "Europe", net=False)
+
+        tickers = {l["ticker"] for l in resultat["lignes"]}
+        assert tickers == {"MAISON"}
+        assert resultat["valeur_totale"] == 200000.0
+
+    def test_categorie_inconnue_renvoie_une_liste_vide(self, db):
+        make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+
+        resultat = patrimoine_service.compute_composition_categorie_consolidee(db, ID_UTILISATEUR_TEST, "classe", "Crypto", net=False)
+
+        assert resultat["lignes"] == []
+        assert resultat["valeur_totale"] == 0.0

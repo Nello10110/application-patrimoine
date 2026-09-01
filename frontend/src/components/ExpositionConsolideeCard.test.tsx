@@ -9,7 +9,35 @@ import ExpositionConsolideeCard from './ExpositionConsolideeCard'
 vi.mock('../api/client', () => ({
   api: {
     getExpositionConsolidee: vi.fn(),
+    getExpositionConsolideeComposition: vi.fn(),
   },
+}))
+
+// `PieChartCard` s'appuie sur Recharts/`ResponsiveContainer`, qui ne rend aucun secteur
+// SVG cliquable en jsdom (pas de vraie mesure de layout) — même limite que
+// `AllocationChartCard.test.tsx`, qui teste le clic via son tableau plein écran plutôt
+// que le graphique lui-même. Ce bouchon expose directement `onCategoryClick` par
+// catégorie pour vérifier le câblage (quelle dimension, quel `net`) sans dépendre du
+// rendu réel du graphique.
+vi.mock('./PieChartCard', () => ({
+  default: ({
+    title,
+    items,
+    onCategoryClick,
+  }: {
+    title: string
+    items: { categorie: string }[]
+    onCategoryClick?: (categorie: string) => void
+  }) => (
+    <div>
+      <h3>{title}</h3>
+      {items.map((i) => (
+        <button key={i.categorie} onClick={() => onCategoryClick?.(i.categorie)}>
+          {i.categorie}
+        </button>
+      ))}
+    </div>
+  ),
 }))
 
 // Champs par défaut = valeur BRUTE nulle partout ; les tests qui ne portent pas sur la
@@ -119,6 +147,44 @@ describe('ExpositionConsolideeCard', () => {
     renderCard()
 
     await screen.findByText(/90% de cette valeur/)
+  })
+
+  it('cliquer sur une part du camembert par classe ouvre le détail des lignes (retour utilisateur 31/08/2026)', async () => {
+    vi.mocked(api.getExpositionConsolidee).mockResolvedValue(
+      donnees({ valeur_totale: 10000, repartition_classe: [{ categorie: 'Actions', valeur: 10000 }] }),
+    )
+    vi.mocked(api.getExpositionConsolideeComposition).mockResolvedValue({
+      type: 'classe',
+      categorie: 'Actions',
+      valeur_totale: 10000,
+      lignes: [{ ticker: 'AAA', nom: null, valeur: 10000 }],
+    })
+    renderCard('brut')
+    await screen.findByText("Répartition par classe d'actif")
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+
+    await screen.findByText('AAA')
+    expect(api.getExpositionConsolideeComposition).toHaveBeenCalledWith('classe', 'Actions', false)
+  })
+
+  it('la lentille Net demande la composition nette (net=true)', async () => {
+    vi.mocked(api.getExpositionConsolidee).mockResolvedValue(
+      donnees({ valeur_totale_nette: 10000, repartition_classe_nette: [{ categorie: 'Actions', valeur: 10000 }] }),
+    )
+    vi.mocked(api.getExpositionConsolideeComposition).mockResolvedValue({
+      type: 'classe',
+      categorie: 'Actions',
+      valeur_totale: 10000,
+      lignes: [],
+    })
+    renderCard('net')
+    await screen.findByText("Répartition par classe d'actif")
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+
+    await screen.findByText('Aucune ligne ne compose cette catégorie.')
+    expect(api.getExpositionConsolideeComposition).toHaveBeenCalledWith('classe', 'Actions', true)
   })
 })
 

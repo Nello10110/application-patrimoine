@@ -262,3 +262,47 @@ def compute_exposition_consolidee(db: Session, user_id: int) -> dict:
         "premiere_zone_geo_pct_nette": net["premiere_zone_geo_pct"],
         "part_estimee_manuelle_pct_nette": net["part_estimee_manuelle_pct"],
     }
+
+
+def compute_composition_categorie_consolidee(db: Session, user_id: int, dimension: str, categorie: str, net: bool) -> dict:
+    """Détail des lignes qui composent une catégorie de l'exposition consolidée
+    (`compute_exposition_consolidee`) — pour le clic sur une part du camembert
+    Répartition géographique/par classe d'actif consolidée (`ExpositionConsolideeCard`,
+    retour utilisateur 31/08/2026 : même comportement que les camemberts géo/sectoriel
+    du Tableau de bord, cf. `GET /api/analysis/composition`). `net` sélectionne la même
+    valeur nette de l'emprunt rattaché à chaque ligne (`_crd_par_ligne`) que la lentille
+    Net de la carte — jamais la valeur brute par erreur en lentille Net.
+
+    `dimension="geo"` réutilise `analysis_service.holdings_in_category` telle quelle :
+    cette fonction n'est pas restreinte au portefeuille financier dans son
+    implémentation (seul `GET /api/analysis/composition` la limite à
+    `holdings_financiers`) — le look-through des fonds s'applique de la même façon ici,
+    les lignes manuelles y contribuent via leur `zone_geo` déclarée
+    (`categorie_propre_a_la_ligne`), exactement comme dans `_calculer_expo` ci-dessus.
+
+    `dimension="classe"` n'a PAS de notion de look-through (un bien immobilier ou un
+    ETF Actions n'est jamais réparti sur plusieurs classes) : correspondance directe par
+    `LABEL_TYPE_ACTIF`, même logique que la boucle `totaux_classe` de `_calculer_expo`.
+    Une ligne à valeur nette négative (équité négative, cf. `garder_negatifs=True`
+    ci-dessus) reste incluse plutôt que masquée."""
+    holdings = db.query(Holding).filter(Holding.user_id == user_id).all()
+    valued = analysis_service.value_holdings(holdings)
+
+    if net:
+        crd_par_holding, _crd_non_rattache = _crd_par_ligne(db, user_id)
+        valued = [replace(v, valeur=v.valeur - crd_par_holding.get(v.holding.id, 0.0)) for v in valued]
+
+    if dimension == "geo":
+        lignes = analysis_service.holdings_in_category(db, valued, "geo", categorie)
+    else:
+        lignes = sorted(
+            (
+                {"ticker": v.holding.ticker, "nom": v.holding.nom, "valeur": round(v.valeur, 2)}
+                for v in valued
+                if LABEL_TYPE_ACTIF.get(v.holding.type_actif, LABEL_NON_RENSEIGNE) == categorie and abs(v.valeur) > 1e-9
+            ),
+            key=lambda l: -l["valeur"],
+        )
+
+    valeur_totale = sum(l["valeur"] for l in lignes)
+    return {"type": dimension, "categorie": categorie, "valeur_totale": round(valeur_totale, 2), "lignes": lignes}

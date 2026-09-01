@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Detenteur, User
-from ..schemas import ExpositionConsolidee, PatrimoineHistoryResponse, PatrimoineNetResponse
+from ..schemas import CategoryCompositionResponse, ExpositionConsolidee, PatrimoineHistoryResponse, PatrimoineNetResponse
 from ..services import auth_service, detenteurs_service, patrimoine_history_service, patrimoine_service
 
 router = APIRouter(prefix="/api/patrimoine", tags=["patrimoine"])
@@ -67,3 +67,18 @@ def get_patrimoine_historique(
 @router.get("/exposition-consolidee", response_model=ExpositionConsolidee)
 def get_exposition_consolidee(db: Session = Depends(get_db), current_user: User = Depends(_pas_invite)):
     return patrimoine_service.compute_exposition_consolidee(db, auth_service.id_foyer(current_user))
+
+
+@router.get("/exposition-consolidee/composition", response_model=CategoryCompositionResponse)
+def get_composition_exposition_consolidee(
+    dimension: str,
+    categorie: str,
+    net: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_pas_invite),
+):
+    if dimension not in ("geo", "classe"):
+        raise HTTPException(status_code=400, detail="dimension doit être 'geo' ou 'classe'")
+    return CategoryCompositionResponse(
+        **patrimoine_service.compute_composition_categorie_consolidee(db, auth_service.id_foyer(current_user), dimension, categorie, net)
+    )

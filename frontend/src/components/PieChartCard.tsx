@@ -6,7 +6,15 @@ import { STYLE_INFOBULLE } from '../utils/chartTheme'
 
 const COLORS = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#db2777', '#4b5563', '#0d9488', '#9333ea', '#ea580c']
 
-export default function PieChartCard({ title, items }: { title: string; items: RepartitionItem[] }) {
+export default function PieChartCard({
+  title,
+  items,
+  onCategoryClick,
+}: {
+  title: string
+  items: RepartitionItem[]
+  onCategoryClick?: (categorie: string) => void
+}) {
   if (items.length === 0) {
     return (
       <Card title={title}>
@@ -21,7 +29,17 @@ export default function PieChartCard({ title, items }: { title: string; items: R
     <Card title={title}>
       <ResponsiveContainer width="100%" height={320}>
         <PieChart margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={70} label={(d) => `${d.value.toFixed(0)}%`}>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="45%"
+            outerRadius={70}
+            label={(d) => `${d.value.toFixed(0)}%`}
+            cursor={onCategoryClick ? 'pointer' : undefined}
+            onClick={(d) => onCategoryClick?.((d as unknown as { name: string }).name)}
+          >
             {data.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}

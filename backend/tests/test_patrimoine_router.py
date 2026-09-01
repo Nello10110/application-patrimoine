@@ -119,3 +119,25 @@ def test_exposition_consolidee_combine_financier_et_manuel(client, db):
     par_classe = {item["categorie"]: item["valeur"] for item in corps["repartition_classe"]}
     assert par_classe["Actions"] == 1000.0
     assert par_classe["Immobilier"] == 50000.0
+
+
+def test_composition_exposition_consolidee_dimension_classe(client, db):
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=10, prix_revient_moyen=100.0)
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=50000.0, valeur_estimee=50000.0)
+
+    reponse = client.get("/api/patrimoine/exposition-consolidee/composition?dimension=classe&categorie=Immobilier")
+
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert corps["type"] == "classe"
+    assert corps["categorie"] == "Immobilier"
+    assert corps["valeur_totale"] == 50000.0
+    assert len(corps["lignes"]) == 1
+    assert corps["lignes"][0]["ticker"] == "MAISON"
+    assert corps["lignes"][0]["valeur"] == 50000.0
+
+
+def test_composition_exposition_consolidee_dimension_inconnue_renvoie_400(client):
+    reponse = client.get("/api/patrimoine/exposition-consolidee/composition?dimension=secteur&categorie=X")
+
+    assert reponse.status_code == 400

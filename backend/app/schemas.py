@@ -1154,6 +1154,13 @@ class PatrimoineHistoryPoint(BaseModel):
     # `patrimoine_history_service` pour le détail (part manuelle bornée aux versements
     # explicitement déclarés, réalisé exclusivement financier).
     valeur_investie: float
+    # Nettée de `passifs_totaux` (retour utilisateur 31/08/2026) : `valeur_investie`
+    # ci-dessus reste brute, jamais réduite d'un emprunt — l'utiliser telle quelle en
+    # lentille Net sous-comptait les gains d'un bien financé à crédit (la dette
+    # soustraite une deuxième fois, en plus de celle déjà faite dans `patrimoine_net`).
+    # C'est CE champ que le frontend utilise comme « Investi » du mode étagé en Net,
+    # jamais `valeur_investie` — cf. `patrimoine_history_service._compute_patrimoine_history`.
+    valeur_investie_nette: float
     valeur_realisee_cumulee: float
 
 

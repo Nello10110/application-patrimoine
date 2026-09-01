@@ -69,6 +69,7 @@ function pointPatrimoine(overrides: Partial<PatrimoineHistoryPoint> = {}): Patri
     patrimoine_net: 0,
     patrimoine_financier: 0,
     valeur_investie: 0,
+    valeur_investie_nette: 0,
     valeur_realisee_cumulee: 0,
     ...overrides,
   }

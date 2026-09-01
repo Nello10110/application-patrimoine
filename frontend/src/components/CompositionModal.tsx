@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-import { api } from '../api/client'
 import type { CategoryCompositionResponse } from '../api/types'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
@@ -14,13 +13,20 @@ import { STYLE_INFOBULLE } from '../utils/chartTheme'
 
 const COLORS = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#db2777', '#4b5563', '#0d9488', '#9333ea', '#ea580c']
 
+/** Détail des lignes d'une catégorie d'un camembert cliquable — réutilisé par le
+ * Tableau de bord (géo/secteur du seul portefeuille financier, `sousTitre` fixe) ET
+ * `ExpositionConsolideeCard` (géo/classe tous actifs, `sousTitre` dépend en plus de la
+ * lentille Net/Brut, backlog retour utilisateur 31/08/2026) — seule la source des
+ * données (`fetchComposition`) change entre les deux, jamais dupliquée ici. */
 export default function CompositionModal({
-  type,
   categorie,
+  sousTitre,
+  fetchComposition,
   onClose,
 }: {
-  type: 'geo' | 'sector'
   categorie: string
+  sousTitre: string
+  fetchComposition: (categorie: string) => Promise<CategoryCompositionResponse>
   onClose: () => void
 }) {
   const { montantsMasques } = usePreferencesAffichage()
@@ -32,14 +38,14 @@ export default function CompositionModal({
   function charger() {
     setLoading(true)
     setError(null)
-    api
-      .getCategoryComposition(type, categorie)
+    fetchComposition(categorie)
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
-  useEffect(charger, [type, categorie])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `fetchComposition` change d'identité à chaque rendu de l'appelant (closure inline) ; seul un changement de `categorie` doit redéclencher l'appel, jamais un rendu parent sans rapport.
+  useEffect(charger, [categorie])
 
   return (
     <>
@@ -51,7 +57,7 @@ export default function CompositionModal({
                 <h3 id={titleId} className="text-lg font-semibold text-texte">
                   {categorie}
                 </h3>
-                <p className="text-xs text-texte-attenue">{type === 'geo' ? 'Répartition géographique' : 'Répartition sectorielle'}</p>
+                <p className="text-xs text-texte-attenue">{sousTitre}</p>
               </div>
               <button onClick={onClose} aria-label="Fermer" className="text-texte-attenue hover:text-texte">
                 <IconFermer className="h-4 w-4" />

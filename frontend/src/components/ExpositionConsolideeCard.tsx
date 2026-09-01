@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { ExpositionConsolidee } from '../api/types'
 import Card from './Card'
+import CompositionModal from './CompositionModal'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import PieChartCard from './PieChartCard'
@@ -26,6 +27,7 @@ export default function ExpositionConsolideeCard() {
   const [donnees, setDonnees] = useState<ExpositionConsolidee | null>(null)
   const [loading, setLoading] = useState(true)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [modal, setModal] = useState<{ dimension: 'geo' | 'classe'; categorie: string } | null>(null)
 
   function charger() {
     setLoading(true)
@@ -91,10 +93,12 @@ export default function ExpositionConsolideeCard() {
                 <PieChartCard
                   title="Répartition géographique consolidée"
                   items={repartitionGeo.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
+                  onCategoryClick={(categorie) => setModal({ dimension: 'geo', categorie })}
                 />
                 <PieChartCard
                   title="Répartition par classe d'actif"
                   items={repartitionClasse.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
+                  onCategoryClick={(categorie) => setModal({ dimension: 'classe', categorie })}
                 />
               </div>
 
@@ -107,6 +111,15 @@ export default function ExpositionConsolideeCard() {
             </>
           )}
         </div>
+      )}
+
+      {modal && (
+        <CompositionModal
+          categorie={modal.categorie}
+          sousTitre={modal.dimension === 'geo' ? 'Répartition géographique consolidée' : "Répartition par classe d'actif"}
+          fetchComposition={(categorie) => api.getExpositionConsolideeComposition(modal.dimension, categorie, enNet)}
+          onClose={() => setModal(null)}
+        />
       )}
     </div>
   )

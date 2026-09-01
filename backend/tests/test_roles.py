@@ -220,6 +220,18 @@ def test_proprietaire_et_membre_accedent_a_exposition_consolidee(client_reel):
     assert client_reel.get("/api/patrimoine/exposition-consolidee", headers=_en_tete(token_membre)).status_code == 200
 
 
+def test_invite_refuse_sur_composition_exposition_consolidee(client_reel):
+    """Même dépendance de rôle (`_pas_invite`) que `/exposition-consolidee` ci-dessus."""
+    token_proprio = _fonder_foyer(client_reel)
+    token_invite = _creer_invite(client_reel, token_proprio, [])
+
+    reponse = client_reel.get(
+        "/api/patrimoine/exposition-consolidee/composition?dimension=classe&categorie=Actions", headers=_en_tete(token_invite)
+    )
+
+    assert reponse.status_code == 403
+
+
 def test_lien_de_partage_public_consultable_sans_aucun_jeton(client_reel):
     """Backlog 2.Q.1 : la consultation publique d'un lien de partage fonctionne
     RÉELLEMENT sans en-tête `Authorization` (pas seulement via l'override de test
