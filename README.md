@@ -19,18 +19,23 @@ npm run dev
 
 Puis ouvrir `http://localhost:5173`.
 
-## Tests
+## Tests et lint
 
 ```bash
 # Backend
 cd backend
 pip install -r requirements-dev.txt
 python -m pytest -q
+python -m ruff check app/
 
 # Frontend
 cd frontend
 npm run test
+npm run lint    # oxlint
+npm run build   # inclut la vérification des types (tsc)
 ```
+
+Ces quatre commandes (pytest, ruff, vitest, oxlint + build) sont aussi exécutées automatiquement sur chaque push/PR par [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Documentation
 
