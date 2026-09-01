@@ -60,7 +60,14 @@ export default defineConfig({
     // (cache Vite chaud, aucun fichier source changé) ; le garder malgré tout côté
     // local évite de servir un `dist/` périmé si on lance `npm run test:e2e` sans
     // avoir rebuild à la main au préalable.
-    command: `npm run build && npm run preview -- --port ${FRONTEND_PORT} --strictPort`,
+    // `--host 127.0.0.1` explicite : sans lui, `vite preview` écoute sur
+    // `localhost`, que certains runners Linux (dont GitHub Actions) résolvent en
+    // IPv6 (`::1`) — le contrôle de santé de Playwright, lui, interroge
+    // spécifiquement `127.0.0.1` (IPv4) via `url` ci-dessous, et n'obtient donc
+    // jamais de réponse (piège rencontré en CI : le serveur démarre bien en moins
+    // d'une seconde, mais Playwright attend 180s avant d'abandonner). Sans effet
+    // sur le poste de développement Windows, où les deux coïncident déjà.
+    command: `npm run build && npm run preview -- --port ${FRONTEND_PORT} --strictPort --host 127.0.0.1`,
     url: `http://127.0.0.1:${FRONTEND_PORT}`,
     env: { PATRIMOINE_E2E_BACKEND_URL: BACKEND_URL },
     reuseExistingServer: false,
