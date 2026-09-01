@@ -20,6 +20,7 @@ from ..models import UserParametre
 _CLE_METHODE_COUT = "methode_cout"
 _CLE_BUDGET_CATEGORIES_INITIALISEES = "budget_categories_initialisees"
 _CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
+_CLE_ONBOARDING_TERMINE = "onboarding_termine"
 
 # Méthode de calcul du coût de revient (LOT 5.6) : coût moyen pondéré (défaut
 # historique, comportement inchangé) ou FIFO (premier entré, premier sorti), cf.
@@ -78,6 +79,21 @@ def budget_categories_initialisees(db: Session, user_id: int) -> bool:
 def marquer_budget_categories_initialisees(db: Session, user_id: int) -> None:
     if not budget_categories_initialisees(db, user_id):
         _ecrire_valeur_brute(db, _CLE_BUDGET_CATEGORIES_INITIALISEES, user_id, "1")
+
+
+def onboarding_termine(db: Session, user_id: int) -> bool:
+    """Drapeau posé une fois l'assistant de configuration initiale (welcome board)
+    terminé ou explicitement passé par ce compte — même mécanisme que
+    `budget_categories_initialisees` ci-dessus. `False` par défaut : un compte neuf
+    (quel que soit son mode de création — inscription locale ou premier compte
+    provisionné par SSO, cf. `services/oidc_service.resoudre_ou_provisionner_utilisateur`)
+    n'a jamais encore vu l'assistant."""
+    return _lire_valeur_brute(db, _CLE_ONBOARDING_TERMINE, user_id) is not None
+
+
+def marquer_onboarding_termine(db: Session, user_id: int) -> None:
+    if not onboarding_termine(db, user_id):
+        _ecrire_valeur_brute(db, _CLE_ONBOARDING_TERMINE, user_id, "1")
 
 
 def lire_preferences(db: Session, user_id: int) -> dict:

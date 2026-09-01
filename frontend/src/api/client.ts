@@ -153,6 +153,7 @@ export const api = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   getMe: () => request<AuthUser>('/auth/me'),
+  completeOnboarding: () => request<AuthUser>('/auth/onboarding/terminer', { method: 'POST' }),
   getOidcStatus: () => request<OidcStatus>('/auth/oidc/status'),
   getOidcConfig: () => request<OidcConfig>('/auth/oidc/config'),
   updateOidcConfig: (input: OidcConfigInput) => request<OidcConfig>('/auth/oidc/config', { method: 'PUT', body: JSON.stringify(input) }),

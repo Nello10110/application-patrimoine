@@ -20,6 +20,13 @@
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
     {
+      // Rejeu de l'assistant de bienvenue (`WelcomeWizard.tsx`) en surcouche plein
+      // écran — même raison que `Modale.tsx` ci-dessus : un `<dialog>` natif ne
+      // convient pas à une mise en page plein cadre pilotée en Flexbox.
+      "files": ["src/pages/ReglagesPage.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    },
+    {
       "files": ["src/components/ValorisationHistoriqueCard.tsx", "src/components/LoansCard.tsx", "src/components/PreferencesCard.tsx"],
       "rules": {
         "jsx-a11y/control-has-associated-label": "off",

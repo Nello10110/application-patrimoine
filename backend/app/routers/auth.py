@@ -23,7 +23,7 @@ from ..schemas import (
     SessionOut,
     UserOut,
 )
-from ..services import auth_service, oidc_service
+from ..services import auth_service, oidc_service, preferences_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -35,6 +35,17 @@ MESSAGE_COMPTE_SSO_SEUL = "Ce compte se connecte uniquement via SSO."
 
 def _adresse_client(request: Request) -> str | None:
     return request.client.host if request.client else None
+
+
+def _user_out(db: Session, user: User) -> UserOut:
+    """`UserOut.model_validate` seul ne remplit jamais `onboarding_termine` (pas une
+    colonne de `User`, cf. schémas) — ce helper centralise le calcul depuis
+    `preferences_service` pour les trois routes qui renvoient un utilisateur complet
+    (`register`/`login`/`me`), afin que le frontend connaisse l'état de l'assistant
+    de configuration initiale dès la connexion, sans appel supplémentaire."""
+    sortie = UserOut.model_validate(user)
+    sortie.onboarding_termine = preferences_service.onboarding_termine(db, user.id)
+    return sortie
 
 
 @router.post("/register", response_model=AuthResponse)
@@ -49,7 +60,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
     user = auth_service.creer_utilisateur(db, payload.username, payload.password)
     token = auth_service.creer_token(db, user)
-    return AuthResponse(token=token.token, user=UserOut.model_validate(user))
+    return AuthResponse(token=token.token, user=_user_out(db, user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -74,7 +85,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         raise HTTPException(status_code=401, detail=MESSAGE_IDENTIFIANTS_INVALIDES)
     token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, payload.username, user.id, ip, "succes", None)
-    return AuthResponse(token=token.token, user=UserOut.model_validate(user))
+    return AuthResponse(token=token.token, user=_user_out(db, user))
 
 
 # --- Connexion SSO (OIDC applicatif) ----------------------------------------------
@@ -194,8 +205,22 @@ def logout(
 
 
 @router.get("/me", response_model=UserOut)
-def me(current_user: User = Depends(get_current_user)):
-    return UserOut.model_validate(current_user)
+def me(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return _user_out(db, current_user)
+
+
+@router.post("/onboarding/terminer", response_model=UserOut)
+def terminer_onboarding(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Marque l'assistant de configuration initiale (welcome board) comme terminé ou
+    explicitement passé pour ce compte — appelée aussi bien par le bouton "Terminer"
+    que par "Passer l'assistant" côté frontend (`WelcomeWizard.tsx`), dans les deux cas
+    l'assistant ne doit plus jamais réapparaître à la prochaine connexion. Pas de
+    restriction de rôle : un compte membre/invité qui l'appellerait (jamais exposé
+    dans son propre parcours, l'assistant est réservé au propriétaire côté frontend)
+    ne ferait que marquer son propre drapeau, sans effet visible pour personne d'autre."""
+    preferences_service.marquer_onboarding_termine(db, current_user.id)
+    db.commit()
+    return _user_out(db, current_user)
 
 
 @router.get("/sessions", response_model=list[SessionOut])

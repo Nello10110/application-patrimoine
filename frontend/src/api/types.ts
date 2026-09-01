@@ -10,6 +10,11 @@ export interface AuthUser {
   // compte mot de passe local, jamais utilisées pour l'authentification.
   email?: string | null
   nom?: string | null
+  // Assistant de configuration initiale (welcome board) — `false` pour tout compte
+  // neuf, quel que soit son mode de création (inscription locale ou premier compte
+  // provisionné par SSO). Posé explicitement par le backend sur chaque réponse
+  // contenant un utilisateur (`register`/`login`/`me`/`onboarding/terminer`).
+  onboarding_termine: boolean
 }
 
 export interface AuthResponse {

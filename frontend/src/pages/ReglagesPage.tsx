@@ -11,11 +11,13 @@ import GestionFoyerCard from '../components/GestionFoyerCard'
 import { IconBouclier, IconCle, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
 import JobCard from '../components/JobCard'
 import JournalAccesCard from '../components/JournalAccesCard'
+import WelcomeWizard from '../components/onboarding/WelcomeWizard'
 import PartageCard from '../components/PartageCard'
 import PreferencesCard from '../components/PreferencesCard'
 import SessionsCard from '../components/SessionsCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import SsoCard from '../components/SsoCard'
+import { useAuth } from '../hooks/useAuth'
 
 type OngletKey = 'general' | 'detenteurs' | 'securite' | 'partage' | 'sso' | 'automatisations'
 
@@ -43,6 +45,7 @@ const ONGLET_PAR_DEFAUT: OngletKey = 'general'
  * maintenabilité (même raison que le découpage passé de `PortefeuillePage.tsx`,
  * § I.3). */
 export default function ReglagesPage() {
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const ongletParam = searchParams.get('onglet') as OngletKey | null
   const onglet = ONGLETS.some((o) => o.key === ongletParam) ? (ongletParam as OngletKey) : ONGLET_PAR_DEFAUT
@@ -60,6 +63,7 @@ export default function ReglagesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [declarationOuverte, setDeclarationOuverte] = useState(false)
+  const [assistantOuvert, setAssistantOuvert] = useState(false)
 
   function chargerJobs() {
     setLoading(true)
@@ -101,6 +105,21 @@ export default function ReglagesPage() {
 
       {onglet === 'general' && (
         <div className="space-y-4">
+          {user?.role === 'proprietaire' && (
+            <Card title="Assistant de bienvenue">
+              <p className="mb-4 text-sm text-texte">
+                Le parcours guidé affiché à la création de ce compte — utile pour redécouvrir les réglages de départ, ou
+                revoir ceux qui n'auraient pas été renseignés au premier passage.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAssistantOuvert(true)}
+                className="rounded-md border border-texte px-4 py-2 text-sm font-medium text-texte"
+              >
+                Revoir l'assistant de bienvenue
+              </button>
+            </Card>
+          )}
           <PreferencesCard />
           <Card title="Exporter">
             <p className="mb-4 text-sm text-texte">
@@ -192,6 +211,18 @@ export default function ReglagesPage() {
       )}
 
       {declarationOuverte && <DeclarationPatrimoineModal onClose={() => setDeclarationOuverte(false)} />}
+      {assistantOuvert && (
+        // Pas le composant `Modale.tsx` habituel (fond assombri + panneau centré) :
+        // l'assistant occupe tout l'écran, même traitement que lors du premier
+        // lancement (`App.tsx`) — seul `role="dialog"`/`aria-modal` est repris ici,
+        // pour que le contenu de Réglages en dessous reste correctement ignoré par
+        // les technologies d'assistance tant que l'assistant est ouvert (et, au
+        // passage, distingue sans ambiguïté son titre "Bienvenue" de la carte
+        // "Assistant de bienvenue" affichée juste en dessous).
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Assistant de bienvenue">
+          <WelcomeWizard onClose={() => setAssistantOuvert(false)} />
+        </div>
+      )}
     </div>
   )
 }

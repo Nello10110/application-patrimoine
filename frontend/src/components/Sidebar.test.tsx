@@ -5,11 +5,12 @@ import { AuthContext, type AuthContextValue } from '../contexts/authContextObjec
 import Sidebar from './Sidebar'
 
 const utilisateurFactice: AuthContextValue = {
-  user: { id: 1, username: 'testeur', role: 'proprietaire' },
+  user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true },
   loading: false,
   login: async () => {},
   register: async () => {},
   logout: () => {},
+  completeOnboarding: async () => {},
 }
 
 function renderSidebar(path = '/') {

@@ -1214,6 +1214,11 @@ class UserOut(BaseModel):
     # compte mot de passe local, jamais utilisées pour l'authentification.
     email: str | None = None
     nom: str | None = None
+    # Assistant de configuration initiale (welcome board) : pas une colonne de `User`,
+    # calculé depuis `UserParametre` (`services/preferences_service.onboarding_termine`)
+    # et posé explicitement par `routers/auth.py` sur chaque réponse contenant un
+    # `UserOut` — jamais rempli automatiquement par `model_validate`, absent de `User`.
+    onboarding_termine: bool = False
 
 
 class AuthResponse(BaseModel):

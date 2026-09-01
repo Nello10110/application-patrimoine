@@ -2,11 +2,11 @@ import { useEffect, useLayoutEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Holding } from '../api/types'
+import AjoutHoldingForm from '../components/AjoutHoldingForm'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import HoldingDetailModal from '../components/HoldingDetailModal'
-import InfoBulle from '../components/InfoBulle'
 import LoansCard from '../components/LoansCard'
 import Modale from '../components/Modale'
 import PositionsTable from '../components/PositionsTable'
@@ -18,19 +18,10 @@ import {
   FILTRE_SANS_COMPTE,
   FILTRE_TOUS_COMPTES,
   SEUIL_PEREMPTION_HEURES,
-  TEXTE_PRIX_REVIENT,
-  TEXTE_VALEUR_ESTIMEE,
-  TYPE_ACTIF_OPTIONS,
-  TYPES_AVEC_TAUX,
-  TYPES_EPARGNE,
-  TYPES_PATRIMOINE,
-  ZONES_GEO,
   categorieDe,
   comptesDisponibles,
   correspondAuFiltreCompte,
   coursLePlusAncien,
-  libelleTaux,
-  valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
 import { formatDateHeure, parseDateApi } from '../utils/format'
 
@@ -159,20 +150,6 @@ export default function PortefeuillePage() {
     }
   }, [])
 
-  const [form, setForm] = useState({
-    ticker: '',
-    quantite: '',
-    prix_revient_moyen: '',
-    compte: '',
-    type_actif: '',
-    valeur_estimee: '',
-    taux_pct: '',
-    zone_geo: '',
-    versement_mensuel: '',
-    date_acquisition: '',
-  })
-  const [saving, setSaving] = useState(false)
-
   // Confirmation de suppression (LOT 6.3) : remplace le `confirm()` natif du
   // navigateur par une modale de l'application (cohérente visuellement, testable).
   // Ne mémorise que ce qui est nécessaire à l'affichage du message et à l'appel API,
@@ -222,44 +199,6 @@ export default function PortefeuillePage() {
     }
   }
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.ticker.trim() || !form.quantite) return
-    setSaving(true)
-    setError(null)
-    try {
-      await api.createHolding({
-        ticker: form.ticker.trim().toUpperCase(),
-        quantite: Number(form.quantite),
-        prix_revient_moyen: form.prix_revient_moyen ? Number(form.prix_revient_moyen) : null,
-        compte: form.compte.trim() || null,
-        type_actif: form.type_actif || null,
-        valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
-        taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
-        zone_geo: form.zone_geo || null,
-        versement_mensuel: form.versement_mensuel ? Number(form.versement_mensuel) : null,
-        date_acquisition: form.date_acquisition || null,
-      })
-      setForm({
-        ticker: '',
-        quantite: '',
-        prix_revient_moyen: '',
-        compte: '',
-        type_actif: '',
-        valeur_estimee: '',
-        taux_pct: '',
-        zone_geo: '',
-        versement_mensuel: '',
-        date_acquisition: '',
-      })
-      load()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const libelleRafraichissement =
     etatRafraichissement?.en_cours && etatRafraichissement.positions_total > 0
       ? `Rafraîchissement... (${etatRafraichissement.positions_traitees} / ${etatRafraichissement.positions_total} positions)`
@@ -297,158 +236,7 @@ export default function PortefeuillePage() {
       {error && <EtatErreur message={error} onReessayer={load} />}
       {erreurRafraichissement && <EtatErreur message={erreurRafraichissement} />}
 
-      <Card title="Ajouter une ligne manuellement">
-        <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Ticker
-            <input
-              value={form.ticker}
-              onChange={(e) => setForm({ ...form, ticker: e.target.value })}
-              className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              placeholder="AAPL"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Quantité
-            <input
-              value={form.quantite}
-              onChange={(e) => setForm({ ...form, quantite: e.target.value })}
-              type="number"
-              step="any"
-              className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            <span className="inline-flex items-center gap-1">
-              Prix de revient
-              <InfoBulle texte={TEXTE_PRIX_REVIENT} />
-            </span>
-            <input
-              value={form.prix_revient_moyen}
-              onChange={(e) => setForm({ ...form, prix_revient_moyen: e.target.value })}
-              type="number"
-              step="any"
-              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Compte
-            <input
-              value={form.compte}
-              onChange={(e) => setForm({ ...form, compte: e.target.value })}
-              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              placeholder="PEA, CTO..."
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Type d'actif
-            <select
-              value={form.type_actif}
-              onChange={(e) => setForm({ ...form, type_actif: e.target.value })}
-              className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            >
-              {TYPE_ACTIF_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            <span className="inline-flex items-center gap-1">
-              Valeur estimée
-              <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
-            </span>
-            <input
-              value={form.valeur_estimee}
-              onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
-              type="number"
-              step="any"
-              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              placeholder="optionnel"
-            />
-          </label>
-          {TYPES_AVEC_TAUX.has(form.type_actif) && (
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              {libelleTaux(form.type_actif)}
-              <input
-                value={form.taux_pct}
-                onChange={(e) => setForm({ ...form, taux_pct: e.target.value })}
-                type="number"
-                step="any"
-                className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
-              />
-            </label>
-          )}
-          {TYPES_EPARGNE.has(form.type_actif) && (
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Versement mensuel (€)
-              <input
-                value={form.versement_mensuel}
-                onChange={(e) => setForm({ ...form, versement_mensuel: e.target.value })}
-                type="number"
-                step="any"
-                min={0}
-                className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                placeholder="optionnel"
-              />
-            </label>
-          )}
-          {TYPES_PATRIMOINE.has(form.type_actif) && (
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Zone géographique
-              <select
-                value={form.zone_geo}
-                onChange={(e) => setForm({ ...form, zone_geo: e.target.value })}
-                className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
-                <option value="">Europe (par défaut)</option>
-                {ZONES_GEO.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {TYPES_PATRIMOINE.has(form.type_actif) && (
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Date d'acquisition
-              <input
-                value={form.date_acquisition}
-                onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
-                type="date"
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              />
-            </label>
-          )}
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
-          >
-            Ajouter
-          </button>
-        </form>
-        <p className="mt-3 text-xs text-texte-attenue">
-          Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant/d'épargne ou un véhicule : laisser
-          Quantité à 1 et renseigner Valeur estimée — elle remplace le calcul prix × quantité et se met à jour à la main,
-          périodiquement.
-        </p>
-        {TYPES_AVEC_TAUX.has(form.type_actif) &&
-          valeurProjeteeUnAn(form.valeur_estimee ? Number(form.valeur_estimee) : null, form.taux_pct ? Number(form.taux_pct) : null) !==
-            null && (
-            <p className="mt-1 text-xs text-texte-attenue">
-              Valeur projetée dans 1 an (indicatif, jamais appliqué automatiquement) :{' '}
-              {valeurProjeteeUnAn(Number(form.valeur_estimee), Number(form.taux_pct))?.toLocaleString('fr-FR', {
-                style: 'currency',
-                currency: 'EUR',
-                maximumFractionDigits: 0,
-              })}
-            </p>
-          )}
-      </Card>
+      <AjoutHoldingForm onCreated={load} />
 
       {/* Desktop (≥ 768 px, backlog 2.K.4) : contrôles inline, comportement inchangé. */}
       <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">

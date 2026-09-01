@@ -14,11 +14,12 @@ vi.mock('../api/client', () => ({
 }))
 
 const utilisateurFactice: AuthContextValue = {
-  user: { id: 1, username: 'testeur', role: 'proprietaire' },
+  user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true },
   loading: false,
   login: async () => {},
   register: async () => {},
   logout: () => {},
+  completeOnboarding: async () => {},
 }
 
 function EcranCourant() {

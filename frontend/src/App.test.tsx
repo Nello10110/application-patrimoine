@@ -25,11 +25,19 @@ vi.mock('./api/client', () => ({
     register: vi.fn(),
     logout: vi.fn().mockResolvedValue(undefined),
     // Détenteurs (backlog 2.L.1) : `BarreControles` (rendue par `App`) lit
-    // `listDetenteurs()` — non testé ici, résolution neutre.
+    // `listDetenteurs()` — non testé ici, résolution neutre. Réutilisée aussi par
+    // l'étape "Détenteurs du foyer" du `WelcomeWizard` (assistant de bienvenue).
     listDetenteurs: vi.fn().mockResolvedValue([]),
     // SSO : `LoginPage` (rendue après déconnexion) lit `getOidcStatus()` — non testé
     // ici, bouton simplement absent.
     getOidcStatus: vi.fn().mockResolvedValue({ enabled: false, display_name: 'SSO' }),
+    // Assistant de bienvenue (welcome board) : étapes "Préférences"/"Démarrer le
+    // portefeuille" du `WelcomeWizard`, réutilisent `PreferencesCard`/`listHoldings` —
+    // non testées ici (les tests de ce fichier ne dépassent pas la 1ère étape),
+    // résolutions neutres au cas où.
+    getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
+    listHoldings: vi.fn().mockResolvedValue([]),
+    completeOnboarding: vi.fn(),
   },
 }))
 
@@ -39,7 +47,7 @@ vi.mock('./api/client', () => ({
 // comme le reste de ce fichier le suppose déjà.
 beforeEach(() => {
   localStorage.setItem('patrimoine_auth_token', 'jeton-de-test')
-  vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire' })
+  vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true })
 })
 
 describe('App — barre latérale (backlog 2.K.2)', () => {
@@ -189,5 +197,46 @@ describe('App — menu du compte (backlog 2.K.2 / 2.K.7)', () => {
 
     fireEvent.click(bouton)
     expect(bouton).toHaveAccessibleName(/Sombre/)
+  })
+})
+
+describe('App — assistant de configuration initiale (welcome board)', () => {
+  it('un propriétaire dont l\'onboarding n\'est pas terminé voit l\'assistant, pas le tableau de bord', async () => {
+    vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: false })
+
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Configuration initiale' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Navigation principale' })).not.toBeInTheDocument()
+  })
+
+  it('un propriétaire dont l\'onboarding est terminé voit directement l\'application', async () => {
+    vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true })
+
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('navigation', { name: 'Navigation principale' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Configuration initiale' })).not.toBeInTheDocument()
+  })
+
+  it("un membre du foyer avec onboarding_termine=false voit quand même directement l'application (assistant réservé au propriétaire)", async () => {
+    vi.mocked(api.getMe).mockResolvedValue({ id: 2, username: 'membre', role: 'membre', onboarding_termine: false })
+
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('navigation', { name: 'Navigation principale' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Configuration initiale' })).not.toBeInTheDocument()
   })
 })

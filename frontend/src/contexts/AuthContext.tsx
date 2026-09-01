@@ -62,6 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearToken()
         setUser(null)
       },
+      completeOnboarding: async () => {
+        const utilisateur = await api.completeOnboarding()
+        setUser(utilisateur)
+      },
     }),
     [user, loading],
   )

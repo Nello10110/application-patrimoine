@@ -4,6 +4,7 @@ import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
 import FilDAriane from './components/FilDAriane'
 import Sidebar from './components/Sidebar'
+import WelcomeWizard from './components/onboarding/WelcomeWizard'
 import { AuthProvider } from './contexts/AuthContext'
 import { PreferencesAffichageProvider } from './contexts/PreferencesAffichageContext'
 import { useAuth } from './hooks/useAuth'
@@ -50,6 +51,12 @@ function AppAuthentifiee() {
     )
   }
   if (!user) return <LoginPage />
+  // Assistant de configuration initiale (welcome board, backlog nouveau) : réservé au
+  // propriétaire (créateur du foyer, seul à voir les réglages qu'il couvre) — un
+  // membre/invité, créé par lui via `POST /household-members`, n'a jamais besoin de
+  // le voir. `onboarding_termine` (`UserParametre`, cf. `preferences_service.py`)
+  // reste `False` tant que l'assistant n'a pas été terminé ou explicitement passé.
+  if (user.role === 'proprietaire' && !user.onboarding_termine) return <WelcomeWizard />
 
   return (
     <PreferencesAffichageProvider>

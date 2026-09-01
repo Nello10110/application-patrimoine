@@ -75,6 +75,14 @@ def _enregistrer(client: httpx.Client) -> str:
     r.raise_for_status()
     token = r.json()["token"]
     client.headers["Authorization"] = f"Bearer {token}"
+    # Assistant de configuration initiale (welcome board) : un compte fraîchement
+    # inscrit a `onboarding_termine=False` (cf. `routers/auth.py`) et verrait donc
+    # l'assistant à la place de l'application — sans intérêt pour la suite E2E, qui
+    # teste les écrans applicatifs, pas ce parcours. Terminé ici via le VRAI endpoint
+    # (même philosophie que le reste de ce script), comme le ferait un propriétaire
+    # qui vient de configurer son instance.
+    r = client.post("/api/auth/onboarding/terminer")
+    r.raise_for_status()
     return token
 
 

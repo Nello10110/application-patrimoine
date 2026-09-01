@@ -3,16 +3,30 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Detenteur, OidcConfig, Session } from '../api/types'
+import { AuthContext, type AuthContextValue } from '../contexts/authContextObject'
 import ReglagesPage from './ReglagesPage'
 
 // La page est désormais organisée en onglets (retour utilisateur : trop de cartes
 // empilées sur une seule colonne) — chaque groupe de tests ouvre l'onglet qui
 // contient la carte visée avant d'interagir avec elle. `useSearchParams` (sélection
-// de l'onglet portée par l'URL) exige un routeur.
+// de l'onglet portée par l'URL) exige un routeur. `AuthContext.Provider` : la page
+// lit désormais `useAuth()` (bouton "Revoir l'assistant de bienvenue", réservé au
+// propriétaire) — même patron de contexte factice que `Sidebar.test.tsx`.
+const utilisateurFactice: AuthContextValue = {
+  user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true },
+  loading: false,
+  login: async () => {},
+  register: async () => {},
+  logout: () => {},
+  completeOnboarding: async () => {},
+}
+
 function renderReglages() {
   render(
     <MemoryRouter>
-      <ReglagesPage />
+      <AuthContext.Provider value={utilisateurFactice}>
+        <ReglagesPage />
+      </AuthContext.Provider>
     </MemoryRouter>,
   )
 }
@@ -519,5 +533,50 @@ describe('ReglagesPage — Déclaration de patrimoine (backlog 2.Q.2)', () => {
 
     await screen.findByText('Détenteur introuvable')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+})
+
+describe('ReglagesPage — Assistant de bienvenue (welcome board)', () => {
+  it('un propriétaire voit le bouton "Revoir l\'assistant de bienvenue", qui ouvre l\'assistant', async () => {
+    renderReglages()
+
+    const bouton = await screen.findByRole('button', { name: "Revoir l'assistant de bienvenue" })
+    fireEvent.click(bouton)
+
+    expect(await screen.findByRole('heading', { name: 'Configuration initiale' })).toBeInTheDocument()
+  })
+
+  it('un membre du foyer ne voit pas le bouton (réservé au propriétaire)', async () => {
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={{ ...utilisateurFactice, user: { ...utilisateurFactice.user!, role: 'membre' } }}>
+          <ReglagesPage />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+    ouvrirOnglet('Général')
+
+    await screen.findByText('Méthode de calcul du coût de revient')
+    expect(screen.queryByRole('button', { name: "Revoir l'assistant de bienvenue" })).not.toBeInTheDocument()
+  })
+
+  it('"Terminer" referme l\'assistant sans rouvrir le drapeau déjà acquis (pure relecture)', async () => {
+    const completeOnboarding = vi.fn()
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={{ ...utilisateurFactice, completeOnboarding }}>
+          <ReglagesPage />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: "Revoir l'assistant de bienvenue" }))
+    await screen.findByRole('heading', { name: 'Configuration initiale' })
+    // Navigue jusqu'à la dernière étape avant de terminer.
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }))
+
+    await vi.waitFor(() => expect(screen.queryByRole('heading', { name: 'Configuration initiale' })).not.toBeInTheDocument())
+    expect(completeOnboarding).not.toHaveBeenCalled()
   })
 })

@@ -278,6 +278,54 @@ def test_creer_un_membre_du_foyer(client_reel):
     assert connexion_membre.status_code == 200
 
 
+# --- Assistant de configuration initiale / welcome board ----------------------
+
+
+def test_onboarding_termine_faux_a_linscription(client_reel):
+    reponse = _inscrire(client_reel)
+
+    assert reponse.json()["user"]["onboarding_termine"] is False
+
+
+def test_onboarding_termine_faux_a_la_connexion(client_reel):
+    _inscrire(client_reel)
+
+    reponse = client_reel.post("/api/auth/login", json={"username": "paul", "password": "mot-de-passe-solide"})
+
+    assert reponse.json()["user"]["onboarding_termine"] is False
+
+
+def test_terminer_onboarding_marque_le_drapeau(client_reel):
+    token = _inscrire(client_reel).json()["token"]
+    en_tete = {"Authorization": f"Bearer {token}"}
+
+    reponse = client_reel.post("/api/auth/onboarding/terminer", headers=en_tete)
+
+    assert reponse.status_code == 200
+    assert reponse.json()["onboarding_termine"] is True
+    # Persisté : une relecture ultérieure (`/me`) le confirme, pas seulement la
+    # réponse immédiate de l'endpoint qui vient de le poser.
+    assert client_reel.get("/api/auth/me", headers=en_tete).json()["onboarding_termine"] is True
+
+
+def test_terminer_onboarding_est_idempotent(client_reel):
+    token = _inscrire(client_reel).json()["token"]
+    en_tete = {"Authorization": f"Bearer {token}"}
+
+    premier_appel = client_reel.post("/api/auth/onboarding/terminer", headers=en_tete)
+    second_appel = client_reel.post("/api/auth/onboarding/terminer", headers=en_tete)
+
+    assert premier_appel.status_code == 200
+    assert second_appel.status_code == 200
+    assert second_appel.json()["onboarding_termine"] is True
+
+
+def test_terminer_onboarding_sans_jeton_renvoie_401(client_reel):
+    reponse = client_reel.post("/api/auth/onboarding/terminer")
+
+    assert reponse.status_code == 401
+
+
 # --- Connexion SSO Authentik (OIDC applicatif) --------------------------------
 
 
