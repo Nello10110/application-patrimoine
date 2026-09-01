@@ -2465,6 +2465,18 @@ déclarés, escalier même pour une ligne épargne interpolée, ancrage sur le c
 financière + manuelle combinées, réalisé exclusivement financier, scoping détenteur), 3 tests frontend
 mis à jour/nouveaux (`PortfolioHistoryChart.test.tsx`).
 
+**Correctif post-livraison (31/08/2026)** : retour utilisateur — le mode étagé en lentille Net
+n'affichait plus rien de cohérent (jusqu'à 360 000 € de "gains" pour un patrimoine net réel de
+~73 000 €). Cause : `valeur_investie` reste toujours BRUTE (jamais réduite d'un emprunt), alors que
+`patrimoine_net` utilisé comme "Portefeuille" en lentille Net l'est déjà — la dette d'un bien financé
+à crédit était donc soustraite deux fois. Nouveau champ `valeur_investie_nette` (`valeur_investie −
+passifs_totaux`, même netting global que `patrimoine_net`) : le frontend l'utilise désormais comme
+"Investi" en lentille Net, jamais `valeur_investie`. Invariant verrouillé par un test dédié : Gains
+(portefeuille + réalisé − investi) doit valoir EXACTEMENT le même montant en Brut et en Net, la dette
+ne déplaçant jamais une performance d'investissement, seulement le capital investi affiché. Vérifié en
+direct sur le vrai backend (redémarré avec le correctif) : échelle et courbe redeviennent cohérentes
+en Net comme en Brut.
+
 #### V.1 — `mineur` · `S` · `P1` · `traité` (30/08/2026) — Audit de la navigation : plus une seule liste à maintenir
 
 Demande directe de l'utilisateur : « la partie Menus est un peu en bordel, certaines pages ne sont
@@ -2517,6 +2529,37 @@ partout, fil d'Ariane correct sur un écran de consultation (`Synthèse › Sala
 d'administration (`Synthèse › Import`). Suite complète au vert (460 tests frontend, dont 4 nouveaux
 sur `routes.test.ts`), `tsc -b`/`oxlint`/`vite build` propres, découpage par route toujours effectif
 (un fichier JS séparé par page dans le build).
+
+#### W.1 — `mineur` · `S` · `P2` · `traité` (31/08/2026) — Détail des lignes au clic sur les camemberts de l'exposition consolidée
+
+Demande directe de l'utilisateur, en montrant le camembert « Répartition par classe d'actif » de
+`ExpositionConsolideeCard` : « J'aimerais bien sur ce graphique comme ceux du dessus avoir le détail
+des lignes quand on clique dessus » — en référence au comportement déjà existant des camemberts
+Répartition géographique/sectorielle du Tableau de bord (`AllocationChartCard`/`CompositionModal`,
+scopés au seul portefeuille financier).
+
+**Implémenté** : nouveau service `patrimoine_service.compute_composition_categorie_consolidee`
+et endpoint `GET /api/patrimoine/exposition-consolidee/composition?dimension=geo|classe&categorie=
+…&net=…`. Dimension `geo` réutilise telle quelle `analysis_service.holdings_in_category` (déjà
+générique, le look-through des fonds s'applique de la même façon, les lignes manuelles y contribuent
+via leur `zone_geo` déclarée) — seul `GET /api/analysis/composition` la restreignait au financier par
+choix de l'appelant, pas la fonction elle-même. Dimension `classe` n'a pas de notion de look-through
+(un bien immobilier n'est jamais réparti sur plusieurs classes) : correspondance directe par
+`LABEL_TYPE_ACTIF`. `net` sélectionne la même valeur nette de l'emprunt rattaché à chaque ligne que la
+lentille Net de la carte (jamais la valeur brute par erreur).
+
+Frontend : `CompositionModal` généralisée (accepte désormais `fetchComposition`/`sousTitre` plutôt
+qu'un `type: 'geo'|'sector'` figé sur `api.getCategoryComposition`) pour servir sans duplication le
+Tableau de bord (géo/secteur financier, inchangé) ET `ExpositionConsolideeCard` (géo/classe tous
+actifs). `PieChartCard` gagne un `onCategoryClick` optionnel (même câblage Recharts que
+`AllocationPieChart`).
+
+9 tests backend nouveaux (`test_patrimoine_service.py` : dimension classe/geo, nettage Net, ligne à
+équité négative reste visible, catégorie inconnue ; `test_patrimoine_router.py`/`test_roles.py` :
+endpoint + rôle invité refusé), 2 tests frontend nouveaux (`ExpositionConsolideeCard.test.tsx`, clic
+simulé via un bouchon de `PieChartCard` — Recharts ne rend aucun secteur SVG cliquable en jsdom, même
+limite déjà documentée pour `AllocationChartCard.test.tsx`). Vérifié en direct sur le vrai backend :
+clic sur la part Immobilier du camembert Brut → modale avec le détail de la ligne concernée.
 
 ---
 ## 3. Hors périmètre (assumé)
