@@ -36,6 +36,14 @@ l'observation directe, et la priorisation d'ensemble (§ 4) a été réécrite e
 d'entrée pour les équipes de développement est désormais
 [`docs/EXPRESSION_DE_BESOIN.md`](EXPRESSION_DE_BESOIN.md) ; ce backlog reste la trace des arbitrages.
 
+**Mise à jour du 31/08/2026.** Les cinq lots planifiés (4 à 8) sont livrés — Lot 8 pour sa seule
+partie développable, deux points (Q.3, E.1) restant hors développement faute d'arbitrage/de donnée
+externe (§ 4). Une fois l'usage réel commencé sur les lots livrés, une quinzaine de retours directs
+de l'utilisateur (sections **R à W** du § 2) ont affiné le produit sans ouvrir de nouveau chantier
+planifié — regroupés a posteriori sous un **Lot 9 « Retours terrain »** (§ 4) pour rester traçables
+au même titre que les lots précédents plutôt que de s'accumuler en « hors lot » dispersé. Le backlog
+issu de l'audit du 21/08/2026 est donc, pour l'essentiel, épuisé.
+
 ---
 
 ## 1. Comparaison avec Finary
@@ -372,13 +380,14 @@ en introduction. Cette entrée n'a été mise à jour que le 25/08/2026 (en marg
 
 ### G. Multi-utilisateur et partage
 
-#### G.1 — `mineur` · `L` · `P3` · `non traité` — Partage en lecture seule (conjoint, famille)
+#### G.1 — `mineur` · `L` · `P3` · `traité (absorbé par L.1/L.2 + Q.1)` (25/08/2026) — Partage en lecture seule (conjoint, famille)
 
-Nécessite de rouvrir l'authentification (§ 3, actuellement hors périmètre tant que l'app reste
-mono-utilisateur locale). Pas de valeur sans décision préalable sur le multi-utilisateur — à ne
-considérer que si l'usage de l'application dépasse un seul foyer/personne. Le détail technique de ce
-que ça impliquerait (quelles tables, quels modules, dans quel ordre) est posé en § 2.I.1, suite à
-l'audit structurel du 20/08/2026.
+Tranché le 21/08/2026 en même temps que F.1 (§ 4, note originale), mais jamais mis à jour ici — le
+besoin décrit (« un conjoint/la famille peut consulter en lecture seule ») est couvert par deux lots
+livrés depuis : le multi-utilisateur du foyer (§ 2.L.1/L.2, quotités + rôles propriétaire/membre/
+invité) pour un accès de l'intérieur du foyer, et surtout le **lien de partage révocable** (§ 2.Q.1,
+livré 25/08/2026) pour un tiers hors foyer — plus simple que ce qu'envisageait G.1 à l'origine
+(pas besoin de créer un compte au destinataire). Rien à développer de plus sous ce point.
 
 ### H. Qualité de vie et accès mobile
 
@@ -1642,7 +1651,7 @@ plus contenues existent (permettre d'ajouter UN actif dans une devise étrangèr
 la cotation — l'euro restant la seule devise d'affichage — ou une vraie bascule de devise de
 référence pour tout le patrimoine). Arbitrage à demander à l'utilisateur avant tout développement.
 
-### R. Revenu du foyer et taux d'épargne (nouveau, 25/08/2026)
+### R. Revenu du foyer et taux d'épargne (Lot 9, 25/08/2026)
 
 #### R.1 — `mineur` · `M` · `P2` · `traité` (25/08/2026) — Calculateur brut/net + taux d'épargne
 
@@ -1780,7 +1789,7 @@ comportement déjà en production. Verrouillé par un test dédié reproduisant 
 
 12 tests backend (dont le test de régression ci-dessus) + 10 tests frontend au vert.
 
-### S. Épargne et actifs valorisés manuellement (nouveau, 25/08/2026)
+### S. Épargne et actifs valorisés manuellement (Lot 9, 25/08/2026)
 
 #### S.1 — `majeur` · `M` · `P2` · `traité` (25/08/2026) — Écran Épargne + historique de valorisation daté par l'utilisateur
 
@@ -2090,6 +2099,8 @@ rapport comme `nom` n'invalide toujours pas). Vérifié en conditions réelles :
 la ligne réelle « APPARTEMENT », requête `GET /api/patrimoine/historique` confirmée recalculée avec
 un premier point au 15/06/2021 (coût d'acquisition) au lieu de la série figée précédente.
 
+### T. Corrections et quickwins signalés en usage réel (Lot 9, 30/08/2026)
+
 #### T.1 — `mineur` · `S` · `P2` · `traité` (30/08/2026) — Édition complète d'un emprunt
 
 Demande directe de l'utilisateur : sur l'écran Patrimoine, un emprunt existant ne peut être corrigé
@@ -2261,6 +2272,8 @@ tests frontend nouveaux (`HoldingDetailContent.test.tsx`). `ValorisationHistoriq
 désormais `ticker`/`onChanged` — câblé aux 3 lieux d'utilisation (`EpargneApercu`, `ImmobilierApercu`,
 `EpargnePage.tsx`), les deux premiers en réutilisant leur callback de rafraîchissement déjà existant.
 
+### U. Décomposition investi/gain pour l'épargne (Lot 9, 30/08/2026)
+
 #### U.1 — `majeur` · `M` · `P2` · `traité` (30/08/2026) — Métriques d'épargne sur l'écran Rapport
 
 Demande directe de l'utilisateur : l'écran Rapport (`rapport_service.py`) est aujourd'hui **100 %
@@ -2424,7 +2437,7 @@ nouvelle valorisation à 12 000 € avec la bascule sur « Plus-value » et 1 20
 édition d'un point existant. 3 nouveaux tests (`HoldingDetailContent.test.tsx` : bascule désactivée
 sans historique, ajout en mode plus-value, édition en mode plus-value), suite complète au vert (463
 tests frontend), `tsc -b`/`oxlint`/`vite build` propres.
-#### U.3 — `majeur` · `M` · `P2` · `traité` (30/08/2026) — Mode étagé Investi/Gains hors lentille Financier
+#### U.4 — `majeur` · `M` · `P2` · `traité` (30/08/2026) — Mode étagé Investi/Gains hors lentille Financier
 
 Demande directe de l'utilisateur : le mode étagé (investi + gains) de la courbe d'évolution du Tableau
 de bord n'était disponible qu'en lentille Financier — case décochable désactivée, avec l'explication
@@ -2476,6 +2489,8 @@ passifs_totaux`, même netting global que `patrimoine_net`) : le frontend l'util
 ne déplaçant jamais une performance d'investissement, seulement le capital investi affiché. Vérifié en
 direct sur le vrai backend (redémarré avec le correctif) : échelle et courbe redeviennent cohérentes
 en Net comme en Brut.
+
+### V. Cohérence de la navigation (Lot 9, 30/08/2026)
 
 #### V.1 — `mineur` · `S` · `P1` · `traité` (30/08/2026) — Audit de la navigation : plus une seule liste à maintenir
 
@@ -2529,6 +2544,8 @@ partout, fil d'Ariane correct sur un écran de consultation (`Synthèse › Sala
 d'administration (`Synthèse › Import`). Suite complète au vert (460 tests frontend, dont 4 nouveaux
 sur `routes.test.ts`), `tsc -b`/`oxlint`/`vite build` propres, découpage par route toujours effectif
 (un fichier JS séparé par page dans le build).
+
+### W. Exposition consolidée — interactions (Lot 9, 31/08/2026)
 
 #### W.1 — `mineur` · `S` · `P2` · `traité` (31/08/2026) — Détail des lignes au clic sur les camemberts de l'exposition consolidée
 
@@ -2605,10 +2622,19 @@ Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un
 
 ## 4. Priorisation d'ensemble
 
-Trois lots sont clos. Cinq restent, dont un ordre est contraint par les dépendances : la refonte de
-l'enveloppe (K) précède tout ajout d'écran, sinon chaque nouveau lot reproduit les défauts
-mesurés ; le modèle de détention (L) et le rattachement des emprunts (M.2) précèdent la part nette,
-la rentabilité immobilière, les objectifs par contributeur et la déclaration de patrimoine.
+**Mise à jour du 31/08/2026** : neuf lots sont désormais clos (Phases 1-3 + Lots 4-9). Il ne reste
+que **trois points isolés, hors lot** — aucun n'est bloqué par manque de temps ou de priorité, tous
+les trois attendent quelque chose qui n'est pas du développement (§ « Ce qui reste, et pourquoi »
+ci-dessous). Le backlog fonctionnel issu de l'audit du 21/08/2026 est donc, pour l'essentiel,
+**épuisé** — ce document continue de servir de trace pour tout nouveau retour utilisateur, comme il
+l'a fait pour le Lot 9.
+
+Un ordre est resté contraint par les dépendances pour les lots 4 à 7 : la refonte de l'enveloppe (K)
+précède tout ajout d'écran, sinon chaque nouveau lot reproduit les défauts mesurés ; le modèle de
+détention (L) et le rattachement des emprunts (M.2) précèdent la part nette, la rentabilité
+immobilière, les objectifs par contributeur et la déclaration de patrimoine. Le Lot 9, lui, n'a pas
+été planifié à l'avance : c'est la trace, groupée après coup, de tout ce que l'usage réel de
+l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwins, demandes directes.
 
 | Lot | Contenu | Prérequis | Effort | État |
 |---|---|---|---|---|
@@ -2618,18 +2644,9 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 | **Lot 4 — Socle** | K.1, K.2, K.3, K.5, K.7 · L.1, L.2 · M.2 | — | `L` | **Livré** 21-24/08/2026 (8/8) |
 | **Lot 5 — Profondeur** | M.1, M.3, M.4 · K.4 (mobile) · K.6 | Lot 4 | `L` | **Livré** 24/08/2026 (5/5) |
 | **Lot 6 — Flux** | N.1, N.2, N.3, N.4 | Lot 4 | `L` | **Livré** 24/08/2026 (4/4) |
-| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
-| **Lot 8 — Différenciation** | P.2, P.3 · Q.3 · E.1 · C.2 (absorbé par P.3) | Lot 7 | `M` | En cours — P.2, P.3 traités (2/4 ; E.1 bloqué faute d'export réel d'un autre courtier) |
-| **Hors lot — R.1** | Calculateur brut/net + taux d'épargne | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
-| **Hors lot — S.1** | Écran Épargne + historique de valorisation daté | — | `M` | **Livré** 25/08/2026 — demande directe de l'utilisateur, sans dépendance sur les lots ci-dessus |
-| **Lot quickwin — T.1** | Édition complète d'un emprunt (libellé, capital initial, taux, mensualité, date de début, durée) | — | `S` | **Livré** 30/08/2026 |
-| **Lot quickwin — T.2** | Bug : « Rafraîchir les cours » échoue par intermittence (`database is locked`) | — | `S` | **Livré** 30/08/2026 — WAL + busy_timeout + commit par ticker |
-| **Lot quickwin — T.3** | Corriger/supprimer un point de l'historique de valorisation (épargne/immobilier) | — | `S` | **Livré** 30/08/2026 |
-| **Hors lot — U.1** | Métriques d'épargne sur l'écran Rapport (évolution, répartition, intérêts estimés) | — | `M` | **Livré** 30/08/2026 |
-| **Hors lot — U.2** | Versement déclaré (investi/gain) sur un point d'épargne + lissage du graphique combiné | U.1 (schéma étendu) | `M` | **Livré** 30/08/2026 |
-| **Hors lot — U.3** | Bascule versement/plus-value au choix, sur un point d'épargne | U.2 | `S` | **Livré** 30/08/2026 |
-| **Hors lot — U.3** | Mode étagé Investi/Gains disponible en lentille Net/Brut (plus seulement Financier) | U.2 (versement déclaré) | `M` | **Livré** 30/08/2026 |
-| **Hors lot — V.1** | Audit de la navigation (source unique routes/icônes/menus, fil d'Ariane revérifié) | — | `S` | **Livré** 30/08/2026 |
+| **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
+| **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
+| **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 
 **Pourquoi cet ordre.**
 
@@ -2651,20 +2668,35 @@ la rentabilité immobilière, les objectifs par contributeur et la déclaration 
 4. **Lot 7** consolide : les objectifs ont besoin des actifs (lot 5) et des contributeurs (lot 4) ;
    la déclaration de patrimoine a besoin des quotités ; le partage a besoin de l'authentification.
 5. **Lot 8** est la différenciation pure — TWR, volatilité, comparaison à un indice, revenus
-   passifs. Rien ne le bloque, mais rien ne le rend urgent tant que les quatre lots précédents ne
-   sont pas livrés : c'est ce qui fait la supériorité de l'outil, pas ce qui le rend utilisable.
+   passifs. Rien ne le bloque, mais rien ne le rend urgent tant que les lots précédents ne sont pas
+   livrés : c'est ce qui fait la supériorité de l'outil, pas ce qui le rend utilisable. Sa seule
+   partie non développable (Q.3 : décision d'arbitrage utilisateur ; E.1 : fichier externe manquant)
+   reste ouverte, mais tout ce qui pouvait être codé l'a été.
+6. **Lot 9 n'a jamais été planifié comme les précédents** : c'est la trace, groupée après coup pour
+   ne pas laisser une quinzaine de demandes éparpillées en « hors lot » sans structure, de ce que
+   l'usage réel de l'application — une fois les fondations (lots 4-7) posées, une fois l'immobilier
+   et l'épargne réellement saisis, une fois le premier relevé de cours vraiment rafraîchi — a fait
+   remonter : deux bugs (T.2, verrou SQLite ; le correctif Net du 31/08 documenté en § U.4), trois
+   quickwins (T.1, T.3), et dix demandes directes affinant des lots déjà livrés plutôt qu'ouvrant un
+   nouveau chantier (R, S, U, V, W). Aucune dépendance interne autre que U.2 → U.3/U.4 (le versement
+   déclaré doit exister avant qu'on puisse le décomposer ou l'utiliser dans le mode étagé).
 
-**Points restés sans lot, et pourquoi.**
+**Ce qui reste, et pourquoi — les trois seuls points non traités du backlog entier.**
 
-- **E.1** (formats de courtier) : bloqué faute d'un fichier d'export réel d'un autre courtier — pas
-  une question de priorité. Rattaché au lot 8 par défaut, à remonter dès qu'un fichier est
-  disponible.
-- **E.2** (agrégation bancaire) : demande une réponse écrite d'Enable Banking sur le statut
-  réglementaire d'un usage personnel **avant tout code**. Reste une instruction, pas un lot.
-- **C.2** (projection des dividendes) : absorbé par **P.3**, qui traite le même besoin en séparant
-  ce qui est certain (loyers, intérêts de livrets) de ce qui est estimé (dividendes d'ETF) —
-  plutôt que d'abandonner l'ensemble à cause de sa partie la moins fiable.
-- **F.1** et **G.1** : tranchés le 21/08/2026, devenus respectivement **§ N** et **§ Q.1**.
+Aucun des trois n'est un chantier de développement en attente de priorité : chacun attend quelque
+chose que ce document ne peut pas trancher lui-même.
+
+| Point | Bloqué par | Action pour débloquer |
+|---|---|---|
+| **E.1** — élargir les formats de courtier reconnus | Aucun fichier d'export réel d'un autre courtier (Boursorama, Degiro, IBKR…) disponible pour écrire le parseur sans deviner | Fournir un export réel (anonymisé si besoin) d'un autre courtier |
+| **E.2** — explorer une agrégation bancaire gratuite | Aucune réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Réponse d'Enable Banking, **avant tout code** |
+| **Q.3** — devise et internationalisation légère | Décision produit non tranchée par l'utilisateur (l'app n'a aujourd'hui qu'un seul foyer, en euros — utile seulement si un actif en devise étrangère apparaît) | Arbitrage explicite de l'utilisateur : le besoin existe-t-il réellement aujourd'hui ? |
+
+Deux points historiquement « hors lot » sont désormais résolus par renvoi plutôt que par
+développement propre : **C.2** (projection des dividendes) absorbé par **P.3**, qui traite le même
+besoin en séparant ce qui est certain (loyers, intérêts de livrets) de ce qui est estimé (dividendes
+d'ETF) ; **F.1** et **G.1** tranchés le 21/08/2026, devenus respectivement **§ N** (budget) et
+**§ Q.1** (partage révocable, plus simple que ce qu'envisageait G.1 à l'origine).
 
 ---
 

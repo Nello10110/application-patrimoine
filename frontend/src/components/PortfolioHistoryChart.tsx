@@ -45,7 +45,7 @@ export default function PortfolioHistoryChart({
 
   // Hors lentille "financier" : la courbe vient de l'historique combiné, projeté sur
   // la même forme que `PortfolioHistoryPoint` — `valeur_investie`/`valeur_realisee_cumulee`
-  // sont désormais de vrais champs calculés côté backend (backlog § U.3, 30/08/2026) :
+  // sont désormais de vrais champs calculés côté backend (backlog § U.4, 30/08/2026) :
   // la part manuelle de l'investi ne progresse qu'aux points où un versement a été
   // explicitement déclaré (§ U.2), le reste de la hausse restant du gain.
   //

@@ -99,7 +99,7 @@ describe('PortfolioHistoryChart — lentille (feature Net/Brut/Financier sur tou
     expect(case_).not.toBeDisabled()
   })
 
-  it('lentille "brut" : la case "Mode étagé" est désormais disponible (backlog § U.3)', () => {
+  it('lentille "brut" : la case "Mode étagé" est désormais disponible (backlog § U.4)', () => {
     renderChart('brut', { pointsPatrimoine: [pointPatrimoine({ actifs_totaux: 1000 })], loadingPatrimoine: false })
 
     const case_ = screen.getByRole('checkbox', { name: /Mode étagé/ })

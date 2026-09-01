@@ -29,8 +29,9 @@ flowchart LR
     P1["Phase 1 ✓ livrée 19/08/2026\nPatrimoine net complet\nimmobilier · SCPI/AV/PER · dettes"]
     P2["Phase 2 ✓ livrée 20/08/2026\nProjections\nsimulateur · FIRE"]
     P3["Phase 3 ✓ livrée 20/08/2026\nConfort quotidien\ndividendes · PDF · coût consolidé · PWA"]
-    P4["Phase 4 — partielle\nD.2 ✓ livré 20/08/2026\nreste : budget · partage · agrégation bancaire"]
-    P1 --> P2 --> P3 --> P4
+    P4["Phase 4 ✓ tranchée 21/08/2026\nbudget → Lot 6 · partage → Q.1\nreste : E.2 agrégation bancaire"]
+    L["Lots 4-9 ✓ livrés 21-31/08/2026\nUX/UI · foyer · budget · objectifs\nanalyses avancées · retours terrain\n(docs/BACKLOG.md § 4)"]
+    P1 --> P2 --> P3 --> P4 --> L
 ```
 
 ---
@@ -171,33 +172,49 @@ unitaires — un service worker généré par Workbox n'a pas de logique métier
 
 ---
 
-## Phase 4 — Décisions à trancher avant d'aller plus loin
+## Phase 4 — Décisions à trancher avant d'aller plus loin — tranchée le 21/08/2026
 
-**Backlog** : F.1 (budget), E.2 (agrégation bancaire), C.2 (projection des dividendes), ~~D.2
-(rapport périodique)~~ **livré le 20/08/2026, voir Phase 3**, G.1 (partage). **Pas d'effort agrégé**
-pour les quatre points restants : cette phase n'est pas un chantier de développement à proprement
-parler, c'est une liste de **décisions produit ou de vérifications externes** à faire avant que le
-développement ait un sens.
+**Backlog d'origine** : F.1 (budget), E.2 (agrégation bancaire), C.2 (projection des dividendes),
+~~D.2 (rapport périodique)~~ **livré le 20/08/2026, voir Phase 3**, G.1 (partage). Cette phase
+n'était pas un chantier de développement à proprement parler, c'était une liste de **décisions
+produit ou de vérifications externes** à faire avant que le développement ait un sens — trois des
+quatre points ont depuis été tranchés :
 
-- **F.1 (budget)** : demande une décision explicite de l'utilisateur — réintroduire les mouvements
-  bancaires (exclus volontairement à l'increment 5) est un changement de philosophie du produit, pas
-  un simple ajout d'écran. À rediscuter maintenant que les Phases 1-3 sont livrées, une fois qu'on
-  voit concrètement ce que l'app est devenue.
-- **E.2 (agrégation bancaire)** : demande une réponse écrite d'Enable Banking sur le statut
-  réglementaire d'un usage personnel avant tout code — GoCardless (l'alternative gratuite historique)
-  est fermée depuis juillet 2025, ne pas repartir sur cette piste.
-- **G.1 (partage)** : n'a de sens que si l'usage dépasse un seul foyer/personne — à ne considérer que
-  si ce besoin apparaît réellement, plutôt qu'en anticipation.
-- **C.2** est une extension naturelle de C.1 (Phase 3, livré) mais avec une fiabilité de données trop
-  incertaine (`yfinance` `dividendRate` pas fiable pour les ETF) pour être livrée sans cadrage
-  préalable avec l'utilisateur sur la marge d'erreur acceptable — écartée le 20/08/2026 pour cette
-  raison, pas par manque de temps.
+- **F.1 (budget)** : **entré dans le périmètre le 21/08/2026**, devenu le Lot 6 « Flux »
+  (`docs/BACKLOG.md` § 2.N, livré 24/08/2026) — écran Budget complet, import CSV/OFX/QIF,
+  catégorisation par règles explicites (jamais IA), récurrences détectées, jonction avec le
+  patrimoine (taux d'épargne réel, préremplissage du Simulateur).
+- **G.1 (partage)** : tranché en même temps, devenu **Q.1** (`docs/BACKLOG.md` § 2.Q.1, lien de
+  partage révocable, livré 25/08/2026) — plus simple que ce qu'envisageait G.1 à l'origine (pas
+  besoin d'ouvrir un compte au destinataire).
+- **C.2** (projection des dividendes) : absorbé par **P.3** (`docs/BACKLOG.md` § 2.P.3, livré
+  25/08/2026), qui traite le même besoin en séparant ce qui est certain de ce qui est estimé plutôt
+  que d'abandonner l'ensemble à cause de sa partie la moins fiable.
+- **E.2 (agrégation bancaire)** : **seul point encore en attente** — demande toujours une réponse
+  écrite d'Enable Banking sur le statut réglementaire d'un usage personnel avant tout code
+  (`docs/BACKLOG.md` § 2.E.2). GoCardless (l'alternative gratuite historique) reste fermée depuis
+  juillet 2025.
 
 ---
 
+## Et après la Phase 4 ?
+
+Cette roadmap, écrite le 19-20/08/2026, s'arrête à la Phase 4. La suite du chantier (refonte UX/UI,
+foyer/détenteurs, profondeur du modèle d'actifs, budget, objectifs, analyses avancées, partage —
+sections **K à Q** de `docs/BACKLOG.md`) a été planifiée et exécutée directement en **Lots 4 à 8**
+dans `docs/BACKLOG.md` § 4, sans être réécrite ici en `Phase 5/6/...` : le changement de nomenclature
+(« Lot » plutôt que « Phase ») date du 21/08/2026, quand le cadrage a basculé du seul suivi boursier
+vers Finary comme référence explicite (§ 1 du backlog). Une fois ces lots livrés et l'usage réel
+commencé, une quinzaine de retours directs de l'utilisateur (sections **R à W**) ont été regroupés a
+posteriori en **Lot 9 « Retours terrain »** — voir `docs/BACKLOG.md` § 4 pour l'état actuel complet
+(neuf lots clos, trois points isolés hors lot dont E.2 ci-dessus) et l'artefact « Roadmap Patrimoine »
+publié pour une vue visuelle à jour.
+
 ## Ce qui reste hors périmètre quoi qu'il arrive
 
-Voir `docs/BACKLOG.md` § 3 pour le détail et la justification : fiscalité PEA, authentification
-(tant que mono-utilisateur), agrégation bancaire commerciale type Powens/Plaid, trading/rendement
-crypto intégré, fonctionnalités communautaires. Aucun de ces points n'est reconsidéré par cette
-roadmap — les y renvoyer explicitement évite qu'ils ne reviennent par la bande au fil des phases.
+Voir `docs/BACKLOG.md` § 3 pour le détail et la justification : fiscalité PEA, agrégation bancaire
+commerciale type Powens/Plaid, trading/rendement crypto intégré, fonctionnalités communautaires.
+L'authentification, elle, est **sortie** de cette liste le 21/08/2026 (cible d'usage devenue le
+foyer, exposition depuis le serveur personnel) — voir `docs/BACKLOG.md` § 3. Aucun des points
+restants n'est reconsidéré par cette roadmap — les y renvoyer explicitement évite qu'ils ne
+reviennent par la bande au fil des phases.

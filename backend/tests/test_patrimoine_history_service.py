@@ -5,7 +5,7 @@ Volontairement sans aucune `Transaction` dans ces tests : `compute_portfolio_his
 (poche financière) renvoie `[]` sans appel réseau tant qu'aucune position financière
 n'existe (cf. son propre contrat) — ces tests portent donc uniquement sur la poche
 manuelle/emprunts, rapides et déterministes. Les tests sur la part financière du mode
-étagé (§ U.3) monkeypatchent directement `compute_portfolio_history`, même pattern que
+étagé (§ U.4) monkeypatchent directement `compute_portfolio_history`, même pattern que
 `test_rapport_service_epargne.py::test_compute_rapport_periode_inclut_le_bloc_epargne`,
 pour rester sans appel réseau."""
 
@@ -75,7 +75,7 @@ def test_immobilier_reste_en_escalier_meme_a_cote_dune_ligne_epargne_interpolee(
 
 
 def test_valeur_investie_ne_bouge_quaux_points_ou_un_versement_est_declare(db):
-    """Backlog § U.3 (retour utilisateur 30/08/2026, mode étagé hors lentille
+    """Backlog § U.4 (retour utilisateur 30/08/2026, mode étagé hors lentille
     Financier) : l'investi cumulé démarre à la valeur du tout premier point connu,
     puis ne progresse qu'aux points portant un `versement` explicitement déclaré
     (§ U.2) — un point sans versement déclaré est traité comme du gain pur, jamais
@@ -128,7 +128,7 @@ def test_ancrage_cout_dacquisition_definit_linvesti_initial(db):
 
 
 def test_valeur_investie_combine_poche_financiere_et_manuelle(db, monkeypatch):
-    """L'investi total (§ U.3) additionne la part financière (grand livre de
+    """L'investi total (§ U.4) additionne la part financière (grand livre de
     transactions, inchangée) et la part manuelle (versements déclarés)."""
     monkeypatch.setattr(
         historical_performance_service,
@@ -423,7 +423,7 @@ def test_cache_sert_le_meme_resultat_sans_recalcul(db):
 
 def test_cache_ecrit_avec_un_schema_anterieur_est_ignore_et_recalcule(db):
     """Reproduit le bug constaté le 30/08/2026 : une entrée de cache écrite AVANT
-    l'ajout de valeur_investie/valeur_realisee_cumulee à PatrimoineHistoryPoint (§ U.3)
+    l'ajout de valeur_investie/valeur_realisee_cumulee à PatrimoineHistoryPoint (§ U.4)
     était servie telle quelle (moins de 24h), provoquant une erreur de validation
     Pydantic sur la réponse de l'API — graphique vide en lentille Net/Brut."""
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, prix_revient_moyen=200000.0, valeur_estimee=250000.0)

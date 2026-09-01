@@ -1148,7 +1148,7 @@ class PatrimoineHistoryPoint(BaseModel):
     passifs_totaux: float
     patrimoine_net: float
     patrimoine_financier: float
-    # Mode étagé Investi/Gains hors lentille Financier (backlog § U.3, 30/08/2026) —
+    # Mode étagé Investi/Gains hors lentille Financier (backlog § U.4, 30/08/2026) —
     # mêmes noms de champs que `PortfolioHistoryPoint` pour que le frontend applique
     # la même formule de décomposition sans distinguo. Voir le docstring de module de
     # `patrimoine_history_service` pour le détail (part manuelle bornée aux versements

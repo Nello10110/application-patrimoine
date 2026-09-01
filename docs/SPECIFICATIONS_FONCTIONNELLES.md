@@ -2,7 +2,8 @@
 
 ## 1. Périmètre
 
-Application web locale et mono-utilisateur de suivi de portefeuille boursier. Elle permet de :
+Application web locale, multi-utilisateur par foyer (propriétaire/membre/invité, backlog § 2.L.1/L.2),
+de suivi de patrimoine et de portefeuille boursier. Elle permet de :
 
 1. reconstruire automatiquement le portefeuille réel à partir d'un export d'historique de transactions (courtier Trade Republic et compatibles), avec un choix de méthode de calcul du coût de revient (coût moyen pondéré ou FIFO) ;
 2. enrichir chaque position avec des données de marché (cours, secteur, pays, composition des ETF) via Yahoo Finance (`yfinance`), avec mise en cache pour limiter la fréquence des appels ;
@@ -396,13 +397,22 @@ exactement à `patrimoine_net`. Une ligne peut y être négative (équité néga
 la liste (affichée en rouge), mais exclue du camembert, qui ne peut pas représenter une part négative.
 Le mode étagé Investi/Gains de la courbe, initialement réservé à la lentille Financier faute de
 décomposition possible pour l'immobilier/l'épargne, est désormais disponible aussi en Net/Brut
-(backlog § U.3, retour utilisateur 30/08/2026) : `PatrimoineHistoryPoint` expose `valeur_investie`
+(backlog § U.4, retour utilisateur 30/08/2026) : `PatrimoineHistoryPoint` expose `valeur_investie`
 (part financière du grand livre de transactions + part manuelle bornée aux versements EXPLICITEMENT
 déclarés, § U.2) et `valeur_realisee_cumulee` (exclusivement financière, aucun équivalent « réalisé »
 pour un bien qui ne se cède pas par petites parts). `PortfolioHistoryChart` applique alors la MÊME
 formule de décomposition (`Gains = valeur_portefeuille + valeur_realisee_cumulee − valeur_investie`)
 qu'en Financier — avec une légende adaptée hors Financier précisant qu'une hausse non déclarée reste
 comptée en gain.
+
+**Correctif du 31/08/2026** : en lentille Net, `Portefeuille` vaut `patrimoine_net` (déjà netté des
+emprunts) mais `valeur_investie` restait BRUTE — la dette était donc soustraite deux fois, sous-comptant
+massivement les gains d'un bien financé à crédit. `PatrimoineHistoryPoint` expose désormais aussi
+`valeur_investie_nette` (`valeur_investie − passifs_totaux`, même netting global que `patrimoine_net`,
+sans rattachement par ligne — cohérent avec le reste de ce point, agrégé) : `PortfolioHistoryChart`
+l'utilise comme « Investi » en lentille Net, jamais `valeur_investie` (réservée à Brut). Invariant
+verrouillé par test : `Gains` doit valoir EXACTEMENT le même montant en Brut et en Net, la dette ne
+déplaçant jamais une performance d'investissement, seulement le capital investi affiché.
 
 **Deux limites assumées et affichées** (même philosophie de transparence que la qualité des données de
 répartition, § 3.4, ou la valorisation immobilière datée, § 3.11 — jamais de fausse précision) :
@@ -523,6 +533,14 @@ d'objectifs de répartition annuelle, cf. § 3.6 devenue vacante).
   existant (§ 3.4), qui reste affiché tel quel sur l'écran Répartition pour le seul financier.
 - Ouvert propriétaire+membre ; hors du périmètre invité (§ 3.11, seuls Patrimoine net/Portefeuille/
   Emprunts le sont).
+- **Détail des lignes au clic** (backlog § 2.W.1, retour utilisateur 31/08/2026) : cliquer une part
+  d'un des deux camemberts ouvre `CompositionModal` (composant généralisé, partagé avec les camemberts
+  géo/sectoriel financier du Tableau de bord) sur `GET /api/patrimoine/exposition-consolidee/composition
+  ?dimension=geo|classe&categorie=…&net=…`. Dimension `geo` réutilise le look-through déjà décrit
+  ci-dessus (`analysis_service.holdings_in_category`, générique — pas de restriction au financier dans
+  son implémentation, seul l'appelant `/api/analysis/composition` s'y limite). Dimension `classe`
+  correspond directement par `LABEL_TYPE_ACTIF` (aucun look-through pour une classe d'actif). `net`
+  suit la même lentille que la carte.
 
 ### 3.21 Lien de partage révocable (backlog § 2.Q.1)
 

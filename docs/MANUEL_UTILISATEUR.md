@@ -161,14 +161,20 @@ mise à jour, versement mensuel déclaré, et un petit historique daté.
   valeur initiale et un versement mensuel dès la création. Le Véhicule n'apparaît pas ici (il reste
   dans Portefeuille, onglet « Immobilier & Épargne ») — sa valeur décote plutôt qu'elle n'épargne, il
   rejoindra plus tard une catégorie séparée aux côtés de l'immobilier.
-- **« Modifier »** sur un compte : corrige son nom et/ou son versement mensuel (jamais la valeur
-  actuelle ni son historique — ça passe uniquement par « Ajouter une valorisation », pour ne jamais
-  fausser l'historique daté).
+- **« Modifier »** sur un compte : corrige son nom et/ou son versement mensuel — pas la valeur
+  actuelle ni l'historique, qui passent par les actions dédiées ci-dessous.
 - **« Supprimer »** sur un compte : demande confirmation avant de retirer définitivement le compte et
   tout son historique de valorisation.
 - **Graphique d'évolution** : dès qu'un compte a au moins deux points d'historique, un petit graphique
   trace leur évolution (en plus du tableau daté) — aussi bien sur cette liste que sur la fiche
   détaillée du compte.
+- **Corriger ou supprimer un point de l'historique** (backlog § 2.T.3, retour utilisateur avec capture
+  à l'appui — une saisie erronée cassait la courbe en tirant la valeur vers zéro, de façon permanente
+  jusqu'ici) : chaque ligne du tableau daté a désormais ses propres boutons **Modifier**/**Supprimer**
+  (même bascule en formulaire Valeur/Date que le tableau des positions ; confirmation avant
+  suppression). Si le point touché est le plus récent, la valeur affichée partout ailleurs (Portefeuille,
+  Tableau de bord) se resynchronise automatiquement sur le nouveau point le plus récent restant — plus
+  rien à corriger manuellement en double.
 
 ## Écran Dividendes
 
@@ -232,14 +238,19 @@ courbe, puis le détail replié) :
    sur le patrimoine combiné (financier + immobilier/épargne valorisés à leurs derniers points connus,
    moins les emprunts) — la ligne précise dans chaque cas ce qu'elle mesure, plutôt que d'afficher un
    chiffre à la définition ambiguë. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
-2. **La courbe** — **Évolution du portefeuille** : suit elle aussi la lentille Net/Brut/Financier. En
-   Financier, graphique avec sélecteur d'échelle (via la Période) et un mode étagé qui distingue le
-   capital investi des gains cumulés. En Brut/Net, la même courbe mais sur le patrimoine combiné
-   (financier + immobilier/épargne/emprunts) — le mode étagé n'est alors pas disponible : il n'existe
-   pas d'équivalent « investi/gains » pour un bien immobilier ou un contrat d'épargne. Cette courbe
-   combinée peut apparaître plate ou en escalier tant que peu de valorisations manuelles ont été
-   saisies (immobilier, épargne) — elle s'affine au fil des saisies. Reste visible même si le reste de
-   l'écran (répartitions, indicateurs) échoue à charger.
+2. **La courbe** — **Évolution du portefeuille** : suit elle aussi la lentille Net/Brut/Financier, avec
+   un sélecteur d'échelle (via la Période) et une case **Mode étagé (investi + gains)** disponible
+   dans les trois lentilles — coche « Investi » (aire grise) et « Gains » (aire verte) empilées plutôt
+   qu'une seule courbe. En Brut/Net, la courbe porte sur le patrimoine combiné (financier +
+   immobilier/épargne/emprunts) ; seul un **versement explicitement déclaré** sur un actif valorisé
+   manuellement (fiche du bien, champ « dont versement ») compte comme « Investi » — une hausse non
+   déclarée reste comptée comme un gain, une explication sous la case le rappelle. En lentille Net,
+   « Investi » est netté des emprunts au même titre que le reste de la courbe (sans quoi la dette
+   aurait été comptée deux fois) : la part « Gains » reste rigoureusement identique en Brut et en Net,
+   seule la part « Investi » diminue du montant restant dû. Cette courbe combinée peut apparaître
+   plate ou en escalier tant que peu de valorisations manuelles ont été saisies (immobilier, épargne)
+   — elle s'affine au fil des saisies. Reste visible même si le reste de l'écran (répartitions,
+   indicateurs) échoue à charger.
 3. **Le détail** — tout le reste, replié sous un bouton **Détail** (ouvert par défaut, l'état choisi
    est mémorisé d'une visite à l'autre). Le bouton **Actualiser**, en haut à droite de l'écran (hors
    du repliable), recharge toutes les données de l'écran.
@@ -279,7 +290,8 @@ courbe, puis le détail replié) :
      valeur totale consolidée correspond alors au patrimoine net, pas aux actifs bruts ; en Financier,
      cette carte n'apparaît pas (la répartition géo/sectorielle financière est déjà couverte
      juste au-dessus). Une note rappelle quelle part du patrimoine a une géographie *déclarée* plutôt
-     que *mesurée*.
+     que *mesurée*. Comme pour les camemberts financiers plus haut, **cliquer une part** ouvre le
+     détail des lignes qui la composent.
    - **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût
      annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la
      part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est

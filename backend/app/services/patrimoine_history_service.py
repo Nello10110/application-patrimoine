@@ -26,7 +26,7 @@ l'impression d'un rattrapage instantané. Toujours pas d'extrapolation dans le f
 (valeur plaquée au dernier point connu au-delà) ni avant le premier point (`None`,
 rien à représenter) — seul l'ENTRE-DEUX points change de comportement.
 
-**Mode étagé Investi/Gains hors lentille Financier (backlog § U.3, retour utilisateur
+**Mode étagé Investi/Gains hors lentille Financier (backlog § U.4, retour utilisateur
 30/08/2026)** : `valeur_investie`/`valeur_realisee_cumulee` (mêmes noms de champs que
 `historical_performance_service.compute_portfolio_history`, pour que le frontend
 réutilise la même formule de décomposition sans distinguo) sont désormais exposés ici
@@ -100,7 +100,7 @@ def _valeur_ligne_a_date(holding: Holding, serie: TimeSeries, date: datetime) ->
 def _series_financieres(db: Session, user_id: int) -> tuple[TimeSeries, TimeSeries, TimeSeries]:
     """`(valeur, investie, realisee_cumulee)` — un seul appel à `compute_portfolio_history`
     (déjà mis en cache par ce module, coûteux en réseau) plutôt que trois, pour
-    alimenter à la fois la valeur brute et le mode étagé Investi/Gains (§ U.3)."""
+    alimenter à la fois la valeur brute et le mode étagé Investi/Gains (§ U.4)."""
     points = historical_performance_service.compute_portfolio_history(db, user_id)
     valeur = [(datetime.fromisoformat(p["date"]), p["valeur_portefeuille"]) for p in points]
     investie = [(datetime.fromisoformat(p["date"]), p["valeur_investie"]) for p in points]
@@ -133,7 +133,7 @@ def _serie_holding_manuel(holding: Holding, points_historique: list) -> TimeSeri
 
 def _serie_investie_manuel(holding: Holding, points_historique: list) -> TimeSeries:
     """Série de la part INVESTIE (cumulée) d'une ligne manuelle — pour le mode étagé
-    Investi/Gains hors lentille Financier (backlog § U.3). Même ancrage que
+    Investi/Gains hors lentille Financier (backlog § U.4). Même ancrage que
     `_serie_holding_manuel` ci-dessus (coût d'acquisition à `prix_revient_moyen` si
     connu et antérieur au premier point) : au tout premier point connu de la ligne
     (l'ancrage s'il existe, sinon le premier point réel, sinon `valeur_estimee`),

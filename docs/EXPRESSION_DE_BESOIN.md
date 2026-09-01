@@ -2,6 +2,16 @@
 
 **Version** 1.0 · **Date** 21/08/2026 · **Auteur** Paul C. · **Statut** validée, prête pour lancement des développements
 
+**Mise à jour du 31/08/2026 — statut de livraison.** Les cinq lots décrits au § 5 (EF-1 à EF-26) sont
+**tous livrés** : Lots 4 à 7 intégralement, Lot 8 pour sa partie développable (EF-23/EF-24) — seuls
+EF-25 (Q.3, devise) et une moitié d'EF-26 (E.1, formats de courtier) restent ouverts, chacun bloqué
+par une décision/donnée externe plutôt que par du développement (détail dans `docs/BACKLOG.md` § 4).
+Ce document reste tel qu'approuvé le 21/08/2026 (snapshot de planification) plutôt que réécrit au fil
+de l'eau ; l'état de livraison courant, y compris une quinzaine de demandes directes de l'utilisateur
+reçues après coup une fois l'usage réel commencé (regroupées en **Lot 9**, hors périmètre de ce
+document puisqu'elles n'ont jamais été planifiées à l'avance), vit dans `docs/BACKLOG.md` § 4 et
+dans l'artefact « Roadmap Patrimoine » publié.
+
 Ce document est le **point d'entrée des équipes de développement**. Il dit *ce qu'il faut construire
 et pourquoi*, avec les critères permettant de juger que c'est fait. Il ne dit pas *comment* :
 l'architecture existante fait foi (`docs/MANUEL_EXPLOITATION.md`), les règles métier en vigueur
@@ -517,7 +527,8 @@ Un lot est livré quand **tous** les points suivants sont vrais :
 
 ## 11. Références
 
-- [`docs/BACKLOG.md`](BACKLOG.md) — arbitrage détaillé de chaque point, sections A à Q
+- [`docs/BACKLOG.md`](BACKLOG.md) — arbitrage détaillé de chaque point, sections A à W (§ 4 pour
+  l'état de livraison courant, Lot 9 inclus)
 - [`docs/ROADMAP.md`](ROADMAP.md) — phases 1 à 3 livrées, ordre historique
 - [`docs/SPECIFICATIONS_FONCTIONNELLES.md`](SPECIFICATIONS_FONCTIONNELLES.md) — règles métier en vigueur
 - [`docs/MANUEL_EXPLOITATION.md`](MANUEL_EXPLOITATION.md) — architecture, exploitation, sauvegarde
