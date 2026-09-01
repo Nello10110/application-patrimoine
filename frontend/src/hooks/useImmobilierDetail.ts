@@ -13,7 +13,7 @@ export interface FormImmobilier {
   dpe: string
 }
 
-export function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
+function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
   return {
     type_location: immo?.type_location ?? '',
     loyer_mensuel: immo?.loyer_mensuel !== null && immo?.loyer_mensuel !== undefined ? String(immo.loyer_mensuel) : '',
