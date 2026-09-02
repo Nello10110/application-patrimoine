@@ -40,6 +40,7 @@ import logging
 import os
 import re
 import sqlite3
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -83,18 +84,34 @@ def chemin_base_source() -> Path:
     l'autre. Réimplémenter le critère ici le ferait rediverger à la première
     évolution : on réutilise la fonction d'origine, jamais une copie.
 
-    L'import est local et protégé pour préserver l'autonomie revendiquée de ce script
-    (utilisable en CLI sans dépendre d'`app`) : si le paquet applicatif n'est pas
-    importable, on retombe sur l'emplacement par défaut historique.
+    `_RACINE_BACKEND` est ajoutée à `sys.path` avant l'import : lancé en CLI
+    (`python scripts/sauvegarde.py`), Python place `scripts/` en tête de `sys.path`,
+    PAS `backend/` — sans cet ajout, `app` n'est pas importable et le repli
+    ci-dessous ramenait silencieusement le chemin erroné. C'est exactement ce qui
+    s'est produit le 02/09/2026 : le correctif initial n'avait rétabli que le chemin
+    du scheduler (qui importe ce module depuis `app`, donc avec `backend/` déjà sur
+    le chemin), laissant le CLI sauvegarder la mauvaise base.
+
+    Le repli reste protégé pour préserver l'autonomie revendiquée de ce script, mais
+    il JOURNALISE désormais un avertissement : un repli silencieux est précisément ce
+    qui a permis au défaut de passer inaperçu.
     """
     valeur = os.environ.get("PATRIMOINE_DB")
     if valeur:
         return Path(valeur)
     try:
+        if str(_RACINE_BACKEND) not in sys.path:
+            sys.path.insert(0, str(_RACINE_BACKEND))
         from app.database import _chemin_base_par_defaut  # noqa: PLC0415 - cf. docstring
 
         return _chemin_base_par_defaut()
-    except Exception:  # noqa: BLE001 - autonomie CLI : jamais bloquant
+    except Exception as exc:  # noqa: BLE001 - autonomie CLI : jamais bloquant
+        logger.warning(
+            "résolution applicative de la base indisponible (%s) — repli sur %s. "
+            "Vérifiez que la sauvegarde cible bien la base réellement utilisée.",
+            exc,
+            _CHEMIN_BASE_PAR_DEFAUT,
+        )
         return _CHEMIN_BASE_PAR_DEFAUT
 
 

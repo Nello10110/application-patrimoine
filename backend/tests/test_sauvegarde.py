@@ -5,6 +5,7 @@ SQLite dans `tmp_path` — jamais la vraie `patrimoine.db` (garanti par
 fichier n'en dépend même pas : les chemins de base sont explicites de bout en
 bout, sans jamais retomber sur un défaut)."""
 
+import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -91,6 +92,41 @@ def test_chemin_base_source_suit_la_variable_denvironnement(tmp_path, monkeypatc
     monkeypatch.setenv("PATRIMOINE_DB", str(tmp_path / "ailleurs.db"))
 
     assert sauvegarde.chemin_base_source() == tmp_path / "ailleurs.db"
+
+
+def test_chemin_base_source_reste_correct_lance_en_ligne_de_commande(tmp_path):
+    """Deuxième moitié de la régression du 02/09/2026, ratée par le premier
+    correctif : lancé via `python scripts/sauvegarde.py`, Python place `scripts/` en
+    tête de `sys.path`, **pas** `backend/`. L'import d'`app.database` échouait donc,
+    et le repli protégé ramenait silencieusement `patrimoine.db` — le CLI
+    sauvegardait la mauvaise base alors que le scheduler, lui, était corrigé.
+
+    Ce test reproduit fidèlement ce contexte dans un sous-process (impossible à
+    simuler dans le process de test, où `backend/` est déjà importable), et
+    constitue le seul verrou capable d'attraper ce mode de défaillance."""
+    import subprocess
+    import sys as _sys
+
+    programme = (
+        "import sys\n"
+        "sys.path = [p for p in sys.path if p not in ('', '.')]\n"
+        "sys.path.insert(0, 'scripts')\n"
+        "import sauvegarde\n"
+        "print(sauvegarde.chemin_base_source())\n"
+    )
+    env = {k: v for k, v in os.environ.items() if k != "PATRIMOINE_DB"}
+    resultat = subprocess.run(
+        [_sys.executable, "-c", programme],
+        cwd=str(Path(__file__).resolve().parent.parent),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert resultat.returncode == 0, resultat.stderr
+    from app.database import _chemin_base_par_defaut
+
+    assert resultat.stdout.strip() == str(_chemin_base_par_defaut())
 
 
 def test_chemin_base_source_est_celle_que_lapplication_ouvre_reellement(monkeypatch):
