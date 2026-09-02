@@ -19,6 +19,11 @@ vi.mock('../../api/client', () => ({
     listHoldings: vi.fn().mockResolvedValue([]),
     createHolding: vi.fn(),
     importTransactions: vi.fn(),
+    // Comptes structurels (écran Comptes, backlog X.1) : `AjoutHoldingForm`,
+    // embarqué tel quel (non mocké) dans l'étape "Démarrer le portefeuille", charge
+    // désormais la liste des comptes existants — hors de l'objet de ce fichier,
+    // stub neutre par défaut (aucun compte existant).
+    listComptes: vi.fn().mockResolvedValue([]),
   },
 }))
 

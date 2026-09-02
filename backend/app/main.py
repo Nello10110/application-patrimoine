@@ -20,6 +20,7 @@ from .routers import (
     analysis,
     auth,
     budget,
+    comptes,
     detenteurs,
     export,
     loans,
@@ -123,6 +124,11 @@ _proprietaire_seul = [Depends(require_role(ROLE_PROPRIETAIRE))]
 _pas_invite = [Depends(require_role(ROLE_PROPRIETAIRE, ROLE_MEMBRE))]
 
 app.include_router(portfolio.router, dependencies=_protegee)
+# Écran Comptes (backlog X.1) : même granularité que portfolio.py/loans.py
+# ci-dessous — lecture ouverte aux 3 rôles avec filtrage serveur pour l'invité,
+# écriture (CRUD établissements/comptes, quotités) réservée propriétaire+membre,
+# affinée au niveau endpoint dans `routers/comptes.py`.
+app.include_router(comptes.router, dependencies=_protegee)
 app.include_router(market_data.router, dependencies=_pas_invite)
 app.include_router(analysis.router, dependencies=_pas_invite)
 app.include_router(transactions.router, dependencies=_pas_invite)

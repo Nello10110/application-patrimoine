@@ -16,6 +16,15 @@ export interface SeedData {
     appartement: { id: number; ticker: string }
     livret: { id: number; ticker: string }
   }
+  // Écran Comptes (backlog X.1) : établissement et comptes structurels créés par le
+  // seed, rattachés aux holdings ci-dessus (PEA E2E = AAPL + FUND, comptes
+  // mono-ligne pour l'immobilier et le livret).
+  etablissement_id: number
+  comptes: {
+    pea: { id: number; nom: string }
+    immobilier: { id: number; nom: string }
+    livret: { id: number; nom: string }
+  }
   loan_id: number
   objectif_id: number
   attendu: {

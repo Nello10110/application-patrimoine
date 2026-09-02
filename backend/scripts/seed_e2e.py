@@ -94,22 +94,34 @@ def _creer_detenteurs(client: httpx.Client) -> tuple[int, int]:
     return alice.json()["id"], bob.json()["id"]
 
 
-def _creer_holdings_financiers(client: httpx.Client) -> tuple[int, str, int, str]:
+def _creer_holdings_financiers(client: httpx.Client) -> tuple[int, str, int, str, int]:
+    # `compte_nom` (écran Comptes, backlog X.1) : les deux lignes financières
+    # partagent un même compte créé à la volée, PEA E2E — exerce un compte
+    # multi-lignes, cas d'usage principal des quotités définies au niveau du compte.
     aapl = client.post(
         "/api/portfolio/holdings",
-        json={"ticker": "E2EAAPL", "quantite": QUANTITE_AAPL, "prix_revient_moyen": PRIX_REVIENT_AAPL, "type_actif": "STOCK"},
+        json={
+            "ticker": "E2EAAPL", "quantite": QUANTITE_AAPL, "prix_revient_moyen": PRIX_REVIENT_AAPL,
+            "type_actif": "STOCK", "compte_nom": "PEA E2E",
+        },
     )
     aapl.raise_for_status()
     fund = client.post(
         "/api/portfolio/holdings",
-        json={"ticker": "E2EFUND", "quantite": QUANTITE_FUND, "prix_revient_moyen": PRIX_REVIENT_FUND, "type_actif": "FUND"},
+        json={
+            "ticker": "E2EFUND", "quantite": QUANTITE_FUND, "prix_revient_moyen": PRIX_REVIENT_FUND,
+            "type_actif": "FUND", "compte_nom": "PEA E2E",
+        },
     )
     fund.raise_for_status()
     aapl_j, fund_j = aapl.json(), fund.json()
-    return aapl_j["id"], aapl_j["ticker"], fund_j["id"], fund_j["ticker"]
+    return aapl_j["id"], aapl_j["ticker"], fund_j["id"], fund_j["ticker"], aapl_j["compte"]["id"]
 
 
-def _creer_immobilier(client: httpx.Client) -> tuple[int, str]:
+def _creer_immobilier(client: httpx.Client) -> tuple[int, str, int]:
+    # `compte_nom` : un bien immobilier rattaché à son propre compte structurel —
+    # exerce le cas explicitement demandé par l'utilisateur (« compter potentiellement
+    # l'immobilier sur un compte »), un compte mono-ligne comme une assurance-vie.
     holding = client.post(
         "/api/portfolio/holdings",
         json={
@@ -119,6 +131,7 @@ def _creer_immobilier(client: httpx.Client) -> tuple[int, str]:
             "type_actif": "REAL_ESTATE",
             "valeur_estimee": VALEUR_APPART,
             "date_acquisition": _iso_il_y_a(900),
+            "compte_nom": "Compte immobilier E2E",
         },
     )
     holding.raise_for_status()
@@ -148,10 +161,12 @@ def _creer_immobilier(client: httpx.Client) -> tuple[int, str]:
         )
         pt.raise_for_status()
 
-    return h["id"], h["ticker"]
+    return h["id"], h["ticker"], h["compte"]["id"]
 
 
-def _creer_epargne(client: httpx.Client) -> tuple[int, str]:
+def _creer_epargne(client: httpx.Client) -> tuple[int, str, int]:
+    # `compte_nom` : mêmes règles que l'écran Épargne (`AjoutCompteForm`), qui crée
+    # toujours un compte 1:1 pour chaque ligne — reproduit ici via l'API directement.
     holding = client.post(
         "/api/portfolio/holdings",
         json={
@@ -162,6 +177,7 @@ def _creer_epargne(client: httpx.Client) -> tuple[int, str]:
             "taux_pct": 3.0,
             "versement_mensuel": 200.0,
             "date_acquisition": _iso_il_y_a(600),
+            "compte_nom": "Livret A E2E",
         },
     )
     holding.raise_for_status()
@@ -174,7 +190,7 @@ def _creer_epargne(client: httpx.Client) -> tuple[int, str]:
         )
         pt.raise_for_status()
 
-    return h["id"], h["ticker"]
+    return h["id"], h["ticker"], h["compte"]["id"]
 
 
 def _repartir_quotites(client: httpx.Client, ticker_aapl: str, ticker_appart: str, alice_id: int, bob_id: int) -> None:
@@ -184,6 +200,30 @@ def _repartir_quotites(client: httpx.Client, ticker_aapl: str, ticker_appart: st
             json={"quotites": [{"detenteur_id": alice_id, "quotite_pct": part_alice}, {"detenteur_id": bob_id, "quotite_pct": part_bob}]},
         )
         r.raise_for_status()
+
+
+def _creer_etablissement(client: httpx.Client) -> int:
+    r = client.post("/api/comptes/etablissements", json={"nom": "Banque E2E"})
+    r.raise_for_status()
+    return r.json()["id"]
+
+
+def _rattacher_etablissement(client: httpx.Client, compte_pea_id: int, etablissement_id: int) -> None:
+    r = client.patch(f"/api/comptes/{compte_pea_id}", json={"etablissement_id": etablissement_id})
+    r.raise_for_status()
+
+
+def _repartir_quotites_compte(client: httpx.Client, compte_pea_id: int, alice_id: int, bob_id: int) -> None:
+    # Écran Comptes (backlog X.1) : une seule répartition pour tout le compte PEA E2E
+    # (AAPL + FUND) plutôt que ligne par ligne — écrase la quotité 60/40 déjà posée
+    # sur AAPL par `_repartir_quotites` ci-dessus (comportement documenté et attendu :
+    # la validation remplace la répartition actuellement enregistrée) et pose la
+    # même répartition sur FUND, jamais réglée ligne par ligne jusqu'ici.
+    r = client.put(
+        f"/api/comptes/{compte_pea_id}/quotites",
+        json={"quotites": [{"detenteur_id": alice_id, "quotite_pct": 60.0}, {"detenteur_id": bob_id, "quotite_pct": 40.0}]},
+    )
+    r.raise_for_status()
 
 
 def _creer_emprunt(client: httpx.Client, holding_appart_id: int) -> int:
@@ -375,10 +415,13 @@ def main() -> None:
     client = _client(args.base_url)
     _enregistrer(client)
     alice_id, bob_id = _creer_detenteurs(client)
-    holding_aapl_id, ticker_aapl, holding_fund_id, ticker_fund = _creer_holdings_financiers(client)
-    holding_appart_id, ticker_appart = _creer_immobilier(client)
-    holding_livret_id, ticker_livret = _creer_epargne(client)
+    etablissement_id = _creer_etablissement(client)
+    holding_aapl_id, ticker_aapl, holding_fund_id, ticker_fund, compte_pea_id = _creer_holdings_financiers(client)
+    holding_appart_id, ticker_appart, compte_immobilier_id = _creer_immobilier(client)
+    holding_livret_id, ticker_livret, compte_livret_id = _creer_epargne(client)
+    _rattacher_etablissement(client, compte_pea_id, etablissement_id)
     _repartir_quotites(client, ticker_aapl, ticker_appart, alice_id, bob_id)
+    _repartir_quotites_compte(client, compte_pea_id, alice_id, bob_id)
     loan_id = _creer_emprunt(client, holding_appart_id)
     _importer_transactions(client)
     objectif_id = _creer_objectif(client, holding_livret_id)
@@ -397,6 +440,12 @@ def main() -> None:
             "fund": {"id": holding_fund_id, "ticker": ticker_fund},
             "appartement": {"id": holding_appart_id, "ticker": ticker_appart},
             "livret": {"id": holding_livret_id, "ticker": ticker_livret},
+        },
+        "etablissement_id": etablissement_id,
+        "comptes": {
+            "pea": {"id": compte_pea_id, "nom": "PEA E2E"},
+            "immobilier": {"id": compte_immobilier_id, "nom": "Compte immobilier E2E"},
+            "livret": {"id": compte_livret_id, "nom": "Livret A E2E"},
         },
         "loan_id": loan_id,
         "objectif_id": objectif_id,

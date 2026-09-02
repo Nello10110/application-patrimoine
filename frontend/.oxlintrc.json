@@ -37,8 +37,21 @@
       "files": ["src/components/PositionsTable.tsx"],
       "rules": {
         "jsx-a11y/prefer-tag-over-role": "off",
-        "jsx-a11y/control-has-associated-label": "off"
+        "jsx-a11y/control-has-associated-label": "off",
+        // Le sélecteur de compte (`CompteEditSelect`, écran Comptes, backlog X.1)
+        // est un composant partagé : le `<select>` réel est bien imbriqué dans
+        // chaque `<label>` au rendu (association implicite correcte), mais l'analyse
+        // statique du linter ne traverse pas la frontière du composant pour le voir.
+        "jsx-a11y/label-has-associated-control": "off"
       }
+    },
+    {
+      // Ligne de compte cliquable (écran Comptes, backlog X.1) : `role="button"`
+      // posé conditionnellement (`estCliquable ? 'button' : undefined`, la ligne
+      // « Sans compte » n'a rien à ouvrir) — même limite d'analyse statique que
+      // `Modale.tsx` ci-dessus pour cette règle.
+      "files": ["src/pages/ComptesPage.tsx"],
+      "rules": { "jsx-a11y/no-static-element-interactions": "off" }
     },
     {
       "files": ["src/components/PaletteRecherche.tsx"],

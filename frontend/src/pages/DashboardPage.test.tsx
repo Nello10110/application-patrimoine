@@ -9,7 +9,6 @@ vi.mock('../api/client', () => ({
   api: {
     getAnalysis: vi.fn(),
     getPerformance: vi.fn(),
-    getRepartitionComptes: vi.fn(),
     getCoutGestionConsolide: vi.fn(),
     getExpositionConsolidee: vi.fn(),
     // Historique du portefeuille (backlog 2.K.6) : remonté ici pour être partagé avec
@@ -108,12 +107,6 @@ function renderPage() {
 function mockReponsesParDefaut() {
   vi.mocked(api.getAnalysis).mockResolvedValue(analyse())
   vi.mocked(api.getPerformance).mockResolvedValue(null as never)
-  vi.mocked(api.getRepartitionComptes).mockResolvedValue({
-    valeur_totale: 0,
-    items: [],
-    a_des_comptes_annotes: false,
-    pas_de_rentabilite_par_compte: '',
-  })
   vi.mocked(api.getCoutGestionConsolide).mockResolvedValue({
     valeur_fonds: 0,
     valeur_fonds_avec_ter_connu: 0,
@@ -198,23 +191,6 @@ describe('DashboardPage — erreurs indépendantes de performance/comptes/coût 
     await waitFor(() => expect(api.getCoutGestionConsolide).toHaveBeenCalledTimes(2))
   })
 
-  it('un échec de getRepartitionComptes affiche EtatErreur avec une action de reprise dédiée', async () => {
-    vi.mocked(api.getRepartitionComptes).mockRejectedValueOnce(new Error('panne comptes'))
-    const { fireEvent } = await import('@testing-library/react')
-    renderPage()
-
-    await screen.findByText('panne comptes')
-
-    vi.mocked(api.getRepartitionComptes).mockResolvedValueOnce({
-      valeur_totale: 0,
-      items: [],
-      a_des_comptes_annotes: false,
-      pas_de_rentabilite_par_compte: '',
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
-
-    await waitFor(() => expect(api.getRepartitionComptes).toHaveBeenCalledTimes(2))
-  })
 })
 
 describe('DashboardPage — hiérarchie de lecture (backlog 2.K.6)', () => {

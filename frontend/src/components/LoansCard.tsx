@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Holding, Loan } from '../api/types'
+import type { Detenteur, Holding, Loan } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDateHeure, formatEuro } from '../utils/format'
@@ -11,6 +11,86 @@ import type { LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
+
+const TOLERANCE_SOMME_PCT = 0.01
+
+/** Répartition d'un emprunt entre détenteurs (backlog 2.L.1/X.1) — câble
+ * `PUT /loans/{id}/quotites`, jusqu'ici sans UI (le service existait déjà,
+ * `detenteurs_service.set_quotites_loan`, jamais exposé). Volontairement plus
+ * simple que `DetenteursSection.tsx` (la fiche d'une position) : pas de « part
+ * détenue/nette » affichée ici, l'endpoint emprunt ne renvoie qu'un accusé de
+ * réception, contrairement à la fiche détaillée d'un actif. */
+function QuotitesEmprunt({ loanId }: { loanId: number }) {
+  const [detenteurs, setDetenteurs] = useState<Detenteur[] | null>(null)
+  const [saisie, setSaisie] = useState<Record<number, string>>({})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [enregistre, setEnregistre] = useState(false)
+
+  useEffect(() => {
+    api
+      .listDetenteurs()
+      .then(setDetenteurs)
+      .catch(() => setDetenteurs([]))
+  }, [])
+
+  if (detenteurs === null) return <SkeletonTexte lignes={1} />
+  if (detenteurs.length === 0) return null
+
+  const total = detenteurs.reduce((somme, d) => somme + (Number(saisie[d.id]) || 0), 0)
+  const repartitionEnCours = detenteurs.some((d) => (Number(saisie[d.id]) || 0) > 0)
+  const totalValide = !repartitionEnCours || Math.abs(total - 100) < TOLERANCE_SOMME_PCT
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    setEnregistre(false)
+    try {
+      const quotites = (detenteurs ?? [])
+        .map((d) => ({ detenteur_id: d.id, quotite_pct: Number(saisie[d.id]) || 0 }))
+        .filter((q) => q.quotite_pct > 0)
+      await api.setLoanQuotites(loanId, quotites)
+      setEnregistre(true)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-bordure pt-3">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-texte-attenue">Détenteurs de cet emprunt</p>
+      <div className="flex flex-wrap items-end gap-3">
+        {detenteurs.map((d) => (
+          <label key={d.id} className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            {d.nom}
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="any"
+              value={saisie[d.id] ?? ''}
+              onChange={(e) => setSaisie({ ...saisie, [d.id]: e.target.value })}
+              className="w-20 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!totalValide || saving}
+          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-surface disabled:opacity-40"
+        >
+          Enregistrer
+        </button>
+      </div>
+      {!totalValide && <p className="mt-1 text-xs text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</p>}
+      {enregistre && <p className="mt-1 text-xs text-positif">Répartition enregistrée.</p>}
+      {error && <p className="mt-1 text-xs text-negatif">{error}</p>}
+    </div>
+  )
+}
 
 const LOAN_FORM_VIDE: LoanForm = {
   libelle: '',
@@ -44,6 +124,8 @@ function LoanCardMobile({
   onStartEdition,
   onSaveEdition,
   onCancelEdition,
+  detenteursOuverts,
+  onToggleDetenteurs,
 }: {
   loan: Loan
   holdings: Holding[]
@@ -65,6 +147,8 @@ function LoanCardMobile({
   onStartEdition: () => void
   onSaveEdition: () => void
   onCancelEdition: () => void
+  detenteursOuverts: boolean
+  onToggleDetenteurs: () => void
 }) {
   const enRecalage = recalageId === loan.id
   const enEdition = editionId === loan.id
@@ -154,6 +238,8 @@ function LoanCardMobile({
         </select>
       </label>
 
+      {detenteursOuverts && <QuotitesEmprunt loanId={loan.id} />}
+
       <div className="mt-4 flex gap-2">
         {enRecalage ? (
           <>
@@ -175,6 +261,9 @@ function LoanCardMobile({
             </button>
             <button onClick={onStartRecalage} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
               Recaler
+            </button>
+            <button onClick={onToggleDetenteurs} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+              {detenteursOuverts ? 'Fermer' : 'Détenteurs'}
             </button>
             <button
               onClick={onRequestDelete}
@@ -220,6 +309,10 @@ export default function LoansCard() {
 
   const [confirmSuppression, setConfirmSuppression] = useState<{ id: number; libelle: string } | null>(null)
   const [suppressionEnCours, setSuppressionEnCours] = useState(false)
+
+  // Répartition entre détenteurs (backlog 2.L.1/X.1) — un seul emprunt déplié à la
+  // fois, même pattern que `recalageId`/`editionId` ci-dessus.
+  const [detenteursOuvertId, setDetenteursOuvertId] = useState<number | null>(null)
 
   // Rattachement à un actif (backlog 2.M.2), nécessaire au calcul de la part nette
   // par détenteur (2.L.1).
@@ -398,6 +491,8 @@ export default function LoansCard() {
               onStartEdition={() => startEdition(loan)}
               onSaveEdition={() => saveEdition(loan.id)}
               onCancelEdition={cancelEdition}
+              detenteursOuverts={detenteursOuvertId === loan.id}
+              onToggleDetenteurs={() => setDetenteursOuvertId((id) => (id === loan.id ? null : loan.id))}
             />
           ))}
           <p className="pt-1 text-sm font-semibold text-texte">
@@ -486,6 +581,12 @@ export default function LoansCard() {
                           Recaler
                         </button>
                         <button
+                          onClick={() => setDetenteursOuvertId((id) => (id === loan.id ? null : loan.id))}
+                          className="text-xs text-texte-attenue hover:underline"
+                        >
+                          {detenteursOuvertId === loan.id ? 'Fermer' : 'Détenteurs'}
+                        </button>
+                        <button
                           onClick={() => setConfirmSuppression({ id: loan.id, libelle: loan.libelle })}
                           className="text-xs text-negatif hover:underline"
                         >
@@ -519,6 +620,13 @@ export default function LoansCard() {
                           Annuler
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                )}
+                {detenteursOuvertId === loan.id && (
+                  <tr key={`${loan.id}-detenteurs`}>
+                    <td colSpan={7} className="bg-surface-elevee py-3 pr-4">
+                      <QuotitesEmprunt loanId={loan.id} />
                     </td>
                   </tr>
                 )}

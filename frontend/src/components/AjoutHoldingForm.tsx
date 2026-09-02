@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Holding } from '../api/types'
+import type { Compte, Holding } from '../api/types'
 import {
   TEXTE_PRIX_REVIENT,
   TEXTE_VALEUR_ESTIMEE,
@@ -16,11 +16,17 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import InfoBulle from './InfoBulle'
 
+// Sentinelle pour l'option "+ Nouveau compte..." du sélecteur — distincte de toute
+// valeur réelle possible (un id de compte est toujours numérique).
+const NOUVEAU_COMPTE = '__nouveau__'
+
 const FORM_VIDE = {
   ticker: '',
   quantite: '',
   prix_revient_moyen: '',
-  compte: '',
+  // Un id de compte existant (chaîne numérique), NOUVEAU_COMPTE, ou '' (aucun).
+  compte_id: '',
+  compte_nom: '',
   type_actif: '',
   valeur_estimee: '',
   taux_pct: '',
@@ -43,6 +49,11 @@ export default function AjoutHoldingForm({ onCreated }: { onCreated?: (holding: 
   const [form, setForm] = useState(FORM_VIDE)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [comptes, setComptes] = useState<Compte[]>([])
+
+  useEffect(() => {
+    api.listComptes().then(setComptes).catch(() => setComptes([]))
+  }, [])
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -50,11 +61,13 @@ export default function AjoutHoldingForm({ onCreated }: { onCreated?: (holding: 
     setSaving(true)
     setError(null)
     try {
+      const nouveauCompte = form.compte_id === NOUVEAU_COMPTE
       const holding = await api.createHolding({
         ticker: form.ticker.trim().toUpperCase(),
         quantite: Number(form.quantite),
         prix_revient_moyen: form.prix_revient_moyen ? Number(form.prix_revient_moyen) : null,
-        compte: form.compte.trim() || null,
+        compte_id: !nouveauCompte && form.compte_id ? Number(form.compte_id) : null,
+        compte_nom: nouveauCompte ? form.compte_nom.trim() || null : null,
         type_actif: form.type_actif || null,
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
         taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
@@ -63,6 +76,9 @@ export default function AjoutHoldingForm({ onCreated }: { onCreated?: (holding: 
         date_acquisition: form.date_acquisition || null,
       })
       setForm(FORM_VIDE)
+      // Un compte a pu être créé à la volée (`compte_nom`) : recharge la liste pour
+      // qu'il apparaisse dans le sélecteur dès le prochain ajout.
+      if (nouveauCompte) api.listComptes().then(setComptes).catch(() => {})
       onCreated?.(holding)
     } catch (err) {
       setError((err as Error).message)
@@ -108,13 +124,31 @@ export default function AjoutHoldingForm({ onCreated }: { onCreated?: (holding: 
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Compte
-          <input
-            value={form.compte}
-            onChange={(e) => setForm({ ...form, compte: e.target.value })}
-            className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            placeholder="PEA, CTO..."
-          />
+          <select
+            value={form.compte_id}
+            onChange={(e) => setForm({ ...form, compte_id: e.target.value })}
+            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          >
+            <option value="">— Aucun —</option>
+            {comptes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nom}
+              </option>
+            ))}
+            <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
+          </select>
         </label>
+        {form.compte_id === NOUVEAU_COMPTE && (
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Nom du nouveau compte
+            <input
+              value={form.compte_nom}
+              onChange={(e) => setForm({ ...form, compte_nom: e.target.value })}
+              className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              placeholder="PEA, CTO..."
+            />
+          </label>
+        )}
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Type d'actif
           <select

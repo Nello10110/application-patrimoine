@@ -3,6 +3,7 @@ import type { Role } from '../api/types'
 import {
   IconAide,
   IconBudget,
+  IconComptes,
   IconDividendes,
   IconEpargne,
   IconImport,
@@ -68,8 +69,11 @@ export const ROUTES: RouteMeta[] = [
   },
   // `BottomNav` ne montre en direct que les 4 premières routes de consultation
   // (`MAX_ENTREES_DIRECTES`) : Synthèse/Patrimoine/Objectifs/Épargne, le reste
-  // rejoint "Plus" (backlog 2.S.1).
+  // rejoint "Plus" (backlog 2.S.1). `/comptes` (écran Comptes, backlog X.1) est
+  // volontairement placée après pour ne pas déloger Épargne de ce quota.
   { path: '/epargne', titre: 'Épargne', navLabel: 'Épargne', icone: IconEpargne, rang: 'consultation' },
+  { path: '/comptes', titre: 'Comptes', navLabel: 'Comptes', icone: IconComptes, rang: 'consultation' },
+  { path: '/comptes/:id', titre: 'Détail du compte' },
   {
     path: '/dividendes',
     titre: 'Dividendes',

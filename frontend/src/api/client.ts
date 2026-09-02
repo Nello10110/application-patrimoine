@@ -11,8 +11,11 @@ import type {
   CategorieBudget,
   CategoryCompositionResponse,
   ColumnMapping,
+  Compte,
+  CompteAvecSolde,
   CoutGestionConsolide,
   Detenteur,
+  Etablissement,
   DividendeMois,
   RapportPeriode,
   BenchmarkOption,
@@ -58,7 +61,6 @@ import type {
   RecurrenceDetectee,
   RegleCategorisation,
   RegleReapplicationResult,
-  RepartitionComptesResponse,
   SalaireDonnees,
   SalaireIn,
   SalaireResume,
@@ -225,8 +227,24 @@ export const api = {
   getAnalysis: () => request<AnalysisResponse>('/analysis'),
   getCategoryComposition: (type: 'geo' | 'sector', categorie: string) =>
     request<CategoryCompositionResponse>(`/analysis/composition?type=${type}&categorie=${encodeURIComponent(categorie)}`),
-  getRepartitionComptes: () => request<RepartitionComptesResponse>('/analysis/comptes'),
   getCoutGestionConsolide: () => request<CoutGestionConsolide>('/analysis/cout-gestion'),
+
+  // Établissements et comptes structurels (écran Comptes, backlog X.1).
+  listEtablissements: () => request<Etablissement[]>('/comptes/etablissements'),
+  createEtablissement: (nom: string) => request<Etablissement>('/comptes/etablissements', { method: 'POST', body: JSON.stringify({ nom }) }),
+  updateEtablissement: (id: number, nom: string) =>
+    request<Etablissement>(`/comptes/etablissements/${id}`, { method: 'PATCH', body: JSON.stringify({ nom }) }),
+  deleteEtablissement: (id: number) => request<{ ok: boolean }>(`/comptes/etablissements/${id}`, { method: 'DELETE' }),
+  listComptes: () => request<Compte[]>('/comptes'),
+  listComptesAvecSolde: () => request<CompteAvecSolde[]>('/comptes/solde'),
+  createCompte: (nom: string, etablissementId: number | null) =>
+    request<Compte>('/comptes', { method: 'POST', body: JSON.stringify({ nom, etablissement_id: etablissementId }) }),
+  updateCompte: (id: number, payload: { nom?: string; etablissement_id?: number | null }) =>
+    request<Compte>(`/comptes/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteCompte: (id: number) => request<{ ok: boolean }>(`/comptes/${id}`, { method: 'DELETE' }),
+  getCompteHoldings: (id: number) => request<Holding[]>(`/comptes/${id}/holdings`),
+  setCompteQuotites: (id: number, quotites: QuotiteEntree[]) =>
+    request<{ ok: boolean }>(`/comptes/${id}/quotites`, { method: 'PUT', body: JSON.stringify({ quotites }) }),
 
   // Transactions & performance
   importTransactions: (file: File) => {
@@ -275,6 +293,8 @@ export const api = {
   updateLoan: (id: number, payload: LoanUpdateInput) =>
     request<Loan>(`/loans/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteLoan: (id: number) => request<{ ok: boolean }>(`/loans/${id}`, { method: 'DELETE' }),
+  setLoanQuotites: (id: number, quotites: QuotiteEntree[]) =>
+    request<{ ok: boolean }>(`/loans/${id}/quotites`, { method: 'PUT', body: JSON.stringify({ quotites }) }),
 
   // Patrimoine net global (roadmap Phase 1) — aussi la base du Simulateur (roadmap
   // Phase 2/3, fusionné avec Outils) : la projection, le tableau de détail et le

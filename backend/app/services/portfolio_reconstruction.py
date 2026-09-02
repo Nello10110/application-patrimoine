@@ -395,13 +395,15 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     livre fait foi : la ligne manuelle est supprimée (elle ferait doublon dans tous
     les calculs) et l'événement est journalisé en warning et compté.
 
-    Préservation du compte (LOT 5.1) : `compte` est une annotation manuelle par
-    ligne (le grand livre importé ne porte aucune information de compte, cf.
-    `routers/analysis.get_repartition_comptes`) — sans ce report explicite, une
-    ligne reconstruite supprimée puis recréée par un nouvel import perdrait
-    l'annotation saisie par l'utilisateur entre deux imports. Capturée sur TOUTES
-    les lignes existantes (manuelles et reconstruites) avant leur suppression,
-    pour couvrir aussi le cas, plus rare, d'une ligne manuelle remplacée ci-dessus.
+    Préservation du compte (LOT 5.1, structurel depuis le backlog X.1) : le
+    rattachement à un `Compte` (écran Comptes) est une annotation manuelle par
+    ligne — le grand livre importé ne porte aucune information de compte, donc sans
+    ce report explicite, une ligne reconstruite supprimée puis recréée par un
+    nouvel import perdrait son `compte_id` entre deux imports. Capturée sur TOUTES
+    les lignes existantes (manuelles et reconstruites) avant leur suppression, pour
+    couvrir aussi le cas, plus rare, d'une ligne manuelle remplacée ci-dessous. Le
+    compte visé existe déjà (créé avant cette reconstruction) : juste l'id à
+    reporter, aucune résolution/création à faire ici.
     """
     positions = compute_positions(db, user_id)
 
@@ -409,10 +411,10 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
         h.ticker: h for h in db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_MANUEL).all()
     }
 
-    comptes_par_ticker: dict[str, str] = {}
+    comptes_par_ticker: dict[str, int] = {}
     for h in db.query(Holding).filter(Holding.user_id == user_id).all():
-        if h.compte and h.ticker not in comptes_par_ticker:
-            comptes_par_ticker[h.ticker] = h.compte
+        if h.compte_id is not None and h.ticker not in comptes_par_ticker:
+            comptes_par_ticker[h.ticker] = h.compte_id
 
     db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT).delete()
 
@@ -443,7 +445,7 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
                 prix_revient_moyen=prix_revient,
                 type_actif=state.asset_class,
                 origine=ORIGINE_RECONSTRUIT,
-                compte=comptes_par_ticker.get(state.symbol),
+                compte_id=comptes_par_ticker.get(state.symbol),
             )
         )
         count += 1

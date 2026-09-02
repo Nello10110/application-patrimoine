@@ -13,7 +13,6 @@ from ..schemas import (
     CategoryCompositionResponse,
     CoutGestionConsolide,
     QualiteDonnees,
-    RepartitionComptesResponse,
     RiskIndicators,
 )
 from ..services import analysis_service, auth_service
@@ -35,23 +34,6 @@ def get_category_composition(type: str, categorie: str, db: Session = Depends(ge
     valeur_totale = sum(ligne["valeur"] for ligne in lignes)
 
     return CategoryCompositionResponse(type=type, categorie=categorie, valeur_totale=round(valeur_totale, 2), lignes=lignes)
-
-
-@router.get("/comptes", response_model=RepartitionComptesResponse)
-def get_repartition_comptes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Répartition de la valeur actuelle par compte (LOT 5.1) : cf. docstring de
-    `analysis_service.repartition_par_compte` — aucune rentabilité par compte
-    n'est ni calculée ni calculable, seule la valeur l'est."""
-    # Immobilier/SCPI/assurance-vie/PER (Phase 1 de `docs/ROADMAP.md`) exclus : cette
-    # page reste le look-through géo/sectoriel du seul portefeuille financier — voir
-    # `analysis_service.holdings_financiers` et le patrimoine net (`/api/patrimoine/net`).
-    holdings = analysis_service.holdings_financiers(db, auth_service.id_foyer(current_user))
-    valued = analysis_service.value_holdings(holdings)
-    valeur_totale = sum(v.valeur for v in valued)
-    items = analysis_service.repartition_par_compte(valued)
-    a_des_comptes_annotes = any(v.holding.compte for v in valued)
-
-    return RepartitionComptesResponse(valeur_totale=round(valeur_totale, 2), items=items, a_des_comptes_annotes=a_des_comptes_annotes)
 
 
 @router.get("/cout-gestion", response_model=CoutGestionConsolide)

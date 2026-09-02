@@ -30,12 +30,104 @@ def _normaliser_ticker(valeur: str) -> str:
     return valeur.strip().upper()
 
 
+class EtablissementBase(BaseModel):
+    nom: str
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Le nom ne peut pas être vide")
+        return v
+
+
+class EtablissementCreate(EtablissementBase):
+    pass
+
+
+class EtablissementUpdate(BaseModel):
+    nom: str | None = None
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Le nom ne peut pas être vide")
+        return v
+
+
+class EtablissementOut(EtablissementBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class CompteBase(BaseModel):
+    nom: str
+    # `None` : aucun établissement rattaché (« Sans établissement » à l'écran) — pas
+    # vérifié ici (pas d'accès DB dans un validateur Pydantic), l'IDOR est contrôlé
+    # côté routeur/service, comme `LoanUpdate.holding_id`.
+    etablissement_id: int | None = None
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Le nom ne peut pas être vide")
+        return v
+
+
+class CompteCreate(CompteBase):
+    pass
+
+
+class CompteUpdate(BaseModel):
+    nom: str | None = None
+    etablissement_id: int | None = None
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Le nom ne peut pas être vide")
+        return v
+
+
+class CompteOut(CompteBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    etablissement: EtablissementOut | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CompteAvecSoldeOut(BaseModel):
+    """Un compte avec sa valeur agrégée (`services/comptes_service.solde_par_compte`)
+    — écran Comptes uniquement, jamais utilisé pour les routes CRUD nues. `compte`
+    enveloppé (pas aplati sur `CompteOut`) : `None` représente le bucket « Sans
+    compte » (lignes du foyer non rattachées), qui n'a pas d'existence en base."""
+
+    compte: CompteOut | None
+    solde: float
+    nombre_lignes: int
+
+
 class HoldingBase(BaseModel):
     ticker: str
     nom: str | None = None
     quantite: float
     prix_revient_moyen: float | None = None
-    compte: str | None = None
     devise: str | None = None
     type_actif: str | None = None
     # Valorisation manuelle (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/
@@ -107,7 +199,21 @@ class HoldingBase(BaseModel):
 
 
 class HoldingCreate(HoldingBase):
-    pass
+    # Compte structurel (écran Comptes) : `compte_id` référence un compte déjà
+    # existant (vérifié appartenir à l'utilisateur côté routeur — IDOR) ;
+    # `compte_nom` crée un compte à la volée s'il n'existe pas encore sous ce nom
+    # (préserve l'ergonomie de saisie libre d'avant cette migration). Si les deux
+    # sont fournis, `compte_id` prime.
+    compte_id: int | None = None
+    compte_nom: str | None = None
+
+    @field_validator("compte_nom")
+    @classmethod
+    def _valider_compte_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
 
 
 class HoldingUpdate(BaseModel):
@@ -115,7 +221,8 @@ class HoldingUpdate(BaseModel):
     nom: str | None = None
     quantite: float | None = None
     prix_revient_moyen: float | None = None
-    compte: str | None = None
+    compte_id: int | None = None
+    compte_nom: str | None = None
     devise: str | None = None
     type_actif: str | None = None
     valeur_estimee: float | None = None
@@ -173,6 +280,14 @@ class HoldingUpdate(BaseModel):
             raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ") from None
         return v
 
+    @field_validator("compte_nom")
+    @classmethod
+    def _valider_compte_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
+
 
 class ValorisationInput(BaseModel):
     valeur: float
@@ -227,6 +342,10 @@ class HoldingOut(HoldingBase):
     market_data: MarketDataOut | None = None
     rendement_depuis_achat_pct: float | None = None
     rendement_annualise_pct: float | None = None
+    # Compte structurel résolu (écran Comptes) — objet complet, jamais recalculé côté
+    # frontend (même discipline que `valeur` juste en dessous). `None` : ligne non
+    # rattachée à un compte.
+    compte: CompteOut | None = None
     # Valeur de la ligne (prix de marché, à défaut prix de revient, `None` si aucun des
     # deux n'est connu), calculée côté serveur avec `analysis_service.value_holdings`
     # pour éviter que le frontend ne recalcule le même chiffre (LOT 6.7).
@@ -318,31 +437,6 @@ class AnalysisResponse(BaseModel):
     qualite_donnees: QualiteDonnees
 
 
-class RepartitionCompteItem(BaseModel):
-    compte: str
-    valeur: float
-    pourcentage: float
-
-
-class RepartitionComptesResponse(BaseModel):
-    """Réponse de `GET /api/analysis/comptes` (LOT 5.1) : répartition de la VALEUR
-    ACTUELLE du portefeuille par compte. Le compte est une annotation manuelle par
-    ligne (`models.Holding.compte`) — le grand livre de transactions importé
-    (format Trade Republic) ne porte aucune information de compte, il est donc
-    impossible d'en déduire une rentabilité (XIRR, gains réalisés) par compte ;
-    seule une répartition de la valeur actuelle est possible, cf. `pas_de_rentabilite_par_compte`."""
-
-    valeur_totale: float
-    items: list[RepartitionCompteItem]
-    # `True` si au moins une ligne du portefeuille porte un compte renseigné —
-    # sert au frontend à décider d'afficher ou non la carte dédiée du tableau de
-    # bord (inutile tant qu'aucune ligne n'est annotée).
-    a_des_comptes_annotes: bool
-    pas_de_rentabilite_par_compte: str = (
-        "Le compte est une annotation manuelle par ligne : le grand livre de transactions importé ne "
-        "porte aucune information de compte, la rentabilité (XIRR, gains réalisés) par compte n'est "
-        "donc pas calculable — seule la répartition de la valeur actuelle l'est."
-    )
 
 
 class CoutGestionConsolide(BaseModel):
@@ -642,6 +736,8 @@ class HoldingDetail(BaseModel):
     ticker: str
     nom: str | None = None
     type_actif: str | None = None
+    # Compte structurel résolu (écran Comptes) — cf. `HoldingOut.compte`, même discipline.
+    compte: CompteOut | None = None
     quantite: float
     prix_revient_moyen: float | None = None
     prix_actuel: float | None = None

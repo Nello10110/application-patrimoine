@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -45,6 +45,13 @@ vi.mock('../api/client', () => ({
     listDetenteurs: vi.fn(),
     createDetenteur: vi.fn(),
     deleteDetenteur: vi.fn(),
+    // Établissements (écran Comptes, backlog X.1) : `EtablissementsCard` est
+    // montée dans le même onglet que les détenteurs — hors de l'objet des tests de
+    // ce fichier, stub neutre par défaut (aucun établissement existant).
+    listEtablissements: vi.fn().mockResolvedValue([]),
+    createEtablissement: vi.fn(),
+    updateEtablissement: vi.fn(),
+    deleteEtablissement: vi.fn(),
     getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     updatePreferences: vi.fn(),
     listJobs: vi.fn().mockResolvedValue([]),
@@ -123,8 +130,11 @@ describe('ReglagesPage — Personnes et sociétés (backlog 2.L.1)', () => {
     ouvrirOnglet('Détenteurs')
     await screen.findByText('Aucun détenteur déclaré.')
 
+    const formulaire = screen.getByPlaceholderText('Alice').closest('form')!
     fireEvent.change(screen.getByPlaceholderText('Alice'), { target: { value: 'Bob' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+    // Bouton "Ajouter" ambigu depuis l'ajout de `EtablissementsCard` dans le même
+    // onglet (écran Comptes, backlog X.1) : on cible celui du formulaire détenteur.
+    fireEvent.click(within(formulaire).getByRole('button', { name: 'Ajouter' }))
 
     await screen.findByText('Bob')
     expect(api.createDetenteur).toHaveBeenCalledWith('Bob', 'personne')

@@ -126,3 +126,53 @@ def test_rattacher_un_emprunt_a_lactif_dun_autre_utilisateur_est_refuse(client, 
     reponse = client.patch(f"/api/loans/{cree['id']}", json={"holding_id": h_autre_compte.id})
 
     assert reponse.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Quotités par détenteur (backlog X.1) — câble `detenteurs_service.set_quotites_loan`,
+# déjà écrit et testé côté service (`test_detenteurs_service.py`), jusqu'ici sans
+# endpoint.
+# ---------------------------------------------------------------------------
+
+
+def test_repartir_un_emprunt_entre_deux_detenteurs(client):
+    cree = client.post("/api/loans", json=_payload()).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+
+    reponse = client.put(
+        f"/api/loans/{cree['id']}/quotites",
+        json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 60.0}, {"detenteur_id": bob["id"], "quotite_pct": 40.0}]},
+    )
+
+    assert reponse.status_code == 200
+
+
+def test_quotites_emprunt_somme_non_100_refusee(client):
+    cree = client.post("/api/loans", json=_payload()).json()
+    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+
+    reponse = client.put(f"/api/loans/{cree['id']}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 60.0}]})
+
+    assert reponse.status_code == 400
+
+
+def test_quotites_dun_emprunt_introuvable_renvoie_404(client):
+    reponse = client.put("/api/loans/999/quotites", json={"quotites": []})
+    assert reponse.status_code == 404
+
+
+def test_quotites_emprunt_avec_un_detenteur_dun_autre_compte_est_refuse(client, db):
+    """IDOR, même garde que `test_repartir_avec_un_detenteur_dun_autre_compte_est_refuse`
+    (`test_holding_quotites.py`)."""
+    cree = client.post("/api/loans", json=_payload()).json()
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+    detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus", "type": "personne"}).json()
+    basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
+
+    reponse = client.put(
+        f"/api/loans/{cree['id']}/quotites",
+        json={"quotites": [{"detenteur_id": detenteur_b["id"], "quotite_pct": 100.0}]},
+    )
+
+    assert reponse.status_code == 400

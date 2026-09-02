@@ -8,6 +8,8 @@ import { lazy, type ComponentType } from 'react'
 // premier chargement de l'application.
 const AidePage = lazy(() => import('../pages/AidePage'))
 const BudgetPage = lazy(() => import('../pages/BudgetPage'))
+const CompteDetailPage = lazy(() => import('../pages/CompteDetailPage'))
+const ComptesPage = lazy(() => import('../pages/ComptesPage'))
 const DashboardPage = lazy(() => import('../pages/DashboardPage'))
 const DividendesPage = lazy(() => import('../pages/DividendesPage'))
 const EpargnePage = lazy(() => import('../pages/EpargnePage'))
@@ -34,6 +36,8 @@ export const PAGE_COMPONENTS: Partial<Record<string, ComponentType>> = {
   '/': DashboardPage,
   '/patrimoine': PortefeuillePage,
   '/patrimoine/:ticker': HoldingDetailPage,
+  '/comptes': ComptesPage,
+  '/comptes/:id': CompteDetailPage,
   '/objectifs': SimulateurPage,
   '/epargne': EpargnePage,
   '/dividendes': DividendesPage,

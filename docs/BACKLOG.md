@@ -44,6 +44,10 @@ planifié — regroupés a posteriori sous un **Lot 9 « Retours terrain »** (�
 au même titre que les lots précédents plutôt que de s'accumuler en « hors lot » dispersé. Le backlog
 issu de l'audit du 21/08/2026 est donc, pour l'essentiel, épuisé.
 
+**Mise à jour du 01/09/2026.** Un dernier retour direct, plus structurant que les précédents (demande
+d'une vue façon Actual Budget), ouvre un chantier autonome — section **X** du § 2, regroupé sous un
+**Lot 10 « Comptes structurels »** (§ 4).
+
 ---
 
 ## 1. Comparaison avec Finary
@@ -2578,6 +2582,87 @@ simulé via un bouchon de `PieChartCard` — Recharts ne rend aucun secteur SVG 
 limite déjà documentée pour `AllocationChartCard.test.tsx`). Vérifié en direct sur le vrai backend :
 clic sur la part Immobilier du camembert Brut → modale avec le détail de la ligne concernée.
 
+### X. Comptes structurels, établissements et quotités par compte (Lot 10, 01/09/2026)
+
+#### X.1 — `majeur` · `L` · `P1` · `traité` (01/09/2026) — Écran Comptes façon Actual Budget, établissements, quotités par compte
+
+Demande directe de l'utilisateur : une vue façon **Actual Budget** — la liste de tous les comptes du
+foyer (compte courant, PEA, compte-titres, assurances-vie, immobilier...) avec le solde de chacun,
+« pour savoir exactement combien il y a sur un compte donné, en comptant potentiellement
+l'immobilier sur un compte ». Deuxième volet de la même demande : pouvoir définir un pourcentage de
+propriété par détenteur du foyer **au niveau du compte** (pas ligne par ligne) — l'utilisateur cite
+explicitement être à 50/50 avec son conjoint sur de nombreux actifs — y compris sur les **dettes et
+emprunts**.
+
+**Trois décisions de cadrage arbitrées avec l'utilisateur avant implémentation** (questionnaire, les
+trois options recommandées retenues) :
+1. **Modèle structurel** : une vraie table `Compte`, pas d'évolution du champ texte libre existant
+   (`Holding.compte`).
+2. **Établissement en liste gérée** (CRUD, comme les détenteurs), pas un texte libre — un même
+   établissement (ex. « Caisse d'Épargne ») peut regrouper plusieurs comptes de nature différente
+   (un compte courant ET une assurance-vie).
+3. **Nouvel écran dédié** `/comptes` dans la navigation, plutôt qu'une intégration dans un écran
+   existant (Patrimoine).
+
+**Décision de scoping délibérée, prise en cours d'implémentation** : ne **pas** migrer le mécanisme
+de calcul des quotités par détenteur (`QuotiteHolding`, `detenteurs_service.compute_parts`,
+utilisé par `patrimoine_service`/`patrimoine_history_service`/`declaration_patrimoine_service`/
+`holding_detail_service`/le filtrage périmètre invité — zone financière déjà testée, entremêlée dans
+7+ fichiers). Il fonctionnait déjà, sans exclusion de type, pour tout `Holding` financier ou manuel
+— ce qui manquait réellement était de pouvoir le définir une seule fois pour tout un compte plutôt
+que ligne par ligne, et de l'exposer pour les emprunts. La nouvelle fonction
+`comptes_service.set_quotites_compte` boucle simplement sur `detenteurs_service.set_quotites_holding`
+pour chaque ligne du compte — même résultat pour l'utilisateur, risque minimal, pas de nouvelle
+table de quotités.
+
+**Modèle de données** : deux nouvelles tables `etablissements` (`user_id`, `nom`, unique par foyer)
+et `comptes` (`user_id`, `nom`, `etablissement_id` nullable) ; `Holding.compte` (texte libre) devient
+`Holding.compte_id`, clé étrangère nullable vers `comptes.id` (bucket « Sans compte » permanent, pas
+une phase transitoire). Suppression jamais en cascade : un établissement supprimé laisse ses comptes
+retomber à `etablissement_id = NULL`, un compte supprimé laisse ses lignes retomber à
+`compte_id = NULL`. Migration Alembic (`f50410e8aa4e`) avec backfill : chaque paire distincte
+`(user_id, compte)` non nulle devient une ligne `comptes`, chaque `Holding` reçoit le `compte_id`
+correspondant, puis la colonne texte est supprimée — **vérifiée en base isolée avant toute
+application** (backfill + `PRAGMA foreign_key_check` + `downgrade()`, données hétérogènes
+volontairement construites : compte homonyme entre deux foyers, valeur vide, valeur `NULL`).
+
+**Backend** : `comptes_service.py` (CRUD établissements/comptes, `get_or_create_compte` pour la
+création à la volée depuis un nom saisi, `set_quotites_compte`, `solde_par_compte` — agrégation
+**toutes natures d'actif confondues**, contrairement à `analysis_service.repartition_par_compte`
+conservée telle quelle mais désormais réservée au seul export PDF, financier uniquement). Nouveau
+routeur `routers/comptes.py` (`/api/comptes`, filtrage périmètre invité sur `/solde` comme sur les
+autres endpoints financiers). `routers/loans.py` gagne `PUT /{id}/quotites`, déjà écrit côté service
+(`set_quotites_loan`) mais jamais exposé jusqu'ici. `portfolio_reconstruction.py` adapté pour
+reporter `compte_id` (pas juste `compte`) à travers un nouvel import de transactions — sans cette
+adaptation, tout import aurait silencieusement effacé le rattachement de compte des lignes
+reconstruites ; couvert par un test de non-régression dédié. Endpoint `GET /api/analysis/comptes`
+retiré (le nouvel écran Comptes couvre entièrement ce besoin, et au-delà — tous types d'actifs, pas
+seulement le portefeuille financier).
+
+**Frontend** : nouvel écran `/comptes` (liste groupée par établissement, solde de chacun, total du
+foyer) et `/comptes/:id` (détail : nom/établissement éditables, lignes du compte, répartition entre
+détenteurs pour tout le compte — formulaire **volontairement vierge par défaut**, pas de
+pré-remplissage intelligent depuis les lignes existantes, avec avertissement explicite que la
+validation remplace la répartition actuellement enregistrée de chaque ligne). Nouvelle carte
+`EtablissementsCard` (Réglages, onglet Détenteurs). Écrans existants adaptés au champ structurel :
+`AjoutHoldingForm`/`PositionsTable` (sélection d'un compte existant ou création à la volée par son
+nom, ergonomie de saisie libre préservée), `PortefeuillePage` (filtre par compte), `EpargnePage`
+(chaque ligne d'épargne crée désormais automatiquement son propre compte 1:1 — sans ce changement,
+tout le patrimoine manuel existant serait resté dans le bucket « Sans compte » du nouvel écran,
+contrairement à la demande explicite de l'utilisateur de « compter potentiellement l'immobilier sur
+un compte »), `LoansCard` (nouvelle section « Détenteurs » par emprunt). Carte « Répartition par
+compte » du Tableau de bord retirée (remplacée par le nouvel écran, qui couvre plus que le seul
+portefeuille financier).
+
+29 tests backend nouveaux (`test_comptes_service.py`, `test_comptes_router.py` — CRUD, IDOR,
+périmètre invité, quotités par compte, non-régression migration ; extension de
+`test_loans_router.py` — quotités par emprunt) et adaptation de tous les tests existants référençant
+l'ancien champ `compte` texte libre (`test_portfolio_reconstruction.py`,
+`test_repartition_comptes.py`, `test_pdf_export_service.py`), suite complète au vert (902 backend).
+Frontend : nouveaux tests (`ComptesPage`, `EtablissementsCard`), adaptation de toutes les fixtures
+`Holding.compte` existantes vers le nouveau type objet, suite complète au vert (486 frontend),
+`oxlint`/`tsc -b`/`vite build` propres.
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2622,12 +2707,12 @@ Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un
 
 ## 4. Priorisation d'ensemble
 
-**Mise à jour du 31/08/2026** : neuf lots sont désormais clos (Phases 1-3 + Lots 4-9). Il ne reste
+**Mise à jour du 01/09/2026** : dix lots sont désormais clos (Phases 1-3 + Lots 4-10). Il ne reste
 que **trois points isolés, hors lot** — aucun n'est bloqué par manque de temps ou de priorité, tous
 les trois attendent quelque chose qui n'est pas du développement (§ « Ce qui reste, et pourquoi »
 ci-dessous). Le backlog fonctionnel issu de l'audit du 21/08/2026 est donc, pour l'essentiel,
 **épuisé** — ce document continue de servir de trace pour tout nouveau retour utilisateur, comme il
-l'a fait pour le Lot 9.
+l'a fait pour les Lots 9 et 10.
 
 Un ordre est resté contraint par les dépendances pour les lots 4 à 7 : la refonte de l'enveloppe (K)
 précède tout ajout d'écran, sinon chaque nouveau lot reproduit les défauts mesurés ; le modèle de
@@ -2647,6 +2732,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
+| **Lot 10 — Comptes structurels** | X.1 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (1/1) |
 
 **Pourquoi cet ordre.**
 
@@ -2680,6 +2766,11 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
    quickwins (T.1, T.3), et dix demandes directes affinant des lots déjà livrés plutôt qu'ouvrant un
    nouveau chantier (R, S, U, V, W). Aucune dépendance interne autre que U.2 → U.3/U.4 (le versement
    déclaré doit exister avant qu'on puisse le décomposer ou l'utiliser dans le mode étagé).
+7. **Lot 10, comme le Lot 9, n'a pas été planifié à l'avance** : un unique retour direct, mais plus
+   structurant que ceux du Lot 9 (un vrai changement de modèle de données, `compte` texte libre →
+   table `Compte`/`Etablissement`), d'où un lot séparé plutôt qu'un ajout à la trace du Lot 9. Dépend
+   du modèle de détention (L.1, Lot 4) : les quotités par compte s'appuient sur le mécanisme de
+   quotités par détenteur déjà en place, sans le modifier.
 
 **Ce qui reste, et pourquoi — les trois seuls points non traités du backlog entier.**
 

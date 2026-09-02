@@ -242,7 +242,15 @@ function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding
 
 /** Formulaire de création d'un compte Épargne (backlog 2.S.1) — réutilise
  * `api.createHolding`, quantité fixée à 1 comme pour l'immobilier/assurance-vie
- * (convention déjà en vigueur, cf. la note sous le formulaire de Portefeuille). */
+ * (convention déjà en vigueur, cf. la note sous le formulaire de Portefeuille).
+ * `compte_nom` (écran Comptes, backlog X.1) : le NOM du compte épargne lui-même
+ * devient aussi le nom de son `Compte` structurel — sans ce rattachement
+ * automatique, chaque ligne d'épargne resterait dans le bucket « Sans compte » du
+ * nouvel écran Comptes, ce qui viderait la fonctionnalité de son intérêt pour tout
+ * le patrimoine manuel existant (immobilier, assurance-vie...). Cardinalité 1:1
+ * (une ligne d'épargne = un compte dédié), pas de sélecteur ici contrairement à
+ * `AjoutHoldingForm.tsx` : cet écran n'a jamais exposé la notion de compte à
+ * l'utilisateur, ce comportement reste cohérent avec son ergonomie actuelle. */
 function AjoutCompteForm({ onCreated }: { onCreated: () => void }) {
   const [form, setForm] = useState<FormulaireCompte>(formulaireVierge())
   const [saving, setSaving] = useState(false)
@@ -261,6 +269,7 @@ function AjoutCompteForm({ onCreated }: { onCreated: () => void }) {
         type_actif: form.type_actif,
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
         versement_mensuel: form.versement_mensuel ? Number(form.versement_mensuel) : null,
+        compte_nom: form.nom.trim(),
       })
       setForm(formulaireVierge())
       onCreated()

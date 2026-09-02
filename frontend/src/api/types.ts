@@ -132,13 +132,46 @@ export interface EtatRafraichissement {
   message: string | null
 }
 
+// Établissement financier (écran Comptes, backlog X.1) — liste gérée par
+// l'utilisateur, réutilisée pour regrouper les comptes à l'écran.
+export interface Etablissement {
+  id: number
+  nom: string
+  created_at: string
+  updated_at: string
+}
+
+// Compte structurel (compte courant, PEA, compte-titres, assurance-vie...) — écran
+// Comptes (backlog X.1), remplace l'ancienne annotation texte libre `Holding.compte`.
+// Un compte peut rattacher plusieurs `Holding` (ex. un compte-titres avec plusieurs
+// lignes) ; un actif valorisé manuellement (immobilier, épargne...) a en pratique sa
+// propre ligne de compte (1:1), simple convention, non imposée par le modèle.
+export interface Compte {
+  id: number
+  nom: string
+  etablissement: Etablissement | null
+  created_at: string
+  updated_at: string
+}
+
+// Un compte avec sa valeur agrégée (`GET /comptes/solde`) — `compte: null`
+// représente le bucket « Sans compte » (lignes du foyer non rattachées), qui n'a pas
+// d'existence en base.
+export interface CompteAvecSolde {
+  compte: Compte | null
+  solde: number
+  nombre_lignes: number
+}
+
 export interface Holding {
   id: number
   ticker: string
   nom: string | null
   quantite: number
   prix_revient_moyen: number | null
-  compte: string | null
+  // Compte structurel résolu (écran Comptes) — objet complet, jamais recalculé côté
+  // client. `null` : ligne non rattachée à un compte.
+  compte: Compte | null
   devise: string | null
   type_actif: string | null
   // "manuel" (saisie à la main ou relevé importé) | "reconstruit" (grand livre de
@@ -180,7 +213,11 @@ export interface HoldingInput {
   nom?: string | null
   quantite: number
   prix_revient_moyen?: number | null
-  compte?: string | null
+  // Référence à un compte déjà existant (vérifié appartenir à l'utilisateur côté
+  // serveur), OU nom d'un compte à créer à la volée (`compte_nom`) — si les deux
+  // sont fournis, `compte_id` prime.
+  compte_id?: number | null
+  compte_nom?: string | null
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
@@ -199,7 +236,8 @@ export interface HoldingUpdateInput {
   nom?: string | null
   quantite?: number
   prix_revient_moyen?: number | null
-  compte?: string | null
+  compte_id?: number | null
+  compte_nom?: string | null
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
@@ -517,23 +555,6 @@ export interface AnalysisResponse {
   sector: AllocationBreakdownItem[]
   risques: RiskIndicators
   qualite_donnees: QualiteDonnees
-}
-
-// Répartition de la VALEUR ACTUELLE par compte (LOT 5.1). Le compte est une
-// annotation manuelle par ligne (`Holding.compte`) : le grand livre importé ne
-// porte aucune information de compte, la rentabilité par compte n'est donc pas
-// calculable — cf. `pas_de_rentabilite_par_compte`, à afficher tel quel à l'écran.
-export interface RepartitionCompteItem {
-  compte: string
-  valeur: number
-  pourcentage: number
-}
-
-export interface RepartitionComptesResponse {
-  valeur_totale: number
-  items: RepartitionCompteItem[]
-  a_des_comptes_annotes: boolean
-  pas_de_rentabilite_par_compte: string
 }
 
 // Réglages applicatifs persistants (LOT 5B).

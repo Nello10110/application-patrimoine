@@ -76,7 +76,7 @@ def export_positions(db: Session = Depends(get_db), current_user: User = Depends
                 h.ticker,
                 h.nom or "",
                 h.type_actif or "",
-                h.compte or "",
+                h.compte.nom if h.compte is not None else "",
                 h.origine,
                 formater_nombre(h.quantite),
                 formater_nombre(h.prix_revient_moyen),

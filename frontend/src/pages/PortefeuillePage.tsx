@@ -78,8 +78,8 @@ function CompteSelect({
       >
         <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
         {comptesDisponibles(holdings).map((compte) => (
-          <option key={compte} value={compte}>
-            {compte}
+          <option key={compte.id} value={compte.id}>
+            {compte.nom}
           </option>
         ))}
         {holdings.some((h) => h.compte === null) && <option value={FILTRE_SANS_COMPTE}>Sans compte</option>}

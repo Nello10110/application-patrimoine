@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding
+from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Holding
 from app.services.portfolio_reconstruction import EPSILON, compute_positions, rebuild_holdings
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
@@ -430,17 +430,23 @@ def test_rebuild_holdings_ne_touche_pas_aux_autres_lignes_manuelles(db):
 # ---------------------------------------------------------------------------
 
 
-def test_rebuild_holdings_preserve_le_compte_annote_manuellement(db):
-    """Le compte n'existe nulle part dans le grand livre importé (format Trade
-    Republic) : c'est une annotation manuelle par ligne, saisie via `PATCH
-    /api/portfolio/holdings/{id}` après un premier import. Sans report explicite,
-    le second import (qui vide puis recrée les lignes reconstruites) l'effacerait
-    silencieusement — verrou direct de la correction."""
+def test_rebuild_holdings_preserve_le_compte_rattache_manuellement(db):
+    """Le compte (écran Comptes, backlog X.1 — une relation vers `Compte` depuis
+    cette migration, `Holding.compte` texte libre auparavant) n'existe nulle part
+    dans le grand livre importé (format Trade Republic) : c'est un rattachement
+    manuel par ligne, saisi via `PATCH /api/portfolio/holdings/{id}` après un
+    premier import. Sans report explicite, le second import (qui vide puis recrée
+    les lignes reconstruites) l'effacerait silencieusement — verrou direct de la
+    correction (régression identifiée lors de la promotion de `compte` en table
+    structurelle, potentiellement réintroduite à chaque évolution de ce mécanisme)."""
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
+    compte = Compte(user_id=ID_UTILISATEUR_TEST, nom="PEA")
+    db.add(compte)
+    db.commit()
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
-    ligne.compte = "PEA"
+    ligne.compte_id = compte.id
     db.commit()
 
     # Deuxième import (simulé) : nouvelles transactions arrivent, la reconstruction
@@ -449,18 +455,18 @@ def test_rebuild_holdings_preserve_le_compte_annote_manuellement(db):
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     ligne_recreee = db.query(Holding).filter(Holding.ticker == "AAA").one()
-    assert ligne_recreee.compte == "PEA"
+    assert ligne_recreee.compte_id == compte.id
     assert ligne_recreee.quantite == 15.0  # bien la ligne recalculée, pas l'ancienne
 
 
-def test_rebuild_holdings_sans_compte_annote_reste_a_none(db):
-    """Une ligne jamais annotée ne se voit pas attribuer un compte par accident."""
+def test_rebuild_holdings_sans_compte_rattache_reste_a_none(db):
+    """Une ligne jamais rattachée ne se voit pas attribuer un compte par accident."""
     make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
 
     rebuild_holdings(db, ID_UTILISATEUR_TEST)
 
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
-    assert ligne.compte is None
+    assert ligne.compte_id is None
 
 
 # ---------------------------------------------------------------------------

@@ -37,6 +37,16 @@ export function IconPatrimoine({ className }: IconProps) {
   )
 }
 
+export function IconComptes({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="2.5" y="5" width="15" height="11" rx="1.6" />
+      <path d="M2.5 8.5 H17.5" />
+      <circle cx="13.5" cy="12.5" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 export function IconObjectifs({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

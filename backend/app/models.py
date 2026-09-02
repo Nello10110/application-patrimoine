@@ -109,7 +109,15 @@ class Holding(Base):
     nom: Mapped[str | None] = mapped_column(String, nullable=True)
     quantite: Mapped[float] = mapped_column(Float)
     prix_revient_moyen: Mapped[float | None] = mapped_column(Float, nullable=True)
-    compte: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Compte structurel (écran Comptes, backlog X.1) — remplace l'ancienne
+    # annotation texte libre (`compte: str | None`, retirée par la migration
+    # `ajoute_etablissements_comptes_structurels`, backfillée en de vraies lignes
+    # `Compte`). `None` : ligne non rattachée à un compte (« Sans compte » à
+    # l'écran), état permanent et normal, pas une phase transitoire. Un compte peut
+    # rattacher plusieurs `Holding` (ex. un CTO avec plusieurs actions) ; un actif
+    # valorisé manuellement (immobilier, assurance-vie...) a en pratique SA PROPRE
+    # ligne de compte (1:1), sans que le schéma ne l'impose.
+    compte_id: Mapped[int | None] = mapped_column(ForeignKey("comptes.id"), nullable=True, index=True)
     devise: Mapped[str | None] = mapped_column(String, nullable=True)
     # Chaîne libre, pas un enum SQL : la liste des valeurs connues vit dans
     # `patrimoine_service.LABEL_TYPE_ACTIF` (source unique, jamais dupliquée ici en
@@ -174,6 +182,9 @@ class Holding(Base):
         viewonly=True,
         lazy="selectin",
     )
+    # `lazy="selectin"` : même raison que `market_data` ci-dessus — évite le N+1 sur
+    # `list_holdings`/l'agrégation solde-par-compte (`comptes_service.solde_par_compte`).
+    compte: Mapped["Compte | None"] = relationship("Compte", lazy="selectin")
 
 
 class Loan(Base):
@@ -262,6 +273,48 @@ class HoldingValuationHistory(Base):
     # (`valeur − point précédent`) est alors traité comme un GAIN, purement estimé,
     # même logique que l'ancien calcul via `taux_pct` (cf. `rapport_service`).
     versement: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+class Etablissement(Base):
+    """Établissement financier (banque, courtier...) — liste gérée par l'utilisateur
+    (écran Comptes, backlog X.1), pas un texte libre : permet un regroupement
+    fiable des comptes par établissement à l'écran (ex. « Caisse d'Épargne »
+    contenant un compte courant ET une assurance-vie). Suppression : les `Compte`
+    rattachés retombent à `etablissement_id = None` (jamais supprimés en cascade,
+    cf. `services/comptes_service.delete_etablissement`)."""
+
+    __tablename__ = "etablissements"
+    __table_args__ = (UniqueConstraint("user_id", "nom", name="uq_etablissement_user_nom"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    nom: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class Compte(Base):
+    """Compte structurel (compte courant, PEA, compte-titres, assurance-vie...) —
+    écran Comptes (backlog X.1), remplace l'ancienne annotation texte libre
+    `Holding.compte`. Cardinalité 1:N avec `Holding` (un compte-titres peut contenir
+    plusieurs lignes) ; un actif valorisé manuellement (immobilier, épargne...) a en
+    pratique sa propre ligne de compte (1:1), simple convention d'usage, rien
+    n'impose cette cardinalité au niveau du schéma. `etablissement_id` nullable : un
+    compte peut exister sans établissement rattaché (« Sans établissement » à
+    l'écran). Suppression : les `Holding` rattachés retombent à `compte_id = None`
+    (jamais supprimés en cascade, cf. `services/comptes_service.delete_compte`)."""
+
+    __tablename__ = "comptes"
+    __table_args__ = (UniqueConstraint("user_id", "nom", name="uq_compte_user_nom"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    nom: Mapped[str] = mapped_column(String)
+    etablissement_id: Mapped[int | None] = mapped_column(ForeignKey("etablissements.id"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    etablissement: Mapped["Etablissement | None"] = relationship("Etablissement", lazy="selectin")
 
 
 class Detenteur(Base):

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Holding } from '../api/types'
+import type { Compte, Holding } from '../api/types'
 import { simulerLargeurEcran } from '../test/matchMedia'
 import PortefeuillePage from './PortefeuillePage'
 
@@ -18,6 +18,11 @@ vi.mock('../api/client', () => ({
     // de ce fichier — mise de côté (cf. le mock ci-dessous), donc jamais appelée en
     // pratique ; gardée ici uniquement pour que le typage de `api` reste cohérent.
     listLoans: vi.fn(),
+    // Comptes structurels (écran Comptes, backlog X.1) : `AjoutHoldingForm` et
+    // `PositionsTable` (toutes deux embarquées telles quelles, non mockées) chargent
+    // désormais la liste des comptes existants — stub neutre par défaut, les tests
+    // de filtre ci-dessous le surchargent quand ils ont besoin de comptes précis.
+    listComptes: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -72,6 +77,12 @@ function holding(overrides: Partial<Holding> = {}): Holding {
   }
   return base
 }
+
+// Comptes structurels (écran Comptes, backlog X.1) — fixtures fixes réutilisées
+// par les tests de filtre/édition ci-dessous, plutôt qu'un simple nom de chaîne
+// (`Holding.compte` est désormais une relation, cf. `api/types.ts`).
+const COMPTE_PEA: Compte = { id: 1, nom: 'PEA', etablissement: null, created_at: '2024-01-01T00:00:00', updated_at: '2024-01-01T00:00:00' }
+const COMPTE_CTO: Compte = { id: 2, nom: 'CTO', etablissement: null, created_at: '2024-01-01T00:00:00', updated_at: '2024-01-01T00:00:00' }
 
 function marketData(overrides: Partial<NonNullable<Holding['market_data']>> = {}) {
   return {
@@ -468,9 +479,9 @@ describe('PortefeuillePage', () => {
   describe('filtre par compte (LOT 5.1)', () => {
     it('se combine au filtre de catégorie et met à jour la ligne de total', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([
-        holding({ id: 1, ticker: 'AAA', quantite: 10, compte: 'PEA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
-        holding({ id: 2, ticker: 'BBB', quantite: 1, compte: 'CTO', type_actif: 'STOCK', market_data: marketData({ ticker: 'BBB', prix_actuel: 200 }) }),
-        holding({ id: 3, ticker: 'CCC', quantite: 1, compte: 'PEA', type_actif: 'FUND', market_data: marketData({ ticker: 'CCC', prix_actuel: 300 }) }),
+        holding({ id: 1, ticker: 'AAA', quantite: 10, compte: COMPTE_PEA, type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+        holding({ id: 2, ticker: 'BBB', quantite: 1, compte: COMPTE_CTO, type_actif: 'STOCK', market_data: marketData({ ticker: 'BBB', prix_actuel: 200 }) }),
+        holding({ id: 3, ticker: 'CCC', quantite: 1, compte: COMPTE_PEA, type_actif: 'FUND', market_data: marketData({ ticker: 'CCC', prix_actuel: 300 }) }),
         holding({ id: 4, ticker: 'DDD', quantite: 1, compte: null, type_actif: 'STOCK', market_data: marketData({ ticker: 'DDD', prix_actuel: 50 }) }),
       ])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
@@ -482,7 +493,7 @@ describe('PortefeuillePage', () => {
       const options = Array.from(selecteurCompte.querySelectorAll('option')).map((o) => o.textContent)
       expect(options).toEqual(['Tous les comptes', 'CTO', 'PEA', 'Sans compte'])
 
-      fireEvent.change(selecteurCompte, { target: { value: 'PEA' } })
+      fireEvent.change(selecteurCompte, { target: { value: String(COMPTE_PEA.id) } })
       await screen.findByText('2 positions') // AAA + CCC, toutes deux PEA
 
       // Combiné au filtre de catégorie : PEA + Actions -> seule AAA reste.
@@ -498,7 +509,7 @@ describe('PortefeuillePage', () => {
   describe('filtre sans résultat (backlog 2.K.5)', () => {
     it('affiche un message explicite et un bouton de réinitialisation, distinct du vide global', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([
-        holding({ id: 1, ticker: 'AAA', compte: 'PEA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+        holding({ id: 1, ticker: 'AAA', compte: COMPTE_PEA, type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
       ])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       await screen.findByText('1 position')
@@ -517,8 +528,8 @@ describe('PortefeuillePage', () => {
   describe('filtres — feuille glissante mobile (backlog 2.K.4)', () => {
     function deuxPositions() {
       return [
-        holding({ id: 1, ticker: 'AAA', compte: 'PEA', type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
-        holding({ id: 2, ticker: 'BBB', compte: 'CTO', type_actif: 'FUND', market_data: marketData({ ticker: 'BBB', prix_actuel: 100 }) }),
+        holding({ id: 1, ticker: 'AAA', compte: COMPTE_PEA, type_actif: 'STOCK', market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+        holding({ id: 2, ticker: 'BBB', compte: COMPTE_CTO, type_actif: 'FUND', market_data: marketData({ ticker: 'BBB', prix_actuel: 100 }) }),
       ]
     }
 
@@ -586,7 +597,7 @@ describe('PortefeuillePage', () => {
           ticker: 'AAA',
           quantite: 10,
           prix_revient_moyen: 100,
-          compte: 'PEA',
+          compte: COMPTE_PEA,
           type_actif: 'STOCK',
           rendement_depuis_achat_pct: 12.5,
           market_data: marketData({ ticker: 'AAA', prix_actuel: 150, secteur: 'Technologie', pays: 'France' }),
@@ -639,7 +650,7 @@ describe('PortefeuillePage', () => {
 
   describe('édition en ligne (LOT 5.8)', () => {
     function positionUnique() {
-      return [holding({ id: 42, ticker: 'AAA', quantite: 10, prix_revient_moyen: 100, compte: 'PEA', type_actif: 'STOCK' })]
+      return [holding({ id: 42, ticker: 'AAA', quantite: 10, prix_revient_moyen: 100, compte: COMPTE_PEA, type_actif: 'STOCK' })]
     }
 
     it("le clic sur Modifier bascule en édition sans ouvrir la modale de détail", async () => {
@@ -668,7 +679,7 @@ describe('PortefeuillePage', () => {
     it('Enregistrer appelle updateHolding avec les valeurs modifiées puis recharge la liste', async () => {
       vi.mocked(api.listHoldings).mockResolvedValueOnce(positionUnique())
       vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 42, ticker: 'AAA', quantite: 15 }))
-      const relue = [holding({ id: 42, ticker: 'AAA', quantite: 15, prix_revient_moyen: 100, compte: 'PEA', type_actif: 'STOCK' })]
+      const relue = [holding({ id: 42, ticker: 'AAA', quantite: 15, prix_revient_moyen: 100, compte: COMPTE_PEA, type_actif: 'STOCK' })]
       vi.mocked(api.listHoldings).mockResolvedValueOnce(relue)
 
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
@@ -681,7 +692,8 @@ describe('PortefeuillePage', () => {
         expect(api.updateHolding).toHaveBeenCalledWith(42, {
           quantite: 15,
           prix_revient_moyen: 100,
-          compte: 'PEA',
+          compte_id: COMPTE_PEA.id,
+          compte_nom: null,
           type_actif: 'STOCK',
           valeur_estimee: null,
           taux_pct: null,

@@ -118,10 +118,33 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
             **calcul,
         }
 
+    # Compte structurel résolu (écran Comptes, backlog X.1) — même style « dict
+    # plutôt qu'objet ORM » que `quotites`/`immobilier` ci-dessus, ce module ne
+    # renvoyant jamais directement une instance SQLAlchemy à `schemas.HoldingDetail`.
+    compte = None
+    if holding.compte is not None:
+        compte = {
+            "id": holding.compte.id,
+            "nom": holding.compte.nom,
+            "etablissement": (
+                {
+                    "id": holding.compte.etablissement.id,
+                    "nom": holding.compte.etablissement.nom,
+                    "created_at": holding.compte.etablissement.created_at,
+                    "updated_at": holding.compte.etablissement.updated_at,
+                }
+                if holding.compte.etablissement is not None
+                else None
+            ),
+            "created_at": holding.compte.created_at,
+            "updated_at": holding.compte.updated_at,
+        }
+
     return {
         "ticker": holding.ticker,
         "nom": nom_affiche,
         "type_actif": holding.type_actif,
+        "compte": compte,
         "quantite": holding.quantite,
         "prix_revient_moyen": holding.prix_revient_moyen,
         "prix_actuel": prix_actuel,

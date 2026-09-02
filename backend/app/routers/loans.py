@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Holding, Loan, QuotiteHolding, QuotiteLoan, User
-from ..schemas import LoanCreate, LoanOut, LoanUpdate
+from ..schemas import LoanCreate, LoanOut, LoanUpdate, QuotitesUpdate
 from ..services import auth_service, detenteurs_service, historique_cache, loan_service
 
 router = APIRouter(prefix="/api/loans", tags=["loans"])
@@ -95,5 +95,28 @@ def delete_loan(loan_id: int, db: Session = Depends(get_db), current_user: User 
         raise HTTPException(status_code=404, detail="Emprunt introuvable")
     db.delete(loan)
     db.commit()
+    historique_cache.invalider_historiques_patrimoine(db)
+    return {"ok": True}
+
+
+@router.put("/{loan_id}/quotites")
+def set_loan_quotites(loan_id: int, payload: QuotitesUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    """Remplace intégralement la répartition (quotités) de cet emprunt entre
+    détenteurs (backlog 2.L.1/X.1) — indépendante de la quotité de l'actif
+    rattaché : un emprunt peut avoir été contracté par un seul conjoint pour un
+    bien détenu à deux. Une liste vide retire toute répartition propre à l'emprunt
+    (retombe sur l'héritage des quotités de l'actif, cf.
+    `detenteurs_service.compute_pourcentage_emprunt`). Câble
+    `detenteurs_service.set_quotites_loan`, déjà écrit et testé côté service, sans
+    endpoint jusqu'ici."""
+    loan = db.get(Loan, loan_id)
+    if loan is None or loan.user_id != auth_service.id_foyer(current_user):
+        raise HTTPException(status_code=404, detail="Emprunt introuvable")
+    try:
+        detenteurs_service.set_quotites_loan(
+            db, auth_service.id_foyer(current_user), loan, [(q.detenteur_id, q.quotite_pct) for q in payload.quotites]
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}

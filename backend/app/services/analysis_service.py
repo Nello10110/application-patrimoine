@@ -290,9 +290,14 @@ def compute_cout_gestion_consolide(valued: list[ValuedHolding]) -> dict:
 
 
 def repartition_par_compte(valued: list[ValuedHolding]) -> list[dict]:
-    """Répartition de la VALEUR ACTUELLE du portefeuille par compte (LOT 5.1).
+    """Répartition de la VALEUR ACTUELLE du portefeuille par compte (LOT 5.1) —
+    réservée à la déclaration de patrimoine PDF (`pdf_export_service.py`, seul
+    appelant restant depuis le retrait de l'ancien `GET /api/analysis/comptes` au
+    profit de l'écran Comptes structurel, backlog X.1) : portefeuille FINANCIER
+    seul (`holdings_financiers`), jamais l'immobilier/l'épargne — pour un solde tous
+    types, cf. `services/comptes_service.solde_par_compte`.
 
-    Le compte (`models.Holding.compte`) est une annotation manuelle par ligne : le
+    Le compte (`models.Holding.compte`, une relation vers `Compte` depuis X.1) : le
     grand livre de transactions importé (format Trade Republic) ne porte aucune
     information de compte, il est donc impossible d'en déduire une rentabilité
     (XIRR, gains réalisés) par compte a posteriori — seule une répartition de la
@@ -301,7 +306,7 @@ def repartition_par_compte(valued: list[ValuedHolding]) -> list[dict]:
     d'être écartées du total (le portefeuille reste entièrement représenté)."""
     totaux: dict[str, float] = {}
     for v in valued:
-        compte = v.holding.compte or COMPTE_SANS_ANNOTATION
+        compte = v.holding.compte.nom if v.holding.compte is not None else COMPTE_SANS_ANNOTATION
         totaux[compte] = totaux.get(compte, 0.0) + v.valeur
 
     valeur_totale = sum(v.valeur for v in valued)

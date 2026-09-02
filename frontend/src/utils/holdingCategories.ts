@@ -1,4 +1,4 @@
-import type { Holding } from '../api/types'
+import type { Compte, Holding } from '../api/types'
 import { parseDateApi } from './format'
 
 export type Categorie = 'TOUS' | 'STOCK' | 'FUND' | 'BOND' | 'PRIVATE_FUND' | 'CRYPTO' | 'PATRIMOINE' | 'AUTRES'
@@ -111,23 +111,26 @@ export function categorieDe(h: Holding): Categorie {
   return 'AUTRES'
 }
 
-// Filtre par compte (LOT 5.1), combiné au filtre de catégorie ci-dessus. Le compte
-// est une simple annotation manuelle par ligne (`Holding.compte`, cf. le formulaire
-// d'ajout et l'édition en ligne) : ce filtre ne fait que répartir la valeur AFFICHÉE,
-// il ne calcule aucune rentabilité par compte (impossible depuis le grand livre
-// importé, cf. `GET /api/analysis/comptes`).
+// Filtre par compte, combiné au filtre de catégorie ci-dessus — écran Comptes
+// structurel (backlog X.1) : `Holding.compte` est désormais une vraie relation
+// (`Compte | null`, plus un texte libre). Ce filtre local à Portefeuille ne dérive
+// que les comptes réellement présents dans les lignes déjà chargées (contrairement
+// à l'écran Comptes dédié, qui liste TOUS les comptes du foyer, même vides).
 export const FILTRE_TOUS_COMPTES = 'TOUS'
 export const FILTRE_SANS_COMPTE = 'SANS_COMPTE'
 
-export function comptesDisponibles(holdings: Holding[]): string[] {
-  const comptes = new Set(holdings.map((h) => h.compte).filter((c): c is string => Boolean(c)))
-  return Array.from(comptes).sort((a, b) => a.localeCompare(b, 'fr'))
+export function comptesDisponibles(holdings: Holding[]): Compte[] {
+  const parId = new Map<number, Compte>()
+  for (const h of holdings) {
+    if (h.compte) parId.set(h.compte.id, h.compte)
+  }
+  return Array.from(parId.values()).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
 }
 
 export function correspondAuFiltreCompte(h: Holding, filtreCompte: string): boolean {
   if (filtreCompte === FILTRE_TOUS_COMPTES) return true
   if (filtreCompte === FILTRE_SANS_COMPTE) return h.compte === null
-  return h.compte === filtreCompte
+  return h.compte !== null && String(h.compte.id) === filtreCompte
 }
 
 // Cours (`market_data.derniere_maj`) le plus ancien parmi les positions cotées

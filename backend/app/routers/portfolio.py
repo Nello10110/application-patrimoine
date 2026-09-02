@@ -8,7 +8,17 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import ORIGINE_MANUEL, ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Holding, HoldingValuationHistory, QuotiteHolding, User
+from ..models import (
+    ORIGINE_MANUEL,
+    ROLE_INVITE,
+    ROLE_MEMBRE,
+    ROLE_PROPRIETAIRE,
+    Compte,
+    Holding,
+    HoldingValuationHistory,
+    QuotiteHolding,
+    User,
+)
 from ..schemas import (
     ColumnMapping,
     HoldingCreate,
@@ -27,6 +37,7 @@ from ..schemas import (
 from ..services import (
     analysis_service,
     auth_service,
+    comptes_service,
     csv_import,
     detenteurs_service,
     historical_performance_service,
@@ -103,6 +114,21 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     imported = 0
     skipped = 0
     errors: list[str] = []
+    user_id = auth_service.id_foyer(current_user)
+    # Cache local nom -> id (pas d'appel service par ligne) : un même compte peut
+    # apparaître sur des dizaines de lignes du fichier importé, et `get_or_create_compte`
+    # ne verrait pas encore le compte créé à la ligne précédente avant le premier
+    # `commit()` de cette boucle (même piège que `portfolio_reconstruction.comptes_par_ticker`).
+    comptes_cache: dict[str, int] = {}
+
+    def _resoudre_compte_import(nom: str | None) -> int | None:
+        if not nom:
+            return None
+        if nom not in comptes_cache:
+            # `_sans_commit` : cette boucle est dans la transaction « tout ou rien »
+            # de l'import (rollback possible plus bas) — jamais de commit intermédiaire.
+            comptes_cache[nom] = comptes_service.get_or_create_compte_sans_commit(db, user_id, nom).id
+        return comptes_cache[nom]
 
     # Tout ou rien (LOT 3.3) : un import (potentiellement précédé d'un vidage du
     # portefeuille via `replace_existing`) est une seule transaction. Une erreur en
@@ -116,7 +142,7 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
             # au grand livre : les supprimer ici créerait un état incohérent que le
             # prochain import de transactions rétablirait tout seul, sans que
             # l'utilisateur comprenne pourquoi (cf. `models.Holding.origine`).
-            db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user), Holding.origine == ORIGINE_MANUEL).delete()
+            db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_MANUEL).delete()
 
         for idx, row in df.iterrows():
             ticker = (_cellule_texte(row, mapping.ticker_col) or "").upper()
@@ -129,12 +155,12 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
 
             db.add(
                 Holding(
-                    user_id=auth_service.id_foyer(current_user),
+                    user_id=user_id,
                     ticker=ticker,
                     nom=_cellule_texte(row, mapping.nom_col),
                     quantite=qty_val,
                     prix_revient_moyen=csv_import.to_float(row.get(mapping.prix_revient_col)) if mapping.prix_revient_col else None,
-                    compte=_cellule_texte(row, mapping.compte_col),
+                    compte_id=_resoudre_compte_import(_cellule_texte(row, mapping.compte_col)),
                     devise=_cellule_texte(row, mapping.devise_col),
                     origine=ORIGINE_MANUEL,
                 )
@@ -152,6 +178,21 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     csv_import.clear_pending(mapping.file_token)
 
     return ImportResult(imported=imported, skipped=skipped, errors=errors)
+
+
+def _resoudre_compte_id(db: Session, user_id: int, compte_id: int | None, compte_nom: str | None) -> int | None:
+    """`compte_id` référence un compte déjà existant (vérifié appartenir à
+    l'utilisateur — IDOR) ; `compte_nom` crée un compte à la volée s'il n'existe pas
+    encore sous ce nom. Si les deux sont fournis, `compte_id` prime (documenté sur
+    `HoldingCreate`/`HoldingUpdate`)."""
+    if compte_id is not None:
+        compte = db.get(Compte, compte_id)
+        if compte is None or compte.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Compte introuvable")
+        return compte_id
+    if compte_nom:
+        return comptes_service.get_or_create_compte(db, user_id, compte_nom).id
+    return None
 
 
 def _holdings_visibles(db: Session, current_user: User):
@@ -383,9 +424,15 @@ def get_holding_price_history(ticker: str, db: Session = Depends(get_db), curren
 
 @router.post("/holdings", response_model=HoldingOut)
 def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    user_id = auth_service.id_foyer(current_user)
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
     donnees = payload.model_dump()
+    # `compte_id`/`compte_nom` (schéma) ne sont pas des colonnes de `Holding` (qui
+    # n'a que `compte_id`, résolu ici) — retirés du dict avant construction.
+    compte_id = donnees.pop("compte_id")
+    compte_nom = donnees.pop("compte_nom")
+    donnees["compte_id"] = _resoudre_compte_id(db, user_id, compte_id, compte_nom)
     # `date_valeur_estimee` (immobilier/SCPI/assurance-vie/PER, Phase 1 de
     # `docs/ROADMAP.md`) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
     # ici dès qu'une valeur estimée est fournie à la création.
@@ -395,7 +442,7 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     # convertie en `datetime` pour la colonne — même conversion que `set_holding_valorisation`.
     if donnees.get("date_acquisition") is not None:
         donnees["date_acquisition"] = datetime.strptime(donnees["date_acquisition"], "%Y-%m-%d")
-    holding = Holding(**donnees, origine=ORIGINE_MANUEL, user_id=auth_service.id_foyer(current_user))
+    holding = Holding(**donnees, origine=ORIGINE_MANUEL, user_id=user_id)
     db.add(holding)
     db.commit()
     db.refresh(holding)
@@ -412,10 +459,16 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingOut)
 def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
+    user_id = auth_service.id_foyer(current_user)
     holding = db.get(Holding, holding_id)
-    if holding is None or holding.user_id != auth_service.id_foyer(current_user):
+    if holding is None or holding.user_id != user_id:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     updates = payload.model_dump(exclude_unset=True)
+    # `compte_id`/`compte_nom` ne sont pas des colonnes de `Holding` — résolus en un
+    # seul `compte_id` avant la boucle `setattr` générique ci-dessous. Absents des
+    # deux (`exclude_unset`) : ne pas toucher au compte déjà rattaché.
+    if "compte_id" in updates or "compte_nom" in updates:
+        updates["compte_id"] = _resoudre_compte_id(db, user_id, updates.pop("compte_id", None), updates.pop("compte_nom", None))
     # `date_valeur_estimee` n'avance que si `valeur_estimee` change réellement dans cet
     # appel — pas à chaque modification de la ligne (compte, nom...), pour rester une
     # vraie date de « dernière mise à jour de l'estimation ».

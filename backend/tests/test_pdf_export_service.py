@@ -9,7 +9,7 @@ from datetime import datetime
 
 from pypdf import PdfReader
 
-from app.models import Holding, Loan, MarketDataCache
+from app.models import Compte, Holding, Loan, MarketDataCache
 from app.services.pdf_export_service import generer_pdf_patrimoine
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
@@ -77,7 +77,10 @@ def test_pdf_omet_la_rentabilite_sans_aucune_transaction(db):
 
 
 def test_pdf_restitue_la_repartition_par_compte_quand_annotee(db):
-    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0, compte="PEA")
+    compte = Compte(user_id=ID_UTILISATEUR_TEST, nom="PEA")
+    db.add(compte)
+    db.commit()
+    make_holding(db, ticker="AAA", type_actif="STOCK", quantite=1, prix_revient_moyen=1000.0, compte_id=compte.id)
     db.commit()
 
     texte = _texte_pdf(generer_pdf_patrimoine(db, ID_UTILISATEUR_TEST))

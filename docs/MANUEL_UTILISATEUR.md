@@ -46,13 +46,14 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 
 - **Trier** : cliquer sur l'en-tête d'une colonne (ticker, nom, quantité, prix actuel, valeur, rendement depuis achat, rendement annualisé) trie le tableau selon cette colonne ; un second clic inverse le sens. Une valeur inconnue (« — ») se retrouve toujours en fin de liste.
 - **Total** : en bas du tableau, le nombre de positions affichées et la somme de leur valeur — recalculés selon les filtres actifs (catégorie, compte).
-- **Filtrer** : les onglets au-dessus du tableau filtrent par catégorie (Actions / ETF / Obligations / Private Equity / Crypto / **Immobilier & Épargne** / Autres) ; un sélecteur « Filtrer par compte » (visible dès qu'au moins une ligne porte un compte) filtre en plus par l'annotation de compte.
+- **Filtrer** : les onglets au-dessus du tableau filtrent par catégorie (Actions / ETF / Obligations / Private Equity / Crypto / **Immobilier & Épargne** / Autres) ; un sélecteur « Filtrer par compte » (visible dès qu'au moins une ligne est rattachée à un compte) filtre en plus par compte. Voir l'écran Comptes pour la liste des comptes du foyer et leur solde.
 - **Fraîcheur des cours** : à côté du bouton de rafraîchissement, la date/heure du cours le plus ancien parmi les positions cotées. Affichée en orange si elle date de plus de 48 heures.
 - **Cliquer sur une ligne** ouvre la fiche détaillée de la position (en fenêtre superposée).
 - **Modifier une ligne** : le bouton « Modifier » ouvre une édition en ligne (quantité, prix de revient, compte, type d'actif, valeur estimée) sans quitter le tableau ; « Enregistrer » valide, « Annuler » abandonne. Une saisie invalide (ex. quantité négative) affiche l'erreur sans perdre le reste de la saisie en cours.
 - **Supprimer une ligne** : le bouton « Supprimer » ouvre une confirmation avant suppression définitive.
 - **Rafraîchir les cours** relance la récupération des données de marché pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions ») et le tableau se met à jour tout seul une fois terminé, sans bloquer le reste de l'écran.
 - **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif, valeur estimée) — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat.
+- **Compte** (à l'ajout comme à l'édition) : une liste déroulante propose les comptes déjà créés, avec en dernière option « + Nouveau compte... » pour en créer un à la volée par son nom — aucune étape séparée n'est nécessaire pour commencer à utiliser un compte. Voir l'écran Comptes pour tout regrouper par établissement, définir la répartition entre détenteurs pour un compte entier, ou renommer/rattacher un compte a posteriori.
 - **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée du Tableau de bord.
 - **Date d'acquisition** (immobilier/épargne/tous les types manuels ci-dessus, retour utilisateur du 26/08/2026) : champ apparaissant uniquement pour ces types, modifiable aussi bien à l'ajout que sur une ligne déjà existante (bouton « Modifier » du tableau) — la date à laquelle le bien a réellement été acquis, affichée sous son nom dans le tableau (« Acquis le JJ/MM/AAAA ») une fois renseignée. Prise en compte dans le **rendement annualisé** (calculable désormais même sans historique de transactions, à partir du prix de revient et de cette date) et dans les **graphiques** — la courbe d'évolution du Tableau de bord et le graphique de la fiche détaillée démarrent depuis le prix payé à cette date plutôt que depuis la date de saisie de la ligne dans l'application.
 - **Taux annuel** (épargne réglementée/salariale, véhicule) : champ apparaissant uniquement pour ces types — un pourcentage positif pour un taux d'intérêt attendu (épargne), négatif pour une décote annuelle attendue (véhicule). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
@@ -76,7 +77,7 @@ remplace le graphique de cours (sans objet, un bien immobilier n'a pas de cotati
 
 ### Dettes et emprunts
 
-Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Modifier** permet de corriger les autres caractéristiques (libellé, capital initial, taux, mensualité, date de début, durée) en cas d'erreur de saisie ou de renégociation — jamais le capital restant dû, qui reste sous « Recaler ». **Supprimer** retire définitivement un emprunt, après confirmation.
+Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque emprunt porte un libellé, un capital initial, un taux annuel, une mensualité, une date de début et une durée en mois ; le **capital restant dû** est calculé automatiquement (amortissement à taux fixe). Le bouton **Recaler** permet de le corriger à la main d'après un relevé bancaire réel (après un remboursement anticipé, par exemple) — le recalage prime alors sur le calcul théorique jusqu'à un nouveau recalage. **Modifier** permet de corriger les autres caractéristiques (libellé, capital initial, taux, mensualité, date de début, durée) en cas d'erreur de saisie ou de renégociation — jamais le capital restant dû, qui reste sous « Recaler ». **Supprimer** retire définitivement un emprunt, après confirmation. **Détenteurs** ouvre la répartition entre détenteurs déclarés de cet emprunt (même logique que pour un actif) — utile pour un crédit immobilier partagé à parts inégales entre conjoints.
 
 ## Fiche détaillée d'une position
 
@@ -175,6 +176,38 @@ mise à jour, versement mensuel déclaré, et un petit historique daté.
   suppression). Si le point touché est le plus récent, la valeur affichée partout ailleurs (Portefeuille,
   Tableau de bord) se resynchronise automatiquement sur le nouveau point le plus récent restant — plus
   rien à corriger manuellement en double.
+
+## Écran Comptes
+
+À ne pas confondre avec l'écran Épargne ci-dessus : ce dernier liste des **lignes d'épargne**
+(livrets, assurances-vie...) une par une ; l'écran Comptes montre les **comptes structurels**
+auxquels n'importe quelle ligne du patrimoine peut être rattachée — un peu comme le volet des
+comptes d'Actual Budget. Un même compte peut regrouper plusieurs lignes (ex. un CTO avec plusieurs
+titres), ou n'en contenir qu'une (ex. une assurance-vie, un bien immobilier).
+
+- **Liste groupée par établissement** : chaque banque/courtier déclaré (« Caisse d'Épargne »,
+  « Boursorama »...) regroupe visuellement les comptes qui lui sont rattachés — un compte sans
+  établissement rejoint le groupe « Sans établissement ». Le solde de chaque compte est affiché
+  **toutes natures d'actif confondues** (financier, immobilier, assurance-vie, épargne...), avec le
+  total du foyer en tête d'écran.
+- **« + Nouveau compte »** : nom et établissement (optionnel, choisi dans la liste déjà déclarée) —
+  un compte peut aussi être créé directement depuis le formulaire d'ajout d'une ligne (Portefeuille,
+  Épargne), pas seulement depuis cet écran. Les établissements eux-mêmes se déclarent depuis
+  Réglages (onglet Détenteurs, juste sous les personnes/sociétés du foyer).
+- **Cliquer sur un compte** ouvre sa fiche détaillée (fenêtre superposée, avec un lien « Ouvrir en
+  pleine page ») :
+  - **Nom et établissement** modifiables directement.
+  - **Lignes du compte** : la liste des positions/actifs actuellement rattachés, avec un lien vers la
+    fiche détaillée de chacune (pour en corriger la valeur, l'historique...).
+  - **Répartition entre détenteurs** (dès qu'au moins une ligne est rattachée) : un formulaire, vierge
+    par défaut, pour définir en une seule fois le pourcentage de propriété de chaque détenteur du
+    foyer sur **tout le compte** — utile en particulier pour un compte multi-lignes, plutôt que de
+    répéter la même répartition ligne par ligne depuis la fiche détaillée de chacune. La somme doit
+    faire 100 % ; valider **remplace** la répartition actuellement enregistrée de chaque ligne du
+    compte, ce que le formulaire rappelle explicitement.
+- **« Supprimer »** sur un compte (ou un établissement, depuis l'écran Réglages) : ne supprime jamais
+  ce qu'il contenait — les lignes d'un compte supprimé, ou les comptes d'un établissement supprimé,
+  retombent simplement dans le groupe « Sans compte »/« Sans établissement ».
 
 ## Écran Dividendes
 
@@ -298,9 +331,6 @@ courbe, puis le détail replié) :
      récupéré qu'une fois par fonds, au fil des rafraîchissements, donc la couverture peut rester
      partielle un moment après l'ajout d'un nouveau fonds ; le message le rappelle explicitement
      tant qu'elle n'atteint pas 100 %.
-   - **Répartition par compte** : n'apparaît que si au moins une ligne porte une annotation de
-     compte. Rappelle explicitement qu'aucune rentabilité par compte n'est calculable, seule la
-     valeur actuelle l'est (le grand livre importé ne porte aucune information de compte).
    - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne,
      concentration géographique.
 

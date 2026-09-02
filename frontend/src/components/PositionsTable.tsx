@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Holding } from '../api/types'
+import type { Compte, Holding } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import {
@@ -73,14 +73,64 @@ function comparerValeurs(a: string | number | null, b: string | number | null, d
   return direction === 'asc' ? brut : -brut
 }
 
+// Sentinelle pour l'option "+ Nouveau compte..." des sélecteurs ci-dessous —
+// distincte de toute valeur réelle possible (un id de compte est toujours numérique).
+const NOUVEAU_COMPTE = '__nouveau__'
+
 interface EditForm {
   quantite: string
   prix_revient_moyen: string
-  compte: string
+  // Un id de compte existant (chaîne numérique), NOUVEAU_COMPTE, ou '' (aucun).
+  compte_id: string
+  compte_nom: string
   type_actif: string
   valeur_estimee: string
   taux_pct: string
   date_acquisition: string
+}
+
+/** Sélecteur de compte réutilisé par l'édition mobile et desktop ci-dessous — même
+ * choix (existant / aucun / + nouveau) que `AjoutHoldingForm.tsx`. */
+function CompteEditSelect({
+  comptes,
+  editForm,
+  setEditForm,
+  ariaLabel,
+}: {
+  comptes: Compte[]
+  editForm: EditForm
+  setEditForm: (f: EditForm) => void
+  ariaLabel: string
+}) {
+  return (
+    <>
+      <select
+        value={editForm.compte_id}
+        onChange={(e) => setEditForm({ ...editForm, compte_id: e.target.value })}
+        onClick={(e) => e.stopPropagation()}
+        aria-label={ariaLabel}
+        className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+      >
+        <option value="">— Aucun —</option>
+        {comptes.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.nom}
+          </option>
+        ))}
+        <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
+      </select>
+      {editForm.compte_id === NOUVEAU_COMPTE && (
+        <input
+          value={editForm.compte_nom}
+          onChange={(e) => setEditForm({ ...editForm, compte_nom: e.target.value })}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Nom du nouveau compte (${ariaLabel})`}
+          placeholder="PEA, CTO..."
+          className="mt-1 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+        />
+      )}
+    </>
+  )
 }
 
 /** Une position, en carte (backlog 2.K.4, < 768 px) — remplace la ligne de tableau
@@ -96,6 +146,7 @@ function PositionCard({
   editSaving,
   editError,
   montantsMasques,
+  comptes,
   onSelect,
   onStartEdit,
   onCancelEdit,
@@ -109,6 +160,7 @@ function PositionCard({
   editSaving: boolean
   editError: string | null
   montantsMasques: boolean
+  comptes: Compte[]
   onSelect: () => void
   onStartEdit: (e: React.MouseEvent) => void
   onCancelEdit: (e: React.MouseEvent) => void
@@ -149,12 +201,7 @@ function PositionCard({
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Compte
-            <input
-              value={editForm.compte}
-              onChange={(e) => setEditForm({ ...editForm, compte: e.target.value })}
-              aria-label="Compte (édition)"
-              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
-            />
+            <CompteEditSelect comptes={comptes} editForm={editForm} setEditForm={setEditForm} ariaLabel="Compte (édition)" />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Type d'actif
@@ -350,6 +397,11 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
   // cf. la docstring de `useEstMobile` pour pourquoi (contenu répété par ligne).
   const estMobile = useEstMobile()
   const [tri, setTriState] = useState<{ cle: CleTri; direction: SensTri } | null>(() => triStocke())
+  const [comptes, setComptes] = useState<Compte[]>([])
+
+  useEffect(() => {
+    api.listComptes().then(setComptes).catch(() => setComptes([]))
+  }, [])
 
   function setTri(maj: (prev: { cle: CleTri; direction: SensTri } | null) => { cle: CleTri; direction: SensTri }) {
     setTriState((prev) => {
@@ -367,7 +419,8 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
   const [editForm, setEditForm] = useState<EditForm>({
     quantite: '',
     prix_revient_moyen: '',
-    compte: '',
+    compte_id: '',
+    compte_nom: '',
     type_actif: '',
     valeur_estimee: '',
     taux_pct: '',
@@ -393,7 +446,8 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
     setEditForm({
       quantite: String(h.quantite),
       prix_revient_moyen: h.prix_revient_moyen !== null && h.prix_revient_moyen !== undefined ? String(h.prix_revient_moyen) : '',
-      compte: h.compte ?? '',
+      compte_id: h.compte ? String(h.compte.id) : '',
+      compte_nom: '',
       type_actif: h.type_actif ?? '',
       valeur_estimee: h.valeur_estimee !== null && h.valeur_estimee !== undefined ? String(h.valeur_estimee) : '',
       taux_pct: h.taux_pct !== null && h.taux_pct !== undefined ? String(h.taux_pct) : '',
@@ -414,16 +468,21 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
     setEditSaving(true)
     setEditError(null)
     try {
+      const nouveauCompte = editForm.compte_id === NOUVEAU_COMPTE
       await api.updateHolding(id, {
         quantite: Number(editForm.quantite),
         prix_revient_moyen: editForm.prix_revient_moyen ? Number(editForm.prix_revient_moyen) : null,
-        compte: editForm.compte.trim() || null,
+        compte_id: !nouveauCompte && editForm.compte_id ? Number(editForm.compte_id) : null,
+        compte_nom: nouveauCompte ? editForm.compte_nom.trim() || null : null,
         type_actif: editForm.type_actif || null,
         valeur_estimee: editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
         taux_pct: editForm.taux_pct ? Number(editForm.taux_pct) : null,
         date_acquisition: editForm.date_acquisition || null,
       })
       setEditingId(null)
+      // Un compte a pu être créé à la volée : recharge la liste pour qu'il
+      // apparaisse dans le sélecteur dès la prochaine édition.
+      if (nouveauCompte) api.listComptes().then(setComptes).catch(() => {})
       onSaved()
     } catch (err) {
       // L'erreur (400 : quantité négative, etc.) reste affichée SANS quitter le mode
@@ -493,6 +552,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
             editSaving={editSaving}
             editError={editingId === h.id ? editError : null}
             montantsMasques={montantsMasques}
+            comptes={comptes}
             onSelect={() => editingId !== h.id && onSelectTicker(h.ticker)}
             onStartEdit={(e) => startEdit(e, h)}
             onCancelEdit={cancelEdit}
@@ -639,13 +699,7 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                   </label>
                   <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Compte
-                    <input
-                      value={editForm.compte}
-                      onChange={(e) => setEditForm({ ...editForm, compte: e.target.value })}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label="Compte (édition)"
-                      className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                    />
+                    <CompteEditSelect comptes={comptes} editForm={editForm} setEditForm={setEditForm} ariaLabel="Compte (édition)" />
                   </label>
                   <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Type d'actif

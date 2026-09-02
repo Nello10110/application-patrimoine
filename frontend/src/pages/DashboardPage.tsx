@@ -7,7 +7,6 @@ import type {
   PatrimoineHistoryPoint,
   PerformanceSummary,
   PortfolioHistoryPoint,
-  RepartitionComptesResponse,
 } from '../api/types'
 import AllocationChartCard from '../components/AllocationChartCard'
 import Card from '../components/Card'
@@ -40,10 +39,6 @@ export default function DashboardPage() {
   const [performance, setPerformance] = useState<PerformanceSummary | null>(null)
   const [chargementPerformance, setChargementPerformance] = useState(true)
   const [erreurPerformance, setErreurPerformance] = useState<string | null>(null)
-
-  const [comptes, setComptes] = useState<RepartitionComptesResponse | null>(null)
-  const [chargementComptes, setChargementComptes] = useState(true)
-  const [erreurComptes, setErreurComptes] = useState<string | null>(null)
 
   const [coutGestion, setCoutGestion] = useState<CoutGestionConsolide | null>(null)
   const [chargementCoutGestion, setChargementCoutGestion] = useState(true)
@@ -79,20 +74,8 @@ export default function DashboardPage() {
       .finally(() => setChargementPerformance(false))
   }
 
-  // Répartition par compte (LOT 5.1) : même philosophie que la rentabilité
+  // Coût de gestion consolidé (§ E.3) : même philosophie que la rentabilité
   // ci-dessus — pas de blocage de la page si elle échoue.
-  function chargerComptes() {
-    setChargementComptes(true)
-    setErreurComptes(null)
-    api
-      .getRepartitionComptes()
-      .then(setComptes)
-      .catch((err) => setErreurComptes(err.message))
-      .finally(() => setChargementComptes(false))
-  }
-
-  // Coût de gestion consolidé (§ E.3) : même philosophie que la répartition par
-  // compte ci-dessus.
   function chargerCoutGestion() {
     setChargementCoutGestion(true)
     setErreurCoutGestion(null)
@@ -132,7 +115,6 @@ export default function DashboardPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
     chargerPerformance()
-    chargerComptes()
     chargerCoutGestion()
   }
 
@@ -271,24 +253,6 @@ export default function DashboardPage() {
             {chargementCoutGestion && <SkeletonTexte lignes={2} />}
             {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}
             {!chargementCoutGestion && !erreurCoutGestion && coutGestion && <CoutGestionCard cout={coutGestion} />}
-
-            {chargementComptes && <SkeletonTexte lignes={2} />}
-            {erreurComptes && <EtatErreur message={erreurComptes} onReessayer={chargerComptes} />}
-            {!chargementComptes && !erreurComptes && comptes && comptes.a_des_comptes_annotes && (
-              <Card title="Répartition par compte">
-                <ul className="divide-y divide-bordure">
-                  {comptes.items.map((item) => (
-                    <li key={item.compte} className="flex items-center justify-between py-2 text-sm">
-                      <span className="text-texte">{item.compte}</span>
-                      <span className="font-medium text-texte">
-                        {formatEuro(item.valeur, 0, montantsMasques)} · {item.pourcentage}%
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-xs text-texte-attenue">{comptes.pas_de_rentabilite_par_compte}</p>
-              </Card>
-            )}
           </Disclosure>
 
           {modal && (
