@@ -41,7 +41,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.orm import Session
 
 from ..models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, Parametre, User
-from . import auth_service
+from . import auth_service, cles_chiffrement
 
 CLE_ISSUER = "oidc_issuer"
 CLE_CLIENT_ID = "oidc_client_id"
@@ -86,10 +86,15 @@ class CleChiffrementAbsenteError(RuntimeError):
 
 
 def _fernet() -> Fernet:
+    # Même tolérance que pour la sauvegarde chiffrée (backlog Y.3, cf.
+    # `cles_chiffrement`) : une vraie clé Fernet est utilisée telle quelle (les
+    # secrets déjà chiffrés restent déchiffrables), toute phrase secrète assez
+    # longue est dérivée. `_cle_hmac` ci-dessous, elle, consomme la valeur BRUTE et
+    # reste donc indifférente au format.
     cle = os.environ.get(VARIABLE_CLE_CHIFFREMENT)
     if not cle:
         raise CleChiffrementAbsenteError(f"{VARIABLE_CLE_CHIFFREMENT} non définie — voir docs/MANUEL_EXPLOITATION.md")
-    return Fernet(cle.encode("utf-8"))
+    return cles_chiffrement.fernet_depuis(cle, nom_variable=VARIABLE_CLE_CHIFFREMENT)
 
 
 def cle_chiffrement_definie() -> bool:

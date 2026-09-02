@@ -40,6 +40,46 @@ def test_sauvegarder_chiffre_sans_cle_leve_et_ne_laisse_rien(base_source, tmp_pa
     assert not dossier.exists() or list(dossier.iterdir()) == []
 
 
+@pytest.mark.parametrize(
+    ("cle", "cas"),
+    [
+        # Cas réel à l'origine de l'évolution Y.3 : une chaîne produite par un
+        # gestionnaire de mots de passe, refusée avant qu'on n'accepte la dérivation.
+        ("ToXuOMXb7pkEEaPqXcYpq5vioZ1x9VyZGShcSy5OXQJf431albHwXPrpMB8halz6", "phrase-64-alphanumerique"),
+        ("!" * 44, "44-caracteres-non-base64"),
+        ("a" * 32, "seuil-minimal-exact"),
+    ],
+)
+def test_sauvegarder_chiffre_accepte_une_phrase_secrete_usuelle(base_source, tmp_path, monkeypatch, cle, cas):
+    """Backlog Y.3 : plus besoin d'une clé Fernet stricte, toute phrase secrète
+    suffisamment longue est dérivée (cf. `services/cles_chiffrement.py`)."""
+    monkeypatch.setenv(backup_service.VARIABLE_CLE, cle)
+    dossier = tmp_path / "sauvegardes"
+
+    chemin = backup_service.sauvegarder_chiffre(base_source, dossier)
+
+    assert chemin.suffix == backup_service.SUFFIXE_CHIFFRE
+    # Aucun fichier en clair ne doit subsister à côté du chiffré.
+    assert [p.name for p in dossier.iterdir()] == [chemin.name]
+
+
+def test_sauvegarder_chiffre_avec_une_phrase_trop_courte_leve_un_message_exploitable(base_source, tmp_path, monkeypatch):
+    """Une phrase trop faible doit produire un message qui dit QUOI faire : ce
+    texte est affiché tel quel comme statut du job dans Réglages, souvent seul
+    indice dont dispose l'exploitant."""
+    monkeypatch.setenv(backup_service.VARIABLE_CLE, "trop-courte")
+    dossier = tmp_path / "sauvegardes"
+
+    with pytest.raises(backup_service.CleChiffrementInvalideError) as exc:
+        backup_service.sauvegarder_chiffre(base_source, dossier)
+
+    message = str(exc.value)
+    assert backup_service.VARIABLE_CLE in message
+    assert "32" in message, "le message doit indiquer la longueur minimale attendue"
+    # Même garantie que pour la clé absente : rien ne traîne sur disque.
+    assert not dossier.exists() or list(dossier.iterdir()) == []
+
+
 def test_sauvegarder_puis_dechiffrer_round_trip(base_source, tmp_path, cle_chiffrement):
     dossier = tmp_path / "sauvegardes"
 

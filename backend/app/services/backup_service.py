@@ -20,6 +20,8 @@ from cryptography.fernet import Fernet
 
 from scripts import sauvegarde as sauvegarde_module
 
+from . import cles_chiffrement
+
 logger = logging.getLogger("patrimoine.backup_service")
 
 VARIABLE_CLE = "PATRIMOINE_BACKUP_KEY"
@@ -31,11 +33,21 @@ class CleChiffrementAbsenteError(RuntimeError):
     cf. `docs/MANUEL_EXPLOITATION.md` pour la génération et le déploiement de la clé."""
 
 
+class CleChiffrementInvalideError(RuntimeError):
+    """`PATRIMOINE_BACKUP_KEY` est définie mais inutilisable — en pratique, une
+    phrase secrète trop courte pour être dérivée sans affaiblir le chiffrement
+    (cf. `cles_chiffrement`). Une clé Fernet comme une phrase longue sont acceptées ;
+    seul le cas « trop court » est refusé."""
+
+
 def _fernet() -> Fernet:
     cle = os.environ.get(VARIABLE_CLE)
     if not cle:
         raise CleChiffrementAbsenteError(f"{VARIABLE_CLE} non définie — voir docs/MANUEL_EXPLOITATION.md")
-    return Fernet(cle.encode("utf-8"))
+    try:
+        return cles_chiffrement.fernet_depuis(cle, nom_variable=VARIABLE_CLE)
+    except ValueError as exc:
+        raise CleChiffrementInvalideError(str(exc)) from exc
 
 
 def sauvegarder_chiffre(chemin_source: Path, dossier_destination: Path, *, horodatage=None) -> Path:

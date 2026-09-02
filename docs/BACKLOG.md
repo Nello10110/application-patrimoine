@@ -2903,6 +2903,47 @@ de développement, le job planifié y échouerait donc encore (proprement) aprè
 déploiement Docker, la variable est présente dans les fichiers `compose-*.yaml` sous forme de
 placeholder à remplacer.
 
+#### Y.3 — `mineur` · `S` · `P2` · `traité` (02/09/2026) — Accepter une phrase secrète usuelle comme clé de chiffrement
+
+Demande directe de l'utilisateur, après avoir proposé une chaîne de 64 caractères alphanumériques
+refusée par Fernet : « je préférerais avec un générateur classique de ce type de variable, c'est plus
+simple de générer des clés 64 caractères ». Friction réelle : les générateurs de secrets usuels
+(gestionnaires de mots de passe, `openssl rand`, interfaces de secrets des plateformes d'hébergement)
+ne produisent jamais le format exact qu'exige Fernet — 32 octets en base64 url-safe, soit 44 caractères
+terminés par `=`, obtenus seulement via `Fernet.generate_key()`.
+
+**Implémenté** : nouveau module partagé `services/cles_chiffrement.py`, utilisé par les deux
+consommateurs de Fernet (`backup_service` pour les sauvegardes chiffrées, `oidc_service` pour le
+`client_secret` SSO — la duplication aurait garanti leur divergence). Deux formes acceptées :
+
+- une **vraie clé Fernet** est utilisée **telle quelle** — condition non négociable de
+  rétrocompatibilité : la dériver à nouveau produirait une clé différente et rendrait illisibles
+  toutes les sauvegardes et tous les secrets déjà chiffrés ;
+- **toute autre phrase d'au moins 32 caractères** est dérivée par PBKDF2-HMAC-SHA256 (600 000
+  itérations, recommandation OWASP 2023).
+
+**Deux arbitrages explicités dans le code** plutôt que subis :
+
+- *Sel fixe.* Un sel aléatoire imposerait de le stocker à côté des données chiffrées — donc un fichier
+  annexe à ne jamais perdre sous peine de rendre toutes les sauvegardes illisibles : un mode de panne
+  pire que celui qu'on évite, pour un outil auto-hébergé. Un sel fixe n'affaiblit la dérivation que
+  face à un précalcul sur des phrases FAIBLES et répandues.
+- *Longueur minimale de 32 caractères.* C'est elle qui rend le sel fixe acceptable, et qui empêche de
+  protéger un patrimoine entier par « motdepasse ». Refus explicite en dessous, avec un message
+  nommant la variable et disant quoi faire — ce texte étant affiché tel quel comme statut de job dans
+  Réglages, souvent seul indice dont dispose l'exploitant.
+
+Corrigé au passage (même session) : une clé invalide ne produisait qu'un `ValueError` anglais et
+technique de la bibliothèque (`Fernet key must be 32 url-safe base64-encoded bytes.`), désormais
+remplacé par un message actionnable via `CleChiffrementInvalideError`.
+
+**Tests** : `test_cles_chiffrement.py` (12 tests), dont les deux propriétés vitales — la
+rétrocompatibilité (vérifiée aussi par un vrai chiffrement/déchiffrement, pas seulement par égalité
+d'octets) et le **déterminisme**, verrouillé jusqu'à la valeur exacte produite par une phrase de
+référence : toute modification du sel, de l'algorithme ou du nombre d'itérations rendrait illisibles
+les données déjà chiffrées et doit échouer ici, jamais passer inaperçue jusqu'à la prochaine
+restauration. `test_backup_service.py` mis à jour (les phrases usuelles sont désormais acceptées).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2973,7 +3014,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
-| **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2 | — | `M` | **Livré** 02/09/2026 (2/2) |
+| **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
 
 **Pourquoi cet ordre.**
 
