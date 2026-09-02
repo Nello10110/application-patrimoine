@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Holding
+from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Detenteur, Holding, QuotiteHolding
 from app.services.portfolio_reconstruction import EPSILON, compute_positions, rebuild_holdings
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding, make_transaction
@@ -467,6 +467,56 @@ def test_rebuild_holdings_sans_compte_rattache_reste_a_none(db):
 
     ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
     assert ligne.compte_id is None
+
+
+# ---------------------------------------------------------------------------
+# Préservation des quotités à la reconstruction (constaté le 02/09/2026)
+# ---------------------------------------------------------------------------
+
+
+def test_rebuild_holdings_preserve_les_quotites_par_detenteur(db):
+    """Même raison que le compte ci-dessus : le grand livre ne porte AUCUNE
+    information de propriété, et une ligne supprimée puis recréée reçoit un nouvel
+    id. Sans report, les `QuotiteHolding` restaient accrochées à l'ancien id — la
+    répartition disparaissait de l'écran (fiche de l'actif, part détenue/nette,
+    filtre par détenteur, déclaration de patrimoine) tout en laissant des lignes
+    orphelines en base. Régression d'autant plus sournoise que le compte, lui,
+    était bien reporté : rien ne signalait que la propriété ne l'était pas."""
+    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom="Alice", type="personne")
+    db.add(detenteur)
+    db.commit()
+    make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
+    db.add(QuotiteHolding(holding_id=ligne.id, detenteur_id=detenteur.id, quotite_pct=100.0))
+    db.commit()
+
+    make_transaction(db, transaction_id="tx-2", symbol="AAA", shares=5.0, amount=-600.0)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    ligne_recreee = db.query(Holding).filter(Holding.ticker == "AAA").one()
+    quotites = db.query(QuotiteHolding).all()
+    assert [(q.holding_id, q.quotite_pct) for q in quotites] == [(ligne_recreee.id, 100.0)]
+
+
+def test_rebuild_holdings_ne_laisse_aucune_quotite_orpheline(db):
+    """Un ticker qui SORT du portefeuille (position soldée) ne doit pas laisser sa
+    répartition derrière lui."""
+    detenteur = Detenteur(user_id=ID_UTILISATEUR_TEST, nom="Alice", type="personne")
+    db.add(detenteur)
+    db.commit()
+    make_transaction(db, symbol="AAA", shares=10.0, amount=-1000.0)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+    ligne = db.query(Holding).filter(Holding.ticker == "AAA").one()
+    db.add(QuotiteHolding(holding_id=ligne.id, detenteur_id=detenteur.id, quotite_pct=100.0))
+    db.commit()
+
+    # Vente intégrale : la position disparaît du portefeuille reconstruit.
+    make_transaction(db, transaction_id="tx-vente", symbol="AAA", shares=-10.0, amount=1200.0)
+    rebuild_holdings(db, ID_UTILISATEUR_TEST)
+
+    assert db.query(Holding).filter(Holding.ticker == "AAA").count() == 0
+    assert db.query(QuotiteHolding).count() == 0
 
 
 # ---------------------------------------------------------------------------

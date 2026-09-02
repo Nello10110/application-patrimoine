@@ -22,6 +22,7 @@ from .routers import (
     budget,
     comptes,
     detenteurs,
+    donnees,
     export,
     loans,
     market_data,
@@ -135,6 +136,10 @@ app.include_router(transactions.router, dependencies=_pas_invite)
 app.include_router(performance.router, dependencies=_pas_invite)
 app.include_router(settings.router, dependencies=_proprietaire_seul)
 app.include_router(export.router, dependencies=_proprietaire_seul)
+# Export/import de TOUTES les données du foyer (backlog X.6) : propriétaire seul —
+# exporter emporte tout le patrimoine dans un fichier, importer l'efface et le
+# remplace. Ni l'un ni l'autre n'a de sens pour un membre ou un invité.
+app.include_router(donnees.router, dependencies=_proprietaire_seul)
 app.include_router(reference.router, dependencies=_protegee)
 app.include_router(loans.router, dependencies=_protegee)
 app.include_router(patrimoine.router, dependencies=_protegee)

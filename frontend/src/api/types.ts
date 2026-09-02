@@ -141,6 +141,15 @@ export interface Etablissement {
   updated_at: string
 }
 
+/** Aperçu d'un fichier d'export avant import (backlog X.6) : décompte par table,
+ * pour annoncer ce qui va REMPLACER l'existant avant que l'utilisateur ne
+ * s'engage. `contenu` est volontairement un dictionnaire ouvert — les tables
+ * exportées évoluent avec le modèle, et l'écran se contente de les lister. */
+export interface ApercuImportDonnees {
+  exporte_le: string | null
+  contenu: Record<string, number>
+}
+
 // Compte structurel (compte courant, PEA, compte-titres, assurance-vie...) — écran
 // Comptes (backlog X.1), remplace l'ancienne annotation texte libre `Holding.compte`.
 // Un compte peut rattacher plusieurs `Holding` (ex. un compte-titres avec plusieurs

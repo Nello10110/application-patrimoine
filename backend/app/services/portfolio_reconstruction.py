@@ -64,7 +64,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from ..models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding, Transaction
+from ..models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding, QuotiteHolding, Transaction
 from . import historique_cache, preferences_service
 
 EPSILON = 1e-6
@@ -412,10 +412,38 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     }
 
     comptes_par_ticker: dict[str, int] = {}
+    # Répartition entre détenteurs, reportée pour la MÊME raison que le compte
+    # ci-dessus : le grand livre ne porte aucune information de propriété, et une
+    # ligne supprimée puis recréée reçoit un NOUVEL id. Sans ce report, les
+    # `QuotiteHolding` continuaient de pointer vers l'ancien id — la répartition
+    # disparaissait de l'écran tout en laissant des lignes orphelines en base
+    # (constaté le 02/09/2026 en construisant l'export de données).
+    quotites_par_ticker: dict[str, list[tuple[int, float]]] = {}
     for h in db.query(Holding).filter(Holding.user_id == user_id).all():
         if h.compte_id is not None and h.ticker not in comptes_par_ticker:
             comptes_par_ticker[h.ticker] = h.compte_id
+    # Quotités lues en TUPLES (colonnes explicites) et non en objets ORM : les lignes
+    # sont supprimées juste après, et les nouvelles réutiliseront les mêmes ids
+    # auto-incrémentés — des instances `QuotiteHolding` restées dans l'identity map de
+    # la session provoqueraient alors un conflit d'identité au flush (SAWarning). Une
+    # seule requête jointe, aussi, plutôt qu'une par ligne.
+    for ticker, detenteur_id, quotite_pct in (
+        db.query(Holding.ticker, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct)
+        .join(QuotiteHolding, QuotiteHolding.holding_id == Holding.id)
+        .filter(Holding.user_id == user_id)
+        .all()
+    ):
+        quotites_par_ticker.setdefault(ticker, []).append((detenteur_id, quotite_pct))
 
+    # Les quotités des lignes sur le point de disparaître sont retirées ici : elles
+    # sont réécrites plus bas sur les nouvelles lignes, et celles dont le ticker
+    # sort du portefeuille n'ont plus de raison d'exister.
+    ids_supprimes = [
+        h.id
+        for h in db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT).all()
+    ]
+    if ids_supprimes:
+        db.query(QuotiteHolding).filter(QuotiteHolding.holding_id.in_(ids_supprimes)).delete(synchronize_session=False)
     db.query(Holding).filter(Holding.user_id == user_id, Holding.origine == ORIGINE_RECONSTRUIT).delete()
 
     count = 0
@@ -432,22 +460,29 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
                 "livre (même ticker) : le grand livre fait foi.",
                 state.symbol,
             )
+            db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == ligne_manuelle.id).delete(synchronize_session=False)
             db.delete(ligne_manuelle)
             lignes_manuelles_remplacees += 1
 
         prix_revient = state.cost_basis / state.shares
-        db.add(
-            Holding(
-                user_id=user_id,
-                ticker=state.symbol,
-                nom=state.name,
-                quantite=state.shares,
-                prix_revient_moyen=prix_revient,
-                type_actif=state.asset_class,
-                origine=ORIGINE_RECONSTRUIT,
-                compte_id=comptes_par_ticker.get(state.symbol),
-            )
+        nouvelle_ligne = Holding(
+            user_id=user_id,
+            ticker=state.symbol,
+            nom=state.name,
+            quantite=state.shares,
+            prix_revient_moyen=prix_revient,
+            type_actif=state.asset_class,
+            origine=ORIGINE_RECONSTRUIT,
+            compte_id=comptes_par_ticker.get(state.symbol),
         )
+        db.add(nouvelle_ligne)
+        quotites_reportees = quotites_par_ticker.get(state.symbol)
+        if quotites_reportees:
+            db.flush()  # `nouvelle_ligne.id` n'existe qu'après le flush
+            db.add_all(
+                QuotiteHolding(holding_id=nouvelle_ligne.id, detenteur_id=detenteur_id, quotite_pct=pct)
+                for detenteur_id, pct in quotites_reportees
+            )
         count += 1
 
     db.commit()

@@ -67,6 +67,11 @@ vi.mock('../api/client', () => ({
     listHoldings: vi.fn().mockResolvedValue([]),
     listLoans: vi.fn().mockResolvedValue([]),
     downloadDeclarationPatrimoine: vi.fn(),
+    // Sauvegarde complète (backlog X.6) : `SauvegardeDonneesCard` est montée dans
+    // l'onglet Général — hors de l'objet de ce fichier, stubs neutres.
+    downloadExportDonnees: vi.fn(),
+    apercuImportDonnees: vi.fn(),
+    importerDonnees: vi.fn(),
     listSessions: vi.fn().mockResolvedValue([]),
     getAccessLog: vi.fn().mockResolvedValue([]),
     listHouseholdMembers: vi.fn().mockResolvedValue([]),

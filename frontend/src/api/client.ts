@@ -2,6 +2,7 @@ import { clearToken, getToken, notifyUnauthorized } from '../auth/tokenStorage'
 import type {
   AnalysisResponse,
   AccessLogEntry,
+  ApercuImportDonnees,
   AuthResponse,
   AuthUser,
   BudgetCible,
@@ -325,6 +326,20 @@ export const api = {
   // passe par `requestBlob` plutôt que `request` (JSON).
   downloadDeclarationPatrimoine: (input: DeclarationPatrimoineInput) =>
     requestBlob('/export/declaration-patrimoine.pdf', { method: 'POST', body: JSON.stringify(input) }),
+
+  // Export/import de TOUTES les données du foyer (backlog X.6) — sauvegarde
+  // portable et ré-importable, distincte des extraits CSV/PDF ci-dessus.
+  downloadExportDonnees: () => requestBlob('/donnees/export'),
+  apercuImportDonnees: (fichier: File) => {
+    const form = new FormData()
+    form.append('file', fichier)
+    return request<ApercuImportDonnees>('/donnees/import/apercu', { method: 'POST', body: form })
+  },
+  importerDonnees: (fichier: File) => {
+    const form = new FormData()
+    form.append('file', fichier)
+    return request<{ ok: boolean; contenu: Record<string, number> }>('/donnees/import', { method: 'POST', body: form })
+  },
 
   // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
   listDetenteurs: () => request<Detenteur[]>('/detenteurs'),

@@ -222,6 +222,22 @@ Trois granularités différentes plutôt qu'un fichier unique : les mélanger ob
 
 **Relevé de patrimoine PDF** (`GET /api/export/patrimoine.pdf`, roadmap Phase 3) : photographie mise en forme (reportlab), au format A4 — patrimoine net (actifs/passifs/net), répartition par classe d'actif, rentabilité globale (si des transactions existent), répartition par compte (si au moins une ligne est annotée). Ne recalcule rien : réutilise telles quelles `patrimoine_service.compute_patrimoine_net`, `performance_service.compute_performance` et `analysis_service.{holdings_financiers, value_holdings, repartition_par_compte}` — c'est une couche de mise en forme, pas une nouvelle source de vérité.
 
+#### 3.8.1 Sauvegarde complète : export et import de toutes les données (backlog § X.6)
+
+Troisième mécanisme d'export, à ne confondre ni avec les extraits CSV/PDF ci-dessus (**documents à lire**, partiels, non ré-importables — les relations y sont aplaties) ni avec `services/backup_service.py` (**copie du fichier SQLite entier**, chiffrée, côté serveur, pour l'exploitant : opaque, non portable, et contenant tous les foyers).
+
+`GET /api/donnees/export` produit un **JSON complet, portable et ré-importable** du patrimoine d'UN foyer (`services/donnees_service.py`) — pour migrer d'instance, se sauvegarder avant manipulation, ou repartir d'une machine neuve. Réservé au propriétaire (`_proprietaire_seul` dans `main.py`) : exporter emporte tout le patrimoine dans un fichier, importer l'efface et le remplace.
+
+**Périmètre.** 19 tables, déclarées dans `donnees_service.TABLES` (liste ordonnée : un parent y précède toujours ses enfants, l'insertion la parcourt à l'endroit et la suppression à l'envers). Sont exclus délibérément : les **caches reconstructibles** (`market_data_cache`, `fund_composition*`, `fund_top_holdings`, `ticker_resolution`, `historique_cache` — ils se régénèrent au premier rafraîchissement et alourdiraient le fichier sans rien apporter) et tout ce qui est **sensible ou propre à l'instance** (`users` et ses hachages de mots de passe, `auth_tokens`, `access_log_entries`, `liens_partage`/`partage_acces`, `perimetres_invites`, `scheduled_job_config`, `parametres` globaux). `user_id` n'est jamais exporté : le fichier est anonyme quant au foyer, ce qui le rend importable sous n'importe quelle identité — c'est précisément ce qui permet la migration d'instance.
+
+**Réécriture des identifiants.** Les `id` du fichier viennent d'une autre base et ne sont jamais réutilisés tels quels : l'import construit une correspondance `ancien id → nouvel id` table par table, dans l'ordre de `TABLES`, et réécrit chaque référence au passage (`references` de `TableExportee`). `categories_budget.parent_id` étant auto-référent, son import se fait en deux passes (racines puis enfants).
+
+**Import = remplacement total** (décision utilisateur du 02/09/2026) : tout le patrimoine du foyer est effacé puis reconstruit depuis le fichier. Pas de fusion — un « PEA » déjà présent poserait une question d'identité (doublon ? fusion ? écrasement ?) sans réponse évidente ; le remplacement, lui, est prévisible et **idempotent** (réimporter deux fois donne le même résultat qu'une fois). L'opération est **atomique** : la moindre erreur annule tout (`rollback`), un import à moitié appliqué étant pire que pas d'import du tout puisqu'il aurait déjà effacé l'existant. La validation du fichier (format, version) passe **avant toute écriture** : un fichier étranger ne peut jamais déclencher l'effacement.
+
+**Parcours en deux temps côté interface** (`SauvegardeDonneesCard.tsx`) : `POST /api/donnees/import/apercu` valide le fichier et renvoie son décompte par table **sans rien modifier**, ce qui permet d'annoncer le contenu à l'écran ; l'import réel n'a lieu qu'après confirmation explicite.
+
+**Versionnement** : `donnees_service.VERSION` est refusé s'il ne correspond pas. À incrémenter à tout changement non rétrocompatible ; l'ajout d'une table ou d'une colonne optionnelle reste compatible (les colonnes inconnues sont ignorées à l'import, les absentes prennent leur défaut).
+
 ### 3.9 Rafraîchissement des données de marché
 
 Deux tâches planifiées indépendantes (APScheduler), chacune configurable (activation, intervalle) depuis l'écran Réglages :

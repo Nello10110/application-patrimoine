@@ -405,6 +405,32 @@ Section visible uniquement par le propriétaire du compte.
 
 Trois boutons téléchargent chacun un fichier CSV (positions, transactions, synthèse de rentabilité), au format directement utilisable par Excel en français (séparateur point-virgule, décimale virgule). Un quatrième bouton télécharge un **relevé de patrimoine au format PDF** : une photographie mise en forme (patrimoine net, répartition par classe d'actif, rentabilité globale, répartition par compte), prête à imprimer ou archiver.
 
+### Sauvegarde complète des données
+
+À ne pas confondre avec les exports ci-dessus : ceux-là produisent des **documents à lire** (Excel,
+PDF), celui-ci produit un **fichier de sauvegarde ré-importable**. Un seul fichier JSON contenant tout
+le patrimoine du foyer — positions, transactions, immobilier, emprunts, comptes et établissements,
+détenteurs et répartitions, épargne, objectifs, salaires, budget et préférences.
+
+Deux usages : se faire une sauvegarde avant une manipulation risquée, ou déménager vers une autre
+installation de l'application.
+
+- **« Exporter mes données (JSON) »** : télécharge le fichier. Ne contient **ni** les cours et
+  compositions de fonds (ils se retéléchargent seuls), **ni** rien de sensible (mots de passe, jetons
+  de partage, journal d'accès). Il contient en revanche tous vos montants : conservez-le comme un
+  document confidentiel.
+- **« Restaurer depuis un fichier »** : choisir un fichier l'analyse d'abord et affiche son contenu
+  (combien de lignes, de comptes, d'emprunts...) **sans rien modifier**. C'est seulement après votre
+  confirmation que l'import s'exécute.
+
+> **L'import remplace tout.** Les données actuelles du foyer sont effacées et remplacées par le
+> contenu du fichier — ce n'est pas une fusion. Réimporter deux fois le même fichier donne donc le
+> même résultat qu'une fois. L'opération est atomique : en cas d'erreur, rien n'est modifié, le foyer
+> reste exactement dans son état d'avant.
+
+Un fichier qui n'est pas un export de cette application (ou produit par une version incompatible) est
+refusé à l'analyse, avant toute modification.
+
 ### Déclaration de patrimoine
 
 Contrairement au relevé PDF ci-dessus (figé, tout le patrimoine), la déclaration est **paramétrable** — pensée pour un dossier de prêt, une donation, une succession. Le bouton ouvre une fenêtre de sélection :

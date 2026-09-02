@@ -15,6 +15,7 @@ import JournalAccesCard from '../components/JournalAccesCard'
 import WelcomeWizard from '../components/onboarding/WelcomeWizard'
 import PartageCard from '../components/PartageCard'
 import PreferencesCard from '../components/PreferencesCard'
+import SauvegardeDonneesCard from '../components/SauvegardeDonneesCard'
 import SessionsCard from '../components/SessionsCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import SsoCard from '../components/SsoCard'
@@ -171,6 +172,10 @@ export default function ReglagesPage() {
               Déclaration de patrimoine (PDF)
             </button>
           </Card>
+          {/* Sauvegarde complète (backlog X.6) : carte distincte de « Exporter »
+              ci-dessus — celle-ci ne produit pas un document à lire mais un
+              fichier ré-importable, et porte l'action destructrice d'import. */}
+          <SauvegardeDonneesCard />
         </div>
       )}
 

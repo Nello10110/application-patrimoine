@@ -2811,6 +2811,57 @@ foyer entièrement vide (premier lancement), suppression du dernier actif, IDOR 
 objectif/quotités d'un autre foyer, quotités négatives ou >100 %, montants et durées d'emprunt
 aberrants, année de salaire aberrante, préférences invalides.
 
+### Y. Sauvegarde et portabilité des données (Lot 11, 02/09/2026)
+
+#### Y.1 — `majeur` · `M` · `P2` · `traité` (02/09/2026) — Export et import de toutes les données du foyer
+
+Demande directe de l'utilisateur, fonctionnalité « mise un peu sur le côté » jusque-là : pouvoir
+exporter et réimporter l'intégralité de ses données. Ni les extraits CSV/PDF existants (documents à
+lire, partiels, non ré-importables) ni la sauvegarde chiffrée du fichier SQLite (côté serveur, opaque,
+tous foyers confondus) ne couvraient ce besoin : se faire une sauvegarde avant manipulation, ou
+déménager vers une autre installation.
+
+**Trois décisions arbitrées avec l'utilisateur avant implémentation** (questionnaire, les trois
+options recommandées retenues) :
+1. **Import = remplacement total**, pas fusion — un « PEA » déjà présent poserait une question
+   d'identité (doublon ? fusion ? écrasement ?) sans réponse évidente. Le remplacement est
+   prévisible et idempotent.
+2. **JSON en clair**, pas de chiffrement — même logique que les exports CSV existants : c'est
+   l'utilisateur qui télécharge et stocke le fichier. Le manuel rappelle qu'il est confidentiel.
+3. **Tout le patrimoine du foyer**, budget compris.
+
+**Implémenté** : `services/donnees_service.py` (déclaratif — 19 tables décrites par une liste ordonnée
+`TABLES`, plutôt que 19 blocs écrits à la main : ajouter une table = ajouter une ligne) et
+`routers/donnees.py` (`GET /export`, `POST /import/apercu`, `POST /import`), réservés au propriétaire.
+Points structurants documentés en § 3.8.1 des spécifications : exclusion des caches reconstructibles et
+de tout ce qui est sensible, `user_id` jamais exporté (ce qui rend le fichier importable sous n'importe
+quelle identité — c'est ce qui permet la migration d'instance), réécriture systématique des
+identifiants à l'import, deux passes pour l'auto-référence `categories_budget.parent_id`, atomicité
+(`rollback` sur la moindre erreur) et validation du fichier **avant** toute écriture.
+
+Interface : `SauvegardeDonneesCard.tsx` (Réglages, onglet Général), avec un parcours d'import en deux
+temps délibéré — le fichier est d'abord analysé côté serveur (endpoint d'aperçu, qui ne modifie rien)
+pour afficher son contenu en clair, et l'import ne s'exécute qu'après confirmation explicite. Laisser
+une action irréversible se déclencher au simple choix d'un fichier aurait été une faute d'ergonomie sur
+une opération de cette portée.
+
+**Anomalie préexistante trouvée au passage** (en construisant le jeu de données de test) :
+`rebuild_holdings` reportait bien le `compte_id` d'une ligne reconstruite, mais **pas ses quotités**.
+Une ligne supprimée puis recréée par un import de transactions — ou par un simple changement de méthode
+de calcul du coût de revient, qui déclenche une reconstruction — recevait un nouvel id, et les
+`QuotiteHolding` restaient accrochées à l'ancien : la répartition entre détenteurs disparaissait de
+l'écran (fiche de l'actif, part détenue/nette, filtre par détenteur, déclaration de patrimoine) tout en
+laissant des lignes orphelines en base. D'autant plus sournois que le compte, lui, était bien reporté —
+rien ne signalait que la propriété ne l'était pas. Corrigé sur le même modèle que le compte (report par
+ticker), avec nettoyage des quotités d'un ticker qui sort du portefeuille.
+
+**Tests** : `test_donnees_export_import.py` (23 tests — aller-retour complet, préservation des
+relations après réécriture des identifiants, remplacement effectif, idempotence, isolation entre
+foyers, import d'un export d'un AUTRE foyer, survie des dates, fichiers invalides et endpoints HTTP),
+2 tests de non-régression sur `test_portfolio_reconstruction.py` (report des quotités, absence
+d'orphelines), 9 tests `SauvegardeDonneesCard.test.tsx`, 3 tests E2E `sauvegarde-donnees.spec.ts`
+(téléchargement réel, refus d'un fichier étranger, aller-retour complet en navigateur).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2881,6 +2932,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
+| **Lot 11 — Sauvegarde et portabilité** | Y.1 | — | `M` | **Livré** 02/09/2026 (1/1) |
 
 **Pourquoi cet ordre.**
 
