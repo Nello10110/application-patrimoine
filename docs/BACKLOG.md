@@ -2663,6 +2663,31 @@ Frontend : nouveaux tests (`ComptesPage`, `EtablissementsCard`), adaptation de t
 `Holding.compte` existantes vers le nouveau type objet, suite complète au vert (486 frontend),
 `oxlint`/`tsc -b`/`vite build` propres.
 
+#### X.2 — `mineur` · `S` · `P1` · `traité` (01/09/2026) — Vérification manuelle demandée par l'utilisateur : renommage d'un établissement manquant à l'IHM
+
+Demande directe de l'utilisateur en suite de X.1 : « vérifie que la création, modification,
+suppression de tous les champs sont bien réalisables par l'IHM ». Vérification faite en conditions
+réelles (backend + frontend de développement démarrés sur la vraie base de l'utilisateur, en lecture
+seule d'abord — migration `f50410e8aa4e` appliquée proprement, écran `/comptes` correct sur le
+patrimoine réel), puis un cycle complet création/modification/suppression rejoué via l'IHM (compte de
+test créé, renommé, rattaché à un établissement, ses quotités modifiées, puis tout supprimé).
+
+**Trouvé en vérifiant** : le nom d'un établissement se crée et se supprime depuis `EtablissementsCard`
+(onglet Détenteurs, Réglages), mais ne pouvait pas être **renommé** — aucun bouton « Modifier », alors
+que le backend l'exposait déjà (`PATCH /api/comptes/etablissements/{id}`, `update_etablissement`,
+jamais câblé côté frontend). Cohérent avec `DetenteursCard.tsx` (même limite, pas une régression
+propre à ce chantier), mais ne couvrait pas la demande explicite de vérification.
+
+**Corrigé** : édition inline (même patron que `CompteInfosForm`, sans modale) — bouton « Modifier »
+bascule la ligne en formulaire (`Enregistrer`/`Annuler`), appelle `api.updateEtablissement`. 6 tests
+Vitest nouveaux (`EtablissementsCard.test.tsx`, fichier qui n'existait pas non plus malgré la mention
+prévue en X.1 — corrigé dans le même geste), 6 tests nouveaux (`ComptesPage.test.tsx`, même
+constat pour la page principale). Deux tests E2E Playwright nouveaux, en conditions de navigateur
+réelles (pas de mock) : cycle établissement complet (Réglages) et cycle compte complet — création,
+renommage + rattachement d'établissement, modification de la répartition entre détenteurs,
+suppression — dans `comptes.spec.ts`/`reglages.spec.ts` (52 E2E au vert désormais, 498 frontend, 902
+backend inchangé).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2732,7 +2757,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
-| **Lot 10 — Comptes structurels** | X.1 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (1/1) |
+| **Lot 10 — Comptes structurels** | X.1, X.2 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (2/2) |
 
 **Pourquoi cet ordre.**
 

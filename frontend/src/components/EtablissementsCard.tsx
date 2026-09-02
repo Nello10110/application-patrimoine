@@ -16,6 +16,10 @@ export default function EtablissementsCard() {
   const [error, setError] = useState<string | null>(null)
   const [nom, setNom] = useState('')
   const [saving, setSaving] = useState(false)
+  // Renommage inline (édition en place, pas de modale) : `idEnEdition` porte
+  // l'établissement actuellement ouvert en édition, `null` sinon — un seul à la fois.
+  const [idEnEdition, setIdEnEdition] = useState<number | null>(null)
+  const [nomEdition, setNomEdition] = useState('')
 
   function load() {
     setLoading(true)
@@ -54,6 +58,28 @@ export default function EtablissementsCard() {
     }
   }
 
+  function commencerEdition(e: Etablissement) {
+    setIdEnEdition(e.id)
+    setNomEdition(e.nom)
+    setError(null)
+  }
+
+  async function handleRenommer(e: React.FormEvent, id: number) {
+    e.preventDefault()
+    if (!nomEdition.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      await api.updateEtablissement(id, nomEdition.trim())
+      setIdEnEdition(null)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <Card title="Établissements">
       <p className="mb-4 text-sm text-texte">
@@ -69,14 +95,38 @@ export default function EtablissementsCard() {
         <EtatVide titre="Aucun établissement déclaré." />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
-          {etablissements.map((e) => (
-            <li key={e.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="text-texte">{e.nom}</span>
-              <button onClick={() => handleDelete(e.id)} className="text-xs text-negatif hover:underline">
-                Supprimer
-              </button>
-            </li>
-          ))}
+          {etablissements.map((e) =>
+            idEnEdition === e.id ? (
+              <li key={e.id} className="py-2">
+                <form onSubmit={(ev) => handleRenommer(ev, e.id)} className="flex items-center gap-2">
+                  <input
+                    value={nomEdition}
+                    onChange={(ev) => setNomEdition(ev.target.value)}
+                    aria-label="Nom (édition)"
+                    className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                  />
+                  <button type="submit" disabled={saving || !nomEdition.trim()} className="text-xs text-accent hover:underline disabled:opacity-40">
+                    Enregistrer
+                  </button>
+                  <button type="button" onClick={() => setIdEnEdition(null)} className="text-xs text-texte-attenue hover:underline">
+                    Annuler
+                  </button>
+                </form>
+              </li>
+            ) : (
+              <li key={e.id} className="flex items-center justify-between py-2 text-sm">
+                <span className="text-texte">{e.nom}</span>
+                <span className="flex items-center gap-3">
+                  <button onClick={() => commencerEdition(e)} className="text-xs text-accent hover:underline">
+                    Modifier
+                  </button>
+                  <button onClick={() => handleDelete(e.id)} className="text-xs text-negatif hover:underline">
+                    Supprimer
+                  </button>
+                </span>
+              </li>
+            ),
+          )}
         </ul>
       )}
 

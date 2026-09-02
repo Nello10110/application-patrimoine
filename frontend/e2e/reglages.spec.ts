@@ -14,6 +14,28 @@ test.describe('Réglages', () => {
     await expect(page.getByText('Bob (Personne)')).toBeVisible()
   })
 
+  test('onglet Détenteurs : crée, renomme puis supprime un établissement (backlog X.1)', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Détenteurs' }).click()
+    const carteEtablissements = page.locator('div.rounded-xl.border.bg-surface').filter({ has: page.getByRole('heading', { name: 'Établissements' }) })
+    const nomEtablissement = `E2E Étab ${Date.now().toString().slice(-6)}`
+    const nomRenomme = `${nomEtablissement} (renommé)`
+
+    await carteEtablissements.getByPlaceholder("Caisse d'Épargne").fill(nomEtablissement)
+    await carteEtablissements.getByRole('button', { name: 'Ajouter' }).click()
+    const ligne = carteEtablissements.locator('li').filter({ hasText: nomEtablissement })
+    await expect(ligne).toBeVisible()
+
+    await ligne.getByRole('button', { name: 'Modifier' }).click()
+    const champEdition = carteEtablissements.getByLabel('Nom (édition)')
+    await champEdition.fill(nomRenomme)
+    await carteEtablissements.getByRole('button', { name: 'Enregistrer' }).click()
+    const ligneRenommee = carteEtablissements.locator('li').filter({ hasText: nomRenomme })
+    await expect(ligneRenommee).toBeVisible()
+
+    await ligneRenommee.getByRole('button', { name: 'Supprimer' }).click()
+    await expect(carteEtablissements.getByText(nomRenomme)).not.toBeVisible()
+  })
+
   test('onglet Comptes & sécurité : crée un membre du foyer', async ({ page }) => {
     await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
     await expect(page.getByText('Comptes du foyer')).toBeVisible()

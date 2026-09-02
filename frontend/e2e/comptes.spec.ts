@@ -47,6 +47,16 @@ test.describe('Comptes (backlog X.1)', () => {
     // déjà posé 60/40 Alice/Bob au niveau du compte (`_repartir_quotites_compte`).
     await expect(modale.getByRole('heading', { name: 'Répartition entre détenteurs' })).toBeVisible()
     await expect(modale.getByText(/S'applique à TOUTES les lignes de ce compte/)).toBeVisible()
+
+    // Soumission réelle (pas juste l'affichage) : remplace la répartition 60/40
+    // seedée par 70/30, confirme le message de succès — prouve que "Enregistrer"
+    // appelle bien `PUT /comptes/{id}/quotites` depuis l'IHM. `.last()` sur le
+    // bouton : la carte "Informations" plus haut dans la modale a elle aussi son
+    // propre bouton "Enregistrer" — celui de la répartition vient après dans le DOM.
+    await modale.getByLabel('Alice').fill('70')
+    await modale.getByLabel('Bob').fill('30')
+    await modale.getByRole('button', { name: 'Enregistrer' }).last().click()
+    await expect(modale.getByText('Répartition appliquée à toutes les lignes du compte.')).toBeVisible()
   })
 
   test('cliquer un compte mono-ligne (immobilier) ouvre le détail avec un renvoi vers sa fiche', async ({ page }) => {
@@ -58,5 +68,59 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(modale.getByRole('heading', { name: comptes.immobilier.nom }).first()).toBeVisible()
     await expect(modale.getByText(montantRegex(attendu.valeur_appartement, 2)).first()).toBeVisible()
     await expect(modale.getByRole('link', { name: new RegExp(holdings.appartement.ticker) })).toBeVisible()
+  })
+
+  test('cycle complet via l\'IHM : créer un compte, le renommer, le rattacher à un établissement puis le supprimer', async ({ page }) => {
+    const nomCompte = `E2E CRUD ${Date.now().toString().slice(-6)}`
+    const nomRenomme = `${nomCompte} (renommé)`
+
+    // Création (« Sans établissement » par défaut, aucun sélectionné).
+    const carteNouveauCompte = cardByTitle(page, 'Nouveau compte')
+    await carteNouveauCompte.getByPlaceholder('PEA, Livret A...').fill(nomCompte)
+    await carteNouveauCompte.getByRole('button', { name: '+ Nouveau compte' }).click()
+
+    const groupeSansEtablissement = cardByTitle(page, 'Sans établissement')
+    await expect(groupeSansEtablissement.getByText(nomCompte)).toBeVisible()
+
+    // Modification : renommage ET rattachement à l'établissement seedé (« Banque
+    // E2E ») — les deux champs de `CompteInfosForm` en une seule soumission. Le
+    // compte vient d'être créé sans aucune ligne rattachée : la carte "Répartition
+    // entre détenteurs" ne s'affiche pas encore (`QuotitesCompte`, nombreLignes=0),
+    // donc "Enregistrer" est ici sans ambiguïté (un seul bouton dans la modale).
+    await groupeSansEtablissement.getByText(nomCompte).click()
+    const modale = page.getByRole('dialog')
+    await modale.getByLabel('Nom du compte').fill(nomRenomme)
+    await modale.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
+    await modale.getByRole('button', { name: 'Enregistrer' }).click()
+
+    await expect(modale.getByRole('heading', { name: nomRenomme }).first()).toBeVisible()
+    // `.first()` : "Banque E2E" apparaît aussi comme `<option>` sélectionnée du
+    // `<select>` Établissement — l'en-tête (premier match dans le DOM) suffit à
+    // confirmer le rattachement.
+    await expect(modale.getByText('Banque E2E').first()).toBeVisible()
+    await modale.getByRole('button', { name: 'Fermer' }).click()
+
+    // La liste de `ComptesPage` n'est pas rafraîchie automatiquement à la fermeture
+    // de la modale (même comportement que `HoldingDetailModal`/`PortefeuillePage` —
+    // pas une régression propre à cet écran) : un rechargement reflète l'état
+    // réellement persisté côté serveur, plutôt que de dépendre du cache client.
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
+
+    // Le compte renommé a rejoint le groupe "Banque E2E" (déjà présent, seedé) et a
+    // quitté "Sans établissement".
+    const groupeBanque = cardByTitle(page, 'Banque E2E')
+    await expect(groupeBanque.getByText(nomRenomme)).toBeVisible()
+    await expect(groupeSansEtablissement.getByText(nomRenomme)).not.toBeVisible()
+
+    // Suppression : ne touche jamais l'établissement, ni les autres comptes du même
+    // groupe (PEA E2E, seedé, doit rester visible).
+    // `exact: true` : la ligne entière porte aussi `role="button"` (cliquable pour
+    // ouvrir le détail), son nom accessible inclut donc "Supprimer" en sous-chaîne —
+    // seul le VRAI bouton "Supprimer" imbriqué a ce nom exact.
+    const ligne = groupeBanque.locator('li').filter({ hasText: nomRenomme })
+    await ligne.getByRole('button', { name: 'Supprimer', exact: true }).click()
+    await expect(groupeBanque.getByText(nomRenomme)).not.toBeVisible()
+    await expect(groupeBanque.getByText('PEA E2E')).toBeVisible()
   })
 })
