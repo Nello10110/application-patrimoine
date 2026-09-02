@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from scripts import sauvegarde as sauvegarde_module
 
+from .. import database
 from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
 from . import backup_service, justetf_service, market_data_refresh, market_data_service
@@ -99,8 +100,17 @@ def _run_sauvegarde_chiffree() -> None:
     clé configurée, le job apparaît simplement en statut "erreur" dans Réglages."""
     db = SessionLocal()
     try:
+        # `database.DB_PATH`, pas `sauvegarde_module.chemin_base_source()` : c'est la
+        # base que l'application OUVRE RÉELLEMENT. Les deux divergent dès que le repli
+        # historique de `app/database.py` s'applique (`patrimoine.db` vide ou absent →
+        # `portfolio.db` conservé), cas fréquent sur une installation existante — le
+        # job sauvegardait alors un fichier vide au lieu des vraies données (constaté
+        # le 02/09/2026 sur l'installation de l'utilisateur : aucune sauvegarde
+        # produite depuis le 25/08, le contrôle d'intégrité rejetant à chaque fois une
+        # base sans table `holdings`). Sauvegarder autre chose que la base réellement
+        # utilisée n'a, par construction, aucun sens.
         chemin = backup_service.sauvegarder_chiffre(
-            sauvegarde_module.chemin_base_source(), sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT
+            database.DB_PATH, sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT
         )
         supprimees = backup_service.appliquer_retention_chiffree(
             sauvegarde_module.DOSSIER_SAUVEGARDES_PAR_DEFAUT, sauvegarde_module.RETENTION_PAR_DEFAUT

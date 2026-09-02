@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from app import database
 from app.database import SessionLocal
 from app.models import ScheduledJobConfig
 from app.services import backup_service, justetf_service, market_data_refresh, market_data_service, scheduler_service
@@ -303,6 +304,30 @@ def test_run_sauvegarde_chiffree_persiste_le_statut_ok(tmp_path, monkeypatch):
     assert config is not None
     assert config.dernier_statut == "ok"
     assert "patrimoine-xxx.db.enc" in config.dernier_message
+
+
+def test_run_sauvegarde_chiffree_sauvegarde_la_base_reellement_ouverte_par_lapplication(tmp_path, monkeypatch):
+    """Régression du 02/09/2026, silencieuse et coûteuse : le job passait
+    `sauvegarde.chemin_base_source()`, qui codait `backend/patrimoine.db` en dur,
+    alors que l'application peut ouvrir `portfolio.db` via le repli historique de
+    `app/database.py`. Sur l'installation de l'utilisateur, le job sauvegardait donc
+    un fichier VIDE — rejeté par le contrôle d'intégrité, donc aucune sauvegarde
+    produite pendant plus d'une semaine, sans autre signal qu'un statut « erreur »
+    dans un écran peu consulté.
+
+    Ce test verrouille l'invariant qui compte : on sauvegarde la base que
+    l'application ouvre, pas un chemin deviné."""
+    sources = []
+    monkeypatch.setattr(
+        backup_service,
+        "sauvegarder_chiffre",
+        lambda source, dossier, horodatage=None: (sources.append(source), tmp_path / "x.db.enc")[1],
+    )
+    monkeypatch.setattr(backup_service, "appliquer_retention_chiffree", lambda dossier, retention: [])
+
+    scheduler_service._run_sauvegarde_chiffree()
+
+    assert sources == [database.DB_PATH]
 
 
 def test_run_sauvegarde_chiffree_sans_cle_persiste_le_statut_erreur_sans_planter(monkeypatch):

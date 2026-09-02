@@ -84,6 +84,32 @@ def _ecrire_fichier_invalide(chemin: Path) -> None:
     chemin.write_bytes(b"ceci n'est pas une base SQLite")
 
 
+# --- résolution de la base source -----------------------------------------------
+
+
+def test_chemin_base_source_suit_la_variable_denvironnement(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATRIMOINE_DB", str(tmp_path / "ailleurs.db"))
+
+    assert sauvegarde.chemin_base_source() == tmp_path / "ailleurs.db"
+
+
+def test_chemin_base_source_est_celle_que_lapplication_ouvre_reellement(monkeypatch):
+    """Régression du 02/09/2026 : ce module codait `backend/patrimoine.db` en dur,
+    alors qu'`app/database.py` applique un repli historique vers `portfolio.db`
+    quand le premier est vide ou absent. Les deux divergeaient donc sur toute
+    installation existante — la sauvegarde planifiée copiait un fichier vide
+    pendant que l'application travaillait sur l'autre, sans aucune alerte au-delà
+    d'un statut « erreur » dans un écran peu consulté.
+
+    L'invariant à tenir est simple et vaut mieux que n'importe quel test de cas
+    particulier : sans `PATRIMOINE_DB`, la source de la sauvegarde est exactement
+    celle que l'application résout."""
+    monkeypatch.delenv("PATRIMOINE_DB", raising=False)
+    from app.database import _chemin_base_par_defaut
+
+    assert sauvegarde.chemin_base_source() == _chemin_base_par_defaut()
+
+
 # --- sauvegarder --------------------------------------------------------------
 
 

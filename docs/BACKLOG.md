@@ -2862,6 +2862,47 @@ foyers, import d'un export d'un AUTRE foyer, survie des dates, fichiers invalide
 d'orphelines), 9 tests `SauvegardeDonneesCard.test.tsx`, 3 tests E2E `sauvegarde-donnees.spec.ts`
 (téléchargement réel, refus d'un fichier étranger, aller-retour complet en navigateur).
 
+#### Y.2 — `majeur` · `S` · `P0` · `traité` (02/09/2026) — Bug : la sauvegarde planifiée ciblait la mauvaise base
+
+Question de l'utilisateur en suite de Y.1 : « au niveau des sauvegardes régulières, comment ça se passe
+actuellement ? est-ce que tu as testé la fonctionnalité de façon automatisée ? ». L'audit de l'état réel
+(plutôt qu'une réponse de mémoire) a révélé un bug silencieux.
+
+**Constat.** `app/database.py` applique un repli historique documenté : si `patrimoine.db` est vide ou
+absent alors que `portfolio.db` (nom d'avant le renommage du projet) contient de vraies données,
+l'application ouvre ce dernier — règle née d'un incident réel du 19/08/2026. `scripts/sauvegarde.py`,
+lui, codait `backend/patrimoine.db` **en dur**. Les deux divergeaient donc sur toute installation où le
+repli s'applique, ce qui était précisément le cas de l'installation de l'utilisateur : l'application
+travaillait sur `portfolio.db` (3,3 Mo, 51 positions) pendant que la sauvegarde ciblait un
+`patrimoine.db` de 0 octet.
+
+**Effet.** Le contrôle d'intégrité rejetait à chaque exécution une base sans table `holdings` — donc
+aucune sauvegarde produite, plutôt qu'une sauvegarde vide silencieuse (le garde-fou a joué son rôle).
+Mais l'échec ne se voyait que dans un statut « erreur » de l'écran Réglages → Automatisations, peu
+consulté : le dossier `sauvegardes/` ne contenait **aucun fichier `.enc`**, et ses 10 fichiers `.db`
+étaient tous des sauvegardes manuelles CLI datant du 20 au 25/08.
+
+**Corrigé** en supprimant la divergence à la racine plutôt qu'en dupliquant le critère (qui aurait
+rediivergé à la première évolution) : le job planifié sauvegarde désormais `database.DB_PATH` — la base
+que l'application ouvre réellement — et `sauvegarde.chemin_base_source()` délègue à
+`app.database._chemin_base_par_defaut()` via un import local protégé, préservant l'autonomie CLI
+revendiquée du script si le paquet applicatif n'est pas importable.
+
+**Réponse à la seconde question** (la couverture automatisée existante) : elle était bonne sur les
+briques — 30 tests couvrant l'intégrité de la copie, la rétention, la restauration, le chiffrement, le
+statut du job, l'absence de clé — mais aucun ne vérifiait l'invariant le plus élémentaire : *sauvegarde-t-on
+la bonne base ?* Chaque test fournissait lui-même son chemin source, ce qui masquait exactement le
+défaut. 3 tests ajoutés pour le verrouiller (`test_sauvegarde.py` : résolution identique à celle de
+l'application, respect de `PATRIMOINE_DB` ; `test_scheduler_service.py` : le job passe bien
+`database.DB_PATH`), et une procédure de vérification en 3 commandes ajoutée au manuel d'exploitation
+(§ 8.1) — dont le contrôle « y a-t-il des `.enc` récents ? », seul indicateur fiable que la sauvegarde
+automatique tourne vraiment.
+
+**Reste à faire côté exploitation, hors code** : `PATRIMOINE_BACKUP_KEY` n'est pas définie sur le poste
+de développement, le job planifié y échouerait donc encore (proprement) après ce correctif. En
+déploiement Docker, la variable est présente dans les fichiers `compose-*.yaml` sous forme de
+placeholder à remplacer.
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2932,7 +2973,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
-| **Lot 11 — Sauvegarde et portabilité** | Y.1 | — | `M` | **Livré** 02/09/2026 (1/1) |
+| **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2 | — | `M` | **Livré** 02/09/2026 (2/2) |
 
 **Pourquoi cet ordre.**
 

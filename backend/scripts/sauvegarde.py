@@ -72,11 +72,30 @@ class SauvegardeInvalideError(RuntimeError):
 
 
 def chemin_base_source() -> Path:
-    """Chemin de la base SQLite source, piloté par `PATRIMOINE_DB` comme le
-    reste de l'application (`app/database.py`) ; à défaut, l'emplacement
-    historique `backend/patrimoine.db`."""
+    """Chemin de la base SQLite source, piloté par `PATRIMOINE_DB` comme le reste de
+    l'application ; à défaut, EXACTEMENT la même résolution que `app/database.py`.
+
+    Cette délégation n'est pas cosmétique : `app/database.py` applique un repli
+    historique (`patrimoine.db` vide ou absent → `portfolio.db` conservé, cf. son
+    docstring et l'incident du 19/08/2026). Ce module se contentait auparavant de
+    `backend/patrimoine.db` en dur — sur une installation où le repli s'applique, la
+    sauvegarde ciblait donc un fichier vide pendant que l'application travaillait sur
+    l'autre. Réimplémenter le critère ici le ferait rediverger à la première
+    évolution : on réutilise la fonction d'origine, jamais une copie.
+
+    L'import est local et protégé pour préserver l'autonomie revendiquée de ce script
+    (utilisable en CLI sans dépendre d'`app`) : si le paquet applicatif n'est pas
+    importable, on retombe sur l'emplacement par défaut historique.
+    """
     valeur = os.environ.get("PATRIMOINE_DB")
-    return Path(valeur) if valeur else _CHEMIN_BASE_PAR_DEFAUT
+    if valeur:
+        return Path(valeur)
+    try:
+        from app.database import _chemin_base_par_defaut  # noqa: PLC0415 - cf. docstring
+
+        return _chemin_base_par_defaut()
+    except Exception:  # noqa: BLE001 - autonomie CLI : jamais bloquant
+        return _CHEMIN_BASE_PAR_DEFAUT
 
 
 def _copier_via_api_sauvegarde_sqlite(source: Path, destination: Path) -> None:
