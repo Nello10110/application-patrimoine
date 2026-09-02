@@ -2752,6 +2752,65 @@ le chantier X.1 n'avait aucune couverture Vitest dédiée), 2 tests `HoldingDeta
 `holding-detail.spec.ts` : badge de compte, lien vérifié). Suite complète au vert (902 backend, 515
 frontend, E2E complet).
 
+#### X.5 — `majeur` · `L` · `P0` · `traité` (02/09/2026) — Recette complète : saisies incohérentes, suppressions référencées, guidage utilisateur
+
+Demande directe de l'utilisateur, la veille de présentations à des tiers : « teste absolument toute
+l'application de fond en comble », avec des données cohérentes ET incohérentes, en simulant « tous les
+comportements utilisateurs possibles avec leurs besoins, leurs envies, leurs incompréhensions », et en
+profitant de ces tests pour ajouter du guidage ergonomique.
+
+**Méthode** : plutôt que de rejouer les parcours nominaux (déjà couverts par une spec E2E par écran),
+deux campagnes ciblées sur ce qu'aucun parcours nominal n'exerce — les entrées dégradées et les
+suppressions d'entités encore référencées — puis un balayage de tous les écrans. Les tests ont été
+écrits comme des ATTENTES de bon comportement, sans regarder le code d'abord : leurs échecs sont donc
+les anomalies réelles, pas une description de l'existant.
+
+**11 anomalies trouvées et corrigées** :
+
+| # | Anomalie | Gravité |
+|---|---|---|
+| 1-3 | Créer un compte, un établissement, ou renommer un compte vers un nom déjà pris → `IntegrityError` SQLAlchemy non interceptée, donc **HTTP 500 avec trace brute** | Bloquante en démo |
+| 4 | Deux détenteurs homonymes acceptés silencieusement — indiscernables ensuite dans TOUS les sélecteurs de quotités et dans le filtre par détenteur | Majeure |
+| 5 | Date d'acquisition dans le futur acceptée → rendement annualisé sur durée négative, graphiques ancrés après « aujourd'hui » | Majeure |
+| 6 | Valorisation datée du futur acceptée → devient la « valeur courante » (le point le plus récent gagne) et fausse tout le patrimoine net | Majeure |
+| 7-8 | Échéance d'objectif illisible ou déjà passée acceptée → contribution mensuelle nécessaire divisée par un nombre de mois nul ou négatif | Majeure |
+| 9 | Supprimer un actif laissait son emprunt rattaché pointer vers une ligne inexistante (`Loan.holding_id` pendant) | Majeure |
+| 10 | Supprimer un actif laissait ses **quotités, historique de valorisation, fiche immobilier et rattachements d'objectif** orphelins — aucune des 5 relations vers `holdings.id` n'avait de `cascade` déclaré | Majeure |
+| 11 | Supprimer un compte se faisait **sans confirmation**, depuis un bouton posé sur une ligne elle-même cliquable — seul écran destructeur de l'application à ne pas confirmer | Majeure en démo |
+
+Le nettoyage des références (§10) distingue deux traitements selon ce que la donnée fille REPRÉSENTE :
+ce qui n'a de sens que par l'actif disparaît avec lui (quotités, historique, fiche immobilier,
+rattachement d'objectif) ; un `Loan` SURVIT (un emprunt reste dû même si le bien sort du patrimoine)
+et n'est que détaché — même doctrine que `comptes_service.delete_compte`.
+
+**Guidage ergonomique ajouté** (demande explicite), ciblé sur les incompréhensions réellement
+identifiables plutôt que saupoudré :
+- Les trois vues **Net / Brut / Financier** portent chacune leur explication (c'est la différence
+  entre elles qui est obscure, pas la notion de « vue » — d'où une infobulle par option).
+- **« Part détenue » vs « Part nette »** expliquées sur la fiche d'un actif : deux notions proches,
+  systématiquement confondues, qui ne diffèrent que si un emprunt est rattaché.
+- Le bucket **« Sans compte »** explique qu'il n'est pas un compte (l'utilisateur cherchait à le
+  renommer ou le supprimer).
+- La confusion **Comptes / Épargne** levée directement sur l'écran, plus seulement dans le manuel.
+- Champs **Nom / Établissement** du formulaire de compte documentés (`InfoBulle`).
+- Filtre **Détenteur** et bascule **masquer les montants** expliqués.
+- Bouton **« Ajouter »** du formulaire de position désactivé tant que ticker et quantité manquent,
+  avec un `title` disant quoi remplir — auparavant le clic ne produisait *aucun* retour (`handleAdd`
+  retournait silencieusement), l'utilisateur ne savait pas ce qu'on attendait de lui.
+
+**TNR ajoutées** : `test_robustesse_saisies.py` (48 tests — une entrée dégradée par entité
+saisissable), `test_robustesse_suppressions.py` (10 tests, dont un qui couvre les 5 tables
+référençant `holdings.id` d'un coup : une 6ᵉ table ajoutée sans nettoyage le fera échouer),
+`e2e/parcours-utilisateur.spec.ts` (10 tests : messages d'erreur compréhensibles, saisies
+incohérentes, et vérification que le guidage promis est réellement à l'écran),
+`e2e/sweep-ecrans.spec.ts` (15 tests : chaque écran s'affiche, **zéro erreur console**, aucune trace
+technique visible, aucune URL inconnue ne produit d'écran blanc).
+
+**Vérifié aussi, sans anomalie** : import de fichier vide ou binaire (PDF envoyé au lieu du CSV),
+foyer entièrement vide (premier lancement), suppression du dernier actif, IDOR sur compte/emprunt/
+objectif/quotités d'un autre foyer, quotités négatives ou >100 %, montants et durées d'emprunt
+aberrants, année de salaire aberrante, préférences invalides.
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2821,7 +2880,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
-| **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (4/4) |
+| **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
 
 **Pourquoi cet ordre.**
 

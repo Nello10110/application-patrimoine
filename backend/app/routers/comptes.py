@@ -54,7 +54,12 @@ def list_etablissements(db: Session = Depends(get_db), current_user: User = Depe
 
 @router.post("/etablissements", response_model=EtablissementOut)
 def create_etablissement(payload: EtablissementCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
-    return comptes_service.create_etablissement(db, auth_service.id_foyer(current_user), payload.nom)
+    try:
+        return comptes_service.create_etablissement(db, auth_service.id_foyer(current_user), payload.nom)
+    except ValueError as exc:
+        # Doublon de nom : message exploitable plutôt qu'une `IntegrityError` brute
+        # en 500 (recette du 02/09/2026), même contrat que `set_compte_quotites`.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/etablissements/{etablissement_id}", response_model=EtablissementOut)
@@ -67,7 +72,10 @@ def update_etablissement(
     etablissement = db.get(Etablissement, etablissement_id)
     if etablissement is None or etablissement.user_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Établissement introuvable")
-    return comptes_service.update_etablissement(db, etablissement, **payload.model_dump(exclude_unset=True))
+    try:
+        return comptes_service.update_etablissement(db, etablissement, **payload.model_dump(exclude_unset=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/etablissements/{etablissement_id}")
@@ -94,7 +102,10 @@ def create_compte(payload: CompteCreate, db: Session = Depends(get_db), current_
         etablissement = db.get(Etablissement, payload.etablissement_id)
         if etablissement is None or etablissement.user_id != user_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
-    return comptes_service.create_compte(db, user_id, payload.nom, payload.etablissement_id)
+    try:
+        return comptes_service.create_compte(db, user_id, payload.nom, payload.etablissement_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/{compte_id}", response_model=CompteOut)
@@ -108,7 +119,10 @@ def update_compte(compte_id: int, payload: CompteUpdate, db: Session = Depends(g
         etablissement = db.get(Etablissement, updates["etablissement_id"])
         if etablissement is None or etablissement.user_id != user_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
-    return comptes_service.update_compte(db, compte, **updates)
+    try:
+        return comptes_service.update_compte(db, compte, **updates)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/{compte_id}")

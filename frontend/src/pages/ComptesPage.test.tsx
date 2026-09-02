@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Compte, CompteAvecSolde, Etablissement } from '../api/types'
@@ -106,7 +106,7 @@ describe('ComptesPage', () => {
     expect(modale).toHaveTextContent('42')
   })
 
-  it('supprimer un compte appelle deleteCompte puis recharge la liste', async () => {
+  it('supprimer un compte demande confirmation avant d\'appeler deleteCompte', async () => {
     vi.mocked(api.listComptesAvecSolde).mockResolvedValueOnce([ligne({ compte: compte({ id: 42, nom: 'PEA' }) })]).mockResolvedValue([])
     vi.mocked(api.deleteCompte).mockResolvedValue({ ok: true })
     render(<ComptesPage />)
@@ -114,9 +114,31 @@ describe('ComptesPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
 
+    // Rien n'est supprimé tant que la confirmation n'est pas validée.
+    const modale = await screen.findByRole('dialog')
+    expect(api.deleteCompte).not.toHaveBeenCalled()
+    // La modale rassure sur le sort des lignes rattachées (elles ne disparaissent pas).
+    expect(within(modale).getByText(/ne sont pas supprimées/)).toBeInTheDocument()
+    // Le clic sur "Supprimer" n'a jamais ouvert la modale de DÉTAIL (stopPropagation).
+    expect(screen.queryByTestId('modale-detail')).not.toBeInTheDocument()
+
+    fireEvent.click(within(modale).getByRole('button', { name: 'Supprimer' }))
+
     await screen.findByText('Aucun compte déclaré.')
     expect(api.deleteCompte).toHaveBeenCalledWith(42)
-    // Le clic sur "Supprimer" n'a jamais ouvert la modale de détail (stopPropagation).
-    expect(screen.queryByTestId('modale-detail')).not.toBeInTheDocument()
+  })
+
+  it('annuler la confirmation ne supprime rien', async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: compte({ id: 42, nom: 'PEA' }) })])
+    render(<ComptesPage />)
+    await screen.findByText('PEA')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const modale = await screen.findByRole('dialog')
+    fireEvent.click(within(modale).getByRole('button', { name: 'Annuler' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.deleteCompte).not.toHaveBeenCalled()
+    expect(screen.getByText('PEA')).toBeInTheDocument()
   })
 })

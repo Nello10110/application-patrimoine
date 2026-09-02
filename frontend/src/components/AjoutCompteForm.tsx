@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import EtatErreur from './EtatErreur'
+import InfoBulle from './InfoBulle'
+
+const AIDE_NOM_COMPTE =
+  "Le nom que VOUS lui donnez, pas un numéro de compte : « PEA Boursorama », « Livret A », « Appartement Lyon ». C'est ce nom qui apparaîtra partout dans l'application."
+const AIDE_ETABLISSEMENT =
+  "Facultatif : la banque ou le courtier qui héberge ce compte, uniquement pour regrouper vos comptes à l'écran. Un établissement se déclare d'abord dans Réglages, onglet Détenteurs."
 
 /** Formulaire d'ajout d'un compte (nom + établissement optionnel) — patron
  * `DetenteursCard.tsx`. Extrait de `ComptesPage.tsx` pour être réutilisé tel quel
@@ -32,7 +38,9 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
   return (
     <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
       <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Nom
+        <span className="inline-flex items-center gap-1">
+          Nom <InfoBulle texte={AIDE_NOM_COMPTE} />
+        </span>
         <input
           value={nom}
           onChange={(e) => setNom(e.target.value)}
@@ -41,7 +49,9 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
         />
       </label>
       <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Établissement
+        <span className="inline-flex items-center gap-1">
+          Établissement <InfoBulle texte={AIDE_ETABLISSEMENT} />
+        </span>
         <select
           value={etablissementId}
           onChange={(e) => setEtablissementId(e.target.value)}

@@ -15,11 +15,34 @@ from . import analysis_service, detenteurs_service
 COMPTE_SANS_COMPTE = "Sans compte"
 
 
+def _verifier_nom_etablissement_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
+    """`UniqueConstraint(user_id, nom)` est la garantie de dernier recours ; sans ce
+    contrôle en amont, un doublon remonterait en `IntegrityError` SQLAlchemy non
+    interceptée, donc en HTTP 500 avec une trace brute au lieu d'un message
+    exploitable (recette du 02/09/2026). `id_exclu` : le renommage d'un
+    établissement vers son propre nom ne doit pas se refuser lui-même."""
+    requete = db.query(Etablissement).filter(Etablissement.user_id == user_id, Etablissement.nom == nom)
+    if id_exclu is not None:
+        requete = requete.filter(Etablissement.id != id_exclu)
+    if requete.first() is not None:
+        raise ValueError(f"Un établissement nommé « {nom} » existe déjà.")
+
+
+def _verifier_nom_compte_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
+    """Même rôle que `_verifier_nom_etablissement_libre`, pour les comptes."""
+    requete = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom)
+    if id_exclu is not None:
+        requete = requete.filter(Compte.id != id_exclu)
+    if requete.first() is not None:
+        raise ValueError(f"Un compte nommé « {nom} » existe déjà.")
+
+
 def list_etablissements(db: Session, user_id: int) -> list[Etablissement]:
     return db.query(Etablissement).filter(Etablissement.user_id == user_id).order_by(Etablissement.nom).all()
 
 
 def create_etablissement(db: Session, user_id: int, nom: str) -> Etablissement:
+    _verifier_nom_etablissement_libre(db, user_id, nom)
     etablissement = Etablissement(user_id=user_id, nom=nom)
     db.add(etablissement)
     db.commit()
@@ -28,6 +51,8 @@ def create_etablissement(db: Session, user_id: int, nom: str) -> Etablissement:
 
 
 def update_etablissement(db: Session, etablissement: Etablissement, **champs) -> Etablissement:
+    if champs.get("nom") is not None:
+        _verifier_nom_etablissement_libre(db, etablissement.user_id, champs["nom"], id_exclu=etablissement.id)
     for cle, valeur in champs.items():
         if valeur is not None:
             setattr(etablissement, cle, valeur)
@@ -50,6 +75,7 @@ def list_comptes(db: Session, user_id: int) -> list[Compte]:
 
 
 def create_compte(db: Session, user_id: int, nom: str, etablissement_id: int | None) -> Compte:
+    _verifier_nom_compte_libre(db, user_id, nom)
     compte = Compte(user_id=user_id, nom=nom, etablissement_id=etablissement_id)
     db.add(compte)
     db.commit()
@@ -58,6 +84,8 @@ def create_compte(db: Session, user_id: int, nom: str, etablissement_id: int | N
 
 
 def update_compte(db: Session, compte: Compte, **champs) -> Compte:
+    if champs.get("nom") is not None:
+        _verifier_nom_compte_libre(db, compte.user_id, champs["nom"], id_exclu=compte.id)
     for cle, valeur in champs.items():
         if valeur is not None or cle == "etablissement_id":
             # `etablissement_id=None` explicite = dérattacher (même contrat que

@@ -20,7 +20,12 @@ def list_detenteurs(db: Session = Depends(get_db), current_user: User = Depends(
 
 @router.post("", response_model=DetenteurOut)
 def create_detenteur(payload: DetenteurCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return detenteurs_service.create_detenteur(db, auth_service.id_foyer(current_user), payload.nom, payload.type)
+    try:
+        return detenteurs_service.create_detenteur(db, auth_service.id_foyer(current_user), payload.nom, payload.type)
+    except ValueError as exc:
+        # Doublon de nom : deux détenteurs homonymes seraient indiscernables dans
+        # tous les sélecteurs de quotités (recette du 02/09/2026).
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/{detenteur_id}", response_model=DetenteurOut)
@@ -33,7 +38,10 @@ def update_detenteur(
     detenteur = db.get(Detenteur, detenteur_id)
     if detenteur is None or detenteur.user_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Détenteur introuvable")
-    return detenteurs_service.update_detenteur(db, detenteur, **payload.model_dump(exclude_unset=True))
+    try:
+        return detenteurs_service.update_detenteur(db, detenteur, **payload.model_dump(exclude_unset=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/{detenteur_id}")

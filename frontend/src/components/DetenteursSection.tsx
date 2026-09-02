@@ -87,8 +87,18 @@ export default function DetenteursSection({
           <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
             <th className="py-2 pr-4">Détenteur</th>
             <th className="py-2 pr-4">Quotité</th>
-            <th className="py-2 pr-4 text-right">Part détenue</th>
-            <th className="py-2 pr-4 text-right">Part nette</th>
+            {/* « Part détenue » / « Part nette » : deux notions proches et
+                systématiquement confondues sans explication (recette du
+                02/09/2026) — elles ne diffèrent QUE si un emprunt est rattaché. */}
+            <th className="py-2 pr-4 text-right" title="Valeur de l'actif revenant à ce détenteur, au prorata de sa quotité, SANS déduire l'emprunt.">
+              Part détenue
+            </th>
+            <th
+              className="py-2 pr-4 text-right"
+              title="Part détenue MOINS la part du capital restant dû de l'emprunt rattaché. Identique à la part détenue si aucun emprunt n'est rattaché à cette ligne."
+            >
+              Part nette
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bordure">

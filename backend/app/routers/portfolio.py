@@ -15,7 +15,10 @@ from ..models import (
     ROLE_PROPRIETAIRE,
     Compte,
     Holding,
+    HoldingImmobilierDetail,
     HoldingValuationHistory,
+    Loan,
+    ObjectifActif,
     QuotiteHolding,
     User,
 )
@@ -503,7 +506,33 @@ def delete_holding(holding_id: int, db: Session = Depends(get_db), current_user:
     holding = db.get(Holding, holding_id)
     if holding is None or holding.user_id != auth_service.id_foyer(current_user):
         raise HTTPException(status_code=404, detail="Ligne introuvable")
+    _detacher_references_avant_suppression(db, holding)
     db.delete(holding)
     db.commit()
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True}
+
+
+def _detacher_references_avant_suppression(db: Session, holding: Holding) -> None:
+    """Nettoie les 5 tables qui référencent `holdings.id` (recette du 02/09/2026).
+
+    Aucune de ces relations n'est déclarée avec un `cascade` SQLAlchemy : sans ce
+    nettoyage explicite, supprimer une ligne laissait des lignes filles pendantes —
+    quotités rattachées à un actif disparu (répartition fantôme dans les calculs de
+    part détenue/nette), historique de valorisation et fiche immobilier orphelins,
+    rattachement d'objectif vers un actif inexistant.
+
+    Deux traitements distincts, selon ce que la donnée fille REPRÉSENTE :
+
+    - Ce qui n'a de sens que par l'actif (quotités, historique de valorisation,
+      fiche immobilier, rattachement à un objectif) disparaît avec lui.
+    - Un `Loan`, lui, SURVIT : un emprunt reste dû même si le bien qu'il finançait
+      sort du patrimoine (vente, erreur de saisie). Il est seulement détaché —
+      même doctrine que `comptes_service.delete_compte`, où un rattachement retombe
+      à `None` sans jamais emporter l'entité rattachée.
+    """
+    db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).delete()
+    db.query(HoldingValuationHistory).filter(HoldingValuationHistory.holding_id == holding.id).delete()
+    db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id == holding.id).delete()
+    db.query(ObjectifActif).filter(ObjectifActif.holding_id == holding.id).delete()
+    db.query(Loan).filter(Loan.holding_id == holding.id).update({"holding_id": None})

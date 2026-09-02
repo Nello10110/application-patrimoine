@@ -7,11 +7,32 @@ import { dateVersISO } from '../utils/format'
 import { PERIODES_RELATIVES, type PeriodeRelative } from '../utils/periode'
 import { IconOeil, IconOeilBarre } from './icons'
 
-const OPTIONS_LENTILLE: { valeur: Lentille; label: string }[] = [
-  { valeur: 'net', label: 'Net' },
-  { valeur: 'brut', label: 'Brut' },
-  { valeur: 'financier', label: 'Financier' },
+// `aide` : infobulle par option plutôt qu'une seule sur le groupe — c'est la
+// DIFFÉRENCE entre les trois qui est obscure pour un nouvel utilisateur, pas la
+// notion de « vue » (recette du 02/09/2026).
+const OPTIONS_LENTILLE: { valeur: Lentille; label: string; aide: string }[] = [
+  {
+    valeur: 'net',
+    label: 'Net',
+    aide: 'Patrimoine net : tout ce que vous possédez, MOINS ce que vous devez (emprunts en cours). C\'est votre valeur nette réelle.',
+  },
+  {
+    valeur: 'brut',
+    label: 'Brut',
+    aide: "Patrimoine brut : tout ce que vous possédez, SANS déduire les emprunts. Un bien à crédit y compte pour sa valeur entière.",
+  },
+  {
+    valeur: 'financier',
+    label: 'Financier',
+    aide: 'Portefeuille financier seul : actions, ETF, crypto, obligations. Exclut immobilier, épargne et véhicules.',
+  },
 ]
+
+const AIDE_DETENTEUR =
+  "Filtre tout l'écran sur la part d'une seule personne/société du foyer, selon les répartitions (quotités) que vous avez saisies. « Foyer » = tout le patrimoine, sans filtre."
+
+const AIDE_MONTANTS_MASQUES =
+  'Remplace tous les montants par des points — pratique pour une démonstration, une capture d\'écran ou une consultation en public. Les pourcentages restent visibles.'
 
 const VALEUR_PERSONNALISEE = 'personnalisee'
 
@@ -39,6 +60,7 @@ export default function BarreControles() {
             type="button"
             onClick={() => setLentille(option.valeur)}
             aria-pressed={lentille === option.valeur}
+            title={option.aide}
             className={`rounded px-2.5 py-1 text-sm font-medium transition-colors ${
               lentille === option.valeur ? 'bg-texte text-surface' : 'text-texte-attenue hover:text-texte'
             }`}
@@ -54,6 +76,7 @@ export default function BarreControles() {
           <select
             value={detenteurId ?? ''}
             onChange={(e) => setDetenteurId(e.target.value === '' ? null : Number(e.target.value))}
+            title={AIDE_DETENTEUR}
             className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
           >
             <option value="">Foyer</option>
@@ -110,7 +133,7 @@ export default function BarreControles() {
         type="button"
         onClick={toggleMontantsMasques}
         aria-pressed={montantsMasques}
-        title={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants (Ctrl/⌘ + Maj + M)`}
+        title={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants (Ctrl/⌘ + Maj + M). ${AIDE_MONTANTS_MASQUES}`}
         className="ml-auto flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-texte-attenue hover:bg-surface-elevee"
       >
         {montantsMasques ? <IconOeilBarre className="h-4 w-4" /> : <IconOeil className="h-4 w-4" />}

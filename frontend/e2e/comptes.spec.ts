@@ -127,6 +127,12 @@ test.describe('Comptes (backlog X.1)', () => {
     // seul le VRAI bouton "Supprimer" imbriqué a ce nom exact.
     const ligne = groupeBanque.locator('li').filter({ hasText: nomRenomme })
     await ligne.getByRole('button', { name: 'Supprimer', exact: true }).click()
+    // Confirmation obligatoire depuis la recette du 02/09/2026 (le bouton est sur
+    // une ligne elle-même cliquable) — la modale rappelle le sort des lignes.
+    const confirmation = page.getByRole('dialog', { name: 'Supprimer ce compte ?' })
+    await expect(confirmation).toBeVisible()
+    await confirmation.getByRole('button', { name: 'Supprimer' }).click()
+
     await expect(groupeBanque.getByText(nomRenomme)).not.toBeVisible()
     await expect(groupeBanque.getByText('PEA E2E')).toBeVisible()
   })

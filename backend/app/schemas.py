@@ -23,6 +23,25 @@ MESSAGE_PRIX_NON_NEGATIF = "Le prix de revient moyen ne peut pas être négatif"
 MESSAGE_VALEUR_ESTIMEE_NON_NEGATIVE = "La valeur estimée ne peut pas être négative"
 
 
+def _valider_date_jour_non_future(valeur: str, libelle: str) -> str:
+    """Format AAAA-MM-JJ ET date non future (recette du 02/09/2026).
+
+    Le refus du futur n'est pas cosmétique : une date d'acquisition à venir fait
+    calculer un rendement annualisé sur une durée de détention négative, et ancre
+    les graphiques d'historique après « aujourd'hui » ; une valorisation datée du
+    futur devient la « valeur courante » (le point le plus récent gagne, cf.
+    `set_holding_valorisation`) et fausse tout le patrimoine net. Ces deux
+    grandeurs sont des CONSTATS passés, jamais des projections — le Simulateur est
+    là pour ça."""
+    try:
+        jour = datetime.strptime(valeur, "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError(f"{libelle} doit être au format AAAA-MM-JJ") from None
+    if jour > datetime.now().date():
+        raise ValueError(f"{libelle} ne peut pas être dans le futur")
+    return valeur
+
+
 def _normaliser_ticker(valeur: str) -> str:
     """Nettoyage centralisé d'un ticker saisi : espaces superflus retirés, majuscules
     imposées (un ticker/ISIN n'est jamais sensible à la casse dans cette appli).
@@ -191,11 +210,7 @@ class HoldingBase(BaseModel):
     def _valider_date_acquisition(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        try:
-            datetime.strptime(v, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ") from None
-        return v
+        return _valider_date_jour_non_future(v, "La date d'acquisition")
 
 
 class HoldingCreate(HoldingBase):
@@ -274,11 +289,7 @@ class HoldingUpdate(BaseModel):
     def _valider_date_acquisition(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        try:
-            datetime.strptime(v, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError("La date d'acquisition doit être au format AAAA-MM-JJ") from None
-        return v
+        return _valider_date_jour_non_future(v, "La date d'acquisition")
 
     @field_validator("compte_nom")
     @classmethod
@@ -311,11 +322,7 @@ class ValorisationInput(BaseModel):
     @field_validator("date")
     @classmethod
     def _valider_date(cls, v: str) -> str:
-        try:
-            datetime.strptime(v, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError("La date doit être au format AAAA-MM-JJ") from None
-        return v
+        return _valider_date_jour_non_future(v, "La date de valorisation")
 
 
 class MarketDataOut(BaseModel):
@@ -1625,6 +1632,24 @@ class ObjectifCreate(BaseModel):
     def _valider_montant(cls, v: float) -> float:
         if v <= 0:
             raise ValueError("Le montant cible doit être strictement positif")
+        return v
+
+    @field_validator("echeance")
+    @classmethod
+    def _valider_echeance(cls, v: str) -> str:
+        """`echeance` est une chaîne (jamais convertie en `date` côté schéma, pour
+        rester symétrique de `ObjectifDetail.echeance`) : sans ce contrôle, une
+        chaîne illisible traversait jusqu'au calcul de trajectoire, et une échéance
+        déjà passée produisait une contribution mensuelle nécessaire divisée par un
+        nombre de mois nul ou négatif (recette du 02/09/2026). Un objectif se
+        projette forcément dans l'avenir — le suivi d'un objectif atteint se lit
+        dans sa progression, pas dans une échéance rétroactive."""
+        try:
+            jour = datetime.strptime(v, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("L'échéance doit être au format AAAA-MM-JJ") from None
+        if jour <= datetime.now().date():
+            raise ValueError("L'échéance doit être dans le futur")
         return v
 
 

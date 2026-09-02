@@ -232,9 +232,15 @@ export default function AjoutHoldingForm({ onCreated }: { onCreated?: (holding: 
             />
           </label>
         )}
+        {/* Désactivé tant que les deux champs obligatoires ne sont pas remplis
+            (recette du 02/09/2026) : `handleAdd` retournait silencieusement, donc un
+            clic sur « Ajouter » avec un formulaire vide ne produisait AUCUN retour —
+            l'utilisateur ne savait pas ce qu'on attendait de lui. Le `title` dit
+            quoi remplir plutôt que de laisser deviner. */}
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !form.ticker.trim() || !form.quantite}
+          title={!form.ticker.trim() || !form.quantite ? 'Renseignez au minimum un ticker et une quantité.' : undefined}
           className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Ajouter

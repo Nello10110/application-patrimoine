@@ -24,7 +24,23 @@ def list_detenteurs(db: Session, user_id: int) -> list[Detenteur]:
     return db.query(Detenteur).filter(Detenteur.user_id == user_id).order_by(Detenteur.nom).all()
 
 
+def _verifier_nom_detenteur_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
+    """Contrairement à `Compte`/`Etablissement`, `Detenteur` n'a pas de contrainte
+    d'unicité en base : deux « Alice » pouvaient donc coexister, indiscernables dans
+    tous les sélecteurs de quotités (fiche d'un actif, d'un compte, d'un emprunt) et
+    dans le filtre par détenteur — l'utilisateur n'avait aucun moyen de savoir
+    laquelle il répartissait (recette du 02/09/2026). Refus explicite plutôt qu'une
+    migration ajoutant la contrainte : une base existante peut déjà contenir des
+    doublons, qu'une contrainte rétroactive rendrait immigrable."""
+    requete = db.query(Detenteur).filter(Detenteur.user_id == user_id, Detenteur.nom == nom)
+    if id_exclu is not None:
+        requete = requete.filter(Detenteur.id != id_exclu)
+    if requete.first() is not None:
+        raise ValueError(f"Un détenteur nommé « {nom} » existe déjà.")
+
+
 def create_detenteur(db: Session, user_id: int, nom: str, type_: str) -> Detenteur:
+    _verifier_nom_detenteur_libre(db, user_id, nom)
     detenteur = Detenteur(user_id=user_id, nom=nom, type=type_)
     db.add(detenteur)
     db.commit()
@@ -33,6 +49,8 @@ def create_detenteur(db: Session, user_id: int, nom: str, type_: str) -> Detente
 
 
 def update_detenteur(db: Session, detenteur: Detenteur, **champs: str) -> Detenteur:
+    if champs.get("nom") is not None:
+        _verifier_nom_detenteur_libre(db, detenteur.user_id, champs["nom"], id_exclu=detenteur.id)
     for cle, valeur in champs.items():
         if valeur is not None:
             setattr(detenteur, cle, valeur)

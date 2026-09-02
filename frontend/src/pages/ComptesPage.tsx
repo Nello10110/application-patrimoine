@@ -6,6 +6,7 @@ import Card from '../components/Card'
 import CompteDetailModal from '../components/CompteDetailModal'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
+import Modale from '../components/Modale'
 import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
@@ -23,6 +24,12 @@ export default function ComptesPage() {
   const [etablissements, setEtablissements] = useState<Etablissement[]>([])
   const [error, setError] = useState<string | null>(null)
   const [compteOuvert, setCompteOuvert] = useState<number | null>(null)
+  // Confirmation avant suppression (recette du 02/09/2026) : le bouton se trouve
+  // sur une ligne elle-même cliquable, un clic un peu large supprimait le compte
+  // sans retour possible. Même patron que `PortefeuillePage`/`EpargnePage`, qui
+  // confirment déjà — cet écran était le seul à supprimer sèchement.
+  const [confirmSuppression, setConfirmSuppression] = useState<CompteAvecSolde | null>(null)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
 
   function charger() {
     setError(null)
@@ -35,13 +42,23 @@ export default function ComptesPage() {
 
   useEffect(charger, [])
 
-  async function handleDelete(id: number, e: React.MouseEvent) {
+  function demanderSuppression(ligne: CompteAvecSolde, e: React.MouseEvent) {
     e.stopPropagation()
+    setConfirmSuppression(ligne)
+  }
+
+  async function confirmerSuppression() {
+    if (!confirmSuppression?.compte) return
+    setSuppressionEnCours(true)
     try {
-      await api.deleteCompte(id)
+      await api.deleteCompte(confirmSuppression.compte.id)
+      setConfirmSuppression(null)
       charger()
     } catch (err) {
       setError((err as Error).message)
+      setConfirmSuppression(null)
+    } finally {
+      setSuppressionEnCours(false)
     }
   }
 
@@ -74,7 +91,13 @@ export default function ComptesPage() {
       <p className="text-sm text-texte-attenue">
         Tous les comptes du foyer — compte courant, PEA, compte-titres, assurance-vie, immobilier, épargne — groupés par
         établissement, avec leur solde. Clique sur un compte pour voir le détail et définir une répartition entre
-        détenteurs pour tout le compte en une fois.
+        détenteurs pour tout le compte en une fois.{' '}
+        {/* Trois écrans parlent de « compte » (Comptes, Épargne, Patrimoine) : la
+            distinction est la première incompréhension d'un nouvel utilisateur
+            (recette du 02/09/2026) — levée ici plutôt que seulement dans le manuel. */}
+        <span title="Un compte est un contenant (votre PEA, votre livret, le compte de votre appartement) ; les lignes de patrimoine sont ce qu'il contient. L'écran Épargne, lui, liste directement des lignes d'épargne — une même ligne apparaît donc dans les deux, vue sous deux angles différents.">
+          <span className="cursor-help underline decoration-dotted">Différence avec l'écran Épargne ?</span>
+        </span>
       </p>
 
       <Card title="Nouveau compte">
@@ -107,7 +130,15 @@ export default function ComptesPage() {
                       className={`flex items-center justify-between py-2.5 text-sm ${estCliquable ? 'cursor-pointer hover:text-texte' : ''}`}
                     >
                       <span className="text-texte">
-                        {ligne.compte?.nom ?? 'Sans compte'}
+                        {ligne.compte?.nom ?? (
+                          // Le bucket « Sans compte » n'est pas un compte : c'est le
+                          // reliquat des lignes jamais rattachées. Sans cette
+                          // explication, l'utilisateur cherche à le renommer ou à le
+                          // supprimer (recette du 02/09/2026).
+                          <span title="Ce n'est pas un compte, mais le regroupement des lignes de votre patrimoine qui ne sont rattachées à aucun compte. Pour les ranger, ouvrez la ligne concernée depuis Patrimoine ou Épargne et choisissez-lui un compte.">
+                            Sans compte
+                          </span>
+                        )}
                         <span className="ml-2 text-xs text-texte-attenue">
                           {ligne.nombre_lignes} ligne{ligne.nombre_lignes > 1 ? 's' : ''}
                         </span>
@@ -117,7 +148,7 @@ export default function ComptesPage() {
                         {ligne.compte && (
                           <button
                             type="button"
-                            onClick={(e) => handleDelete(ligne.compte!.id, e)}
+                            onClick={(e) => demanderSuppression(ligne, e)}
                             className="text-xs text-negatif hover:underline"
                           >
                             Supprimer
@@ -134,6 +165,46 @@ export default function ComptesPage() {
       )}
 
       {compteOuvert && <CompteDetailModal compteId={compteOuvert} onClose={() => setCompteOuvert(null)} />}
+
+      {confirmSuppression?.compte && (
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+          {({ titleId }) => (
+            <>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">
+                Supprimer ce compte ?
+              </h2>
+              <p className="mt-2 text-sm text-texte">
+                Le compte <span className="font-medium text-texte">{confirmSuppression.compte!.nom}</span> sera supprimé.
+                {confirmSuppression.nombre_lignes > 0 ? (
+                  <>
+                    {' '}
+                    Ses {confirmSuppression.nombre_lignes} ligne{confirmSuppression.nombre_lignes > 1 ? 's' : ''} de patrimoine{' '}
+                    <span className="font-medium text-texte">ne sont pas supprimées</span> : elles rejoignent « Sans compte ».
+                  </>
+                ) : (
+                  " Il ne contient aucune ligne."
+                )}
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmSuppression(null)}
+                  disabled={suppressionEnCours}
+                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmerSuppression}
+                  disabled={suppressionEnCours}
+                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                >
+                  {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+            </>
+          )}
+        </Modale>
+      )}
     </div>
   )
 }
