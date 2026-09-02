@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Detenteur, HoldingDetail } from '../api/types'
+import type { Compte, Detenteur, HoldingDetail } from '../api/types'
 import Card from './Card'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
@@ -8,8 +9,19 @@ import { formatEuro } from '../utils/format'
 /** Répartition entre détenteurs (backlog 2.L.1) — n'apparaît que si l'utilisateur a
  * déclaré au moins un détenteur (Réglages). Gère son propre état, indépendant du
  * `detail` du composant parent : après enregistrement, recharge la fiche pour
- * obtenir la part détenue/nette à jour sans faire remonter l'état au parent. */
-export default function DetenteursSection({ ticker, quotitesInitiales }: { ticker: string; quotitesInitiales: HoldingDetail['quotites'] }) {
+ * obtenir la part détenue/nette à jour sans faire remonter l'état au parent.
+ * `compte` (backlog X.4) : purement informatif, un simple renvoi vers la fiche du
+ * compte quand cette ligne en a un — la répartition qui s'y fait s'applique à TOUTES
+ * les lignes du compte en une fois, alternative à cette saisie ligne par ligne. */
+export default function DetenteursSection({
+  ticker,
+  quotitesInitiales,
+  compte,
+}: {
+  ticker: string
+  quotitesInitiales: HoldingDetail['quotites']
+  compte?: Compte | null
+}) {
   const { montantsMasques } = usePreferencesAffichage()
   const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
   const [saisie, setSaisie] = useState<Record<number, string>>({})
@@ -58,6 +70,17 @@ export default function DetenteursSection({ ticker, quotitesInitiales }: { ticke
       <p className="mb-4 text-sm text-texte">
         Répartition de cette ligne entre les personnes/sociétés déclarées dans Réglages — la somme doit faire 100 % (ou
         rester à 0 % pour ne pas répartir, 100 % foyer implicite).
+        {compte && (
+          <>
+            {' '}
+            Cette ligne appartient au compte{' '}
+            <Link to={`/comptes/${compte.id}`} className="font-medium text-accent hover:underline">
+              {compte.nom}
+            </Link>{' '}
+            — définis-la plutôt une seule fois pour tout le compte depuis sa fiche, si les autres lignes du compte
+            doivent avoir la même répartition.
+          </>
+        )}
       </p>
       <table className="w-full text-sm">
         <thead>

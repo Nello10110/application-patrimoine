@@ -1,14 +1,15 @@
 """Établissements et comptes structurels (écran Comptes, backlog X.1) — remplace
 l'ancienne annotation texte libre `Holding.compte`. La répartition par détenteur
 « pour tout un compte » (`set_quotites_compte`) ne crée AUCUNE nouvelle notion de
-quotité : elle réapplique simplement `detenteurs_service.set_quotites_holding` à
-chaque ligne du compte, décision délibérée pour ne jamais toucher au mécanisme de
-calcul existant (`compute_parts`, `patrimoine_service`...), déjà entremêlé dans
-plusieurs services financiers testés."""
+quotité : elle réapplique simplement `detenteurs_service.set_quotites_holding`/
+`set_quotites_loan` à chaque ligne du compte et à chaque emprunt qui lui est
+rattaché (via `Loan.holding_id`), décision délibérée pour ne jamais toucher au
+mécanisme de calcul existant (`compute_parts`, `patrimoine_service`...), déjà
+entremêlé dans plusieurs services financiers testés."""
 
 from sqlalchemy.orm import Session
 
-from ..models import Compte, Etablissement, Holding
+from ..models import Compte, Etablissement, Holding, Loan
 from . import analysis_service, detenteurs_service
 
 COMPTE_SANS_COMPTE = "Sans compte"
@@ -107,13 +108,25 @@ def get_or_create_compte(db: Session, user_id: int, nom: str) -> Compte:
 
 def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: list[tuple[int, float]]) -> None:
     """Applique la MÊME répartition à chaque `Holding` actuellement rattaché à ce
-    compte — pas de nouvelle table de quotités, boucle sur
-    `detenteurs_service.set_quotites_holding` (delete-puis-insert) pour chaque
-    ligne. Un compte sans aucune ligne ne fait rien (pas d'erreur) ; un compte à une
-    seule ligne se comporte exactement comme l'ancienne saisie par ligne."""
+    compte, ET à chaque `Loan` rattaché à l'une de ces lignes (`Loan.holding_id`) —
+    pas de nouvelle table de quotités, boucle sur `detenteurs_service.
+    set_quotites_holding`/`set_quotites_loan` (delete-puis-insert) pour chacun.
+    Demande explicite de l'utilisateur : la répartition définie pour tout un compte
+    doit couvrir « pareil pour un compte courant, un compte titre, un immobilier,
+    une dette » — un emprunt rattaché au bien immobilier d'un compte suit donc la
+    même répartition que le bien lui-même, sans étape séparée. Un compte sans
+    aucune ligne ni emprunt ne fait rien (pas d'erreur) ; un compte à une seule
+    ligne sans emprunt se comporte exactement comme l'ancienne saisie par ligne."""
     holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.user_id == user_id).all()
     for holding in holdings:
         detenteurs_service.set_quotites_holding(db, user_id, holding, quotites)
+
+    holding_ids = [h.id for h in holdings]
+    if not holding_ids:
+        return
+    loans = db.query(Loan).filter(Loan.holding_id.in_(holding_ids), Loan.user_id == user_id).all()
+    for loan in loans:
+        detenteurs_service.set_quotites_loan(db, user_id, loan, quotites)
 
 
 def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] | None = None) -> list[dict]:

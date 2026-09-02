@@ -81,7 +81,7 @@ Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque
 
 ## Fiche détaillée d'une position
 
-Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/patrimoine/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...) :
+Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/patrimoine/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...). Un badge à côté du type d'actif indique le compte rattaché, s'il y en a un — clique dessus pour aller directement à sa fiche (écran Comptes) :
 
 - **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés puis l'historique daté de ses valorisations successives — ou, pour un compte Épargne (compte courant, épargne réglementée/salariale, assurance-vie, PER), la valeur actuelle et sa date, le versement mensuel déclaré, le même historique daté, et un ajout rapide d'une valorisation (voir l'écran Épargne) ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
 - **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique). En dessous, la répartition entre détenteurs déclarés (Réglages) et la part nette qui en résulte, si au moins un détenteur a été créé ;
@@ -199,12 +199,16 @@ titres), ou n'en contenir qu'une (ex. une assurance-vie, un bien immobilier).
   - **Nom et établissement** modifiables directement.
   - **Lignes du compte** : la liste des positions/actifs actuellement rattachés, avec un lien vers la
     fiche détaillée de chacune (pour en corriger la valeur, l'historique...).
+  - **Emprunts rattachés** (n'apparaît que si au moins un emprunt est rattaché à l'une des lignes du
+    compte, ex. le prêt d'un bien immobilier) : rappel informatif avant la répartition ci-dessous —
+    elle s'applique aussi à ces emprunts.
   - **Répartition entre détenteurs** (dès qu'au moins une ligne est rattachée) : un formulaire, vierge
     par défaut, pour définir en une seule fois le pourcentage de propriété de chaque détenteur du
     foyer sur **tout le compte** — utile en particulier pour un compte multi-lignes, plutôt que de
     répéter la même répartition ligne par ligne depuis la fiche détaillée de chacune. La somme doit
     faire 100 % ; valider **remplace** la répartition actuellement enregistrée de chaque ligne du
-    compte, ce que le formulaire rappelle explicitement.
+    compte, **et de chaque emprunt qui lui est rattaché** (carte ci-dessus), ce que le formulaire
+    rappelle explicitement.
 - **« Supprimer »** sur un compte (ou un établissement, depuis l'écran Réglages) : ne supprime jamais
   ce qu'il contenait — les lignes d'un compte supprimé, ou les comptes d'un établissement supprimé,
   retombent simplement dans le groupe « Sans compte »/« Sans établissement ».

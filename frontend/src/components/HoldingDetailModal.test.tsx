@@ -29,6 +29,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     ticker: 'AAPL',
     nom: 'Apple Inc.',
     type_actif: 'STOCK',
+    compte: null,
     quantite: 10,
     prix_revient_moyen: 100,
     prix_actuel: 150,

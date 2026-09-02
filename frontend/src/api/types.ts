@@ -665,6 +665,9 @@ export interface HoldingDetail {
   ticker: string
   nom: string | null
   type_actif: string | null
+  // Compte structurel rattaché (écran Comptes, backlog X.1) — même relation que
+  // `Holding.compte`, `null` si la ligne n'est rattachée à aucun compte.
+  compte: Compte | null
   quantite: number
   prix_revient_moyen: number | null
   prix_actuel: number | null

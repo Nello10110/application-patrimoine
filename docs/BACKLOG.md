@@ -2713,6 +2713,45 @@ zéro).
 ajout/retrait d'étape), test E2E `reglages.spec.ts` étendu (rejeu jusqu'à cette étape, établissement
 seedé bien reconnu). Suite complète au vert (902 backend, 499 frontend, 52 E2E).
 
+#### X.4 — `majeur` · `M` · `P1` · `traité` (01/09/2026) — Audit complet post-chantier, avant démo utilisateur
+
+Demande directe de l'utilisateur : « une fois terminé, je te laisse vérifier toutes les modifications
+et tous les écrans... refactorise le code si nécessaire... teste toute l'appli proprement » — la veille
+d'une démonstration à des tiers, avec l'exigence explicite « je veux un truc irréprochable ».
+
+**Trouvé en auditant l'ensemble de l'application** (grep systématique de tout `.compte`/`HoldingDetail`
+restant, écran par écran) :
+
+1. **La fiche détaillée d'une position (`HoldingDetailContent.tsx`) n'affichait le compte rattaché
+   nulle part**, alors que le backend l'exposait déjà (`HoldingDetail.compte`, posé lors de X.1) — le
+   type frontend `HoldingDetail` ne déclarait tout simplement pas ce champ, jamais rendu à l'écran.
+   **Corrigé** : badge à côté du type d'actif, lien vers la fiche du compte quand il y en a un.
+2. **`set_quotites_compte` ne touchait jamais les emprunts**, alors que la demande d'origine (X.1)
+   était explicite : « pareil pour un compte courant, un compte titre, un immobilier, une dette ». Un
+   emprunt rattaché (`Loan.holding_id`) à une ligne du compte suivait donc une répartition
+   potentiellement divergente de celle du bien lui-même, sans que rien ne le signale. **Corrigé** :
+   `set_quotites_compte` applique désormais la même répartition à chaque emprunt rattaché à une ligne
+   du compte (`detenteurs_service.set_quotites_loan`, même mécanisme que pour les lignes) ; nouvelle
+   carte « Emprunts rattachés » sur la fiche du compte, purement informative, avant le formulaire de
+   répartition (qui mentionne désormais aussi le nombre d'emprunts concernés).
+
+**Refactor délibérément écarté** : une factorisation des trois éditeurs de quotités quasi-identiques
+(`DetenteursSection`, `QuotitesEmprunt`, `QuotitesCompte` — déjà signalée en X.1 comme compromis assumé)
+n'a pas été reprise ici — risque de régression sur trois flux déjà testés et fonctionnels, pour un
+bénéfice cosmétique, la veille d'une démonstration. Reste un refactor identifié, pas oublié.
+
+**Aucune autre modification de schéma de base de données jugée nécessaire** : `Etablissement`/`Compte`/
+`Holding.compte_id` couvrent le besoin ; un `compte_id` direct sur `Loan` aurait dupliqué une relation
+déjà déductible via `holding_id`, sans bénéfice.
+
+Nouveaux tests : `test_la_fiche_detaillee_dune_ligne_expose_son_compte` (backend, `test_comptes_router.py`),
+`test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches` (backend, `test_comptes_service.py`),
+14 tests `CompteDetailContent.test.tsx` (fichier qui n'existait pas — le composant le plus riche de tout
+le chantier X.1 n'avait aucune couverture Vitest dédiée), 2 tests `HoldingDetailContent.test.tsx`
+(badge de compte), E2E étendus (`comptes.spec.ts` : emprunt rattaché visible + décompte dans le texte ;
+`holding-detail.spec.ts` : badge de compte, lien vérifié). Suite complète au vert (902 backend, 515
+frontend, E2E complet).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2782,7 +2821,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
-| **Lot 10 — Comptes structurels** | X.1, X.2, X.3 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (3/3) |
+| **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (4/4) |
 
 **Pourquoi cet ordre.**
 

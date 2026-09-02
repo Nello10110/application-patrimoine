@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Detenteur, Holding, HoldingDetail, HoldingImmobilier } from '../api/types'
+import type { Compte, Detenteur, Holding, HoldingDetail, HoldingImmobilier } from '../api/types'
 import HoldingDetailContent from './HoldingDetailContent'
 
 // Ce fichier verrouille la section "Détenteurs" (backlog 2.L.1), la fiche immobilier
@@ -30,6 +31,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     ticker: 'AAPL',
     nom: 'Apple Inc.',
     type_actif: 'STOCK',
+    compte: null,
     quantite: 10,
     prix_revient_moyen: 100,
     prix_actuel: 150,
@@ -135,6 +137,45 @@ describe('HoldingDetailContent — Détenteurs (backlog 2.L.1)', () => {
       ]),
     )
     await vi.waitFor(() => expect(screen.getAllByText('900,00 €')).toHaveLength(2))
+  })
+})
+
+describe('HoldingDetailContent — Compte rattaché (écran Comptes, backlog X.1)', () => {
+  function compte(overrides: Partial<Compte> = {}): Compte {
+    return { id: 1, nom: 'PEA', etablissement: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+  }
+
+  it("n'affiche aucun badge de compte quand la ligne n'est rattachée à aucun compte", () => {
+    render(<HoldingDetailContent detail={detail({ compte: null })} />)
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('affiche le nom du compte rattaché, en lien vers sa fiche', () => {
+    render(
+      <MemoryRouter>
+        <HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'PEA' })).toHaveAttribute('href', '/comptes/42')
+  })
+
+  it("la section Détenteurs (onglet Analyse) renvoie aussi vers la fiche du compte, si la ligne en a un", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
+    render(
+      <MemoryRouter>
+        <HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />
+      </MemoryRouter>,
+    )
+    ouvrirOnglet('Analyse')
+    await screen.findByText('Détenteurs')
+
+    // Deux liens "PEA" : le badge de l'en-tête et celui-ci, dans le texte
+    // d'introduction de la section Détenteurs.
+    const liensPEA = screen.getAllByRole('link', { name: 'PEA' })
+    expect(liensPEA).toHaveLength(2)
+    for (const lien of liensPEA) expect(lien).toHaveAttribute('href', '/comptes/42')
   })
 })
 

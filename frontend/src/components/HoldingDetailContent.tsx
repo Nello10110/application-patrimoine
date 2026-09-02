@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { HoldingDetail } from '../api/types'
 import Card from './Card'
@@ -58,6 +59,14 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           <span className="rounded-full bg-surface-elevee px-2 py-0.5 text-xs font-medium text-texte-attenue">
             {libelleTypeActif(detail.type_actif)}
           </span>
+        )}
+        {detail.compte && (
+          <Link
+            to={`/comptes/${detail.compte.id}`}
+            className="rounded-full bg-surface-elevee px-2 py-0.5 text-xs font-medium text-texte-attenue hover:text-texte hover:underline"
+          >
+            {detail.compte.nom}
+          </Link>
         )}
       </div>
 
@@ -274,7 +283,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
             </Card>
           )}
 
-          <DetenteursSection ticker={detail.ticker} quotitesInitiales={detail.quotites} />
+          <DetenteursSection ticker={detail.ticker} quotitesInitiales={detail.quotites} compte={detail.compte} />
         </div>
       )}
 

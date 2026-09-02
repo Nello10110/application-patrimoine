@@ -162,6 +162,28 @@ def test_lister_les_holdings_dun_compte(client):
     assert tickers == {"AAA"}
 
 
+def test_la_fiche_detaillee_dune_ligne_expose_son_compte(client):
+    """`HoldingOut.compte`/`HoldingDetail.compte` (écran Comptes, backlog X.1) :
+    la relation `Holding.compte` doit être visible depuis la fiche détaillée et
+    depuis la liste du portefeuille, établissement rattaché inclus — pas seulement
+    depuis les endpoints `/api/comptes/*` eux-mêmes."""
+    etablissement = client.post("/api/comptes/etablissements", json={"nom": "Banque Test"}).json()
+    compte = client.post("/api/comptes", json={"nom": "CTO", "etablissement_id": etablissement["id"]}).json()
+    client.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte["id"]})
+    client.post("/api/portfolio/holdings", json={"ticker": "BBB", "quantite": 5, "prix_revient_moyen": 50.0})  # sans compte
+
+    detail_avec_compte = client.get("/api/portfolio/holdings/AAA/detail").json()
+    detail_sans_compte = client.get("/api/portfolio/holdings/BBB/detail").json()
+
+    assert detail_avec_compte["compte"]["nom"] == "CTO"
+    assert detail_avec_compte["compte"]["etablissement"]["nom"] == "Banque Test"
+    assert detail_sans_compte["compte"] is None
+
+    lignes = {h["ticker"]: h["compte"] for h in client.get("/api/portfolio/holdings").json()}
+    assert lignes["AAA"]["nom"] == "CTO"
+    assert lignes["BBB"] is None
+
+
 # ---------------------------------------------------------------------------
 # Quotités par compte (backlog X.1) — applique la même répartition à chaque
 # ligne rattachée, sans nouvelle table de quotités.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Compte, Detenteur, Etablissement, Holding } from '../api/types'
+import type { Compte, Detenteur, Etablissement, Holding, Loan } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
@@ -75,13 +75,38 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
   )
 }
 
+/** Emprunts rattachés à une ligne de ce compte (`Loan.holding_id`) — purement
+ * informatif, pour que la répartition entre détenteurs ci-dessous (qui s'applique
+ * AUSSI à ces emprunts, backlog X.4) ne surprenne jamais. Liste déjà filtrée par
+ * l'appelant (`CompteDetailContent`, qui charge `api.listLoans()` une seule fois et
+ * la partage avec `QuotitesCompte` pour son décompte) — composant purement
+ * d'affichage, pas de fetch ici. */
+function EmpruntsRattaches({ emprunts, montantsMasques }: { emprunts: Loan[]; montantsMasques: boolean }) {
+  if (emprunts.length === 0) return null
+
+  return (
+    <Card title="Emprunts rattachés">
+      <ul className="divide-y divide-bordure">
+        {emprunts.map((e) => (
+          <li key={e.id} className="flex items-center justify-between py-2 text-sm">
+            <span className="font-medium text-texte">{e.libelle}</span>
+            <span className="text-texte">{formatEuro(e.capital_restant_du, 2, montantsMasques)} restant</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
 /** Répartition entre détenteurs pour TOUT le compte (backlog X.1, cœur de la
  * demande : le dire une fois plutôt que ligne par ligne) — formulaire vierge par
  * défaut (pas de pré-remplissage), volontairement : si les lignes du compte ont déjà
  * des répartitions divergentes (saisies avant l'existence de cet écran), tenter de
  * les réconcilier automatiquement serait fragile ; l'enregistrement REMPLACE la
- * répartition de chaque ligne, ce que le texte ci-dessous explicite. */
-function QuotitesCompte({ compteId, nombreLignes }: { compteId: number; nombreLignes: number }) {
+ * répartition de chaque ligne, ce que le texte ci-dessous explicite. S'applique
+ * aussi aux emprunts rattachés (backlog X.4, `comptes_service.set_quotites_compte`),
+ * d'où le paramètre `nombreEmprunts` pour l'expliciter dans le texte. */
+function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: number; nombreLignes: number; nombreEmprunts: number }) {
   const [detenteurs, setDetenteurs] = useState<Detenteur[] | null>(null)
   const [saisie, setSaisie] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
@@ -119,8 +144,9 @@ function QuotitesCompte({ compteId, nombreLignes }: { compteId: number; nombreLi
   return (
     <Card title="Répartition entre détenteurs">
       <p className="mb-4 text-sm text-texte">
-        S'applique à TOUTES les lignes de ce compte ({nombreLignes} ligne{nombreLignes > 1 ? 's' : ''}) — remplace la
-        répartition actuellement enregistrée sur chacune, plutôt que de la définir ligne par ligne.
+        S'applique à TOUTES les lignes de ce compte ({nombreLignes} ligne{nombreLignes > 1 ? 's' : ''}
+        {nombreEmprunts > 0 && <>, et {nombreEmprunts} emprunt{nombreEmprunts > 1 ? 's' : ''} rattaché{nombreEmprunts > 1 ? 's' : ''}</>}) —
+        remplace la répartition actuellement enregistrée sur chacune, plutôt que de la définir ligne par ligne.
       </p>
       <div className="flex flex-wrap items-end gap-3">
         {detenteurs.map((d) => (
@@ -166,6 +192,14 @@ export default function CompteDetailContent({
 }) {
   const { montantsMasques } = usePreferencesAffichage()
   const solde = holdings.reduce((somme, h) => somme + (h.valeur ?? 0), 0)
+  const [emprunts, setEmprunts] = useState<Loan[] | null>(null)
+
+  useEffect(() => {
+    api.listLoans().then(setEmprunts).catch(() => setEmprunts([]))
+  }, [])
+
+  const holdingIds = holdings.map((h) => h.id)
+  const empruntsRattaches = (emprunts ?? []).filter((e) => e.holding_id !== null && holdingIds.includes(e.holding_id))
 
   return (
     <div className="space-y-6">
@@ -210,7 +244,9 @@ export default function CompteDetailContent({
         )}
       </Card>
 
-      <QuotitesCompte compteId={compte.id} nombreLignes={holdings.length} />
+      <EmpruntsRattaches emprunts={empruntsRattaches} montantsMasques={montantsMasques} />
+
+      <QuotitesCompte compteId={compte.id} nombreLignes={holdings.length} nombreEmprunts={empruntsRattaches.length} />
     </div>
   )
 }

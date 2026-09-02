@@ -59,7 +59,7 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(modale.getByText('Répartition appliquée à toutes les lignes du compte.')).toBeVisible()
   })
 
-  test('cliquer un compte mono-ligne (immobilier) ouvre le détail avec un renvoi vers sa fiche', async ({ page }) => {
+  test('cliquer un compte mono-ligne (immobilier) ouvre le détail avec un renvoi vers sa fiche, et l\'emprunt rattaché', async ({ page }) => {
     const { comptes, holdings, attendu } = seedData()
 
     await page.getByText(comptes.immobilier.nom).click()
@@ -68,6 +68,13 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(modale.getByRole('heading', { name: comptes.immobilier.nom }).first()).toBeVisible()
     await expect(modale.getByText(montantRegex(attendu.valeur_appartement, 2)).first()).toBeVisible()
     await expect(modale.getByRole('link', { name: new RegExp(holdings.appartement.ticker) })).toBeVisible()
+
+    // Emprunt rattaché au bien immobilier de ce compte (backlog X.4) — le seed
+    // l'attache via `Loan.holding_id`, purement informatif ici mais annonce que la
+    // répartition entre détenteurs ci-dessous s'appliquera aussi à lui.
+    await expect(modale.getByRole('heading', { name: 'Emprunts rattachés' })).toBeVisible()
+    await expect(modale.getByText('Prêt appartement E2E')).toBeVisible()
+    await expect(modale.getByText(/1 ligne, et 1 emprunt rattaché/)).toBeVisible()
   })
 
   test('cycle complet via l\'IHM : créer un compte, le renommer, le rattacher à un établissement puis le supprimer', async ({ page }) => {

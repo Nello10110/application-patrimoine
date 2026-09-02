@@ -3,7 +3,9 @@
 le compte (bouclée sur `detenteurs_service.set_quotites_holding`, jamais une nouvelle
 table de quotités), solde tous types d'actifs confondus."""
 
-from app.models import Compte, Holding, QuotiteHolding
+from datetime import datetime
+
+from app.models import Compte, Holding, Loan, QuotiteHolding, QuotiteLoan
 from app.services import comptes_service
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
@@ -73,6 +75,50 @@ def test_set_quotites_compte_applique_la_meme_repartition_a_chaque_ligne(db):
         quotites = {q.detenteur_id: q.quotite_pct for q in db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == h.id).all()}
         assert quotites == {alice_id: 50.0, bob_id: 50.0}
     assert db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == h3.id).count() == 0
+
+
+def test_set_quotites_compte_applique_aussi_aux_emprunts_rattaches(db):
+    """Demande explicite de l'utilisateur (backlog X.4) : « pareil pour un compte
+    courant, un compte titre, un immobilier, une dette » — un emprunt rattaché
+    (`Loan.holding_id`) à une ligne du compte doit suivre la même répartition que
+    la ligne elle-même, sans étape séparée sur la carte Dettes et emprunts."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Compte immobilier", None)
+    alice_id = _creer_detenteur(db, "Alice")
+    bob_id = _creer_detenteur(db, "Bob")
+    appartement = make_holding(db, ticker="MAISON", compte_id=compte.id)
+    loan = Loan(
+        user_id=ID_UTILISATEUR_TEST,
+        libelle="Prêt immobilier",
+        capital_initial=200000.0,
+        taux_annuel_pct=3.0,
+        mensualite=1000.0,
+        date_debut=datetime(2020, 1, 1),
+        duree_mois=240,
+        holding_id=appartement.id,
+    )
+    db.add(loan)
+    db.commit()
+    db.refresh(loan)
+    # Emprunt sans rattachement : ne doit jamais être touché.
+    loan_orphelin = Loan(
+        user_id=ID_UTILISATEUR_TEST,
+        libelle="Prêt conso",
+        capital_initial=5000.0,
+        taux_annuel_pct=2.0,
+        mensualite=200.0,
+        date_debut=datetime(2021, 1, 1),
+        duree_mois=24,
+        holding_id=None,
+    )
+    db.add(loan_orphelin)
+    db.commit()
+    db.refresh(loan_orphelin)
+
+    comptes_service.set_quotites_compte(db, ID_UTILISATEUR_TEST, compte, [(alice_id, 50.0), (bob_id, 50.0)])
+
+    quotites_pret = {q.detenteur_id: q.quotite_pct for q in db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == loan.id).all()}
+    assert quotites_pret == {alice_id: 50.0, bob_id: 50.0}
+    assert db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == loan_orphelin.id).count() == 0
 
 
 def test_set_quotites_compte_sur_un_compte_vide_ne_leve_pas(db):

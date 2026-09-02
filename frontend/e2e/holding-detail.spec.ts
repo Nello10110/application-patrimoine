@@ -4,9 +4,15 @@ import { seedData } from './seed-data'
 
 test.describe('Fiche détaillée d\'une position', () => {
   test('E2E-LIVRETA : onglets, historique de valorisation, ajout d\'un point', async ({ page }) => {
-    const { holdings } = seedData()
+    const { holdings, comptes } = seedData()
     await page.goto(`/patrimoine/${holdings.livret.ticker}`)
     await expect(page.getByRole('heading', { name: holdings.livret.ticker })).toBeVisible()
+
+    // Badge de compte rattaché (écran Comptes, backlog X.4) — ce livret a son propre
+    // compte 1:1 créé par le seed (compte_nom à la création, cf. seed_e2e.py).
+    const badgeCompte = page.getByRole('link', { name: comptes.livret.nom })
+    await expect(badgeCompte).toBeVisible()
+    await expect(badgeCompte).toHaveAttribute('href', `/comptes/${comptes.livret.id}`)
 
     await expect(page.getByRole('tab', { name: 'Aperçu' })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByText('Historique de valorisation')).toBeVisible()
