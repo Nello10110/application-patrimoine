@@ -343,9 +343,10 @@ replié — c'est un appel à l'action, pas de la simple information complément
 
 À la création du tout premier compte (propriétaire) d'une instance neuve, un assistant de
 configuration initiale s'affiche à la place de l'application : bienvenue, méthode de calcul du
-coût de revient, détenteurs du foyer, puis les deux façons de démarrer le portefeuille (import de
-transactions ou saisie manuelle). Chaque étape peut être passée ; "Passer l'assistant" comme
-"Terminer" marquent le parcours comme fait — il ne réapparaît plus aux connexions suivantes.
+coût de revient, détenteurs du foyer, établissements et comptes, puis les deux façons de démarrer
+le portefeuille (import de transactions ou saisie manuelle). Chaque étape peut être passée ;
+"Passer l'assistant" comme "Terminer" marquent le parcours comme fait — il ne réapparaît plus aux
+connexions suivantes.
 Rejouable à tout moment via le bouton **Revoir l'assistant de bienvenue** en haut de l'onglet
 Général — utile pour redécouvrir les réglages de départ, sans effet sur l'état déjà enregistré.
 

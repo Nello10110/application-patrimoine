@@ -70,6 +70,16 @@ test.describe('Réglages', () => {
     await assistant.getByRole('button', { name: 'Suivant' }).click()
     await expect(assistant.getByRole('heading', { name: 'Détenteurs du foyer' })).toBeVisible()
     await assistant.getByRole('button', { name: 'Suivant' }).click()
+    // Étape "Comptes" (backlog X.3) : établissement seedé (« Banque E2E ») déjà
+    // reconnu, même doctrine de rejeu que le reste de l'assistant.
+    await expect(assistant.getByRole('heading', { name: 'Comptes', exact: true })).toBeVisible()
+    // "Banque E2E" apparaît à plusieurs endroits de cette étape (liste des comptes,
+    // `<option>` du sélecteur Établissement) : on cible la ligne de la carte
+    // Établissements elle-même, via son bouton "Modifier" — structurellement unique
+    // à cette carte, aucune ambiguïté possible.
+    const ligneEtablissement = assistant.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Modifier' }) })
+    await expect(ligneEtablissement).toContainText('Banque E2E')
+    await assistant.getByRole('button', { name: 'Suivant' }).click()
     await expect(assistant.getByRole('heading', { name: 'Démarrer le portefeuille' })).toBeVisible()
     // Adaptatif à l'état réel (backlog du 2026-09-01) : le compte seedé a déjà des
     // positions (cf. `backend/scripts/seed_e2e.py`) — l'étape doit le reconnaître,

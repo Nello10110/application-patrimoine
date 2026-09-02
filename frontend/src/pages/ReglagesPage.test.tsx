@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Detenteur, OidcConfig, Session } from '../api/types'
+import { ETAPES_ONBOARDING } from '../components/onboarding/steps'
 import { AuthContext, type AuthContextValue } from '../contexts/authContextObject'
 import ReglagesPage from './ReglagesPage'
 
@@ -52,6 +53,12 @@ vi.mock('../api/client', () => ({
     createEtablissement: vi.fn(),
     updateEtablissement: vi.fn(),
     deleteEtablissement: vi.fn(),
+    // Étape "Comptes" de l'assistant de bienvenue (backlog X.3), rejouable depuis
+    // cet onglet (« Revoir l'assistant de bienvenue ») — hors de l'objet de ce
+    // fichier, stubs neutres par défaut.
+    listComptes: vi.fn().mockResolvedValue([]),
+    createCompte: vi.fn(),
+    deleteCompte: vi.fn(),
     getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     updatePreferences: vi.fn(),
     listJobs: vi.fn().mockResolvedValue([]),
@@ -582,8 +589,10 @@ describe('ReglagesPage — Assistant de bienvenue (welcome board)', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: "Revoir l'assistant de bienvenue" }))
     await screen.findByRole('heading', { name: 'Configuration initiale' })
-    // Navigue jusqu'à la dernière étape avant de terminer.
-    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    // Navigue jusqu'à la dernière étape avant de terminer — nombre d'étapes lu
+    // dynamiquement (`ETAPES_ONBOARDING`), pour ne jamais se désynchroniser d'un
+    // ajout/retrait d'étape (même patron que `WelcomeWizard.test.tsx`).
+    for (let i = 0; i < ETAPES_ONBOARDING.length - 1; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
     fireEvent.click(screen.getByRole('button', { name: 'Terminer' }))
 
     await vi.waitFor(() => expect(screen.queryByRole('heading', { name: 'Configuration initiale' })).not.toBeInTheDocument())

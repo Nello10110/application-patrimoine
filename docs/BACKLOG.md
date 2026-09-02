@@ -2688,6 +2688,31 @@ renommage + rattachement d'établissement, modification de la répartition entre
 suppression — dans `comptes.spec.ts`/`reglages.spec.ts` (52 E2E au vert désormais, 498 frontend, 902
 backend inchangé).
 
+#### X.3 — `mineur` · `S` · `P1` · `traité` (01/09/2026) — Étape « Comptes » dans l'assistant de bienvenue
+
+Demande directe de l'utilisateur, en suite de X.1/X.2 : « dans le welcome wizard on a une jolie
+interface invitant l'utilisateur à renseigner ses établissements et ses comptes ? ». Réponse honnête :
+non, l'étape n'existait pas — décision de scoping délibérée prise en X.1 (« pas de nouvelle étape...
+un compte/établissement se crée de toute façon à la volée depuis le formulaire d'ajout de position »).
+La consigne de tête de `steps.ts` (« toute nouvelle fonctionnalité de configuration mérite d'être
+envisagée ici », demande explicite du 01/09/2026) avait donc été envisagée puis écartée — l'utilisateur
+tranche ici dans l'autre sens.
+
+**Implémenté**, même doctrine que les étapes existantes (réutiliser tel quel un composant déjà
+autonome, refléter l'état réellement enregistré au rejeu, jamais un parcours figé) : nouvelle étape
+« Comptes », insérée entre « Détenteurs du foyer » et « Démarrer le portefeuille » (un compte déjà
+déclaré profite ensuite du sélecteur de compte du formulaire d'ajout de position). `EtablissementsCard`
+réutilisée telle quelle ; `AjoutCompteForm` extrait de `ComptesPage.tsx` (composant partagé, aucune
+duplication) pour être également embarqué ici, avec une liste des comptes déjà créés au-dessus (sans
+solde — à ce stade du parcours, généralement avant toute saisie de position, un solde serait toujours à
+zéro).
+
+15 tests `WelcomeWizard.test.tsx` (dont un nouveau dédié à cette étape, quatre adaptés — un clic
+"Suivant" de plus pour atteindre "Démarrer le portefeuille"/"Terminé"), `ReglagesPage.test.tsx` adapté
+(nombre d'étapes lu dynamiquement depuis `ETAPES_ONBOARDING`, pour ne plus se désynchroniser d'un futur
+ajout/retrait d'étape), test E2E `reglages.spec.ts` étendu (rejeu jusqu'à cette étape, établissement
+seedé bien reconnu). Suite complète au vert (902 backend, 499 frontend, 52 E2E).
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2757,7 +2782,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 7 — Pilotage** | O.1, O.2 · P.1 · Q.1, Q.2 · G.1 (absorbé par Q.1) | Lots 4, 5 (Q.2 : + Lot 6 pour le reste à vivre) | `M` | **Livré** 21-25/08/2026 (5/5) |
 | **Lot 8 — Différenciation** | P.2, P.3 · C.2 (absorbé par P.3) | Lot 7 | `M` | **Livré** 25/08/2026 pour la partie développable (2/2) — Q.3 et E.1 restent hors lot, § ci-dessous |
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
-| **Lot 10 — Comptes structurels** | X.1, X.2 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (2/2) |
+| **Lot 10 — Comptes structurels** | X.1, X.2, X.3 | Lot 4 (modèle de détention) | `L` | **Livré** 01/09/2026 (3/3) |
 
 **Pourquoi cet ordre.**
 

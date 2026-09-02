@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import EtapeBienvenue from './EtapeBienvenue'
+import EtapeComptes from './EtapeComptes'
 import EtapeDemarragePortefeuille from './EtapeDemarragePortefeuille'
 import EtapeDetenteurs from './EtapeDetenteurs'
 import EtapePreferences from './EtapePreferences'
@@ -40,6 +41,7 @@ export const ETAPES_ONBOARDING: EtapeAssistant[] = [
   { key: 'bienvenue', titre: 'Bienvenue', Contenu: EtapeBienvenue },
   { key: 'preferences', titre: 'Préférences', Contenu: EtapePreferences },
   { key: 'detenteurs', titre: 'Détenteurs du foyer', Contenu: EtapeDetenteurs },
+  { key: 'comptes', titre: 'Comptes', Contenu: EtapeComptes },
   { key: 'demarrage', titre: 'Démarrer le portefeuille', Contenu: EtapeDemarragePortefeuille },
   { key: 'termine', titre: 'Terminé', Contenu: EtapeTermine },
 ]
