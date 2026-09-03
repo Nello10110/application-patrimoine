@@ -546,3 +546,66 @@ def test_justetf_injoignable_ne_prive_pas_l_etf_de_composition(db, monkeypatch):
 
     lignes = db.query(FundComposition).filter(FundComposition.ticker == "LU1111111111").all()
     assert [l.categorie for l in lignes] == ["Europe"]
+
+
+def test_le_repli_par_nom_d_indice_fonctionne_a_nouveau_pour_un_fonds(db, monkeypatch):
+    """Signalé le 03/09/2026 sur FR0011871078 (ETF Chine à réplication synthétique,
+    sans onglet Holdings sur justETF donc sans AUCUNE composition côté justETF, ni
+    top_holdings côté Yahoo) : la ligne restait « Non catégorisée » en géographie
+    alors que le repli par nom d'indice (`repartition_geo_depuis_le_nom`) est censé
+    couvrir précisément ce cas.
+
+    Cause : `data.get("nom")`, transmis en repli, vaut TOUJOURS `None` pour un FUND
+    depuis que son prix vient de `justetf_service.fetch_price` (Increment 9, 2.4) —
+    qui ne renvoie qu'un prix, jamais un nom. Le repli par nom d'indice était donc
+    mort pour tout fonds depuis ce changement, sans qu'aucun test ne l'ait détecté :
+    les tests existants appellent `fetch_fund_composition` directement, en lui
+    passant un nom à la main, jamais via le chemin réel de `refresh_tickers`."""
+    from app.services import justetf_service
+
+    make_holding(db, ticker="FR0011871078", nom="PEA HSCEI China EUR (Acc)", type_actif="FUND")
+    monkeypatch.setattr(justetf_service, "fetch_price", lambda isin: {"prix_actuel": 9.8})
+    # justETF sans aucune couverture (fonds synthétique) : geo_rows ET sector_rows vides.
+    monkeypatch.setattr(justetf_service, "fetch_composition", lambda isin: _fiche_justetf())
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db_, isin, ac: "PASI.PA")
+
+    market_data_service.refresh_tickers(db, [("FR0011871078", "FUND")])
+
+    geo = db.query(FundComposition).filter(FundComposition.ticker == "FR0011871078", FundComposition.type == "geo").all()
+    assert [g.categorie for g in geo] == ["Marchés émergents"]
+    assert {g.source for g in geo} == {SOURCE_INDICE}
+
+
+def test_un_etf_non_couvert_par_justetf_n_est_recontacte_qu_une_fois(db, monkeypatch):
+    """Suite du correctif ci-dessus, trouvée en le vérifiant : `a_deja_composition_justetf`
+    (qui borne l'appel à justETF) ne devient JAMAIS vraie pour un ETF que justETF ne
+    couvre pas — un fonds synthétique n'obtient jamais de ligne `source=justetf`.
+    Sans le second correctif verrouillé ici, un tel ETF se ferait interroger sur
+    justETF à CHAQUE rafraîchissement de prix (quotidien par défaut, plus souvent via
+    le bouton manuel) au lieu d'une seule fois — au mépris de la politesse due à une
+    ressource « sans SLA ni support » (cf. docstring de module).
+
+    Seul le job hebdomadaire dédié (`justetf_service.refresh_all`) doit revérifier
+    périodiquement si justETF a fini par couvrir un tel ETF."""
+    from app.services import justetf_service
+
+    make_holding(db, ticker="FR0011871078", nom="PEA HSCEI China EUR (Acc)", type_actif="FUND")
+    monkeypatch.setattr(justetf_service, "fetch_price", lambda isin: {"prix_actuel": 9.8})
+    appels_justetf = []
+    monkeypatch.setattr(
+        justetf_service,
+        "fetch_composition",
+        lambda isin: appels_justetf.append(isin) or _fiche_justetf(),
+    )
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db_, isin, ac: "PASI.PA")
+
+    market_data_service.refresh_tickers(db, [("FR0011871078", "FUND")])
+    assert len(appels_justetf) == 1, "premier rafraîchissement : justETF doit être tenté"
+
+    market_data_service.refresh_tickers(db, [("FR0011871078", "FUND")])
+    assert len(appels_justetf) == 1, "second rafraîchissement : justETF ne doit PAS être retenté"
+
+    # La composition (sector via yfinance, geo via repli nom d'indice) reste bien
+    # recalculée à chaque fois — seul l'appel réseau à justETF est évité.
+    lignes = db.query(FundComposition).filter(FundComposition.ticker == "FR0011871078").all()
+    assert lignes, "la composition doit rester présente après le second rafraîchissement"

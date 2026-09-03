@@ -60,6 +60,7 @@ from ..models import (
     TYPES_ACTIF_PATRIMOINE_MANUEL,
     FundComposition,
     FundTopHolding,
+    Holding,
     MarketDataCache,
     TickerResolution,
 )
@@ -247,10 +248,39 @@ def fetch_one(identifiant: str, ticker_resolu: str | None, fx_cache: dict[str, f
         return {"ticker": identifiant, "erreur": f"Erreur de récupération: {exc}"}
 
 
+def _nom_pour_repli_geo(db: Session, identifiant: str, nom_donnee: str | None) -> str | None:
+    """Nom du fonds à transmettre au repli par nom d'indice
+    (`reference_indices.repartition_geo_depuis_le_nom`, utilisé par
+    `fetch_fund_composition` quand Yahoo ne fournit pas `top_holdings`).
+
+    `nom_donnee` vient de `data.get("nom")` à l'appel — et vaut TOUJOURS `None`
+    pour un FUND depuis l'Increment 9 (2.4) : le prix d'un ETF vient désormais de
+    `justetf_service.fetch_price`, qui ne renvoie qu'un prix, jamais un nom (seul
+    `fetch_one`, la voie yfinance utilisée pour les actions/crypto, en renvoie un).
+    Ce repli par nom était donc MORT pour tout fonds depuis ce changement de prix,
+    sans que rien ne le signale — les deux chemins ont divergé silencieusement.
+
+    Révélé le 03/09/2026 sur FR0011871078 : ETF Chine (MSCI China) à réplication
+    synthétique (swap), sans onglet Holdings sur justETF donc sans composition
+    d'aucune sorte, ni géographique ni sectorielle — le seul repli possible pour la
+    géographie était ce nom d'indice, jamais atteint.
+
+    À défaut de `nom_donnee`, on retombe sur `Holding.nom` — saisi à la création ou
+    importé du courtier, et seul champ fiable pour un fonds sur ce chemin."""
+    if nom_donnee:
+        return nom_donnee
+    return db.query(Holding.nom).filter(Holding.ticker == identifiant, Holding.nom.isnot(None)).limit(1).scalar()
+
+
 def _composition_justetf_ou_yfinance(
-    isin: str, ticker_resolu: str | None, stock_info_cache: dict[str, dict], nom_fonds: str | None
+    isin: str,
+    ticker_resolu: str | None,
+    stock_info_cache: dict[str, dict],
+    nom_fonds: str | None,
+    *,
+    tenter_justetf: bool,
 ) -> tuple[list[dict], list[dict], list[dict]]:
-    """Composition d'un ETF : justETF d'abord, yfinance en repli.
+    """Composition d'un ETF : justETF d'abord (si `tenter_justetf`), yfinance en repli.
 
     C'est l'ordre que la docstring de ce module documente depuis l'Increment 9 — il
     n'était jusqu'ici appliqué qu'au PRIX. La composition, elle, partait toujours sur
@@ -264,10 +294,23 @@ def _composition_justetf_ou_yfinance(
     européens. L'écran restait dans cet état incomplet jusqu'à sept jours, sans que
     rien n'indique qu'il fallait simplement attendre.
 
+    `tenter_justetf` : `False` dispense entièrement de contacter justETF (repli
+    yfinance direct). Ajouté en corrigeant ce qui précède (même session) : sans
+    cette garde, un ETF que justETF ne couvre PAS (fonds synthétique, matières
+    premières...) se faisait interroger sur justETF à CHAQUE rafraîchissement de
+    prix — quotidien par défaut, plus souvent via le bouton manuel — puisque
+    `a_deja_composition_justetf` (cf. l'appelant) ne devient jamais vraie pour lui.
+    Avant l'Increment justETF-d'abord de ce jour, cette voie n'appelait jamais
+    justETF : seul le job hebdomadaire `refresh_all` le faisait, à une cadence
+    délibérément prudente pour une ressource « sans SLA ni support » (cf. docstring
+    de module). L'appelant ne passe `True` qu'au tout premier rafraîchissement d'un
+    ticker sans AUCUNE composition existante ; le job hebdomadaire reste seul
+    responsable de revérifier périodiquement les ETF non couverts.
+
     Le repli yfinance reste indispensable : justETF ne couvre pas tous les ETF
     (obligataires, matières premières, ETC), et rend alors des listes vides.
     """
-    fiche = justetf_service.fetch_composition(isin)
+    fiche = justetf_service.fetch_composition(isin) if tenter_justetf else None
     if fiche is not None and (fiche.geo_rows or fiche.sector_rows):
         # `fetch_composition` rend des lignes sans champ `source` (il est implicite
         # pour ce module) : on le pose ici, `refresh_tickers` l'écrivant tel quel.
@@ -483,6 +526,14 @@ def refresh_tickers(
             is not None
         )
         if not a_deja_composition_justetf:
+            # Capturé AVANT la suppression ci-dessous : c'est la seule façon de
+            # distinguer un ETF véritablement NEUF (aucune composition, d'aucune
+            # source, encore écrite) d'un ETF déjà recalculé au moins une fois via
+            # yfinance — la distinction qui borne l'appel à justETF, cf.
+            # `tenter_justetf` sur `_composition_justetf_ou_yfinance`.
+            premiere_composition = (
+                db.query(FundComposition).filter(FundComposition.ticker == identifiant).first() is None
+            )
             db.query(FundComposition).filter(FundComposition.ticker == identifiant).delete()
             db.query(FundTopHolding).filter(FundTopHolding.ticker == identifiant).delete()
             # `ticker_resolu` n'est PAS exigé ici : justETF ne travaille qu'à partir
@@ -500,11 +551,22 @@ def refresh_tickers(
                 # sept jours avec des secteurs mais pas de zones, sur un ETF que
                 # justETF couvre parfaitement.
                 #
-                # Le coût est borné : cet appel n'a lieu que sous la garde
-                # `a_deja_composition_justetf` ci-dessus, donc UNE fois par ETF neuf,
-                # jamais à chaque rafraîchissement de prix.
+                # `tenter_justetf=premiere_composition` : SEUL le tout premier calcul
+                # d'un ticker contacte justETF depuis cette voie. Sans cette
+                # distinction, un ETF que justETF ne couvre PAS (fonds synthétique,
+                # matières premières...) — pour qui `a_deja_composition_justetf`
+                # n'est JAMAIS vrai — se ferait interroger sur justETF à CHAQUE
+                # rafraîchissement de prix (quotidien par défaut, plus souvent via le
+                # bouton manuel), en pure perte et au mépris de la politesse due à une
+                # ressource « sans SLA ni support » (cf. docstring de module). Le job
+                # hebdomadaire `justetf_service.refresh_all` reste seul responsable de
+                # revérifier périodiquement si justETF a fini par le couvrir.
                 geo_rows, sector_rows, top_holdings_detail = _composition_justetf_ou_yfinance(
-                    identifiant, ticker_resolu, stock_info_cache, data.get("nom")
+                    identifiant,
+                    ticker_resolu,
+                    stock_info_cache,
+                    _nom_pour_repli_geo(db, identifiant, data.get("nom")),
+                    tenter_justetf=premiere_composition,
                 )
                 for row in geo_rows:
                     db.add(

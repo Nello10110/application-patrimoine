@@ -3177,6 +3177,65 @@ l'absence de ligne justETF. Un « Rafraîchir maintenant » du job justETF depui
 les met à niveau en une fois.
 
 ---
+#### Z.5 — `majeur` · `S` · `P1` · `traité` (03/09/2026) — Un fonds sans nom ne bénéficiait plus jamais du repli géographique par indice ; et un ETF non couvert par justETF était sur-sollicité
+
+Deux défauts trouvés en vérifiant **Z.4** (livré plus tôt le même jour), signalés par
+l'utilisateur sur **FR0011871078** : « toujours cet actif noté comme non catégorisé »,
+alors que la répartition sectorielle, elle, s'affichait correctement.
+
+**1. Le repli géographique par nom d'indice était mort pour tout fonds.**
+`fetch_fund_composition` sait depuis longtemps déduire une géographie approximative
+du nom de l'indice suivi (`reference_indices.repartition_geo_depuis_le_nom`, ex.
+« MSCI China » → 100 % marchés émergents) quand Yahoo ne fournit pas `top_holdings`.
+Mais le nom transmis, `data.get("nom")`, vaut **systématiquement `None`** pour un
+FUND depuis l'Increment 9 (2.4) : le prix d'un ETF vient de `justetf_service.fetch_price`,
+qui ne renvoie qu'un prix, jamais un nom — seule `fetch_one` (voie yfinance,
+actions/crypto) en renvoie un. Ce repli était donc silencieusement mort pour tout
+fonds depuis ce changement de prix, bien avant Z.4 — Z.4 l'a seulement rendu visible
+en le sollicitant sur un cas où plus aucun autre repli n'existait
+(`FR0011871078`, ETF Chine à réplication **synthétique** — swap — donc **sans
+onglet Holdings sur justETF**, confirmé en inspectant la page réelle : aucun
+`data-testid` de composition, aucun onglet « Holdings » dans la liste des onglets).
+
+Corrigé par `_nom_pour_repli_geo` : à défaut de `data.get("nom")`, retombe sur
+`Holding.nom` (saisi à la création ou importé), seul champ fiable pour un fonds sur
+ce chemin. Résultat vérifié en direct sur l'ISIN signalé : `Marchés émergents 100 %,
+source=indice`.
+
+**2. Corollaire trouvé en vérifiant le correctif, avant tout signalement utilisateur** :
+la garde censée limiter l'appel justETF introduit par Z.4 à « une fois par ETF neuf »
+(`a_deja_composition_justetf`) ne devient **jamais** vraie pour un ETF que justETF ne
+couvre pas (fonds synthétique, matières premières...), puisqu'il n'obtient jamais de
+ligne `source=justetf`. Un tel ETF se serait donc fait interroger sur justETF à
+**chaque** rafraîchissement de prix — quotidien par défaut, plus souvent via le
+bouton manuel — au lieu d'une fois, contrairement à ce que Z.4 affirmait et au mépris
+de la politesse due à une ressource « sans SLA ni support » (cf. docstring de
+`justetf_service`). Avant Z.4, cette voie n'appelait jamais justETF : seul le job
+hebdomadaire `refresh_all` le faisait.
+
+Corrigé par un paramètre `tenter_justetf`, vrai seulement quand **aucune**
+composition (d'aucune source) n'existe encore pour le ticker — capturé avant la
+suppression des lignes existantes. Le job hebdomadaire reste seul responsable de
+revérifier périodiquement les ETF non couverts.
+
+**Vérifié en direct, réseau réel** : un premier rafraîchissement de FR0011871078
+contacte justETF une fois (obtient une fiche sans composition, retombe sur
+yfinance + repli par nom) ; un second rafraîchissement, dans le même process, ne
+recontacte PAS justETF, et la composition reste présente. Le cas pleinement couvert
+(FR0011550185) reste inchangé : justETF une fois, puis plus jamais (bloqué par la
+garde existante, pas par la nouvelle).
+
+**Tests** : 2 ajoutés dans `test_market_data_service.py`, dont un qui espionne les
+appels à `justetf_service.fetch_composition` sur deux rafraîchissements successifs.
+Les deux vérifiés en réintroduisant le défaut correspondant.
+
+**Autres ETF du foyer concernés par le repli par nom**, une fois rafraîchis :
+`FR0013412012` (MSCI Emerging Asia → marchés émergents),
+`FR0011869312` (MSCI AC Asia Pacific Ex Japan → Asie-Pacifique hors Japon).
+`IE00B4ND3602` (or physique) et `LU1681048630` (S&P Global Luxury) resteront
+« Non catégorisés » en géographie — aucun repli n'a de sens pour l'un (matière
+première, pas un pays), et l'autre ne correspond à aucun indice reconnu.
+
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -3248,7 +3307,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
 | **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
-| **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3, Z.4 | — | `L` | **Livré** 03/09/2026 (5/5) |
+| **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3, Z.4, Z.5 | — | `L` | **Livré** 03/09/2026 (6/6) |
 
 **Pourquoi cet ordre.**
 
