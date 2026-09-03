@@ -3175,7 +3175,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
 | **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
-| **Lot 12 — Revue de qualité** | Z.0 | Z.1 | `L` | **Livré** 03/09/2026 (1/1) |
+| **Lot 12 — Revue de qualité** | Z.0, Z.2, Z.3 | Z.1 | `L` | **Livré** 03/09/2026 (3/3) |
 
 **Pourquoi cet ordre.**
 
@@ -3215,16 +3215,20 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
    du modèle de détention (L.1, Lot 4) : les quotités par compte s'appuient sur le mécanisme de
    quotités par détenteur déjà en place, sans le modifier.
 
-**Ce qui reste, et pourquoi — les trois seuls points non traités du backlog entier.**
+**Ce qui reste, et pourquoi.**
 
-Aucun des trois n'est un chantier de développement en attente de priorité : chacun attend quelque
-chose que ce document ne peut pas trancher lui-même.
+Trois points attendent une décision ou une donnée que ce document ne peut pas produire lui-même —
+aucun n'est un chantier en attente de priorité. Un quatrième, **Z.1**, est le seul vrai reste de
+développement : il a été délibérément écarté des vagues de correctifs du 03/09/2026, le remède
+demandant de remonter l'état dans deux gros composants pour un gain modeste, avec un risque de
+liste de comptes périmée s'il est mal fait.
 
 | Point | Bloqué par | Action pour débloquer |
 |---|---|---|
 | **E.1** — élargir les formats de courtier reconnus | Aucun fichier d'export réel d'un autre courtier (Boursorama, Degiro, IBKR…) disponible pour écrire le parseur sans deviner | Fournir un export réel (anonymisé si besoin) d'un autre courtier |
 | **E.2** — explorer une agrégation bancaire gratuite | Aucune réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Réponse d'Enable Banking, **avant tout code** |
 | **Q.3** — devise et internationalisation légère | Décision produit non tranchée par l'utilisateur (l'app n'a aujourd'hui qu'un seul foyer, en euros — utile seulement si un actif en devise étrangère apparaît) | Arbitrage explicite de l'utilisateur : le besoin existe-t-il réellement aujourd'hui ? |
+| **Z.1** — appels réseau redondants au chargement | Rien : arbitrage de coût. 4 doublons de requêtes + 1 N+1 côté client, tous identifiés avec leur correctif | Décider si le gain justifie de remonter l'état dans `PortefeuillePage` et `EpargnePage` |
 
 Deux points historiquement « hors lot » sont désormais résolus par renvoi plutôt que par
 développement propre : **C.2** (projection des dividendes) absorbé par **P.3**, qui traite le même
