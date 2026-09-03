@@ -10,8 +10,22 @@ import { SkeletonTexte } from './Skeleton'
  * ici, réutilisés ensuite pour regrouper les comptes à l'écran (ex. « Caisse
  * d'Épargne » contenant un compte courant ET une assurance-vie) — même patron que
  * `DetenteursCard.tsx`. */
-export default function EtablissementsCard() {
-  const [etablissements, setEtablissements] = useState<Etablissement[]>([])
+export default function EtablissementsCard({
+  etablissements: etablissementsFournis,
+  onModifies,
+}: {
+  /** Liste fournie par l'appelant. Absente (écran Réglages), la carte la charge
+   * elle-même. Fournie (assistant de bienvenue), elle évite un second
+   * `GET /etablissements` : l'étape porte déjà cette liste pour son formulaire
+   * d'ajout de compte, et montait cette carte qui la redemandait (backlog Z.1). */
+  etablissements?: Etablissement[]
+  /** À appeler après création, renommage ou suppression, pour que l'appelant
+   * rafraîchisse la liste qu'il porte. */
+  onModifies?: () => void
+} = {}) {
+  const [etablissementsCharges, setEtablissements] = useState<Etablissement[]>([])
+  const autonome = etablissementsFournis === undefined
+  const etablissements = etablissementsFournis ?? etablissementsCharges
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [nom, setNom] = useState('')
@@ -22,6 +36,12 @@ export default function EtablissementsCard() {
   const [nomEdition, setNomEdition] = useState('')
 
   function load() {
+    // En mode piloté, c'est l'appelant qui détient la liste : on le prévient
+    // plutôt que de recharger pour notre compte.
+    if (!autonome) {
+      onModifies?.()
+      return
+    }
     setLoading(true)
     api
       .listEtablissements()
@@ -30,7 +50,14 @@ export default function EtablissementsCard() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(() => {
+    if (!autonome) {
+      setLoading(false)
+      return
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `load` est stable ; ne dépend que du mode.
+  }, [autonome])
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()

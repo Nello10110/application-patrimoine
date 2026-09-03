@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Holding } from '../api/types'
+import type { Compte, Holding } from '../api/types'
 import AjoutHoldingForm from '../components/AjoutHoldingForm'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
@@ -174,6 +174,22 @@ export default function PortefeuillePage() {
 
   useEffect(load, [])
 
+  // Comptes chargés UNE fois pour toute la page, puis passés au formulaire d'ajout
+  // et au tableau (backlog Z.1) : montés côte à côte, ils demandaient chacun leur
+  // propre `GET /comptes`. Même raison pour les positions passées à `LoansCard`,
+  // qui redemandait celles que cette page vient de charger.
+  //
+  // Volontairement PAS un cache de module : les deux composants rechargent la liste
+  // après création d'un compte à la volée, et un cache mal invalidé les ferait
+  // diverger — c'est précisément le risque qui avait fait écarter ce chantier.
+  const [comptes, setComptes] = useState<Compte[]>([])
+
+  const chargerComptes = useCallback(() => {
+    api.listComptes().then(setComptes).catch(() => setComptes([]))
+  }, [])
+
+  useEffect(chargerComptes, [chargerComptes])
+
   // Rafraîchissement des cours en tâche de fond (LOT 4B) : recharge les positions
   // une fois le rafraîchissement terminé (succès ou échec), pour afficher les
   // cours à jour sans attendre une action supplémentaire de l'utilisateur.
@@ -236,7 +252,7 @@ export default function PortefeuillePage() {
       {error && <EtatErreur message={error} onReessayer={load} />}
       {erreurRafraichissement && <EtatErreur message={erreurRafraichissement} />}
 
-      <AjoutHoldingForm onCreated={load} />
+      <AjoutHoldingForm onCreated={load} comptes={comptes} onComptesModifies={chargerComptes} />
 
       {/* Desktop (≥ 768 px, backlog 2.K.4) : contrôles inline, comportement inchangé. */}
       <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
@@ -311,11 +327,13 @@ export default function PortefeuillePage() {
             onSelectTicker={setSelectedTicker}
             onRequestDelete={(h) => setConfirmSuppression({ id: h.id, ticker: h.ticker })}
             onSaved={load}
+            comptes={comptes}
+            onComptesModifies={chargerComptes}
           />
         )}
       </Card>
 
-      <LoansCard />
+      <LoansCard holdings={holdings} />
 
       {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
 

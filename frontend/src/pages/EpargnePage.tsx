@@ -102,7 +102,12 @@ function ModifierCompteForm({ holding, onSaved, onCancel }: { holding: Holding; 
  * fiche détaillée), pour ne pas coupler le chargement de tous les comptes entre eux. */
 function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding; onChanged: () => void; onDeleted: () => void }) {
   const { montantsMasques } = usePreferencesAffichage()
-  const [historique, setHistorique] = useState<ValuationHistoryPoint[]>([])
+  // `null` = jamais chargé. L'historique ne sert QUE dans le bloc déplié
+  // ci-dessous : le charger au montage faisait une requête PAR compte d'épargne
+  // dès l'ouverture de l'écran, pour une donnée que l'utilisateur ne regarde
+  // qu'après avoir déplié une carte (backlog Z.1). Chargé à la première ouverture,
+  // puis conservé — rouvrir une carte ne redemande rien.
+  const [historique, setHistorique] = useState<ValuationHistoryPoint[] | null>(null)
   const [ouvert, setOuvert] = useState(false)
   const [edition, setEdition] = useState(false)
   const [confirmSuppression, setConfirmSuppression] = useState(false)
@@ -120,7 +125,11 @@ function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding
       .catch(() => setHistorique([]))
   }
 
-  useEffect(rechargerHistorique, [holding.ticker])
+  useEffect(() => {
+    if (!ouvert || historique !== null) return
+    rechargerHistorique()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `rechargerHistorique` est recréée à chaque rendu ; la garde `historique !== null` suffit à ne charger qu'une fois.
+  }, [ouvert, historique, holding.ticker])
 
   function handleValorisationAjoutee(h: Holding) {
     setValeurActuelle(h.valeur_estimee)
@@ -190,14 +199,14 @@ function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding
 
       {ouvert && (
         <div className="mt-4 border-t border-bordure pt-4">
-          <AjoutValorisationForm ticker={holding.ticker} historique={historique} onAdded={handleValorisationAjoutee} />
+          <AjoutValorisationForm ticker={holding.ticker} historique={historique ?? []} onAdded={handleValorisationAjoutee} />
         </div>
       )}
 
       <div className="mt-4">
         <ValorisationHistoriqueCard
           ticker={holding.ticker}
-          historique={historique}
+          historique={historique ?? []}
           onChanged={handleValorisationAjoutee}
           dateAcquisition={holding.date_acquisition}
           prixRevientMoyen={holding.prix_revient_moyen}

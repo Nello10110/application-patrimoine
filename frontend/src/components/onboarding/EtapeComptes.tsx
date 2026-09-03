@@ -52,7 +52,7 @@ export default function EtapeComptes() {
         crée de toute façon à la volée depuis le formulaire d'ajout d'une position.
       </p>
 
-      <EtablissementsCard />
+      <EtablissementsCard etablissements={etablissements} onModifies={charger} />
 
       {/* Titre distinct de celui de l'étape (`WelcomeWizard.tsx` affiche déjà
           "Comptes" comme titre de la carte englobante) — éviter deux titres

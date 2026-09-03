@@ -3077,7 +3077,7 @@ aurait été du bruit redondant.
 **Non retenu** : les rangées `flex` de `PositionsTable` et `SalairePage` portent deux
 boutons et tiennent à 375 px — seule celle des emprunts (cinq boutons) débordait.
 
-#### Z.1 — `mineur` · `S` · `P3` · `à faire` — Appels réseau redondants au chargement
+#### Z.1 — `mineur` · `S` · `P3` · `traité` (03/09/2026) — Appels réseau redondants au chargement
 
 Identifié pendant la revue du 03/09/2026, **délibérément non traité** dans les vagues
 de correctifs : le remède demande de remonter l'état dans deux gros composants, un
@@ -3097,11 +3097,34 @@ S'y ajoute un N+1 côté client : `EpargnePage.tsx:431` monte un `CompteEpargneC
 par compte, et chaque carte charge son propre historique (`:116`) — 1 requête par
 compte d'épargne au montage.
 
-**Traitement** : remonter l'appel au parent et passer la donnée en prop, comme
-`DashboardPage` le fait déjà pour `getPortfolioHistory`/`getPatrimoineHistory`
-(commentaire explicite à `:47-61`). Ne PAS introduire de cache module : les deux
-composants qui listent les comptes rechargent après création d'un compte, un cache
-mal invalidé les ferait diverger.
+**Traité** en remontant l'état au parent, jamais par un cache de module : les
+composants rechargent la liste après création d'un compte à la volée, et un cache mal
+invalidé les ferait diverger — c'est précisément le risque qui avait fait écarter ce
+chantier.
+
+Les props sont **optionnelles**, avec repli sur le chargement propre : `AjoutHoldingForm`
+sert aussi dans l'assistant de bienvenue et `EtablissementsCard` dans Réglages, où aucun
+parent ne porte la liste. Un composant reste donc utilisable seul.
+
+**Mesuré sur le build de production** (le développement double tout via StrictMode, ce
+qui rend la mesure inexploitable en `vite dev`) :
+
+| Écran | Avant | Après |
+|---|---|---|
+| Portefeuille | 7 requêtes (`comptes` ×2, `holdings` ×2) | **5** |
+| Épargne | 3 + 1 par compte d'épargne | **3** |
+
+Le N+1 de l'écran Épargne est traité sans toucher au backend : l'historique n'est
+utilisé que dans le bloc déplié d'une carte, et les cartes sont repliées par défaut. Il
+est donc chargé à la première ouverture, puis conservé — vérifié en navigateur : 0
+requête au chargement, 1 à l'ouverture, 0 de plus après fermeture/réouverture.
+
+**Trois tests ajoutés, chacun vérifié en réintroduisant la régression** — la première
+version en passait deux qui ne prouvaient rien : `LoansCard` est mocké dans
+`PortefeuillePage.test.tsx` (son appel ne pouvait pas être observé là), et avec une
+liste de positions vide la page affiche un état vide À LA PLACE du tableau, donc le
+doublon ne pouvait pas se produire. Corrigé en fournissant une vraie ligne et en
+couvrant `LoansCard` dans son propre fichier, dans ses deux modes.
 
 ---
 ---
@@ -3175,7 +3198,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
 | **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
-| **Lot 12 — Revue de qualité** | Z.0, Z.2, Z.3 | Z.1 | `L` | **Livré** 03/09/2026 (3/3) |
+| **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3 | — | `L` | **Livré** 03/09/2026 (4/4) |
 
 **Pourquoi cet ordre.**
 
@@ -3217,18 +3240,15 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 
 **Ce qui reste, et pourquoi.**
 
-Trois points attendent une décision ou une donnée que ce document ne peut pas produire lui-même —
-aucun n'est un chantier en attente de priorité. Un quatrième, **Z.1**, est le seul vrai reste de
-développement : il a été délibérément écarté des vagues de correctifs du 03/09/2026, le remède
-demandant de remonter l'état dans deux gros composants pour un gain modeste, avec un risque de
-liste de comptes périmée s'il est mal fait.
+Trois points, et trois seulement. Aucun n'est un chantier de développement en attente de priorité :
+chacun attend une décision ou une donnée que ce document ne peut pas produire lui-même. **Z.1**, le
+dernier reste de développement, a été traité le 03/09/2026.
 
 | Point | Bloqué par | Action pour débloquer |
 |---|---|---|
 | **E.1** — élargir les formats de courtier reconnus | Aucun fichier d'export réel d'un autre courtier (Boursorama, Degiro, IBKR…) disponible pour écrire le parseur sans deviner | Fournir un export réel (anonymisé si besoin) d'un autre courtier |
 | **E.2** — explorer une agrégation bancaire gratuite | Aucune réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Réponse d'Enable Banking, **avant tout code** |
 | **Q.3** — devise et internationalisation légère | Décision produit non tranchée par l'utilisateur (l'app n'a aujourd'hui qu'un seul foyer, en euros — utile seulement si un actif en devise étrangère apparaît) | Arbitrage explicite de l'utilisateur : le besoin existe-t-il réellement aujourd'hui ? |
-| **Z.1** — appels réseau redondants au chargement | Rien : arbitrage de coût. 4 doublons de requêtes + 1 N+1 côté client, tous identifiés avec leur correctif | Décider si le gain justifie de remonter l'état dans `PortefeuillePage` et `EpargnePage` |
 
 Deux points historiquement « hors lot » sont désormais résolus par renvoi plutôt que par
 développement propre : **C.2** (projection des dividendes) absorbé par **P.3**, qui traite le même

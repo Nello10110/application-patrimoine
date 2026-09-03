@@ -45,15 +45,33 @@ const FORM_VIDE = {
  * jamais la liste des positions d'un appelant, seulement son propre formulaire —
  * l'appelant décide de la suite (recharger sa liste, incrémenter un compteur...),
  * même pattern que `onSaved` sur `PositionsTable`. */
-export default function AjoutHoldingForm({ onCreated }: { onCreated?: (holding: Holding) => void }) {
+export default function AjoutHoldingForm({
+  onCreated,
+  comptes: comptesFournis,
+  onComptesModifies,
+}: {
+  onCreated?: (holding: Holding) => void
+  /** Liste des comptes fournie par l'appelant. Absente, le composant la charge
+   * lui-même — c'est le cas de l'assistant de bienvenue, qui n'a pas de parent
+   * porteur de cette liste. Fournie (`PortefeuillePage`), elle évite un second
+   * `GET /comptes` pour la même page : ce formulaire et `PositionsTable` sont
+   * montés côte à côte et demandaient chacun la sienne (backlog Z.1). */
+  comptes?: Compte[]
+  /** À appeler quand un compte a été créé à la volée, pour que l'appelant
+   * rafraîchisse la liste qu'il porte. Sans objet en mode autonome. */
+  onComptesModifies?: () => void
+}) {
   const [form, setForm] = useState(FORM_VIDE)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [comptes, setComptes] = useState<Compte[]>([])
+  const [comptesCharges, setComptesCharges] = useState<Compte[]>([])
+  const autonome = comptesFournis === undefined
+  const comptes = comptesFournis ?? comptesCharges
 
   useEffect(() => {
-    api.listComptes().then(setComptes).catch(() => setComptes([]))
-  }, [])
+    if (!autonome) return
+    api.listComptes().then(setComptesCharges).catch(() => setComptesCharges([]))
+  }, [autonome])
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -78,7 +96,10 @@ export default function AjoutHoldingForm({ onCreated }: { onCreated?: (holding: 
       setForm(FORM_VIDE)
       // Un compte a pu être créé à la volée (`compte_nom`) : recharge la liste pour
       // qu'il apparaisse dans le sélecteur dès le prochain ajout.
-      if (nouveauCompte) api.listComptes().then(setComptes).catch(() => {})
+      if (nouveauCompte) {
+        if (autonome) api.listComptes().then(setComptesCharges).catch(() => {})
+        else onComptesModifies?.()
+      }
       onCreated?.(holding)
     } catch (err) {
       setError((err as Error).message)

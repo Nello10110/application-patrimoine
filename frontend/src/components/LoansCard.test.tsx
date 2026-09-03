@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Holding, Loan } from '../api/types'
 import { simulerLargeurEcran } from '../test/matchMedia'
@@ -320,5 +320,35 @@ describe('LoansCard — cartes sur mobile (backlog 2.K.4)', () => {
     fireEvent.change(screen.getByDisplayValue('Aucun'), { target: { value: '1' } })
 
     await vi.waitFor(() => expect(api.updateLoan).toHaveBeenCalledWith(1, { holding_id: 1 }))
+  })
+  describe('positions fournies par la page (backlog Z.1)', () => {
+    // Ce fichier ne remet pas les mocks à zéro entre les tests : sans ce nettoyage,
+    // on compterait les appels des tests précédents.
+    beforeEach(() => {
+      vi.mocked(api.listHoldings).mockClear()
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+    })
+
+    it("ne redemande pas les positions quand la page les fournit", async () => {
+      // `PortefeuillePage` charge déjà `GET /portfolio/holdings` pour son tableau,
+      // et montait cette carte qui les redemandait — la plus lourde des requêtes
+      // dupliquées identifiées.
+      vi.mocked(api.listLoans).mockResolvedValue([])
+
+      render(<LoansCard holdings={[]} />)
+      await vi.waitFor(() => expect(vi.mocked(api.listLoans)).toHaveBeenCalled())
+
+      expect(vi.mocked(api.listHoldings)).not.toHaveBeenCalled()
+    })
+
+    it("les charge elle-même quand aucune liste ne lui est fournie", async () => {
+      // L'autre moitié du contrat : la carte reste utilisable seule. Sans ce test,
+      // on pourrait rendre la prop obligatoire sans s'en apercevoir.
+      vi.mocked(api.listLoans).mockResolvedValue([])
+
+      render(<LoansCard />)
+
+      await vi.waitFor(() => expect(vi.mocked(api.listHoldings)).toHaveBeenCalledTimes(1))
+    })
   })
 })

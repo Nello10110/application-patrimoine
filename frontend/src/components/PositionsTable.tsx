@@ -389,19 +389,36 @@ interface PositionsTableProps {
   onRequestDelete: (h: Holding) => void
   /** Appelé après un `Enregistrer` réussi, pour que la page recharge la liste. */
   onSaved: () => void
+  /** Liste des comptes fournie par la page. Absente, le composant la charge
+   * lui-même. Fournie, elle évite un second `GET /comptes` : ce tableau et
+   * `AjoutHoldingForm` sont montés côte à côte sur le Portefeuille et
+   * demandaient chacun la sienne (backlog Z.1). */
+  comptes?: Compte[]
+  /** À appeler quand un compte a été créé à la volée depuis l'édition en ligne. */
+  onComptesModifies?: () => void
 }
 
-export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, onSaved }: PositionsTableProps) {
+export default function PositionsTable({
+  rows,
+  onSelectTicker,
+  onRequestDelete,
+  onSaved,
+  comptes: comptesFournis,
+  onComptesModifies,
+}: PositionsTableProps) {
   const { montantsMasques } = usePreferencesAffichage()
   // Table ou cartes (backlog 2.K.4) : rendu conditionnel en JS, pas en CSS pur —
   // cf. la docstring de `useEstMobile` pour pourquoi (contenu répété par ligne).
   const estMobile = useEstMobile()
   const [tri, setTriState] = useState<{ cle: CleTri; direction: SensTri } | null>(() => triStocke())
-  const [comptes, setComptes] = useState<Compte[]>([])
+  const [comptesCharges, setComptesCharges] = useState<Compte[]>([])
+  const autonome = comptesFournis === undefined
+  const comptes = comptesFournis ?? comptesCharges
 
   useEffect(() => {
-    api.listComptes().then(setComptes).catch(() => setComptes([]))
-  }, [])
+    if (!autonome) return
+    api.listComptes().then(setComptesCharges).catch(() => setComptesCharges([]))
+  }, [autonome])
 
   function setTri(maj: (prev: { cle: CleTri; direction: SensTri } | null) => { cle: CleTri; direction: SensTri }) {
     setTriState((prev) => {
@@ -482,7 +499,10 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
       setEditingId(null)
       // Un compte a pu être créé à la volée : recharge la liste pour qu'il
       // apparaisse dans le sélecteur dès la prochaine édition.
-      if (nouveauCompte) api.listComptes().then(setComptes).catch(() => {})
+      if (nouveauCompte) {
+        if (autonome) api.listComptes().then(setComptesCharges).catch(() => {})
+        else onComptesModifies?.()
+      }
       onSaved()
     } catch (err) {
       // L'erreur (400 : quantité négative, etc.) reste affichée SANS quitter le mode

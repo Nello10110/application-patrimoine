@@ -274,7 +274,16 @@ function LoanCardMobile({
  * données est trop différente d'un `Holding` pour partager le même tableau. Le
  * capital restant dû est toujours calculé côté serveur (`loan_service.py`) — un
  * recalage manuel (relevé bancaire réel) prime sur le calcul théorique. */
-export default function LoansCard() {
+export default function LoansCard({
+  holdings: holdingsFournis,
+}: {
+  /** Positions fournies par la page. Absentes, la carte les charge elle-même.
+   * Fournies (`PortefeuillePage`), elles évitent un second `GET /portfolio/holdings`
+   * pour la même page — c'est la plus lourde des requêtes dupliquées identifiées
+   * (backlog Z.1). Le sélecteur « Actif rattaché » est le seul usage qu'en fait
+   * cette carte. */
+  holdings?: Holding[]
+} = {}) {
   const { montantsMasques } = usePreferencesAffichage()
   const estMobile = useEstMobile()
   const [loans, setLoans] = useState<Loan[]>([])
@@ -306,7 +315,8 @@ export default function LoansCard() {
 
   // Rattachement à un actif (backlog 2.M.2), nécessaire au calcul de la part nette
   // par détenteur (2.L.1).
-  const [holdings, setHoldings] = useState<Holding[]>([])
+  const [holdingsCharges, setHoldings] = useState<Holding[]>([])
+  const holdings = holdingsFournis ?? holdingsCharges
   const [holdingsIndisponibles, setHoldingsIndisponibles] = useState(false)
   const [rattachementSaving, setRattachementSaving] = useState<number | null>(null)
 
@@ -321,6 +331,7 @@ export default function LoansCard() {
 
   useEffect(load, [])
   useEffect(() => {
+    if (holdingsFournis !== undefined) return
     // `null` ≠ `[]` : sur échec, le sélecteur « Actif rattaché » affichait « Aucun »
     // pour un emprunt POURTANT rattaché (l'option correspondante manquait, la
     // `value` ne matchait plus). Un affichage faux, sans le moindre indice pour
@@ -329,7 +340,7 @@ export default function LoansCard() {
       .listHoldings()
       .then(setHoldings)
       .catch(() => setHoldingsIndisponibles(true))
-  }, [])
+  }, [holdingsFournis])
 
   async function handleRattacher(loanId: number, holdingId: number | null) {
     setRattachementSaving(loanId)

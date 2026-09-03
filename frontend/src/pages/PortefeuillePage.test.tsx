@@ -801,4 +801,28 @@ describe('PortefeuillePage', () => {
       await waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))
     })
   })
+
+  describe('requêtes réseau (backlog Z.1)', () => {
+    it('ne demande la liste des comptes et des positions qu’une seule fois', async () => {
+      // Trois composants montés côte à côte demandaient chacun la leur :
+      // `AjoutHoldingForm` et `PositionsTable` pour `GET /comptes`, `LoansCard`
+      // pour `GET /portfolio/holdings` que la page venait pourtant de charger.
+      // La page porte désormais les deux listes et les passe en props ; ce test
+      // empêche le doublon de revenir silencieusement au prochain composant ajouté.
+      // Une ligne au moins : sans elle, la page affiche un état vide À LA PLACE du
+      // tableau, et le doublon ne peut pas se produire — le test passerait sans
+      // rien prouver (vérifié en réintroduisant volontairement la régression).
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({ id: 1, ticker: 'AAA', quantite: 10, market_data: marketData({ ticker: 'AAA', prix_actuel: 100 }) }),
+      ])
+
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('Ajouter une ligne manuellement')
+      await waitFor(() => expect(vi.mocked(api.listComptes)).toHaveBeenCalled())
+
+      // `LoansCard` est mocké dans ce fichier (voir en tête) : son propre appel à
+      // `listHoldings` est couvert par `LoansCard.test.tsx`, pas ici.
+      expect(vi.mocked(api.listComptes)).toHaveBeenCalledTimes(1)
+    })
+  })
 })
