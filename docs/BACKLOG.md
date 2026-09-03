@@ -3006,6 +3006,36 @@ onze, repli historique de la base documenté au § 8.1 du manuel d'exploitation.
 
 **Non traité, consigné** : Z.1 (appels réseau redondants).
 
+#### Z.2 — `majeur` · `XS` · `P1` · `traité` (03/09/2026) — Import refusé en Docker : nginx plafonnait à 1 Mo
+
+Signalé par l'utilisateur : « l'appli m'indique que le fichier est trop volumineux »
+sur un export de transactions de **1,23 Mo**, alors que la limite applicative est de
+25 Mo. Question posée : « pourquoi il y a eu cette régression ? »
+
+**Ce n'en était pas une.** `frontend/docker/nginx.conf` n'a jamais été modifié depuis
+sa création (`26215d8`), et la revue de qualité n'y a pas touché. Le défaut était
+latent depuis l'ajout du déploiement Docker ; il ne s'est manifesté que le jour où
+l'export de l'utilisateur a franchi 1 Mo.
+
+**Cause.** Aucune directive `client_max_body_size` : nginx appliquait son défaut de
+1 Mo et rejetait la requête avec un 413 **avant que l'application ne la voie**. Le
+frontend traduisait fidèlement ce 413 en « fichier trop volumineux » — message exact
+sur le plan HTTP, trompeur sur le plan métier, et **aucun journal applicatif n'en
+portait la trace** puisque le rejet avait lieu côté proxy.
+
+**Pourquoi ça n'a jamais été vu** : le proxy Vite (développement, et toute la suite
+E2E) n'impose aucune limite de corps. Le défaut n'existait que sur le chemin nginx,
+qu'aucun test n'empruntait.
+
+**Corrigé** : `client_max_body_size 25m;` aligné sur
+`upload_limits.TAILLE_MAX_IMPORT_OCTETS`, avec un commentaire qui explicite le lien.
+`tests/test_upload_limits.py` (4 tests) verrouille l'égalité des deux valeurs — la
+divergence, pas seulement l'absence de directive. Vérifié en retirant la directive :
+2 tests sur 4 échouent, puis repassent une fois rétablie.
+
+Les quatre chemins d'upload (positions, transactions, deux imports budget) partagent
+déjà la même limite applicative : le correctif les couvre tous.
+
 #### Z.1 — `mineur` · `S` · `P3` · `à faire` — Appels réseau redondants au chargement
 
 Identifié pendant la revue du 03/09/2026, **délibérément non traité** dans les vagues
