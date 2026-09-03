@@ -2944,6 +2944,68 @@ référence : toute modification du sel, de l'algorithme ou du nombre d'itérati
 les données déjà chiffrées et doit échouer ici, jamais passer inaperçue jusqu'à la prochaine
 restauration. `test_backup_service.py` mis à jour (les phrases usuelles sont désormais acceptées).
 
+#### Z.0 — `majeur` · `L` · `P1` · `traité` (03/09/2026) — Revue complète : qualité, base de données, sécurité, documentation
+
+Demande : « une revue complète de toute l'application niveau qualité de code et
+optimisation », avec une base « optimisée pour avoir le moins possible de champs et la
+plus maintenable possible », l'anticipation des problèmes de sécurité et la validation
+des documentations. Plan en cinq phases validé avant démarrage.
+
+**Méthode.** Sauvegarde vérifiée de la base réelle avant toute chose (51 positions,
+4 059 transactions), puis cinq audits en lecture seule — trois délégués à des agents,
+la sécurité et la base de données traitées en propre. **Chaque constat d'agent
+revérifié à la main avant d'être retenu** : le premier balayage IDOR remontait un cas
+suspect (`portfolio.py:321`) qui s'est avéré être un faux positif, la garde étant
+transitive.
+
+**Trois hypothèses de mon propre plan invalidées par les données réelles**, et c'est
+le résultat le plus utile de l'exercice :
+
+- `transactions.date` annoncée « strictement redondante » avec `datetime_utc` :
+  **62 lignes divergent** réellement, dont 50 d'exactement −1 jour sur des titres US.
+  L'import préserve la date du courtier (`_clean(row.get("date")) or ...`). La
+  supprimer aurait faussé 62 transactions.
+- `holdings.valeur_estimee` annoncée « dénormalisée » : 74 usages, et 8 points
+  d'historique pour 2 lignes valorisées — c'est le champ PRIMAIRE, pas un cache.
+- Les 4 clés étrangères sans index, présentées comme un gain : leurs tables
+  contiennent 0 à 7 lignes. Aucun gain mesurable.
+
+**Sur la demande « le moins de champs possible »** : balayage exhaustif des 240
+colonnes des 33 tables, backend et frontend. **Une seule colonne morte**
+(`ticker_resolution.resolue_le`). Le schéma était déjà sobre ; il n'y avait pas de
+gras à retirer, et le critère appliqué mécaniquement aurait dégradé l'application.
+
+**Livré en quatre vagues** (une par thème, suite complète au vert entre chaque) :
+
+| Vague | Contenu | Gain mesuré |
+|---|---|---|
+| Base de données | Index composite, expiration du cache tickers, 12 références pendantes réparées, validation des énumérations à l'import | 0,491 → 0,009 ms, index couvrant |
+| Backend | N+1 du patrimoine par détenteur, doublon de ticker, atomicité des quotités, 3 constantes mortes | **207 → 8 requêtes SQL** pour 51 lignes |
+| Frontend | Accessibilité clavier, erreurs annoncées, formatteurs mis en cache, 3 éditeurs de quotités factorisés, `catch` silencieux, cibles budget | ~2 000 constructions d'`Intl` par rendu supprimées |
+| Découpages | `schemas.py` (1 876 l. → 17 modules), `types.ts` (1 085 l. → 12 modules) | 0 changement de comportement |
+
+**Sécurité : aucun correctif.** IDOR conforme sur les 22 récupérations par id,
+partage public solide (`pbkdf2_sha256`, verrouillage 429, surface limitée aux
+agrégats), périmètre invité appliqué par les 4 routeurs concernés, escalade par
+import impossible (`users` non importable, `user_id` forcé), aucun SQL concaténé.
+
+**Deux défauts trouvés en corrigeant, pas en auditant** — les deux par un test qui
+échoue :
+
+- `role="button"` sur un `<tr>` lui RETIRE son rôle `row` et détruit la sémantique du
+  tableau. Remède pire que le mal, remplacé par un bouton sur le ticker.
+- Le découpage de `schemas.py` perdait `MESSAGE_TICKER_VIDE` (avalée par le calcul de
+  fin d'en-tête), rattrapée par une comparaison d'inventaire AST 133 → 132. Une
+  relecture humaine de 1 876 lignes ne l'aurait pas vue — d'où l'automatisation des
+  deux découpages, avec contrôle d'inventaire et refus d'écrire en cas de cycle.
+
+**Documentation** : route `/patrimoine` (et non `/portefeuille`), trois tâches
+planifiées et non deux (3 documents), `PATRIMOINE_CORS_ORIGINS` ajoutée au tableau des
+variables, renvois `§ X.6` → `Y.1` (y compris dans `ReglagesPage.tsx`), « dix lots » →
+onze, repli historique de la base documenté au § 8.1 du manuel d'exploitation.
+
+**Non traité, consigné** : Z.1 (appels réseau redondants).
+
 #### Z.1 — `mineur` · `S` · `P3` · `à faire` — Appels réseau redondants au chargement
 
 Identifié pendant la revue du 03/09/2026, **délibérément non traité** dans les vagues
@@ -3015,7 +3077,7 @@ Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un
 
 ## 4. Priorisation d'ensemble
 
-**Mise à jour du 03/09/2026** : onze lots sont désormais clos (Phases 1-3 + Lots 4-11). Il ne reste
+**Mise à jour du 03/09/2026** : douze lots sont désormais clos (Phases 1-3 + Lots 4-12). Il ne reste
 que **trois points isolés, hors lot** — aucun n'est bloqué par manque de temps ou de priorité, tous
 les trois attendent quelque chose qui n'est pas du développement (§ « Ce qui reste, et pourquoi »
 ci-dessous). Le backlog fonctionnel issu de l'audit du 21/08/2026 est donc, pour l'essentiel,
@@ -3042,6 +3104,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
 | **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
+| **Lot 12 — Revue de qualité** | Z.0 | Z.1 | `L` | **Livré** 03/09/2026 (1/1) |
 
 **Pourquoi cet ordre.**
 
