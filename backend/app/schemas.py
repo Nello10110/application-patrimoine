@@ -13,7 +13,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from .models import ROLE_INVITE, ROLE_MEMBRE
+from .models import ROLES_ASSIGNABLES
+from .services.partage_service import DUREE_MAX_JOURS
 from .services.preferences_service import METHODES_VALIDES
 from .services.salaire_service import PERIODICITES_VALIDES, STATUTS_VALIDES, TYPES_MONTANT_VALIDES
 
@@ -1426,7 +1427,7 @@ class HouseholdMemberCreate(BaseModel):
     @field_validator("role")
     @classmethod
     def _valider_role(cls, v: str) -> str:
-        if v not in (ROLE_MEMBRE, ROLE_INVITE):
+        if v not in ROLES_ASSIGNABLES:
             raise ValueError("Le rôle doit être 'membre' ou 'invite'")
         return v
 
@@ -1746,8 +1747,8 @@ class LienPartageCreate(BaseModel):
     @field_validator("duree_jours")
     @classmethod
     def _valider_duree(cls, v: int) -> int:
-        if v <= 0 or v > 365:
-            raise ValueError("La durée doit être comprise entre 1 et 365 jours")
+        if v <= 0 or v > DUREE_MAX_JOURS:
+            raise ValueError(f"La durée doit être comprise entre 1 et {DUREE_MAX_JOURS} jours")
         return v
 
     @field_validator("code")

@@ -598,7 +598,13 @@ class UserParametre(Base):
 ROLE_PROPRIETAIRE = "proprietaire"
 ROLE_MEMBRE = "membre"
 ROLE_INVITE = "invite"
-ROLES_VALIDES = (ROLE_PROPRIETAIRE, ROLE_MEMBRE, ROLE_INVITE)
+# Rôles ASSIGNABLES à un compte du foyer. `ROLE_PROPRIETAIRE` en est volontairement
+# exclu : il ne s'attribue pas, il naît du tout premier compte créé (cf. `register`).
+# Remplace un `ROLES_VALIDES` qui listait les trois rôles sans que rien ne s'en
+# serve — une constante d'apparence normative que personne n'appliquait, et qui
+# aurait autorisé la création d'un second propriétaire si on s'y était fié
+# (revue du 03/09/2026).
+ROLES_ASSIGNABLES = (ROLE_MEMBRE, ROLE_INVITE)
 
 
 class User(Base):

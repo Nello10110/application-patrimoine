@@ -12,8 +12,6 @@ from sqlalchemy.orm import Session
 from ..models import Compte, Etablissement, Holding, Loan
 from . import analysis_service, detenteurs_service
 
-COMPTE_SANS_COMPTE = "Sans compte"
-
 
 def _verifier_nom_etablissement_libre(db: Session, user_id: int, nom: str, id_exclu: int | None = None) -> None:
     """`UniqueConstraint(user_id, nom)` est la garantie de dernier recours ; sans ce
@@ -146,15 +144,26 @@ def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: lis
     aucune ligne ni emprunt ne fait rien (pas d'erreur) ; un compte à une seule
     ligne sans emprunt se comporte exactement comme l'ancienne saisie par ligne."""
     holdings = db.query(Holding).filter(Holding.compte_id == compte.id, Holding.user_id == user_id).all()
-    for holding in holdings:
-        detenteurs_service.set_quotites_holding(db, user_id, holding, quotites)
-
     holding_ids = [h.id for h in holdings]
-    if not holding_ids:
-        return
-    loans = db.query(Loan).filter(Loan.holding_id.in_(holding_ids), Loan.user_id == user_id).all()
-    for loan in loans:
-        detenteurs_service.set_quotites_loan(db, user_id, loan, quotites)
+    loans = (
+        db.query(Loan).filter(Loan.holding_id.in_(holding_ids), Loan.user_id == user_id).all() if holding_ids else []
+    )
+
+    # UN SEUL commit pour tout le compte (revue du 03/09/2026). Auparavant chaque
+    # ligne et chaque emprunt committait pour son compte : un échec à mi-parcours —
+    # une quotité refusée, un détenteur supprimé entre-temps — laissait le compte à
+    # moitié réparti, sans que rien n'indique où. Du point de vue de l'utilisateur
+    # c'est une seule action (« répartir ce compte ») : elle réussit ou elle ne
+    # change rien.
+    try:
+        for holding in holdings:
+            detenteurs_service.set_quotites_holding(db, user_id, holding, quotites, commit=False)
+        for loan in loans:
+            detenteurs_service.set_quotites_loan(db, user_id, loan, quotites, commit=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] | None = None) -> list[dict]:

@@ -110,8 +110,12 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         passifs_totaux = 0.0
         par_classe = {}
         par_classe_nette = {}
+        # Toutes les parts en 3 requêtes plutôt que 3 à 4 par ligne : cet appel
+        # déclenchait 207 requêtes SQL pour 51 lignes avant correctif (revue du
+        # 03/09/2026). Les deux boucles ci-dessous partagent le même résultat.
+        parts_par_holding = detenteurs_service.compute_parts_bulk(db, [(v.holding, v.valeur) for v in valued])
         for v in valued:
-            part = detenteurs_service.compute_parts(db, v.holding, v.valeur).get(detenteur_id)
+            part = parts_par_holding.get(v.holding.id, {}).get(detenteur_id)
             if part is None:
                 continue  # ligne non répartie ou pas de part pour ce détenteur : vue foyer seule
             actifs_totaux += part["part_detenue"]
@@ -128,8 +132,9 @@ def compute_patrimoine_net(db: Session, user_id: int, detenteur_id: int | None =
         patrimoine_financier = 0.0
         par_classe_financiere = {}
         for h in analysis_service.holdings_financiers(db, user_id):
-            valeur = next((v.valeur for v in valued if v.holding.id == h.id), 0.0)
-            part = detenteurs_service.compute_parts(db, h, valeur).get(detenteur_id)
+            # `h` est déjà dans `valued` (les lignes financières en font partie) :
+            # on réutilise les parts déjà calculées au lieu de tout relire.
+            part = parts_par_holding.get(h.id, {}).get(detenteur_id)
             if part is not None:
                 patrimoine_financier += part["part_detenue"]
                 label = LABEL_TYPE_ACTIF.get(h.type_actif, LABEL_NON_RENSEIGNE)

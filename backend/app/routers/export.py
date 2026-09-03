@@ -48,7 +48,12 @@ def _formater_date_fr(date_iso: str | None) -> str:
 @router.get("/positions")
 def export_positions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     holdings = db.query(Holding).filter(Holding.user_id == auth_service.id_foyer(current_user)).order_by(Holding.ticker).all()
-    valeur_par_ticker = {v.holding.ticker: v.valeur for v in analysis_service.value_holdings(holdings)}
+    # Clé sur l'`id`, pas sur le ticker : rien n'empêche deux lignes du même foyer
+    # de porter le même ticker (aucune contrainte d'unicité), et la seconde
+    # écrasait alors silencieusement la valeur de la première dans l'export
+    # (revue du 03/09/2026). La création refuse désormais le doublon, mais la
+    # clé correcte reste la bonne défense.
+    valeur_par_holding_id = {v.holding.id: v.valeur for v in analysis_service.value_holdings(holdings)}
     rendements = performance_service.compute_holding_returns(db, auth_service.id_foyer(current_user))
 
     en_tetes = [
@@ -81,7 +86,7 @@ def export_positions(db: Session = Depends(get_db), current_user: User = Depends
                 formater_nombre(h.quantite),
                 formater_nombre(h.prix_revient_moyen),
                 formater_nombre(md.prix_actuel if md else None),
-                formater_nombre(valeur_par_ticker.get(h.ticker)),
+                formater_nombre(valeur_par_holding_id.get(h.id)),
                 formater_nombre(rendement.get("rendement_depuis_achat_pct")),
                 formater_nombre(rendement.get("rendement_annualise_pct")),
                 (md.secteur if md else None) or "",

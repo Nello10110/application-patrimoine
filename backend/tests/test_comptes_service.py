@@ -5,8 +5,10 @@ table de quotités), solde tous types d'actifs confondus."""
 
 from datetime import datetime
 
+import pytest
+
 from app.models import Compte, Holding, Loan, QuotiteHolding, QuotiteLoan
-from app.services import comptes_service
+from app.services import comptes_service, detenteurs_service
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
 
@@ -185,3 +187,36 @@ def _creer_detenteur(db, nom: str) -> int:
     db.commit()
     db.refresh(detenteur)
     return detenteur.id
+
+
+def test_repartir_un_compte_est_atomique(db, monkeypatch):
+    """Revue du 03/09/2026 : chaque ligne committait pour son compte, donc un échec
+    à mi-parcours laissait le compte à moitié réparti — sans que rien n'indique où.
+    Du point de vue de l'utilisateur, « répartir ce compte » est UNE action : elle
+    aboutit, ou elle ne change rien."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Compte atomique", None)
+    alice = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Atomique Alice", "personne")
+    lignes = [make_holding(db, ticker=f"ATOM{i}") for i in range(3)]
+    for h in lignes:
+        h.compte_id = compte.id
+    db.commit()
+
+    # Échec provoqué sur la DERNIÈRE ligne : les deux premières sont déjà écrites en
+    # session au moment où ça casse.
+    vrai = detenteurs_service.set_quotites_holding
+    appels = {"n": 0}
+
+    def _echoue_a_la_troisieme(*args, **kwargs):
+        appels["n"] += 1
+        if appels["n"] == 3:
+            raise ValueError("panne simulée")
+        return vrai(*args, **kwargs)
+
+    monkeypatch.setattr(detenteurs_service, "set_quotites_holding", _echoue_a_la_troisieme)
+
+    with pytest.raises(ValueError, match="panne simulée"):
+        comptes_service.set_quotites_compte(db, ID_UTILISATEUR_TEST, compte, [(alice.id, 100.0)])
+
+    # Aucune des trois lignes ne doit porter de répartition.
+    for h in lignes:
+        assert detenteurs_service.compute_pourcentages(db, h) == {}, f"{h.ticker} a été réparti malgré l'échec"

@@ -430,6 +430,18 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     user_id = auth_service.id_foyer(current_user)
     # Ticker déjà nettoyé/normalisé en majuscules par `HoldingBase._valider_ticker`
     # (cf. schemas.py) : plus besoin de le refaire ici.
+    #
+    # Refus du doublon (revue du 03/09/2026) : deux lignes du même foyer portant le
+    # même ticker restaient créables, et plusieurs agrégations indexent par ticker
+    # (`performance_service.compute_holding_returns`) — la seconde ligne écrasait
+    # alors silencieusement les chiffres de la première. Mieux vaut un refus
+    # explicite qu'un export faux : pour renforcer une position, on modifie la
+    # quantité de la ligne existante.
+    if db.query(Holding).filter(Holding.user_id == user_id, Holding.ticker == payload.ticker).first() is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Une ligne « {payload.ticker} » existe déjà. Modifiez-la plutôt que d'en créer une seconde.",
+        )
     donnees = payload.model_dump()
     # `compte_id`/`compte_nom` (schéma) ne sont pas des colonnes de `Holding` (qui
     # n'a que `compte_id`, résolu ici) — retirés du dict avant construction.

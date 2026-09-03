@@ -395,3 +395,18 @@ def test_import_positions_previsualisation_fichier_vide_ne_plante_pas(client):
 def test_import_budget_previsualisation_fichier_vide_ne_plante_pas(client):
     reponse = client.post("/api/budget/import/csv/preview", files={"file": ("vide.csv", b"", "text/csv")})
     assert reponse.status_code in REFUS
+
+
+def test_creer_deux_lignes_du_meme_ticker_est_refuse(client):
+    """Revue du 03/09/2026 : rien n'empêchait deux lignes du même foyer de porter le
+    même ticker, alors que plusieurs agrégations indexent par ticker
+    (`compute_holding_returns`) — la seconde écrasait silencieusement les chiffres
+    de la première à l'export CSV. Un refus explicite vaut mieux qu'un chiffre faux :
+    pour renforcer une position, on modifie la ligne existante."""
+    premiere = client.post("/api/portfolio/holdings", json={"ticker": "DOUBLON", "quantite": 1, "prix_revient_moyen": 100.0})
+    assert premiere.status_code == 200
+
+    seconde = client.post("/api/portfolio/holdings", json={"ticker": "DOUBLON", "quantite": 5, "prix_revient_moyen": 200.0})
+
+    assert seconde.status_code == 400
+    assert "existe déjà" in seconde.json()["detail"]

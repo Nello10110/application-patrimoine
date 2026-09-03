@@ -124,10 +124,19 @@ def generer_pdf_declaration(
 
     detenteur = db.get(Detenteur, detenteur_id) if detenteur_id is not None else None
 
+    # Calculé une seule fois pour les DEUX boucles ci-dessous (actifs puis passifs),
+    # qui demandaient auparavant les mêmes parts deux fois — et ligne par ligne
+    # (revue du 03/09/2026).
+    parts_par_holding = (
+        detenteurs_service.compute_parts_bulk(db, [(v.holding, v.valeur) for v in valued])
+        if detenteur_id is not None
+        else {}
+    )
+
     lignes_actifs: list[tuple[Holding, float, str]] = []
     for v in valued:
         if detenteur_id is not None:
-            part = detenteurs_service.compute_parts(db, v.holding, v.valeur).get(detenteur_id)
+            part = parts_par_holding.get(v.holding.id, {}).get(detenteur_id)
             if part is None:
                 continue
             valeur_affichee = part["part_detenue"]
@@ -144,7 +153,7 @@ def generer_pdf_declaration(
             emprunt = next((loan for loan in loans if loan.holding_id == v.holding.id), None)
             if emprunt is None:
                 continue
-            part = detenteurs_service.compute_parts(db, v.holding, v.valeur).get(detenteur_id)
+            part = parts_par_holding.get(v.holding.id, {}).get(detenteur_id)
             if part is None:
                 continue
             part_dette = round(part["part_detenue"] - part["part_nette"], 2)

@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models import Loan
+from app.models import Holding, Loan
 from app.services import detenteurs_service
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
@@ -183,3 +183,89 @@ def test_delete_detenteur_supprime_ses_quotites_en_cascade(db):
 
     # Le holding lui-même n'est pas touché, mais il n'a plus aucune répartition.
     assert detenteurs_service.compute_parts(db, h, 1000.0) == {}
+
+
+# --- compute_parts_bulk (revue du 03/09/2026) -----------------------------------
+
+
+def test_compute_parts_bulk_donne_exactement_le_meme_resultat_que_ligne_a_ligne(db):
+    """LE test qui compte pour cette optimisation. `compute_parts_bulk` a été
+    introduite pour remplacer N appels à `compute_parts` ; si les deux divergeaient,
+    ne serait-ce que d'un arrondi, la même ligne afficherait deux montants
+    différents selon l'écran qui la demande.
+
+    On couvre volontairement les cas tordus : plusieurs emprunts sur un même bien,
+    un emprunt avec ses propres quotités (qui priment) et un autre sans (qui hérite
+    de celles de l'actif), et une ligne sans aucune quotité."""
+    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Alice", "personne")
+    d2 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Bulk Bob", "personne")
+
+    reparti = make_holding(db, ticker="REPARTI", quantite=1, prix_revient_moyen=100_000.0)
+    non_reparti = make_holding(db, ticker="NONREPARTI", quantite=1, prix_revient_moyen=50_000.0)
+    detenteurs_service.set_quotites_holding(
+        db, ID_UTILISATEUR_TEST, reparti, [(d1.id, 60.0), (d2.id, 40.0)]
+    )
+
+    # Deux emprunts sur le même bien : l'un hérite des quotités de l'actif, l'autre
+    # a les siennes.
+    herite = Loan(
+        user_id=ID_UTILISATEUR_TEST, libelle="Hérité", holding_id=reparti.id, capital_initial=40_000.0,
+        taux_annuel_pct=1.5, mensualite=300.0, date_debut=datetime(2024, 1, 1), duree_mois=180,
+        capital_restant_du_manuel=30_000.0,
+    )
+    propre = Loan(
+        user_id=ID_UTILISATEUR_TEST, libelle="Propre", holding_id=reparti.id, capital_initial=20_000.0,
+        taux_annuel_pct=2.0, mensualite=200.0, date_debut=datetime(2024, 1, 1), duree_mois=120,
+        capital_restant_du_manuel=10_000.0,
+    )
+    db.add_all([herite, propre])
+    db.commit()
+    detenteurs_service.set_quotites_loan(
+        db, ID_UTILISATEUR_TEST, propre, [(d1.id, 100.0)]
+    )
+
+    couples = [(reparti, 100_000.0), (non_reparti, 50_000.0)]
+    groupe = detenteurs_service.compute_parts_bulk(db, couples)
+    ligne_a_ligne = {h.id: detenteurs_service.compute_parts(db, h, v) for h, v in couples}
+
+    # Une ligne sans quotité est absente du groupé et rend `{}` en unitaire :
+    # `.get(id, {})` doit réconcilier les deux exactement.
+    for holding, _ in couples:
+        assert groupe.get(holding.id, {}) == ligne_a_ligne[holding.id], f"divergence sur {holding.ticker}"
+
+    # Et le résultat n'est pas vide, sinon le test ne prouverait rien.
+    assert groupe[reparti.id][d1.id]["part_detenue"] == 60_000.0
+    assert groupe.get(non_reparti.id, {}) == {}
+
+
+def test_compute_parts_bulk_ne_fait_pas_de_requete_par_ligne(db):
+    """Le point de la manœuvre : un nombre de requêtes constant. Mesuré avant
+    correctif sur base réelle : 207 requêtes pour 51 lignes."""
+    from sqlalchemy import event
+
+    d1 = detenteurs_service.create_detenteur(db, ID_UTILISATEUR_TEST, "Compteur Alice", "personne")
+    couples = []
+    for i in range(12):
+        h = make_holding(db, ticker=f"BULK{i}", quantite=1, prix_revient_moyen=1000.0)
+        detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, h, [(d1.id, 100.0)])
+        couples.append((h, 1000.0))
+
+    # Le vrai appelant (`patrimoine_service`) charge ses lignes puis appelle
+    # aussitôt : on reproduit cet état. Sans ce rechargement, les objets expirés par
+    # les `commit()` de la préparation feraient compter un SELECT par accès à `.id`,
+    # qui n'existe pas dans le flux réel.
+    db.expire_all()
+    couples = [(h, v) for h, v in zip(db.query(Holding).filter(Holding.ticker.like("BULK%")).all(), [1000.0] * 12, strict=False)]
+
+    compteur = {"n": 0}
+
+    def _compter(conn, cursor, stmt, params, ctx, many):
+        compteur["n"] += 1
+
+    event.listen(db.get_bind(), "before_cursor_execute", _compter)
+    try:
+        detenteurs_service.compute_parts_bulk(db, couples)
+    finally:
+        event.remove(db.get_bind(), "before_cursor_execute", _compter)
+
+    assert compteur["n"] <= 3, f"{compteur['n']} requêtes pour 12 lignes — le préchargement ne fonctionne plus"

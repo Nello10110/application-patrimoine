@@ -90,21 +90,32 @@ def _valider_quotites(db: Session, user_id: int, quotites: list[tuple[int, float
         raise ValueError(f"La somme des quotités doit être égale à 100 % (actuellement {total:.2f} %)")
 
 
-def set_quotites_holding(db: Session, user_id: int, holding: Holding, quotites: list[tuple[int, float]]) -> None:
+def set_quotites_holding(
+    db: Session, user_id: int, holding: Holding, quotites: list[tuple[int, float]], *, commit: bool = True
+) -> None:
     """Remplace intégralement la répartition d'un actif (même pattern delete-puis-
-    insert que `FundComposition` ailleurs dans le code)."""
+    insert que `FundComposition` ailleurs dans le code).
+
+    `commit=False` : pour un appelant qui répartit PLUSIEURS lignes en une seule
+    opération utilisateur (`comptes_service.set_quotites_compte`) et doit pouvoir
+    tout annuler d'un bloc — sans quoi un échec à mi-parcours laissait le compte à
+    moitié réparti, sans aucun moyen de savoir où (revue du 03/09/2026)."""
     _valider_quotites(db, user_id, quotites)
     db.query(QuotiteHolding).filter(QuotiteHolding.holding_id == holding.id).delete()
     db.add_all(QuotiteHolding(holding_id=holding.id, detenteur_id=d, quotite_pct=p) for d, p in quotites)
-    db.commit()
+    if commit:
+        db.commit()
 
 
-def set_quotites_loan(db: Session, user_id: int, loan: Loan, quotites: list[tuple[int, float]]) -> None:
+def set_quotites_loan(
+    db: Session, user_id: int, loan: Loan, quotites: list[tuple[int, float]], *, commit: bool = True
+) -> None:
     """Même principe que `set_quotites_holding`, pour un emprunt."""
     _valider_quotites(db, user_id, quotites)
     db.query(QuotiteLoan).filter(QuotiteLoan.loan_id == loan.id).delete()
     db.add_all(QuotiteLoan(loan_id=loan.id, detenteur_id=d, quotite_pct=p) for d, p in quotites)
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def compute_pourcentages(db: Session, holding: Holding) -> dict[int, float]:
@@ -125,6 +136,85 @@ def compute_pourcentage_emprunt(db: Session, holding: Holding, emprunt: Loan) ->
     if lignes_emprunt:
         return {q.detenteur_id: q.quotite_pct for q in lignes_emprunt}
     return compute_pourcentages(db, holding)
+
+
+def _assembler_parts(
+    quotites_actif: list[tuple[int, float]],
+    valeur: float,
+    part_dette_par_detenteur: dict[int, float],
+) -> dict[int, dict[str, float]]:
+    """Cœur de calcul partagé par `compute_parts` (une ligne) et
+    `compute_parts_bulk` (toutes les lignes d'un coup).
+
+    Extrait pour une raison précise : les deux chemins DOIVENT produire exactement
+    les mêmes chiffres. Les laisser diverger d'un arrondi ferait afficher deux
+    montants différents pour la même ligne selon l'écran qui la demande."""
+    resultat: dict[int, dict[str, float]] = {}
+    for detenteur_id, quotite_pct in quotites_actif:
+        part_detenue = quotite_pct / 100 * valeur
+        part_dette = part_dette_par_detenteur.get(detenteur_id, 0.0)
+        resultat[detenteur_id] = {
+            "part_detenue": round(part_detenue, 2),
+            "part_nette": round(part_detenue - part_dette, 2),
+        }
+    return resultat
+
+
+def compute_parts_bulk(
+    db: Session, holdings_et_valeurs: list[tuple[Holding, float]]
+) -> dict[int, dict[int, dict[str, float]]]:
+    """`{holding_id: <même contenu que compute_parts>}` pour TOUTES les lignes en
+    trois requêtes fixes, au lieu de trois à quatre par ligne.
+
+    Mesuré avant correctif sur une base réelle (revue du 03/09/2026) :
+    `compute_patrimoine_net(detenteur_id=...)` déclenchait **207 requêtes SQL pour
+    51 lignes** — chaque ligne relisait ses quotités, ses emprunts, et les quotités
+    de chacun de ses emprunts. Le coût croît avec le patrimoine, précisément quand
+    l'écran devient intéressant.
+
+    Une ligne sans aucune quotité saisie est ABSENTE du résultat (et non présente
+    avec un dict vide) : `.get(holding.id, {})` chez l'appelant redonne alors
+    exactement le `{}` que rendait `compute_parts`."""
+    holdings = [h for h, _ in holdings_et_valeurs]
+    ids = [h.id for h in holdings]
+    if not ids:
+        return {}
+
+    quotites_par_holding: dict[int, list[tuple[int, float]]] = {}
+    for holding_id, detenteur_id, pct in db.query(
+        QuotiteHolding.holding_id, QuotiteHolding.detenteur_id, QuotiteHolding.quotite_pct
+    ).filter(QuotiteHolding.holding_id.in_(ids)):
+        quotites_par_holding.setdefault(holding_id, []).append((detenteur_id, pct))
+
+    emprunts_par_holding: dict[int, list[Loan]] = {}
+    for emprunt in db.query(Loan).filter(Loan.holding_id.in_(ids)):
+        emprunts_par_holding.setdefault(emprunt.holding_id, []).append(emprunt)
+
+    quotites_par_emprunt: dict[int, list[tuple[int, float]]] = {}
+    ids_emprunts = [e.id for lot in emprunts_par_holding.values() for e in lot]
+    if ids_emprunts:
+        for loan_id, detenteur_id, pct in db.query(
+            QuotiteLoan.loan_id, QuotiteLoan.detenteur_id, QuotiteLoan.quotite_pct
+        ).filter(QuotiteLoan.loan_id.in_(ids_emprunts)):
+            quotites_par_emprunt.setdefault(loan_id, []).append((detenteur_id, pct))
+
+    resultat: dict[int, dict[int, dict[str, float]]] = {}
+    for holding, valeur in holdings_et_valeurs:
+        quotites_actif = quotites_par_holding.get(holding.id, [])
+        if not quotites_actif:
+            continue  # aucune quotité saisie : 100 % foyer implicite, comme `compute_parts`
+
+        part_dette_par_detenteur: dict[int, float] = {}
+        for emprunt in emprunts_par_holding.get(holding.id, []):
+            crd = loan_service.compute_capital_restant_du(emprunt)
+            # Même règle de repli que `compute_pourcentage_emprunt` : les quotités
+            # propres à l'emprunt priment, sinon celles de l'actif financé.
+            quotites_emprunt = quotites_par_emprunt.get(emprunt.id) or quotites_actif
+            for detenteur_id, pct in quotites_emprunt:
+                part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, 0.0) + pct / 100 * crd
+
+        resultat[holding.id] = _assembler_parts(quotites_actif, valeur, part_dette_par_detenteur)
+    return resultat
 
 
 def compute_parts(db: Session, holding: Holding, valeur: float) -> dict[int, dict[str, float]]:
@@ -152,12 +242,4 @@ def compute_parts(db: Session, holding: Holding, valeur: float) -> dict[int, dic
         for detenteur_id, pct in compute_pourcentage_emprunt(db, holding, emprunt).items():
             part_dette_par_detenteur[detenteur_id] = part_dette_par_detenteur.get(detenteur_id, 0.0) + pct / 100 * crd
 
-    resultat: dict[int, dict[str, float]] = {}
-    for q in quotites_actif:
-        part_detenue = q.quotite_pct / 100 * valeur
-        part_dette = part_dette_par_detenteur.get(q.detenteur_id, 0.0)
-        resultat[q.detenteur_id] = {
-            "part_detenue": round(part_detenue, 2),
-            "part_nette": round(part_detenue - part_dette, 2),
-        }
-    return resultat
+    return _assembler_parts([(q.detenteur_id, q.quotite_pct) for q in quotites_actif], valeur, part_dette_par_detenteur)
