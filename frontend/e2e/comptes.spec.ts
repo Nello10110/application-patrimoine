@@ -122,11 +122,14 @@ test.describe('Comptes (backlog X.1)', () => {
 
     // Suppression : ne touche jamais l'établissement, ni les autres comptes du même
     // groupe (PEA E2E, seedé, doit rester visible).
-    // `exact: true` : la ligne entière porte aussi `role="button"` (cliquable pour
-    // ouvrir le détail), son nom accessible inclut donc "Supprimer" en sous-chaîne —
-    // seul le VRAI bouton "Supprimer" imbriqué a ce nom exact.
+    // Le bouton NOMME le compte depuis l'audit de design du 03/09/2026 — trois
+    // « Supprimer » identiques cohabitaient, indiscernables pour un lecteur d'écran.
+    // `exact: true` reste indispensable : la ligne porte elle aussi `role="button"`
+    // (cliquable pour ouvrir le détail) et son nom accessible, calculé depuis son
+    // contenu, INCLUT désormais l'`aria-label` du bouton — une recherche par
+    // sous-chaîne matcherait donc les deux.
     const ligne = groupeBanque.locator('li').filter({ hasText: nomRenomme })
-    await ligne.getByRole('button', { name: 'Supprimer', exact: true }).click()
+    await ligne.getByRole('button', { name: `Supprimer le compte ${nomRenomme}`, exact: true }).click()
     // Confirmation obligatoire depuis la recette du 02/09/2026 (le bouton est sur
     // une ligne elle-même cliquable) — la modale rappelle le sort des lignes.
     const confirmation = page.getByRole('dialog', { name: 'Supprimer ce compte ?' })

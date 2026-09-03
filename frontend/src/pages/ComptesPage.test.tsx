@@ -112,7 +112,10 @@ describe('ComptesPage', () => {
     render(<ComptesPage />)
     await screen.findByText('PEA')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    // Le libellé accessible NOMME le compte (audit de design du 03/09/2026) :
+    // trois boutons « Supprimer » cohabitaient sur un même écran, indiscernables
+    // pour un lecteur d'écran. Ce test le verrouille au passage.
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer le compte PEA' }))
 
     // Rien n'est supprimé tant que la confirmation n'est pas validée.
     const modale = await screen.findByRole('dialog')
@@ -133,7 +136,10 @@ describe('ComptesPage', () => {
     render(<ComptesPage />)
     await screen.findByText('PEA')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    // Le libellé accessible NOMME le compte (audit de design du 03/09/2026) :
+    // trois boutons « Supprimer » cohabitaient sur un même écran, indiscernables
+    // pour un lecteur d'écran. Ce test le verrouille au passage.
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer le compte PEA' }))
     const modale = await screen.findByRole('dialog')
     fireEvent.click(within(modale).getByRole('button', { name: 'Annuler' }))
 

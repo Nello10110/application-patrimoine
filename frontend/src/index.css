@@ -20,6 +20,28 @@ body {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* Focus clavier (audit de design du 03/09/2026) : l'application ne définissait
+   AUCUNE règle `:focus-visible`. Le focus restait visible, mais uniquement via
+   l'anneau par défaut du navigateur — 1 px, couleur imposée, variable d'un
+   navigateur à l'autre et peu lisible sur un fond coloré ou sombre.
+
+   Le sujet est devenu structurant le 03/09/2026, quand le tableau des positions
+   est devenu navigable au clavier : cette navigation ne vaut que si l'on voit où
+   l'on se trouve.
+
+   `:focus-visible` et non `:focus` : le navigateur n'applique l'anneau qu'à une
+   navigation au clavier, jamais après un clic à la souris — un anneau qui reste
+   accroché après chaque clic est la raison pour laquelle beaucoup de projets
+   finissent par écrire `outline: none`, et perdent l'accessibilité avec.
+
+   `--accent` tient sur les deux thèmes (indigo-600 en clair, indigo-400 en
+   sombre) ; `outline-offset` décolle l'anneau des bordures arrondies. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Couleurs des graphiques Recharts (LOT 5.12) : Recharts prend ses couleurs en
    props JS (`stroke`, `contentStyle`...), pas en classes Tailwind — elles ne
    changent donc pas seules avec le thème. On les pilote via ces variables CSS,
@@ -96,15 +118,28 @@ body {
   --bordure: #e2e8f0; /* slate-200 */
   --texte: #0f172a; /* slate-900 */
   --texte-attenue: #64748b; /* slate-500 */
-  --positif: #059669; /* emerald-600 */
+  --positif: #047857; /* emerald-700 — 5,48:1 sur blanc. emerald-600 (#059669) ne
+                         donnait que 3,77:1, sous le seuil de 4,5:1, alors que cette
+                         couleur PORTE l'information (gain) et n'est pas décorative
+                         (audit de design du 03/09/2026). */
   --negatif: #dc2626; /* red-600 */
   --accent: #4f46e5; /* indigo-600 */
-  --avertissement: #d97706; /* amber-600 */
+  --avertissement: #b45309; /* amber-700 — 5,02:1 sur blanc, contre 3,19:1 pour
+                               amber-600 (#d97706). Même raison que `--positif`. */
 }
 
 .dark {
   --surface: #1e293b; /* slate-800 */
-  --surface-elevee: #334155; /* slate-700 */
+  --surface-elevee: #0f172a; /* slate-900 — fond de PAGE (cf. `body` plus haut).
+                                slate-700 (#334155) était un gris moyen, pas un fond
+                                sombre : il ne laissait plus assez d'écart pour le texte
+                                secondaire (4,04:1), les erreurs (3,74:1) ni les liens
+                                (3,47:1). Ces trois teintes passent au-dessus de 4,5:1
+                                sans changer de valeur — c'est le fond qui les étouffait.
+                                Effet de bord voulu : les cartes (`--surface`, slate-800)
+                                deviennent plus CLAIRES que la page, sens d'élévation
+                                habituel en mode sombre, alors qu'elles étaient plus
+                                sombres jusqu'ici. */
   --bordure: #334155; /* slate-700 */
   --texte: #f1f5f9; /* slate-100 */
   --texte-attenue: #94a3b8; /* slate-400 */

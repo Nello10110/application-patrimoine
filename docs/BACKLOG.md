@@ -3036,6 +3036,47 @@ divergence, pas seulement l'absence de directive. Vérifié en retirant la direc
 Les quatre chemins d'upload (positions, transactions, deux imports budget) partagent
 déjà la même limite applicative : le correctif les couvre tous.
 
+#### Z.3 — `majeur` · `M` · `P1` · `traité` (03/09/2026) — Audit de design : contrastes, cibles, focus, thème
+
+Audit conduit sur l'application **exécutée** (backend jetable, données de
+démonstration), pas sur son code : contrastes calculés par la formule WCAG sur les
+couleurs réellement rendues, cibles et débordements mesurés au `getBoundingClientRect`.
+
+**Corrigés :**
+
+| Constat | Mesure avant | Après |
+|---|---|---|
+| `--positif` (gains) illisible | 3,77:1 sur blanc | **5,48:1** (emerald-700) |
+| `--avertissement` (estimations) illisible | 3,19:1 | **5,02:1** (amber-700) |
+| Fond de page en mode sombre trop clair | slate-700, 3 teintes sous le seuil | **slate-900**, 0 sous le seuil |
+| « Supprimer » (Comptes) | 55 × 16 px, 3 boutons identiques | **44 px** + `aria-label` nommant le compte |
+| Boutons d'emprunt hors écran | 52 px hors cadre sur iPhone SE | `flex-wrap`, **0 débordement** |
+| Aucune règle `:focus-visible` | anneau navigateur par défaut | règle projet, 2 px `--accent` |
+| `Chargement...` en texte brut | 3 occurrences dans `App.tsx` | `SkeletonTexte` (avec `role="status"`) |
+
+**Deux découvertes faites en corrigeant, pas en auditant :**
+
+- **La préférence de thème n'était jamais appliquée au chargement.** `useTheme`
+  ne vivait que dans `BasculeTheme`, monté à l'intérieur du menu Compte — lui-même
+  rendu conditionnellement (`MenuCompte.tsx:68`, `{ouvert && ...}`). Un utilisateur
+  ayant choisi le thème sombre retrouvait l'application en clair à chaque
+  rechargement, jusqu'à rouvrir ce menu. Bug préexistant (fichiers jamais touchés
+  par les vagues précédentes), découvert parce que le mode sombre refusait de
+  s'appliquer pendant la vérification. Corrigé par `useAppliquerTheme()` appelé à
+  la racine d'`App`.
+- **`Skeleton` utilisait `bg-surface-elevee`**, c'est-à-dire le fond de PAGE : un
+  squelette posé directement sur la page y aurait été invisible — cas exact du
+  fallback de route qu'on venait d'y placer. Basculé sur `--bordure`, qui se
+  détache à la fois de la page et des cartes, dans les deux thèmes.
+
+**Écarté après vérification** : le signalement « gain/perte par la couleur seule ».
+`formatPct` émet déjà un `+` et les statuts affichent « Succès »/« Échec » en toutes
+lettres — le second signal existe partout où il a été cherché. Ajouter des flèches
+aurait été du bruit redondant.
+
+**Non retenu** : les rangées `flex` de `PositionsTable` et `SalairePage` portent deux
+boutons et tiennent à 375 px — seule celle des emprunts (cinq boutons) débordait.
+
 #### Z.1 — `mineur` · `S` · `P3` · `à faire` — Appels réseau redondants au chargement
 
 Identifié pendant la revue du 03/09/2026, **délibérément non traité** dans les vagues

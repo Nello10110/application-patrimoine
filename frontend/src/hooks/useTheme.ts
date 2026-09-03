@@ -33,6 +33,18 @@ function appliquerClasse(sombre: boolean) {
  * En mode "système", suit les changements de préférence du système d'exploitation
  * tant que l'onglet reste ouvert (écouteur sur la media query, nettoyé si le thème
  * change ou au démontage). */
+/** Applique le thème stocké, sans exposer de commande de changement.
+ *
+ * À appeler UNE fois à la racine de l'application. `useTheme` ne vivait jusqu'ici
+ * que dans `BasculeTheme`, monté à l'intérieur du menu Compte — lui-même rendu
+ * conditionnellement (`{ouvert && ...}`). La classe `dark` n'était donc posée
+ * qu'après ouverture du menu : un utilisateur ayant choisi le thème sombre
+ * retrouvait l'application en clair à chaque rechargement, jusqu'à rouvrir ce menu
+ * (audit de design du 03/09/2026). */
+export function useAppliquerTheme(): void {
+  useTheme()
+}
+
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => themeStocke())
 

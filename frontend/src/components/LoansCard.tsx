@@ -143,7 +143,12 @@ function LoanCardMobile({
           />
         </div>
 
-        <div className="mt-4 flex gap-2">
+        {/* `flex-wrap` : cinq boutons en `flex-1` ne peuvent pas se réduire sous la
+          largeur de leur texte (`min-width: auto` sur un élément flex). Sans le
+          retour à la ligne, le dernier sortait de la carte — mesuré à 52 px hors
+          écran sur un iPhone SE — et faisait défiler latéralement toute la zone de
+          contenu (audit de design du 03/09/2026). */}
+      <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={onSaveEdition}
             disabled={editionSaving}
@@ -220,7 +225,12 @@ function LoanCardMobile({
 
       {detenteursOuverts && <QuotitesEmprunt loanId={loan.id} />}
 
-      <div className="mt-4 flex gap-2">
+      {/* `flex-wrap` : cinq boutons en `flex-1` ne peuvent pas se réduire sous la
+          largeur de leur texte (`min-width: auto` sur un élément flex). Sans le
+          retour à la ligne, le dernier sortait de la carte — mesuré à 52 px hors
+          écran sur un iPhone SE — et faisait défiler latéralement toute la zone de
+          contenu (audit de design du 03/09/2026). */}
+      <div className="mt-4 flex flex-wrap gap-2">
         {enRecalage ? (
           <>
             <button

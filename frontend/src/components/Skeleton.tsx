@@ -4,8 +4,12 @@
 // (avant que `PreferencesAffichageProvider`/le layout ne soient montés) restent du
 // texte simple, ces jetons n'y étant pas encore disponibles à ce stade du rendu.
 
+// `bg-bordure` et non `bg-surface-elevee` : ce dernier est le fond de PAGE, donc
+// un squelette posé directement sur la page y serait invisible — cas réel du
+// fallback de route d'`App.tsx`. `--bordure` se détache à la fois de la page et
+// des cartes, dans les deux thèmes (audit de design du 03/09/2026).
 export function Skeleton({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
-  return <div aria-hidden="true" style={style} className={`animate-pulse rounded-md bg-surface-elevee ${className}`} />
+  return <div aria-hidden="true" style={style} className={`animate-pulse rounded-md bg-bordure ${className}`} />
 }
 
 /** Bloc de texte en cours de chargement (remplace `<p>Chargement...</p>`). */

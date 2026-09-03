@@ -146,10 +146,18 @@ export default function ComptesPage() {
                       <span className="flex items-center gap-3">
                         <span className="font-medium text-texte">{formatEuro(ligne.solde, 2, montantsMasques)}</span>
                         {ligne.compte && (
+                          // Cible tactile de 44 px et libellé qui NOMME le compte
+                          // (audit de design du 03/09/2026) : ce bouton mesurait
+                          // 55 × 16 px, et trois d'entre eux cohabitent à quelques
+                          // pixels sur un même écran — viser la mauvaise ligne
+                          // était facile au doigt. Les trois annonçaient en outre
+                          // « Supprimer » à l'identique à un lecteur d'écran, sans
+                          // dire de quel compte il s'agissait.
                           <button
                             type="button"
                             onClick={(e) => demanderSuppression(ligne, e)}
-                            className="text-xs text-negatif hover:underline"
+                            aria-label={`Supprimer le compte ${ligne.compte.nom}`}
+                            className="-my-2 min-h-11 shrink-0 px-2 text-xs text-negatif hover:underline"
                           >
                             Supprimer
                           </button>

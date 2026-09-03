@@ -3,6 +3,8 @@ import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'reac
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
 import FilDAriane from './components/FilDAriane'
+import { SkeletonTexte } from './components/Skeleton'
+import { useAppliquerTheme } from './hooks/useTheme'
 import Sidebar from './components/Sidebar'
 import WelcomeWizard from './components/onboarding/WelcomeWizard'
 import { AuthProvider } from './contexts/AuthContext'
@@ -46,7 +48,7 @@ function AppAuthentifiee() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface-elevee">
-        <p className="text-sm text-texte-attenue">Chargement...</p>
+        <SkeletonTexte lignes={1} />
       </div>
     )
   }
@@ -71,7 +73,7 @@ function AppAuthentifiee() {
               (`h-16` + zone de sécurité iOS) — inutile dès 768 px, `BottomNav` est
               alors `md:hidden`. */}
           <div className="mx-auto max-w-6xl px-6 py-8 pb-24 md:pb-8">
-            <Suspense fallback={<p className="text-sm text-texte-attenue">Chargement...</p>}>
+            <Suspense fallback={<SkeletonTexte />}>
               <Routes>
                 {ROUTES.map((r) => {
                   const Composant = PAGE_COMPONENTS[r.path]
@@ -103,8 +105,14 @@ function AppAuthentifiee() {
 // jamais. `Suspense` dédié : `AppAuthentifiee` (ci-dessus) n'est pas montée sur
 // cette route, donc son propre `Suspense` ne la couvre pas.
 function App() {
+  // Applique le thème stocké dès le montage. Sans cet appel, la classe `dark`
+  // n'était posée qu'à l'ouverture du menu Compte, seul endroit où vivait
+  // `useTheme` — cf. sa docstring. Placé sur `App` et non `AppAuthentifiee` pour
+  // couvrir aussi l'écran de connexion et les liens de partage public.
+  useAppliquerTheme()
+
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-texte-attenue">Chargement...</p>}>
+    <Suspense fallback={<div className="p-6"><SkeletonTexte /></div>}>
       <Routes>
         <Route path="/partage/:token" element={<PartagePublicPage />} />
         <Route

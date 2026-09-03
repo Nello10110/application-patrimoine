@@ -36,7 +36,7 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
     await expect(lignes).toHaveCount(1)
 
     // Nettoyage : cette spec s'exécute sur la base partagée des autres specs.
-    await lignes.getByRole('button', { name: 'Supprimer', exact: true }).click()
+    await lignes.getByRole('button', { name: `Supprimer le compte ${nom}`, exact: true }).click()
     await page.getByRole('dialog', { name: 'Supprimer ce compte ?' }).getByRole('button', { name: 'Supprimer' }).click()
     await expect(cardByTitle(page, 'Sans établissement').getByText(nom)).not.toBeVisible()
   })
