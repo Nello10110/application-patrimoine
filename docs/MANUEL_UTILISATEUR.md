@@ -368,7 +368,7 @@ Général — utile pour redécouvrir les réglages de départ, sans effet sur l
 
 ### Rafraîchissement automatique des données de marché
 
-Deux tâches planifiées, chacune avec sa propre carte : **Rafraîchissement des données de marché**
+Trois tâches planifiées, chacune avec sa propre carte : **Rafraîchissement des données de marché**
 (cours de toutes les positions — pour un ETF, désormais via justETF — et composition rapide des
 fonds non couverts par justETF, cadence par défaut 24h) et **Composition géographique/sectorielle
 (justETF)** (look-through complet et description des ETF — cadence par défaut hebdomadaire, plus

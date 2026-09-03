@@ -4,14 +4,20 @@
 // et de l'ordre de grandeur — rien ne doit filtrer de la valeur réelle.
 const MONTANT_MASQUE = '••••••'
 
+// Formatteurs construits UNE fois, pas à chaque appel. `Intl.NumberFormat` est
+// coûteux à instancier (un à deux ordres de grandeur de plus que `.format()`) et
+// `formatEuro` est appelé depuis 155 endroits : la vue mensuelle du simulateur en
+// déclenchait à elle seule plus de 2 000 constructions par rendu, refaites à chaque
+// frappe dans les champs d'hypothèses (revue du 03/09/2026).
+const FORMATTEURS_EURO: Record<0 | 2, Intl.NumberFormat> = {
+  0: new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }),
+  2: new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }),
+}
+
 export function formatEuro(value: number | null, decimales: 0 | 2 = 2, masque = false): string {
   if (masque) return MONTANT_MASQUE
   if (value === null) return '—'
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: decimales,
-  }).format(value)
+  return FORMATTEURS_EURO[decimales].format(value)
 }
 
 /** Quantité détenue d'une position. Les positions reconstruites depuis l'historique
@@ -19,8 +25,10 @@ export function formatEuro(value: number | null, decimales: 0 | 2 = 2, masque = 
  * au lieu de 0.168355) : arrondi à 8 décimales (précision suffisante même pour une
  * position crypto fractionnaire) avant formatage, zéros inutiles supprimés par
  * `toLocaleString`. */
+const FORMATTEUR_QUANTITE = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 8 })
+
 export function formatQuantite(value: number): string {
-  return Number(value.toFixed(8)).toLocaleString('fr-FR', { maximumFractionDigits: 8 })
+  return FORMATTEUR_QUANTITE.format(Number(value.toFixed(8)))
 }
 
 export function formatPct(value: number | null): string {
@@ -55,7 +63,9 @@ export function parseDateApi(iso: string): Date {
   return new Date(iso.endsWith('Z') ? iso : `${iso}Z`)
 }
 
+const FORMATTEUR_DATE_HEURE = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+
 export function formatDateHeure(iso: string | null): string {
   if (!iso) return 'Jamais exécuté'
-  return parseDateApi(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+  return FORMATTEUR_DATE_HEURE.format(parseDateApi(iso))
 }

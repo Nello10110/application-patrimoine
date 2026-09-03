@@ -13,11 +13,21 @@ function CibleInput({ categorieId, valeurInitiale, onSaved }: { categorieId: num
   const [saving, setSaving] = useState(false)
 
   async function enregistrer() {
+    const vide = valeur.trim() === ''
     const nombre = Number(valeur)
-    if (valeur.trim() === '' || Number.isNaN(nombre) || nombre < 0) return
+    // Vider le champ RETIRE la cible. Auparavant on sortait sans rien faire : une
+    // cible posée par erreur ne pouvait plus être enlevée par l'interface, alors
+    // que l'endpoint de suppression existait déjà côté serveur — fonctionnalité
+    // inachevée plutôt que code mort (revue du 03/09/2026).
+    if (!vide && (Number.isNaN(nombre) || nombre < 0)) return
+    if (vide && valeurInitiale === null) return  // rien à retirer, rien à enregistrer
     setSaving(true)
     try {
-      await api.setBudgetCible(categorieId, nombre)
+      if (vide) {
+        await api.deleteBudgetCible(categorieId)
+      } else {
+        await api.setBudgetCible(categorieId, nombre)
+      }
       onSaved()
     } finally {
       setSaving(false)
@@ -35,6 +45,7 @@ function CibleInput({ categorieId, valeurInitiale, onSaved }: { categorieId: num
       onBlur={enregistrer}
       onKeyDown={(e) => e.key === 'Enter' && enregistrer()}
       placeholder="—"
+      title="Montant mensuel visé pour cette catégorie. Videz le champ pour retirer la cible."
       className="w-24 rounded-md border border-bordure bg-surface px-2 py-1 text-right text-sm text-texte"
     />
   )

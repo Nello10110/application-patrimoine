@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Detenteur, Holding, Loan } from '../api/types'
+import type { Holding, Loan } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
+import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { formatDateHeure, formatEuro } from '../utils/format'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
@@ -12,7 +13,6 @@ import LoanFormFields from './LoanFormFields'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
 
-const TOLERANCE_SOMME_PCT = 0.01
 
 /** Répartition d'un emprunt entre détenteurs (backlog 2.L.1/X.1) — câble
  * `PUT /loans/{id}/quotites`, jusqu'ici sans UI (le service existait déjà,
@@ -21,42 +21,18 @@ const TOLERANCE_SOMME_PCT = 0.01
  * détenue/nette » affichée ici, l'endpoint emprunt ne renvoie qu'un accusé de
  * réception, contrairement à la fiche détaillée d'un actif. */
 function QuotitesEmprunt({ loanId }: { loanId: number }) {
-  const [detenteurs, setDetenteurs] = useState<Detenteur[] | null>(null)
-  const [saisie, setSaisie] = useState<Record<number, string>>({})
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [enregistre, setEnregistre] = useState(false)
+  const { detenteurs, erreurChargement, rechargerDetenteurs, saisie, setValeur, total, totalValide, saving, error, enregistre, handleSave } =
+    useEditeurQuotites({ enregistrer: (quotites) => api.setLoanQuotites(loanId, quotites) })
 
-  useEffect(() => {
-    api
-      .listDetenteurs()
-      .then(setDetenteurs)
-      .catch(() => setDetenteurs([]))
-  }, [])
-
+  if (erreurChargement !== null) {
+    return (
+      <div className="mt-3 border-t border-bordure pt-3">
+        <EtatErreur message={`Impossible de charger les détenteurs : ${erreurChargement}`} onReessayer={rechargerDetenteurs} />
+      </div>
+    )
+  }
   if (detenteurs === null) return <SkeletonTexte lignes={1} />
   if (detenteurs.length === 0) return null
-
-  const total = detenteurs.reduce((somme, d) => somme + (Number(saisie[d.id]) || 0), 0)
-  const repartitionEnCours = detenteurs.some((d) => (Number(saisie[d.id]) || 0) > 0)
-  const totalValide = !repartitionEnCours || Math.abs(total - 100) < TOLERANCE_SOMME_PCT
-
-  async function handleSave() {
-    setSaving(true)
-    setError(null)
-    setEnregistre(false)
-    try {
-      const quotites = (detenteurs ?? [])
-        .map((d) => ({ detenteur_id: d.id, quotite_pct: Number(saisie[d.id]) || 0 }))
-        .filter((q) => q.quotite_pct > 0)
-      await api.setLoanQuotites(loanId, quotites)
-      setEnregistre(true)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   return (
     <div className="mt-3 border-t border-bordure pt-3">
@@ -71,7 +47,7 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
               max={100}
               step="any"
               value={saisie[d.id] ?? ''}
-              onChange={(e) => setSaisie({ ...saisie, [d.id]: e.target.value })}
+              onChange={(e) => setValeur(d.id, e.target.value)}
               className="w-20 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
             />
           </label>
@@ -106,6 +82,7 @@ const LOAN_FORM_VIDE: LoanForm = {
 function LoanCardMobile({
   loan,
   holdings,
+  holdingsIndisponibles,
   montantsMasques,
   recalageId,
   recalageValeur,
@@ -129,6 +106,7 @@ function LoanCardMobile({
 }: {
   loan: Loan
   holdings: Holding[]
+  holdingsIndisponibles: boolean
   montantsMasques: boolean
   recalageId: number | null
   recalageValeur: string
@@ -225,10 +203,12 @@ function LoanCardMobile({
         Actif rattaché
         <select
           value={loan.holding_id ?? ''}
-          disabled={rattachementSaving === loan.id}
+          disabled={rattachementSaving === loan.id || holdingsIndisponibles}
+          title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
           onChange={(e) => onRattacher(e.target.value === '' ? null : Number(e.target.value))}
           className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
         >
+          {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>Actif rattaché (liste indisponible)</option>}
           <option value="">Aucun</option>
           {holdings.map((h) => (
             <option key={h.id} value={h.id}>
@@ -317,6 +297,7 @@ export default function LoansCard() {
   // Rattachement à un actif (backlog 2.M.2), nécessaire au calcul de la part nette
   // par détenteur (2.L.1).
   const [holdings, setHoldings] = useState<Holding[]>([])
+  const [holdingsIndisponibles, setHoldingsIndisponibles] = useState(false)
   const [rattachementSaving, setRattachementSaving] = useState<number | null>(null)
 
   function load() {
@@ -330,7 +311,14 @@ export default function LoansCard() {
 
   useEffect(load, [])
   useEffect(() => {
-    api.listHoldings().then(setHoldings).catch(() => setHoldings([]))
+    // `null` ≠ `[]` : sur échec, le sélecteur « Actif rattaché » affichait « Aucun »
+    // pour un emprunt POURTANT rattaché (l'option correspondante manquait, la
+    // `value` ne matchait plus). Un affichage faux, sans le moindre indice pour
+    // l'utilisateur (revue du 03/09/2026). On distingue donc l'échec du vide.
+    api
+      .listHoldings()
+      .then(setHoldings)
+      .catch(() => setHoldingsIndisponibles(true))
   }, [])
 
   async function handleRattacher(loanId: number, holdingId: number | null) {
@@ -473,6 +461,7 @@ export default function LoansCard() {
               key={loan.id}
               loan={loan}
               holdings={holdings}
+              holdingsIndisponibles={holdingsIndisponibles}
               montantsMasques={montantsMasques}
               recalageId={recalageId}
               recalageValeur={recalageValeur}
@@ -559,10 +548,14 @@ export default function LoansCard() {
                   <td className="py-2 pr-4">
                     <select
                       value={loan.holding_id ?? ''}
-                      disabled={rattachementSaving === loan.id}
+                      disabled={rattachementSaving === loan.id || holdingsIndisponibles}
+                      title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
                       onChange={(e) => handleRattacher(loan.id, e.target.value === '' ? null : Number(e.target.value))}
                       className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     >
+                      {/* Sans cette option, un emprunt rattaché retombait sur
+                          « Aucun » quand la liste n'avait pas pu être chargée. */}
+                      {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>Actif rattaché (liste indisponible)</option>}
                       <option value="">Aucun</option>
                       {holdings.map((h) => (
                         <option key={h.id} value={h.id}>

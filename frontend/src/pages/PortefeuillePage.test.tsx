@@ -338,13 +338,17 @@ describe('PortefeuillePage', () => {
 
     it('trie par ticker croissant au premier clic, décroissant au second', async () => {
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      // Le tri passe par un vrai <button> dans l'en-tête (accessibilité clavier,
+      // revue du 03/09/2026) : on clique le contrôle, on vérifie `aria-sort` sur la
+      // cellule, à qui cet attribut appartient.
       const enTeteTicker = await screen.findByRole('columnheader', { name: /Ticker/ })
+      const boutonTicker = within(enTeteTicker).getByRole('button')
 
-      fireEvent.click(enTeteTicker)
+      fireEvent.click(boutonTicker)
       await waitFor(() => expect(enTeteTicker).toHaveAttribute('aria-sort', 'ascending'))
       expect(tickersAffiches()).toEqual(['AAA', 'BBB', 'CCC'])
 
-      fireEvent.click(enTeteTicker)
+      fireEvent.click(boutonTicker)
       await waitFor(() => expect(enTeteTicker).toHaveAttribute('aria-sort', 'descending'))
       expect(tickersAffiches()).toEqual(['CCC', 'BBB', 'AAA'])
     })
@@ -352,13 +356,14 @@ describe('PortefeuillePage', () => {
     it('trie par valeur, en repoussant les valeurs nulles (—) en fin de liste quel que soit le sens', async () => {
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
       const enTeteValeur = await screen.findByRole('columnheader', { name: /^Valeur/ })
+      const boutonValeur = within(enTeteValeur).getByRole('button')
 
-      fireEvent.click(enTeteValeur)
+      fireEvent.click(boutonValeur)
       await waitFor(() => expect(enTeteValeur).toHaveAttribute('aria-sort', 'ascending'))
       // BBB (50*5=250) < AAA (200*20=4000) < CCC (null, toujours en dernier)
       expect(tickersAffiches()).toEqual(['BBB', 'AAA', 'CCC'])
 
-      fireEvent.click(enTeteValeur)
+      fireEvent.click(boutonValeur)
       await waitFor(() => expect(enTeteValeur).toHaveAttribute('aria-sort', 'descending'))
       // Sens inversé pour les valeurs connues, CCC toujours en dernier.
       expect(tickersAffiches()).toEqual(['AAA', 'BBB', 'CCC'])

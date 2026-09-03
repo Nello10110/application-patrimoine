@@ -579,12 +579,22 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                 <th
                   key={col.cle}
                   scope="col"
-                  onClick={() => handleSort(col.cle)}
                   aria-sort={triActif ? (tri.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
-                  className="cursor-pointer select-none py-2 pr-4 hover:text-texte"
+                  className="select-none pr-4"
                 >
-                  {col.label}
-                  {triActif && <span className="ml-1">{tri.direction === 'asc' ? '▲' : '▼'}</span>}
+                  {/* Un vrai <button> plutôt qu'un onClick sur le <th> : le tri
+                      était inaccessible au clavier, alors que l'aria-sort promettait
+                      un contrôle de tri (revue du 03/09/2026). Le bouton reprend le
+                      padding de la cellule et sa pleine largeur, pour ne pas rétrécir
+                      la zone cliquable à la souris en réparant le clavier. */}
+                  <button
+                    type="button"
+                    onClick={() => handleSort(col.cle)}
+                    className="w-full cursor-pointer py-2 text-left font-medium uppercase hover:text-texte"
+                  >
+                    {col.label}
+                    {triActif && <span className="ml-1">{tri.direction === 'asc' ? '▲' : '▼'}</span>}
+                  </button>
                 </th>
               )
             })}
@@ -600,6 +610,11 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
             const md = h.market_data
             const enEdition = editingId === h.id
             return (
+              // Le clic sur la ligne reste un confort souris ; le contrôle
+              // accessible est le bouton posé sur le ticker (voir plus bas). Mettre
+              // `role="button"` sur le <tr> aurait retiré son rôle `row` et cassé la
+              // sémantique du tableau pour les lecteurs d'écran — un remède pire que
+              // le mal (revue du 03/09/2026).
               <tr
                 key={h.id}
                 onClick={() => {
@@ -609,7 +624,25 @@ export default function PositionsTable({ rows, onSelectTicker, onRequestDelete, 
                 className="cursor-pointer hover:bg-surface-elevee"
               >
                 <td className="py-2 pr-4 font-medium text-texte">
-                  {h.ticker}
+                  {/* Le ticker porte le contrôle d'ouverture de la fiche : c'est ce
+                      qui rend l'écran principal utilisable au clavier, sans toucher
+                      au rôle `row` de la ligne (revue du 03/09/2026). En édition, la
+                      ligne n'ouvre rien — le bouton disparaît avec elle. */}
+                  {enEdition ? (
+                    h.ticker
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onSelectTicker(h.ticker)
+                      }}
+                      aria-label={`Voir le détail de ${h.ticker}`}
+                      className="cursor-pointer font-medium hover:underline"
+                    >
+                      {h.ticker}
+                    </button>
+                  )}
                   {h.origine === 'manuel' && (
                     <span
                       title="Ligne saisie manuellement : non recalculée par un import de transactions"

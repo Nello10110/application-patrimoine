@@ -172,7 +172,7 @@ export default function ReglagesPage() {
               Déclaration de patrimoine (PDF)
             </button>
           </Card>
-          {/* Sauvegarde complète (backlog X.6) : carte distincte de « Exporter »
+          {/* Sauvegarde complète (backlog Y.1) : carte distincte de « Exporter »
               ci-dessus — celle-ci ne produit pas un document à lire mais un
               fichier ré-importable, et porte l'action destructrice d'import. */}
           <SauvegardeDonneesCard />

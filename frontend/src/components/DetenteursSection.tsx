@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Compte, Detenteur, HoldingDetail } from '../api/types'
+import type { Compte, HoldingDetail } from '../api/types'
 import Card from './Card'
+import EtatErreur from './EtatErreur'
+import { SkeletonTexte } from './Skeleton'
+import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
@@ -23,47 +26,28 @@ export default function DetenteursSection({
   compte?: Compte | null
 }) {
   const { montantsMasques } = usePreferencesAffichage()
-  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
-  const [saisie, setSaisie] = useState<Record<number, string>>({})
   const [quotitesEnregistrees, setQuotitesEnregistrees] = useState(quotitesInitiales)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { detenteurs, erreurChargement, rechargerDetenteurs, saisie, setValeur, total, totalValide, saving, error, handleSave } =
+    useEditeurQuotites({
+      enregistrer: (quotites) => api.setHoldingQuotites(ticker, quotites),
+      valeursInitiales: quotitesInitiales,
+      // Seul des trois éditeurs à recharger : l'endpoint de la fiche renvoie les
+      // parts détenue/nette recalculées, que ce bloc affiche.
+      apresEnregistrement: async () => {
+        const detailFrais = await api.getHoldingDetail(ticker)
+        setQuotitesEnregistrees(detailFrais.quotites)
+      },
+    })
 
-  useEffect(() => {
-    api
-      .listDetenteurs()
-      .then((liste) => {
-        setDetenteurs(liste)
-        const init: Record<number, string> = {}
-        for (const q of quotitesInitiales) init[q.detenteur_id] = String(q.quotite_pct)
-        setSaisie(init)
-      })
-      .catch(() => setDetenteurs([]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `ticker` change = remontage du composant parent (route/modale), pas de resynchronisation nécessaire en cours de vie.
-  }, [ticker])
-
-  if (detenteurs.length === 0) return null
-
-  const total = detenteurs.reduce((somme, d) => somme + (Number(saisie[d.id]) || 0), 0)
-  const repartitionEnCours = detenteurs.some((d) => (Number(saisie[d.id]) || 0) > 0)
-  const totalValide = !repartitionEnCours || Math.abs(total - 100) < 0.01
-
-  async function handleSave() {
-    setSaving(true)
-    setError(null)
-    try {
-      const quotites = detenteurs
-        .map((d) => ({ detenteur_id: d.id, quotite_pct: Number(saisie[d.id]) || 0 }))
-        .filter((q) => q.quotite_pct > 0)
-      await api.setHoldingQuotites(ticker, quotites)
-      const detailFrais = await api.getHoldingDetail(ticker)
-      setQuotitesEnregistrees(detailFrais.quotites)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
+  if (erreurChargement !== null) {
+    return (
+      <Card title="Détenteurs">
+        <EtatErreur message={`Impossible de charger les détenteurs : ${erreurChargement}`} onReessayer={rechargerDetenteurs} />
+      </Card>
+    )
   }
+  if (detenteurs === null) return <SkeletonTexte lignes={2} />
+  if (detenteurs.length === 0) return null
 
   return (
     <Card title="Détenteurs">
@@ -114,7 +98,7 @@ export default function DetenteursSection({
                     max={100}
                     step="any"
                     value={saisie[d.id] ?? ''}
-                    onChange={(e) => setSaisie({ ...saisie, [d.id]: e.target.value })}
+                    onChange={(e) => setValeur(d.id, e.target.value)}
                     className="w-20 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                   />
                   %

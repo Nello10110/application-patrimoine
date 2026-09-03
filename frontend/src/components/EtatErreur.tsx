@@ -6,7 +6,12 @@ import type { ReactNode } from 'react'
 // absent, le rendu reste strictement celui d'avant.
 export default function EtatErreur({ message, onReessayer }: { message: ReactNode; onReessayer?: () => void }) {
   return (
-    <div className="text-sm text-negatif">
+    // `role="alert"` : sans lui, un échec d'enregistrement était TOTALEMENT
+    // silencieux pour un lecteur d'écran — l'utilisateur restait sur son
+    // formulaire sans savoir que rien n'avait été sauvegardé (revue du
+    // 03/09/2026). Posé ici plutôt que sur la quarantaine d'appelants : un seul
+    // endroit à tenir, et aucun risque d'en oublier un.
+    <div role="alert" className="text-sm text-negatif">
       <p>{message}</p>
       {onReessayer && (
         <button type="button" onClick={onReessayer} className="mt-1 font-medium text-accent hover:underline">

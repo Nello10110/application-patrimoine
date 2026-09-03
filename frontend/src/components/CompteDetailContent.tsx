@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Compte, Detenteur, Etablissement, Holding, Loan } from '../api/types'
+import type { Compte, Etablissement, Holding, Loan } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
+import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { SkeletonTexte } from './Skeleton'
+import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 
-const TOLERANCE_SOMME_PCT = 0.01
 
 /** Nom + établissement, modifiables inline — même patron que `ModifierCompteForm`
  * dans `EpargnePage.tsx`. */
@@ -107,39 +108,19 @@ function EmpruntsRattaches({ emprunts, montantsMasques }: { emprunts: Loan[]; mo
  * aussi aux emprunts rattachés (backlog X.4, `comptes_service.set_quotites_compte`),
  * d'où le paramètre `nombreEmprunts` pour l'expliciter dans le texte. */
 function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: number; nombreLignes: number; nombreEmprunts: number }) {
-  const [detenteurs, setDetenteurs] = useState<Detenteur[] | null>(null)
-  const [saisie, setSaisie] = useState<Record<number, string>>({})
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [enregistre, setEnregistre] = useState(false)
+  const { detenteurs, erreurChargement, rechargerDetenteurs, saisie, setValeur, total, totalValide, saving, error, enregistre, handleSave } =
+    useEditeurQuotites({ enregistrer: (quotites) => api.setCompteQuotites(compteId, quotites) })
 
-  useEffect(() => {
-    api.listDetenteurs().then(setDetenteurs).catch(() => setDetenteurs([]))
-  }, [])
-
-  if (nombreLignes === 0 || detenteurs === null) return nombreLignes === 0 ? null : <SkeletonTexte lignes={1} />
-  if (detenteurs.length === 0) return null
-
-  const total = detenteurs.reduce((somme, d) => somme + (Number(saisie[d.id]) || 0), 0)
-  const repartitionEnCours = detenteurs.some((d) => (Number(saisie[d.id]) || 0) > 0)
-  const totalValide = !repartitionEnCours || Math.abs(total - 100) < TOLERANCE_SOMME_PCT
-
-  async function handleSave() {
-    setSaving(true)
-    setError(null)
-    setEnregistre(false)
-    try {
-      const quotites = (detenteurs ?? [])
-        .map((d) => ({ detenteur_id: d.id, quotite_pct: Number(saisie[d.id]) || 0 }))
-        .filter((q) => q.quotite_pct > 0)
-      await api.setCompteQuotites(compteId, quotites)
-      setEnregistre(true)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
+  if (nombreLignes === 0) return null
+  if (erreurChargement !== null) {
+    return (
+      <Card title="Répartition entre détenteurs">
+        <EtatErreur message={`Impossible de charger les détenteurs : ${erreurChargement}`} onReessayer={rechargerDetenteurs} />
+      </Card>
+    )
   }
+  if (detenteurs === null) return <SkeletonTexte lignes={1} />
+  if (detenteurs.length === 0) return null
 
   return (
     <Card title="Répartition entre détenteurs">
@@ -158,7 +139,7 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
               max={100}
               step="any"
               value={saisie[d.id] ?? ''}
-              onChange={(e) => setSaisie({ ...saisie, [d.id]: e.target.value })}
+              onChange={(e) => setValeur(d.id, e.target.value)}
               className="w-20 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>

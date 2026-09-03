@@ -2944,6 +2944,33 @@ référence : toute modification du sel, de l'algorithme ou du nombre d'itérati
 les données déjà chiffrées et doit échouer ici, jamais passer inaperçue jusqu'à la prochaine
 restauration. `test_backup_service.py` mis à jour (les phrases usuelles sont désormais acceptées).
 
+#### Z.1 — `mineur` · `S` · `P3` · `à faire` — Appels réseau redondants au chargement
+
+Identifié pendant la revue du 03/09/2026, **délibérément non traité** dans les vagues
+de correctifs : le remède demande de remonter l'état dans deux gros composants, un
+diff moyen pour un gain modeste, et mal fait il introduit une liste de comptes périmée.
+Consigné plutôt que bâclé.
+
+Quatre doublons vérifiés, tous des composants montés simultanément qui chargent
+chacun le même endpoint :
+
+| Endpoint | Appelé par |
+|---|---|
+| `GET /portfolio/holdings` | `PortefeuillePage.tsx:169` **et** `LoansCard.tsx:333` |
+| `GET /comptes` | `AjoutHoldingForm.tsx:55` **et** `PositionsTable.tsx:403` |
+| `GET /etablissements` | `onboarding/EtapeComptes.tsx:30` **et** `EtablissementsCard.tsx:26` |
+
+S'y ajoute un N+1 côté client : `EpargnePage.tsx:431` monte un `CompteEpargneCard`
+par compte, et chaque carte charge son propre historique (`:116`) — 1 requête par
+compte d'épargne au montage.
+
+**Traitement** : remonter l'appel au parent et passer la donnée en prop, comme
+`DashboardPage` le fait déjà pour `getPortfolioHistory`/`getPatrimoineHistory`
+(commentaire explicite à `:47-61`). Ne PAS introduire de cache module : les deux
+composants qui listent les comptes rechargent après création d'un compte, un cache
+mal invalidé les ferait diverger.
+
+---
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -2988,7 +3015,7 @@ Révisé le 21/08/2026 : deux points sortent de cette liste, trois y restent, un
 
 ## 4. Priorisation d'ensemble
 
-**Mise à jour du 01/09/2026** : dix lots sont désormais clos (Phases 1-3 + Lots 4-10). Il ne reste
+**Mise à jour du 03/09/2026** : onze lots sont désormais clos (Phases 1-3 + Lots 4-11). Il ne reste
 que **trois points isolés, hors lot** — aucun n'est bloqué par manque de temps ou de priorité, tous
 les trois attendent quelque chose qui n'est pas du développement (§ « Ce qui reste, et pourquoi »
 ci-dessous). Le backlog fonctionnel issu de l'audit du 21/08/2026 est donc, pour l'essentiel,
