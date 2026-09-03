@@ -20,11 +20,13 @@ services:
     image: ghcr.io/nello10110/application-patrimoine-backend:latest
     environment:
       PATRIMOINE_DB: /app/data/patrimoine.db
-      # Générer une fois chacune, à conserver précieusement (les perdre rend les
-      # sauvegardes chiffrées et le contenu protégé irrécupérables) :
-      #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-      PATRIMOINE_SECRET_KEY: "REMPLACER_PAR_UNE_VRAIE_CLE_FERNET"
-      PATRIMOINE_BACKUP_KEY: "REMPLACER_PAR_UNE_AUTRE_VRAIE_CLE_FERNET"
+      # Lues depuis un fichier `.env` place a cote de ce compose (ignore par git),
+      # JAMAIS ecrites ici : ce fichier est versionne et pousse sur le depot
+      # distant. Voir `.env.exemple` pour le gabarit et les commandes de
+      # generation. Perdre ces cles rend les sauvegardes chiffrees et le secret
+      # SSO irrecuperables.
+      PATRIMOINE_SECRET_KEY: ${PATRIMOINE_SECRET_KEY:?definir PATRIMOINE_SECRET_KEY dans .env}
+      PATRIMOINE_BACKUP_KEY: ${PATRIMOINE_BACKUP_KEY:?definir PATRIMOINE_BACKUP_KEY dans .env}
     volumes:
       - patrimoine_data:/app/data
       - patrimoine_sauvegardes:/app/sauvegardes
