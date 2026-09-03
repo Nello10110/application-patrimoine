@@ -221,3 +221,67 @@ def test_route_refresh_202_puis_status_puis_409_si_deja_en_cours(client, db, mon
 
     liberer.set()
     attendre_fin_rafraichissement_arriere_plan()
+
+
+# --- expiration du cache de resolution des tickers (revue du 03/09/2026) --------
+
+
+def test_une_resolution_echouee_est_reessayee_apres_expiration(monkeypatch):
+    """Défaut trouvé en revue : `resolue_le` était écrite mais jamais lue, donc rien
+    n'expirait — un échec de résolution (Yahoo indisponible, limitation de débit,
+    titre trop récent) condamnait la ligne à rester non cotée POUR TOUJOURS, sans
+    autre recours que de vider la table à la main."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.services import market_data_service
+
+    db = SessionLocal()
+    try:
+        db.query(TickerResolution).delete()
+        maintenant = datetime.now(UTC).replace(tzinfo=None)
+        db.add(
+            TickerResolution(
+                identifiant="ISIN_ECHEC",
+                ticker_resolu=None,
+                quote_type=None,
+                resolue_le=maintenant - timedelta(days=market_data_service.DUREE_CACHE_ECHEC_JOURS + 1),
+            )
+        )
+        db.commit()
+
+        appels = []
+        monkeypatch.setattr(
+            market_data_service,
+            "MANUAL_TICKER_OVERRIDES",
+            {"ISIN_ECHEC": "RESOLU.PA"},
+        )
+        monkeypatch.setattr(market_data_service.yf, "Search", lambda *a, **k: appels.append(1))
+
+        assert market_data_service.resolve_ticker(db, "ISIN_ECHEC", "STOCK") == "RESOLU.PA"
+    finally:
+        db.query(TickerResolution).delete()
+        db.commit()
+        db.close()
+
+
+def test_une_resolution_reussie_recente_nest_pas_rejouee(monkeypatch):
+    """Le pendant du test précédent : on ne doit pas se mettre à rappeler Yahoo à
+    chaque rafraîchissement pour des résolutions parfaitement valides."""
+    from app.services import market_data_service
+
+    db = SessionLocal()
+    try:
+        db.query(TickerResolution).delete()
+        db.add(TickerResolution(identifiant="ISIN_OK", ticker_resolu="OK.PA", quote_type="EQUITY"))
+        db.commit()
+
+        def _interdit(*a, **k):
+            raise AssertionError("aucune recherche Yahoo ne doit être déclenchée")
+
+        monkeypatch.setattr(market_data_service.yf, "Search", _interdit)
+
+        assert market_data_service.resolve_ticker(db, "ISIN_OK", "STOCK") == "OK.PA"
+    finally:
+        db.query(TickerResolution).delete()
+        db.commit()
+        db.close()

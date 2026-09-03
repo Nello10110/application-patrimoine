@@ -339,3 +339,52 @@ def test_les_dates_survivent_a_laller_retour(client, db):
     assert maison.date_acquisition.date().isoformat() == "2021-06-15"
     loan = db.query(Loan).one()
     assert isinstance(loan.date_debut, datetime)
+
+
+# --- validation des enumerations a l'import (revue du 03/09/2026) ---------------
+
+
+@pytest.mark.parametrize(
+    ("table", "colonne", "valeur"),
+    [
+        ("detenteurs", "type", "administrateur"),
+        ("holdings", "origine", "n_importe_quoi"),
+        ("objectifs", "type", "domination_mondiale"),
+        ("salaires", "periodicite", "hebdomadaire"),
+    ],
+)
+def test_import_refuse_une_valeur_hors_enumeration(db, table, colonne, valeur):
+    """L'import écrit les lignes directement (`modele(**valeurs)`), sans passer par
+    les schémas Pydantic qui valident ces champs sur les routes normales, et le
+    schéma SQL ne porte aucune contrainte CHECK. Sans ce garde-fou, un fichier
+    d'export édité à la main corrompt silencieusement les données du foyer et casse
+    des écrans sans que rien n'explique pourquoi."""
+    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    modele = next(t.modele for t in donnees_service.TABLES if t.nom == table)
+    colonnes = {c.name for c in modele.__table__.columns} - {"user_id"}
+    ligne = {c: None for c in colonnes}
+    ligne["id"] = 1
+    ligne[colonne] = valeur
+    document["donnees"][table] = [ligne]
+
+    with pytest.raises(donnees_service.ValeurInvalideError) as exc:
+        donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+
+    assert colonne in str(exc.value)
+    assert valeur in str(exc.value)
+
+
+def test_import_refuse_laisse_les_donnees_intactes(db):
+    """L'import est un remplacement total : un refus en cours de route ne doit pas
+    laisser le foyer à moitié vidé."""
+    avant = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    nombre_holdings = len(avant["donnees"]["holdings"])
+
+    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    document["donnees"]["detenteurs"] = [{"id": 1, "nom": "X", "type": "extraterrestre"}]
+
+    with pytest.raises(donnees_service.ValeurInvalideError):
+        donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+
+    apres = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+    assert len(apres["donnees"]["holdings"]) == nombre_holdings

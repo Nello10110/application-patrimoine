@@ -627,3 +627,34 @@ def test_creer_un_membre_du_foyer_refuse_a_un_non_proprietaire(client_reel):
     )
 
     assert reponse.status_code == 403
+
+
+def test_supprimer_un_membre_conserve_son_journal_sans_reference_pendante(client_reel, db_vide):
+    """Revue du 03/09/2026 : `delete_household_member` nettoyait les jetons et le
+    périmètre, mais laissait `access_log_entries.user_id` pointer vers un compte
+    disparu — 10 entrées orphelines constatées en base réelle
+    (`PRAGMA foreign_key_check`).
+
+    Les deux moitiés comptent : le journal doit SURVIVRE (c'est sa raison d'être,
+    cf. docstring d'`AccessLogEntry`) et la référence ne doit PAS rester pendante."""
+    from app.models import AccessLogEntry
+
+    _inscrire(client_reel)
+    token_paul = client_reel.post("/api/auth/login", json={"username": "paul", "password": "mot-de-passe-solide"}).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "membre", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+    client_reel.post("/api/auth/login", json={"username": "membre", "password": "mot-de-passe-solide"})
+
+    assert client_reel.delete(f"/api/auth/household-members/{membre['id']}", headers=entete).status_code == 204
+
+    entrees = client_reel.get("/api/auth/access-log", headers=entete).json()
+    tracees = [e for e in entrees if e["username_saisi"] == "membre"]
+    assert tracees, "le journal d'accès doit survivre à la suppression du compte"
+
+    assert db_vide.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre["id"]).count() == 0, (
+        "aucune entrée ne doit conserver une référence vers le compte supprimé"
+    )

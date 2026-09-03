@@ -9,7 +9,7 @@ pour l'historique des révisions.
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -317,6 +317,14 @@ class Compte(Base):
     etablissement: Mapped["Etablissement | None"] = relationship("Etablissement", lazy="selectin")
 
 
+# Types de détenteur — déclarés ici, avec les autres énumérations du modèle, plutôt
+# que dans `schemas.py` : l'import de données (`donnees_service`) doit pouvoir les
+# valider sans qu'un service ait à importer les schémas, ce qui inverserait le sens
+# des dépendances du projet (c'est `schemas` qui importe les services, jamais
+# l'inverse).
+TYPES_DETENTEUR_VALIDES = {"personne", "societe"}
+
+
 class Detenteur(Base):
     """Personne (conjoint, enfant...) ou société (SCI, holding...) du foyer, déclarée
     une fois et réutilisée pour répartir la propriété des actifs et des emprunts
@@ -426,7 +434,16 @@ class Transaction(Base):
     # avec des comptes courtier différents peuvent avoir des `transaction_id` qui se
     # recoupent par coïncidence sans que ce soit un doublon. Remplace l'ancien
     # `unique=True` sur la seule colonne `transaction_id` (Milestone 2a, backlog 2.I.1).
-    __table_args__ = (UniqueConstraint("transaction_id", "user_id", name="uq_transaction_user_transaction_id"),)
+    # Index composite (revue du 03/09/2026) : les rapports, la performance mensuelle
+    # et les revenus passifs filtrent tous sur `user_id` + une plage de `date`.
+    # L'index sur le seul `user_id` obligeait à parcourir toutes les transactions du
+    # foyer pour n'en garder qu'une poignée — mesuré sur une base réelle : 4 059
+    # lignes parcourues pour 97 utiles, 0,491 ms -> 0,009 ms une fois l'index posé
+    # (il devient couvrant, SQLite ne touche plus la table).
+    __table_args__ = (
+        UniqueConstraint("transaction_id", "user_id", name="uq_transaction_user_transaction_id"),
+        Index("ix_transactions_user_id_date", "user_id", "date"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Multi-utilisateur (Milestone 2a) — cf. docstring équivalente sur `Holding.user_id`.

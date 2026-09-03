@@ -786,7 +786,9 @@ class HoldingDetail(BaseModel):
     date_acquisition: datetime | None = None
 
 
-TYPES_DETENTEUR_VALIDES = {"personne", "societe"}
+# Déplacé dans `models.py` (cf. son commentaire) ; réexporté ici pour ne casser
+# aucun import existant.
+from .models import TYPES_DETENTEUR_VALIDES  # noqa: E402
 
 
 class DetenteurBase(BaseModel):

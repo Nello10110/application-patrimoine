@@ -41,6 +41,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from ..models import (
+    ORIGINE_MANUEL,
+    ORIGINE_RECONSTRUIT,
+    TYPES_DETENTEUR_VALIDES,
+    TYPES_OBJECTIF,
     BudgetCible,
     CategorieBudget,
     Compte,
@@ -61,6 +65,7 @@ from ..models import (
     Transaction,
     UserParametre,
 )
+from . import salaire_service
 
 logger = logging.getLogger("patrimoine.donnees_service")
 
@@ -94,6 +99,15 @@ class TableExportee:
     modele: type
     references: dict[str, str] = field(default_factory=dict)
     scope_par: str | None = None
+    # Colonnes « énumération » dont la valeur doit appartenir à un ensemble fermé.
+    # L'import écrit les lignes directement (`modele(**valeurs)`), sans passer par
+    # les schémas Pydantic qui valident ces champs sur les routes normales : sans ce
+    # garde-fou, un fichier d'export édité à la main injecte n'importe quoi, et le
+    # schéma ne porte aucune contrainte CHECK pour le rattraper (revue du
+    # 03/09/2026). Le foyer n'est pas franchissable pour autant — `user_id` est
+    # forcé et `users` n'est pas importable — mais l'utilisateur peut corrompre ses
+    # PROPRES données et casser un écran sans comprendre pourquoi.
+    valeurs_autorisees: dict[str, frozenset[str]] = field(default_factory=dict)
 
     @property
     def a_un_id(self) -> bool:
@@ -108,8 +122,13 @@ class TableExportee:
 TABLES: list[TableExportee] = [
     TableExportee("etablissements", Etablissement),
     TableExportee("comptes", Compte, references={"etablissement_id": "etablissements"}),
-    TableExportee("detenteurs", Detenteur),
-    TableExportee("holdings", Holding, references={"compte_id": "comptes"}),
+    TableExportee("detenteurs", Detenteur, valeurs_autorisees={"type": frozenset(TYPES_DETENTEUR_VALIDES)}),
+    TableExportee(
+        "holdings",
+        Holding,
+        references={"compte_id": "comptes"},
+        valeurs_autorisees={"origine": frozenset({ORIGINE_MANUEL, ORIGINE_RECONSTRUIT})},
+    ),
     TableExportee("holding_immobilier_details", HoldingImmobilierDetail, references={"holding_id": "holdings"}, scope_par="holding_id"),
     TableExportee("holding_valuation_history", HoldingValuationHistory, references={"holding_id": "holdings"}, scope_par="holding_id"),
     TableExportee(
@@ -126,8 +145,15 @@ TABLES: list[TableExportee] = [
         scope_par="loan_id",
     ),
     TableExportee("transactions", Transaction),
-    TableExportee("salaires", Salaire),
-    TableExportee("objectifs", Objectif),
+    TableExportee(
+        "salaires",
+        Salaire,
+        valeurs_autorisees={
+            "periodicite": frozenset(salaire_service.PERIODICITES_VALIDES),
+            "statut": frozenset(salaire_service.STATUTS_VALIDES),
+        },
+    ),
+    TableExportee("objectifs", Objectif, valeurs_autorisees={"type": frozenset(TYPES_OBJECTIF)}),
     TableExportee(
         "objectif_actifs",
         ObjectifActif,
@@ -257,6 +283,21 @@ def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
     db.flush()
 
 
+class ValeurInvalideError(ValueError):
+    """Une colonne « énumération » porte une valeur hors de son ensemble autorisé."""
+
+
+def _verifier_valeur_autorisee(table: TableExportee, colonne: str, valeur: Any) -> None:
+    autorisees = table.valeurs_autorisees.get(colonne)
+    if autorisees is None or valeur is None:
+        return
+    if valeur not in autorisees:
+        attendues = ", ".join(sorted(autorisees))
+        raise ValeurInvalideError(
+            f"Valeur invalide pour {table.nom}.{colonne} : « {valeur} ». Attendu l'une de : {attendues}."
+        )
+
+
 def _importer_table(db: Session, table: TableExportee, lignes: list[dict], user_id: int, remap: dict[str, dict[int, int]]) -> None:
     colonnes = set(_colonnes(table))
     modele = table.modele
@@ -285,6 +326,7 @@ def _importer_table(db: Session, table: TableExportee, lignes: list[dict], user_
                     valeurs[colonne] = remap.get(table_cible, {}).get(valeur) if valeur is not None else None
                 else:
                     valeurs[colonne] = _valeur_a_inserer(colonne, valeur, modele)
+                    _verifier_valeur_autorisee(table, colonne, valeurs[colonne])
             if hasattr(modele, "user_id"):
                 valeurs["user_id"] = user_id
             objet = modele(**valeurs)

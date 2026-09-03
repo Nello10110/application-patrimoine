@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_token, get_current_user, require_role
 from ..database import get_db
-from ..models import ROLE_PROPRIETAIRE, AuthToken, Detenteur, PerimetreInvite, User
+from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, AuthToken, Detenteur, PerimetreInvite, User
 from ..schemas import (
     AccessLogEntryOut,
     AuthResponse,
@@ -300,5 +300,13 @@ def delete_household_member(id: int, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=404, detail="Compte introuvable")
     db.query(PerimetreInvite).filter(PerimetreInvite.user_id == membre.id).delete()
     db.query(AuthToken).filter(AuthToken.user_id == membre.id).delete()
+    # Le journal d'accès SURVIT à la suppression du compte, par conception (cf.
+    # docstring d'`AccessLogEntry`) : effacer les traces de connexion en supprimant
+    # un membre viderait le journal de son intérêt. On détache donc la référence au
+    # lieu de supprimer les lignes — `username_saisi` continue de dire QUI s'était
+    # connecté. Sans ce détachement, la ligne gardait un `user_id` pointant dans le
+    # vide : 10 entrées orphelines constatées en base réelle lors de la revue du
+    # 03/09/2026 (`PRAGMA foreign_key_check`).
+    db.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre.id).update({"user_id": None})
     db.delete(membre)
     db.commit()

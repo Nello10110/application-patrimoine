@@ -48,7 +48,7 @@ test de cette suite n'a besoin d'observer un vrai délai, puisque `yf.Ticker`/
 import os
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import yfinance as yf
 from sqlalchemy.orm import Session
@@ -75,6 +75,12 @@ QUOTE_TYPES_BY_ASSET_CLASS: dict[str, set[str]] = {
 
 DELAI_ENTRE_APPELS_SECONDES = 0.0 if os.environ.get("PATRIMOINE_TESTING") else 0.25
 
+# Durées de validité du cache de résolution des tickers (`TickerResolution`),
+# cf. `_resolution_encore_valide`. Un succès est quasi immuable ; un échec est
+# presque toujours conjoncturel et doit être réessayé.
+DUREE_CACHE_SUCCES_JOURS = 90
+DUREE_CACHE_ECHEC_JOURS = 1
+
 
 # yf.Search(isin) échoue parfois à retrouver un titre pourtant coté (ADR sous un
 # ticker différent de l'ISIN émetteur, plusieurs cotations du même fonds sur des
@@ -88,10 +94,31 @@ MANUAL_TICKER_OVERRIDES: dict[str, str] = {
 }
 
 
+def _resolution_encore_valide(cached: TickerResolution) -> bool:
+    """Une résolution réussie ne change pratiquement jamais (un ISIN garde son
+    ticker) : on la garde longtemps. Un ÉCHEC, lui, est très souvent conjoncturel —
+    Yahoo indisponible, limitation de débit, titre fraîchement coté pas encore
+    indexé. Le cacher indéfiniment condamnait la ligne à rester non cotée pour
+    toujours, sans aucun moyen de réessayer autrement qu'en vidant la table à la
+    main (constaté lors de la revue du 03/09/2026 : `resolue_le` était écrite mais
+    jamais lue, donc rien n'expirait).
+
+    D'où deux durées très différentes selon l'issue."""
+    age = datetime.now(UTC).replace(tzinfo=None) - cached.resolue_le
+    if cached.ticker_resolu is None:
+        return age < timedelta(days=DUREE_CACHE_ECHEC_JOURS)
+    return age < timedelta(days=DUREE_CACHE_SUCCES_JOURS)
+
+
 def resolve_ticker(db: Session, identifiant: str, asset_class: str | None) -> str | None:
     cached = db.get(TickerResolution, identifiant)
-    if cached is not None:
+    if cached is not None and _resolution_encore_valide(cached):
         return cached.ticker_resolu
+    if cached is not None:
+        # Périmée : on la retire pour que la résolution ci-dessous reparte de zéro
+        # (la clé primaire est `identifiant`, donc pas de doublon possible).
+        db.delete(cached)
+        db.flush()
 
     if identifiant in MANUAL_TICKER_OVERRIDES:
         ticker_resolu = MANUAL_TICKER_OVERRIDES[identifiant]
