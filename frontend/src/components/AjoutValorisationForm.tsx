@@ -10,7 +10,8 @@ import { dateVersISO } from '../utils/format'
 /** Formulaire d'ajout rapide d'un point d'historique à une date choisie par
  * l'utilisateur (backlog 2.S.1) — jamais `datetime.now()` imposé côté serveur pour
  * cette route, contrairement à la création/édition classique d'une ligne. Partagé
- * avec `EpargnePage` (action rapide « Ajouter une valorisation » sur chaque compte). */
+ * avec `LigneEpargne` (action rapide « Ajouter une valorisation » sur chaque ligne
+ * d'épargne, dans la fiche détaillée d'un compte). */
 export function AjoutValorisationForm({
   ticker,
   historique,

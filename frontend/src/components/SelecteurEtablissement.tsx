@@ -10,7 +10,7 @@ export const NOUVEAU_ETABLISSEMENT = '__nouveau__'
  * établissement. `required` retire l'option "— Aucun —" (compte : établissement
  * obligatoire à la création) ; omis, elle reste disponible (emprunt : établissement
  * optionnel). Consommé par `AjoutCompteForm`, `AjoutHoldingForm`, `PositionsTable`,
- * `EpargnePage`, `RattrapageComptes`, `ImportTransactionsSection`. */
+ * `RattrapageComptes`, `ImportTransactionsSection`. */
 export default function SelecteurEtablissement({
   etablissements,
   value,

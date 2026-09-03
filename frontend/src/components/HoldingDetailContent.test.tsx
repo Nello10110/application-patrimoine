@@ -200,7 +200,7 @@ function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobili
 
 // `Holding` renvoyé par `updateHoldingValuationPoint`/`deleteHoldingValuationPoint`
 // (backlog quickwin § T.3) — sa valeur n'est pas exploitée par `ImmobilierApercu`
-// (seul `EpargneApercu`/`EpargnePage` en tirent la "valeur actuelle" resynchronisée,
+// (seul `EpargneApercu`/`LigneEpargne` en tirent la "valeur actuelle" resynchronisée,
 // couverts ailleurs) : un objet minimal type-complet suffit ici.
 function holdingApresAction(): Holding {
   return {

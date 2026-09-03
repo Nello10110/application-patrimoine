@@ -178,9 +178,12 @@ test.describe('Ergonomie — le guidage promis est réellement présent à l\'é
     await expect(positionsTable(page).getByText(ticker)).not.toBeVisible()
   })
 
-  test('la confusion Comptes / Épargne est levée directement sur l\'écran', async ({ page }) => {
+  test('la notion de compte (contenant) est expliquée directement sur l\'écran', async ({ page }) => {
+    // Écran Épargne fusionné dans Comptes le 03/09/2026 (demande directe de
+    // l'utilisateur) — l'ancienne confusion entre les deux écrans n'existe plus,
+    // mais la distinction compte/ligne de patrimoine reste utile à expliquer.
     await page.goto('/comptes')
-    await expect(page.getByText(/Différence avec l'écran Épargne/)).toBeVisible()
+    await expect(page.getByText(/Qu'est-ce qu'un compte/)).toBeVisible()
     await expect(page.getByTitle(/Un compte est un contenant/)).toBeVisible()
   })
 

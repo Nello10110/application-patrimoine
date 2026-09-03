@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -12,6 +12,12 @@ vi.mock('../api/client', () => ({
     listLoans: vi.fn().mockResolvedValue([]),
     listDetenteurs: vi.fn().mockResolvedValue([]),
     setCompteQuotites: vi.fn(),
+    // Ligne d'épargne inline (fusion de l'écran Épargne, 03/09/2026) — `LigneEpargne`
+    // en a besoin pour ses propres actions (Modifier/Ajouter une valorisation/Supprimer).
+    getHoldingValuationHistory: vi.fn().mockResolvedValue([]),
+    setHoldingValorisation: vi.fn(),
+    updateHolding: vi.fn(),
+    deleteHolding: vi.fn(),
   },
 }))
 
@@ -164,6 +170,97 @@ describe('CompteDetailContent — lignes rattachées', () => {
       </MemoryRouter>,
     )
     expect(screen.queryByText(/ouvre sa fiche détaillée ci-dessus/)).not.toBeInTheDocument()
+  })
+})
+
+describe('CompteDetailContent — ligne d\'épargne inline (fusion de l\'écran Épargne, 03/09/2026)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.listEtablissements).mockResolvedValue([])
+    vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    vi.mocked(api.getHoldingValuationHistory).mockResolvedValue([])
+  })
+
+  function ligneEpargne(overrides: Partial<Holding> = {}): Holding {
+    return holding({
+      id: 1,
+      ticker: 'AV1',
+      nom: 'Assurance-vie Boursorama',
+      type_actif: 'LIFE_INSURANCE',
+      valeur_estimee: 10000,
+      date_valeur_estimee: '2026-01-01T00:00:00',
+      versement_mensuel: 200,
+      ...overrides,
+    })
+  }
+
+  it('affiche les actions Modifier/Ajouter une valorisation/Supprimer au lieu du simple lien vers la fiche', () => {
+    renderContent(compte(), [ligneEpargne()])
+
+    expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ajouter une valorisation' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+    expect(screen.queryByText(/ouvre sa fiche détaillée ci-dessus/)).not.toBeInTheDocument()
+  })
+
+  it('modifier le nom et le versement mensuel appelle updateHolding puis onChanged', async () => {
+    vi.mocked(api.updateHolding).mockResolvedValue(ligneEpargne({ nom: 'Renommée', versement_mensuel: 350 }))
+    const onChanged = vi.fn()
+    renderContent(compte(), [ligneEpargne()], onChanged)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+    // Deux champs "Nom du compte" sur l'écran : celui de la carte "Informations"
+    // (compte) et celui du formulaire d'édition de LA LIGNE — ce dernier vient en
+    // second dans le DOM.
+    const [, champNomLigne] = screen.getAllByLabelText('Nom du compte')
+    fireEvent.change(champNomLigne, { target: { value: 'Renommée' } })
+    fireEvent.change(screen.getByLabelText('Versement mensuel (€)'), { target: { value: '350' } })
+    const [, boutonEnregistrerLigne] = screen.getAllByRole('button', { name: 'Enregistrer' })
+    fireEvent.click(boutonEnregistrerLigne)
+
+    await vi.waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(1, { nom: 'Renommée', versement_mensuel: 350 }))
+    expect(await screen.findByText('Renommée')).toBeInTheDocument()
+    expect(onChanged).toHaveBeenCalled()
+  })
+
+  it('ajouter une valorisation appelle setHoldingValorisation puis onChanged', async () => {
+    vi.mocked(api.setHoldingValorisation).mockResolvedValue(ligneEpargne({ valeur_estimee: 10500, date_valeur_estimee: '2026-02-01T00:00:00' }))
+    const onChanged = vi.fn()
+    renderContent(compte(), [ligneEpargne()], onChanged)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
+    fireEvent.change(screen.getByLabelText('Valeur (€)'), { target: { value: '10500' } })
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-02-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une valorisation' }))
+
+    await vi.waitFor(() =>
+      expect(api.setHoldingValorisation).toHaveBeenCalledWith('AV1', { valeur: 10500, date: '2026-02-01', versement: null }),
+    )
+    expect(onChanged).toHaveBeenCalled()
+  })
+
+  it('supprimer une ligne demande confirmation avant deleteHolding, puis appelle onChanged', async () => {
+    vi.mocked(api.deleteHolding).mockResolvedValue({ ok: true })
+    const onChanged = vi.fn()
+    renderContent(compte(), [ligneEpargne()], onChanged)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const boiteDialogue = await screen.findByRole('dialog')
+    await within(boiteDialogue).findByText('Supprimer cette ligne ?')
+    expect(api.deleteHolding).not.toHaveBeenCalled()
+
+    fireEvent.click(within(boiteDialogue).getByRole('button', { name: 'Supprimer' }))
+
+    await vi.waitFor(() => expect(api.deleteHolding).toHaveBeenCalledWith(1))
+    await vi.waitFor(() => expect(onChanged).toHaveBeenCalled())
+  })
+
+  it('un compte avec une ligne STOCK et une ligne épargne mélange lien simple et actions inline', () => {
+    renderContent(compte(), [holding({ id: 2, ticker: 'AAPL', type_actif: 'STOCK', valeur: 1500 }), ligneEpargne()])
+
+    expect(screen.getByRole('link', { name: 'AAPL' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument()
   })
 })
 

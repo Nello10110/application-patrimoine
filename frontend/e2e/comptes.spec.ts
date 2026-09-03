@@ -29,6 +29,22 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(ligneImmobilier.getByText(montantRegex(attendu.valeur_appartement, 2))).toBeVisible()
   })
 
+  test('ouvrir le compte livret affiche sa ligne d\'épargne avec ses actions inline (fusion de l\'écran Épargne, 03/09/2026)', async ({
+    page,
+  }) => {
+    const { attendu, comptes } = seedData()
+
+    await page.getByText(comptes.livret.nom).click()
+
+    const modale = page.getByRole('dialog')
+    await expect(modale.getByRole('heading', { name: comptes.livret.nom }).first()).toBeVisible()
+    // La ligne d'épargne du compte affiche ses actions directement (pas juste un
+    // lien vers sa fiche détaillée), et sa valeur.
+    await expect(modale.getByRole('button', { name: 'Modifier' })).toBeVisible()
+    await expect(modale.getByRole('button', { name: 'Ajouter une valorisation' })).toBeVisible()
+    await expect(modale.getByText(montantRegex(attendu.valeur_livret, 2)).first()).toBeVisible()
+  })
+
   test('cliquer un compte multi-lignes ouvre le détail avec ses lignes et la répartition entre détenteurs', async ({ page }) => {
     const { comptes, holdings } = seedData()
 

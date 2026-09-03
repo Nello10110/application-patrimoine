@@ -39,7 +39,7 @@ describe('BottomNav (backlog 2.K.4)', () => {
     expect(within(nav).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
     expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(nav).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
-    expect(within(nav).getByRole('link', { name: /Épargne/ })).toHaveAttribute('href', '/epargne')
+    expect(within(nav).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
     expect(within(nav).queryByRole('link', { name: /Dividendes/ })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()

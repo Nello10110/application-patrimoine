@@ -12,7 +12,6 @@ const CompteDetailPage = lazy(() => import('../pages/CompteDetailPage'))
 const ComptesPage = lazy(() => import('../pages/ComptesPage'))
 const DashboardPage = lazy(() => import('../pages/DashboardPage'))
 const DividendesPage = lazy(() => import('../pages/DividendesPage'))
-const EpargnePage = lazy(() => import('../pages/EpargnePage'))
 const HoldingDetailPage = lazy(() => import('../pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('../pages/ImportPage'))
 const PortefeuillePage = lazy(() => import('../pages/PortefeuillePage'))
@@ -39,7 +38,6 @@ export const PAGE_COMPONENTS: Partial<Record<string, ComponentType>> = {
   '/comptes': ComptesPage,
   '/comptes/:id': CompteDetailPage,
   '/objectifs': SimulateurPage,
-  '/epargne': EpargnePage,
   '/dividendes': DividendesPage,
   '/budget': BudgetPage,
   '/rapport': RapportPage,

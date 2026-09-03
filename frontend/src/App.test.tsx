@@ -98,7 +98,7 @@ describe('App — navigation inférieure mobile (backlog 2.K.4)', () => {
     expect(within(navMobile).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
     expect(within(navMobile).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(navMobile).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
-    expect(within(navMobile).getByRole('link', { name: /Épargne/ })).toHaveAttribute('href', '/epargne')
+    expect(within(navMobile).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
     // Dividendes/Rapport ne tiennent pas dans les 4 entrées directes : rangés
     // derrière "Plus", fermé par défaut.
     expect(within(navMobile).queryByRole('link', { name: /Dividendes/ })).not.toBeInTheDocument()

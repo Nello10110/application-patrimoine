@@ -13,7 +13,7 @@ import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '..
 
 /** Historique daté des valorisations manuelles (backlog 2.M.3, généralisé en 2.S.1
  * à l'écran Épargne) — jamais écrasé, une nouvelle ligne à chaque point saisi.
- * Partagé entre `ImmobilierApercu`, `EpargneApercu` et `EpargnePage`.
+ * Partagé entre `ImmobilierApercu`, `EpargneApercu` et `LigneEpargne`.
  *
  * `dateAcquisition`/`prixRevientMoyen` (backlog § 2.S.3, retour utilisateur
  * 26/08/2026) : quand la date d'acquisition déclarée est antérieure au premier point

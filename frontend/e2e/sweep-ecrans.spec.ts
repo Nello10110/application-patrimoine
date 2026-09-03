@@ -27,7 +27,6 @@ const ROUTES_A_BALAYER: { chemin: string; titre: string }[] = [
   { chemin: '/patrimoine', titre: 'Patrimoine' },
   { chemin: '/comptes', titre: 'Comptes' },
   { chemin: '/objectifs', titre: 'Objectifs' },
-  { chemin: '/epargne', titre: 'Épargne' },
   { chemin: '/dividendes', titre: 'Dividendes' },
   { chemin: '/budget', titre: 'Budget' },
   { chemin: '/rapport', titre: 'Rapport' },

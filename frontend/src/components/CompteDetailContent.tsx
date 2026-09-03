@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Compte, Etablissement, Holding, Loan } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
+import { TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import LigneEpargne from './LigneEpargne'
 import { SkeletonTexte } from './Skeleton'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 
@@ -204,23 +206,35 @@ export default function CompteDetailContent({
         {holdings.length === 0 ? (
           <EtatVide
             titre="Aucune ligne rattachée à ce compte."
-            description="Rattache une position depuis Portefeuille (formulaire d'ajout ou édition d'une ligne) ou l'écran Épargne."
+            description="Rattache une position depuis Portefeuille (formulaire d'ajout ou édition d'une ligne), ou crée-en une épargne directement ci-dessus."
           />
         ) : (
           <ul className="divide-y divide-bordure">
-            {holdings.map((h) => (
-              <li key={h.id} className="flex items-center justify-between py-2 text-sm">
-                <Link to={`/patrimoine/${encodeURIComponent(h.ticker)}`} className="font-medium text-texte hover:underline">
-                  {h.nom ?? h.ticker}
-                </Link>
-                <span className="text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>
-              </li>
-            ))}
+            {holdings.map((h) =>
+              // Une ligne d'épargne (assurance-vie, PER, épargne réglementée/
+              // salariale, compte courant) — 1:1 avec son compte par convention —
+              // gagne ses actions (Modifier, Ajouter une valorisation, Supprimer)
+              // et son historique directement ici (fusion de l'écran Épargne dans
+              // Comptes, 03/09/2026, demande directe de l'utilisateur). Les autres
+              // types de lignes gardent le simple lien vers leur fiche détaillée.
+              h.type_actif !== null && TYPES_EPARGNE.has(h.type_actif) ? (
+                <li key={h.id}>
+                  <LigneEpargne holding={h} onChanged={onChanged} onDeleted={onChanged} />
+                </li>
+              ) : (
+                <li key={h.id} className="flex items-center justify-between py-2 text-sm">
+                  <Link to={`/patrimoine/${encodeURIComponent(h.ticker)}`} className="font-medium text-texte hover:underline">
+                    {h.nom ?? h.ticker}
+                  </Link>
+                  <span className="text-texte">{formatEuro(h.valeur, 2, montantsMasques)}</span>
+                </li>
+              ),
+            )}
           </ul>
         )}
-        {holdings.length === 1 && (
+        {holdings.length === 1 && !(holdings[0].type_actif !== null && TYPES_EPARGNE.has(holdings[0].type_actif)) && (
           <p className="mt-3 text-xs text-texte-attenue">
-            Pour mettre à jour la valeur de cette ligne (immobilier, épargne...), ouvre sa fiche détaillée ci-dessus.
+            Pour mettre à jour la valeur de cette ligne (immobilier...), ouvre sa fiche détaillée ci-dessus.
           </p>
         )}
       </Card>

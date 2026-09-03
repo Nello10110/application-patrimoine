@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { CompteAvecSolde, Etablissement } from '../api/types'
+import type { CompteAvecSolde, Etablissement, Holding } from '../api/types'
 import AjoutCompteForm from '../components/AjoutCompteForm'
 import Card from '../components/Card'
 import CompteDetailModal from '../components/CompteDetailModal'
@@ -10,25 +10,35 @@ import EtatVide from '../components/EtatVide'
 import Modale from '../components/Modale'
 import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
+import { TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatEuro } from '../utils/format'
 
 const SANS_ETABLISSEMENT = 'Sans établissement'
 
-/** Écran Comptes (backlog X.1) : liste de tous les comptes du foyer avec leur
+/** Écran Comptes (backlog X.1, fusionné avec l'ancien écran Épargne le 03/09/2026 —
+ * demande directe de l'utilisateur) : liste de tous les comptes du foyer avec leur
  * solde, groupés par établissement — façon logiciel de budget. Couvre TOUS les
  * types d'actifs (contrairement à l'ancienne carte « Répartition par compte » du
  * Tableau de bord, restreinte au portefeuille financier), y compris l'immobilier et
- * l'épargne rattachés à un compte. */
+ * l'épargne rattachés à un compte — dont les actions dédiées (modifier, ajouter une
+ * valorisation, historique) vivent dans la fiche détaillée du compte
+ * (`CompteDetailContent`/`LigneEpargne`), une ligne d'épargne étant 1:1 avec son
+ * compte par convention. */
 export default function ComptesPage() {
   const { montantsMasques } = usePreferencesAffichage()
   const [lignes, setLignes] = useState<CompteAvecSolde[] | null>(null)
   const [etablissements, setEtablissements] = useState<Etablissement[]>([])
+  // Uniquement pour l'encart « Épargne » ci-dessous (valeur totale/versement
+  // mensuel total) : `CompteAvecSolde` n'expose ni `valeur_estimee` ni
+  // `versement_mensuel`, une requête séparée est indispensable — même donnée que
+  // l'ancienne `EpargnePage.tsx`.
+  const [holdings, setHoldings] = useState<Holding[]>([])
   const [error, setError] = useState<string | null>(null)
   const [compteOuvert, setCompteOuvert] = useState<number | null>(null)
   // Confirmation avant suppression (recette du 02/09/2026) : le bouton se trouve
   // sur une ligne elle-même cliquable, un clic un peu large supprimait le compte
-  // sans retour possible. Même patron que `PortefeuillePage`/`EpargnePage`, qui
-  // confirment déjà — cet écran était le seul à supprimer sèchement.
+  // sans retour possible. Même patron que `PortefeuillePage`, qui confirme déjà —
+  // cet écran était le seul à supprimer sèchement.
   const [confirmSuppression, setConfirmSuppression] = useState<CompteAvecSolde | null>(null)
   const [suppressionEnCours, setSuppressionEnCours] = useState(false)
 
@@ -39,6 +49,7 @@ export default function ComptesPage() {
       .then(setLignes)
       .catch((err) => setError(err.message))
     api.listEtablissements().then(setEtablissements).catch(() => setEtablissements([]))
+    api.listHoldings().then(setHoldings).catch(() => setHoldings([]))
   }
 
   useEffect(charger, [])
@@ -68,6 +79,14 @@ export default function ComptesPage() {
 
   const soldeTotal = lignes.reduce((somme, l) => somme + l.solde, 0)
 
+  // Encart « Épargne » (fusion du 03/09/2026) : assurance-vie, PER, épargne
+  // réglementée/salariale, compte courant — même périmètre et même calcul que
+  // l'ancienne `EpargnePage.tsx`. Le Véhicule en reste exclu (décote plutôt
+  // qu'épargne), toujours visible dans Portefeuille (onglet « Immobilier & Épargne »).
+  const lignesEpargne = holdings.filter((h) => h.type_actif !== null && TYPES_EPARGNE.has(h.type_actif))
+  const valeurEpargneTotale = lignesEpargne.reduce((somme, h) => somme + (h.valeur_estimee ?? 0), 0)
+  const versementEpargneTotal = lignesEpargne.reduce((somme, h) => somme + (h.versement_mensuel ?? 0), 0)
+
   // Regroupement par établissement (côté client, comme `comptesDisponibles` pour
   // Portefeuille) — un groupe « Sans établissement » pour les comptes non rattachés
   // ET pour le bucket « Sans compte » (lignes du foyer jamais rattachées à un
@@ -91,15 +110,32 @@ export default function ComptesPage() {
       </div>
       <p className="text-sm text-texte-attenue">
         Tous les comptes du foyer — compte courant, PEA, compte-titres, assurance-vie, immobilier, épargne — groupés par
-        établissement, avec leur solde. Clique sur un compte pour voir le détail et définir une répartition entre
-        détenteurs pour tout le compte en une fois.{' '}
-        {/* Trois écrans parlent de « compte » (Comptes, Épargne, Patrimoine) : la
-            distinction est la première incompréhension d'un nouvel utilisateur
-            (recette du 02/09/2026) — levée ici plutôt que seulement dans le manuel. */}
-        <span title="Un compte est un contenant (votre PEA, votre livret, le compte de votre appartement) ; les lignes de patrimoine sont ce qu'il contient. L'écran Épargne, lui, liste directement des lignes d'épargne — une même ligne apparaît donc dans les deux, vue sous deux angles différents.">
-          <span className="cursor-help underline decoration-dotted">Différence avec l'écran Épargne ?</span>
+        établissement, avec leur solde. Clique sur un compte pour voir le détail, modifier une ligne d'épargne ou lui
+        ajouter une valorisation, et définir une répartition entre détenteurs pour tout le compte en une fois.{' '}
+        {/* Un compte est un contenant, les lignes de patrimoine sont ce qu'il
+            contient (recette du 02/09/2026 : première incompréhension d'un
+            nouvel utilisateur) — levé ici plutôt que seulement dans le manuel. */}
+        <span
+          className="cursor-help underline decoration-dotted"
+          title="Un compte est un contenant (votre PEA, votre livret, le compte de votre appartement) ; les lignes de patrimoine sont ce qu'il contient. Clique sur un compte pour voir ses lignes."
+        >
+          Qu'est-ce qu'un compte ?
         </span>
       </p>
+
+      {lignesEpargne.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur épargne totale</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(valeurEpargneTotale, 2, montantsMasques)}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Versement mensuel total</p>
+            <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(versementEpargneTotal, 2, montantsMasques)}</p>
+            <p className="text-xs text-texte-attenue">additionné au préremplissage du Simulateur</p>
+          </div>
+        </div>
+      )}
 
       {/* Relocalisé depuis Réglages → onglet Détenteurs le 03/09/2026 (revue de
           qualité) : personne ne pensait chercher la gestion des établissements
@@ -115,7 +151,7 @@ export default function ComptesPage() {
       {lignes.length === 0 ? (
         <EtatVide
           titre="Aucun compte déclaré."
-          description="Crée un compte ci-dessus, ou rattaches-en un directement depuis Portefeuille/Épargne lors de l'ajout d'une position."
+          description="Crée un compte ci-dessus (vide, ou une ligne d'épargne en choisissant un type), ou rattaches-en un directement depuis Portefeuille lors de l'ajout d'une position."
         />
       ) : (
         nomsGroupes.map((nomGroupe) => (
@@ -143,7 +179,7 @@ export default function ComptesPage() {
                           // reliquat des lignes jamais rattachées. Sans cette
                           // explication, l'utilisateur cherche à le renommer ou à le
                           // supprimer (recette du 02/09/2026).
-                          <span title="Ce n'est pas un compte, mais le regroupement des lignes de votre patrimoine qui ne sont rattachées à aucun compte. Pour les ranger, ouvrez la ligne concernée depuis Patrimoine ou Épargne et choisissez-lui un compte.">
+                          <span title="Ce n'est pas un compte, mais le regroupement des lignes de votre patrimoine qui ne sont rattachées à aucun compte. Pour les ranger, ouvrez la ligne concernée depuis Patrimoine et choisissez-lui un compte.">
                             Sans compte
                           </span>
                         )}

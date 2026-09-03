@@ -5,7 +5,6 @@ import {
   IconBudget,
   IconComptes,
   IconDividendes,
-  IconEpargne,
   IconImport,
   IconObjectifs,
   IconPatrimoine,
@@ -68,10 +67,10 @@ export const ROUTES: RouteMeta[] = [
     rolesAutorises: ['proprietaire'],
   },
   // `BottomNav` ne montre en direct que les 4 premières routes de consultation
-  // (`MAX_ENTREES_DIRECTES`) : Synthèse/Patrimoine/Objectifs/Épargne, le reste
-  // rejoint "Plus" (backlog 2.S.1). `/comptes` (écran Comptes, backlog X.1) est
-  // volontairement placée après pour ne pas déloger Épargne de ce quota.
-  { path: '/epargne', titre: 'Épargne', navLabel: 'Épargne', icone: IconEpargne, rang: 'consultation' },
+  // (`MAX_ENTREES_DIRECTES`) : Synthèse/Patrimoine/Objectifs/Comptes, le reste
+  // rejoint "Plus" (backlog 2.S.1). L'écran Épargne a fusionné dans Comptes le
+  // 03/09/2026 (demande directe de l'utilisateur) — ses lignes vivent désormais
+  // dans la fiche détaillée d'un compte (`CompteDetailContent`/`LigneEpargne`).
   { path: '/comptes', titre: 'Comptes', navLabel: 'Comptes', icone: IconComptes, rang: 'consultation' },
   { path: '/comptes/:id', titre: 'Détail du compte' },
   {
