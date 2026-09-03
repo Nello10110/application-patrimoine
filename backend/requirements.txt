@@ -12,3 +12,7 @@ beautifulsoup4>=4.12
 reportlab>=4.2
 alembic>=1.13
 cryptography>=42
+# Lecture du `.env` du dépôt au démarrage (cf. `app/config_env.py`) : sans elle, les
+# secrets posés dans ce fichier n'étaient lus que par Docker Compose, jamais par un
+# `uvicorn` local — la procédure documentée ne marchait qu'à moitié.
+python-dotenv>=1.0

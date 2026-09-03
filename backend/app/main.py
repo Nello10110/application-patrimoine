@@ -12,7 +12,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from . import ENV_CHARGE
 from .auth import get_current_user, require_role
+from .config_env import CHEMIN_ENV, variables_chargees
 from .database import SessionLocal, upgrade_schema
 from .logging_config import configure_logging
 from .models import ROLE_MEMBRE, ROLE_PROPRIETAIRE
@@ -40,6 +42,18 @@ from .routers import (
 from .services import scheduler_service, startup_maintenance
 
 configure_logging()
+
+# Journalise QUE le `.env` a été lu et QUELLES variables sont en place — jamais leurs
+# valeurs. Sans cette trace, un exploitant dont la clé n'est pas prise en compte n'a
+# aucun moyen de distinguer « fichier non lu » de « variable mal nommée ».
+if ENV_CHARGE:
+    import logging
+
+    logging.getLogger("patrimoine.config").info(
+        "%s chargé — variables en place : %s",
+        CHEMIN_ENV,
+        ", ".join(variables_chargees()) or "aucune",
+    )
 # Alembic (backlog 2.I.4) : crée le schéma sur une base neuve, ou l'amène à jour sur
 # une base existante — un seul appel remplace l'ancien duo `Base.metadata.create_all()`
 # + fonctions de migration maison (cf. docstring de `upgrade_schema`).
