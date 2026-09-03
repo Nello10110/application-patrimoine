@@ -4,8 +4,9 @@ from datetime import datetime  # noqa: F401
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator  # noqa: F401
 
+from ..models import TYPES_ACTIF_SANS_ETABLISSEMENT
 from .commun import RepartitionItem
-from .comptes import CompteOut
+from .comptes import CompteOut, EtablissementOut
 from .detenteurs import QuotiteDetenteurItem
 from .donnees_marche import MarketDataOut
 from .validateurs import (
@@ -97,14 +98,37 @@ class HoldingCreate(HoldingBase):
     # sont fournis, `compte_id` prime.
     compte_id: int | None = None
     compte_nom: str | None = None
+    # Établissement du compte CRÉÉ À LA VOLÉE (revue du 03/09/2026) — sans objet si
+    # `compte_id` référence un compte déjà existant (son établissement ne change
+    # pas ici), ou si `compte_nom` est absent. Même priorité id > nom que pour le
+    # compte lui-même. Vérifiés côté routeur (IDOR), comme `compte_id`.
+    etablissement_id: int | None = None
+    etablissement_nom: str | None = None
 
-    @field_validator("compte_nom")
+    @field_validator("compte_nom", "etablissement_nom")
     @classmethod
     def _valider_compte_nom(cls, v: str | None) -> str | None:
         if v is None:
             return v
         v = v.strip()
         return v or None
+
+    @model_validator(mode="after")
+    def _valider_compte_requis(self) -> HoldingCreate:
+        """Compte obligatoire sauf sur les types dispensés d'établissement (revue du
+        03/09/2026, demande directe de l'utilisateur : « il n'est pas possible
+        d'avoir des lignes sans comptes »). `type_actif` non précisé (`None`) n'est
+        PAS exempté — c'est la valeur par défaut d'un import qui n'a pas encore été
+        catégorisé, précisément ce que cette règle doit empêcher de laisser filer
+        silencieusement. Cf. `models.TYPES_ACTIF_SANS_ETABLISSEMENT` pour la liste,
+        volontairement plus étroite que `TYPES_ACTIF_PATRIMOINE_MANUEL` : une SCPI,
+        une assurance-vie ou un livret sont de vrais produits financiers détenus
+        quelque part, contrairement à un bien immobilier ou un véhicule."""
+        if self.type_actif not in TYPES_ACTIF_SANS_ETABLISSEMENT and not self.compte_id and not self.compte_nom:
+            raise ValueError(
+                "Un compte est obligatoire pour cette ligne (sauf immobilier, véhicule ou « autre actif »)."
+            )
+        return self
 
 
 class HoldingUpdate(BaseModel):
@@ -114,6 +138,10 @@ class HoldingUpdate(BaseModel):
     prix_revient_moyen: float | None = None
     compte_id: int | None = None
     compte_nom: str | None = None
+    # Cf. `HoldingCreate` — même rôle, même priorité id > nom, sans objet si
+    # `compte_id`/`compte_nom` est absent de cette requête.
+    etablissement_id: int | None = None
+    etablissement_nom: str | None = None
     devise: str | None = None
     type_actif: str | None = None
     valeur_estimee: float | None = None
@@ -167,7 +195,7 @@ class HoldingUpdate(BaseModel):
             return v
         return _valider_date_jour_non_future(v, "La date d'acquisition")
 
-    @field_validator("compte_nom")
+    @field_validator("compte_nom", "etablissement_nom")
     @classmethod
     def _valider_compte_nom(cls, v: str | None) -> str | None:
         if v is None:
@@ -268,6 +296,60 @@ class TransactionImportResult(BaseModel):
     # un ticker identique (LOT 3.4) : le grand livre fait foi, la ligne manuelle
     # ferait doublon dans tous les calculs.
     lignes_manuelles_remplacees: int = 0
+    # Nombre de `Compte` créés pour cet import (revue du 03/09/2026, import
+    # multi-comptes) — au plus 4 (un par clé PEA/Compte-titres/Cryptomonnaie/
+    # Obligations effectivement présente dans le fichier), 0 si tous existaient déjà
+    # (ré-import).
+    comptes_crees: int = 0
+
+
+class TransactionImportApercu(BaseModel):
+    """Réponse de `POST /api/transactions/import/apercu` (revue du 03/09/2026,
+    import du grand livre en deux temps) — même patron que l'aperçu de l'import de
+    positions (`ImportPreviewResponse`), adapté : pas de mapping de colonnes ici
+    (le format est fixe, cf. `transaction_import.REQUIRED_COLUMNS`), mais un
+    comptage par clé de compte suggérée à confirmer/renommer par l'utilisateur."""
+
+    file_token: str
+    lignes_lues: int
+    mouvements_hors_bourse_exclus: int
+    # Une clé par bucket EFFECTIVEMENT présent dans le fichier (count > 0) — cf.
+    # `transaction_import.CLES_COMPTE`. Une clé absente ne doit proposer aucun champ
+    # de saisie côté écran (aucune ligne du fichier ne la concerne).
+    comptages: dict[str, int]
+    noms_par_defaut: dict[str, str]
+    etablissements: list[EtablissementOut]
+
+
+class TransactionImportConfirm(BaseModel):
+    """Requête de `POST /api/transactions/import` (nouvelle signature JSON,
+    remplace l'ancien `UploadFile` direct) — `etablissement_id`/`etablissement_nom` :
+    même priorité id > nom que `HoldingCreate`, IDOR vérifié côté routeur.
+    `noms_comptes` : au plus une entrée par clé de `CLES_COMPTE`, absente = garde le
+    nom par défaut (`NOMS_COMPTE_PAR_DEFAUT`)."""
+
+    file_token: str
+    etablissement_id: int | None = None
+    etablissement_nom: str | None = None
+    noms_comptes: dict[str, str] = {}
+
+    @field_validator("etablissement_nom")
+    @classmethod
+    def _valider_etablissement_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
+
+    @model_validator(mode="after")
+    def _valider_etablissement_requis(self) -> TransactionImportConfirm:
+        """Un import du grand livre crée toujours au moins un compte financier
+        (PEA/Compte-titres/Cryptomonnaie/Obligations) — jamais un des types
+        dispensés d'établissement (immobilier, véhicule...) — donc l'établissement
+        est ici TOUJOURS obligatoire, sans l'exemption de `HoldingCreate`."""
+        if not self.etablissement_id and not self.etablissement_nom:
+            raise ValueError("Un établissement est obligatoire pour importer un grand livre.")
+        return self
 
 
 class HoldingPricePoint(BaseModel):

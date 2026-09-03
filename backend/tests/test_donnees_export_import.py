@@ -173,7 +173,7 @@ def test_import_remplace_integralement_lexistant(client, db):
     _peupler_foyer(client, db)
     document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
     # Une ligne créée APRÈS l'export ne doit pas survivre à l'import.
-    client.post("/api/portfolio/holdings", json={"ticker": "ZZZ", "quantite": 1.0, "prix_revient_moyen": 1.0})
+    client.post("/api/portfolio/holdings", json={"ticker": "ZZZ", "quantite": 1.0, "prix_revient_moyen": 1.0, "compte_nom": "Compte ZZZ"})
     assert any(h["ticker"] == "ZZZ" for h in client.get("/api/portfolio/holdings").json())
 
     donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
@@ -287,7 +287,7 @@ def test_endpoint_apercu_decrit_le_contenu_sans_rien_modifier(client, db):
 def test_endpoint_import_remplace_et_renvoie_le_decompte(client, db):
     _peupler_foyer(client, db)
     contenu = client.get("/api/donnees/export").content
-    client.post("/api/portfolio/holdings", json={"ticker": "ZZZ", "quantite": 1.0, "prix_revient_moyen": 1.0})
+    client.post("/api/portfolio/holdings", json={"ticker": "ZZZ", "quantite": 1.0, "prix_revient_moyen": 1.0, "compte_nom": "Compte ZZZ"})
 
     reponse = client.post("/api/donnees/import", files={"file": ("export.json", contenu, "application/json")})
 

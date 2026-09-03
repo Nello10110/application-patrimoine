@@ -20,7 +20,7 @@ describe('LoginPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login, register, logout: vi.fn(), completeOnboarding: vi.fn() })
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login, register, logout: vi.fn(), completeOnboarding: vi.fn(), refetchUser: vi.fn() })
     vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO' })
     window.history.replaceState(null, '', '/login')
   })
@@ -63,7 +63,7 @@ describe('LoginPage', () => {
 describe('LoginPage — connexion SSO (backlog SSO)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login: vi.fn(), register: vi.fn(), logout: vi.fn(), completeOnboarding: vi.fn() })
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, login: vi.fn(), register: vi.fn(), logout: vi.fn(), completeOnboarding: vi.fn(), refetchUser: vi.fn() })
     window.history.replaceState(null, '', '/login')
   })
 

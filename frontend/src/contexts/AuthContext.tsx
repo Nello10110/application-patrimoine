@@ -66,6 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const utilisateur = await api.completeOnboarding()
         setUser(utilisateur)
       },
+      refetchUser: async () => {
+        setUser(await api.getMe())
+      },
     }),
     [user, loading],
   )

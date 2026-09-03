@@ -56,6 +56,21 @@
     {
       "files": ["src/components/PaletteRecherche.tsx"],
       "rules": { "jsx-a11y/no-autofocus": "off" }
+    },
+    {
+      // Même limite d'analyse statique que `PositionsTable.tsx` ci-dessus, pour le
+      // sélecteur d'établissement partagé (`SelecteurEtablissement.tsx`, revue du
+      // 03/09/2026, compte/établissement obligatoires) : le `<select>` réel est
+      // bien imbriqué dans chaque `<label>` au rendu, le linter ne traverse
+      // simplement pas la frontière du composant pour le voir.
+      "files": [
+        "src/components/onboarding/RattrapageComptes.tsx",
+        "src/components/AjoutHoldingForm.tsx",
+        "src/components/AjoutCompteForm.tsx",
+        "src/components/ImportTransactionsSection.tsx",
+        "src/pages/EpargnePage.tsx"
+      ],
+      "rules": { "jsx-a11y/label-has-associated-control": "off" }
     }
   ]
 }

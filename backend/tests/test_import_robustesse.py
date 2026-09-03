@@ -180,12 +180,15 @@ def test_import_preview_fichier_taille_normale_acceptee(client):
 
 
 def test_import_transactions_fichier_trop_volumineux_refuse_en_413(client, monkeypatch):
+    """Le contrôle de taille se fait à l'étape d'APERÇU (revue du 03/09/2026, import
+    du grand livre en deux temps) — `/import` (confirmation) ne reçoit plus de
+    fichier, juste un `file_token` déjà validé."""
     monkeypatch.setattr(upload_limits, "TAILLE_MAX_IMPORT_OCTETS", 50)
     contenu = b"transaction_id,datetime,date,category,type,asset_class,symbol,name,shares,price,amount,fee,tax,description,mcc_code\n"
     assert len(contenu) > 50
 
     reponse = client.post(
-        "/api/transactions/import",
+        "/api/transactions/import/apercu",
         files={"file": ("grand_livre.csv", contenu, "text/csv")},
     )
     assert reponse.status_code == 413

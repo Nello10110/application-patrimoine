@@ -61,7 +61,14 @@ def _creer_invite(client_reel, token_proprietaire: str, detenteur_ids: list[int]
 def test_proprietaire_peut_tout_faire(client_reel):
     token = _fonder_foyer(client_reel)
 
-    assert client_reel.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 1, "prix_revient_moyen": 10}, headers=_en_tete(token)).status_code == 200
+    assert (
+        client_reel.post(
+            "/api/portfolio/holdings",
+            json={"ticker": "AAA", "quantite": 1, "prix_revient_moyen": 10, "compte_nom": "Compte Test"},
+            headers=_en_tete(token),
+        ).status_code
+        == 200
+    )
     assert client_reel.get("/api/detenteurs", headers=_en_tete(token)).status_code == 200
     assert client_reel.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}, headers=_en_tete(token)).status_code == 200
     assert client_reel.get("/api/settings/jobs", headers=_en_tete(token)).status_code == 200
@@ -75,7 +82,9 @@ def test_membre_peut_creer_et_modifier_des_holdings(client_reel):
     token_membre = _creer_membre(client_reel, token_proprio)
 
     creation = client_reel.post(
-        "/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 1, "prix_revient_moyen": 10}, headers=_en_tete(token_membre)
+        "/api/portfolio/holdings",
+        json={"ticker": "AAA", "quantite": 1, "prix_revient_moyen": 10, "compte_nom": "Compte Test"},
+        headers=_en_tete(token_membre),
     )
     assert creation.status_code == 200
     holding_id = creation.json()["id"]
@@ -118,7 +127,11 @@ def test_second_foyer_isole(db_vide, client_reel):
     from app.services import auth_service
 
     token_proprio_a = _fonder_foyer(client_reel)
-    client_reel.post("/api/portfolio/holdings", json={"ticker": "SECRET", "quantite": 1, "prix_revient_moyen": 10}, headers=_en_tete(token_proprio_a))
+    client_reel.post(
+        "/api/portfolio/holdings",
+        json={"ticker": "SECRET", "quantite": 1, "prix_revient_moyen": 10, "compte_nom": "Compte Test"},
+        headers=_en_tete(token_proprio_a),
+    )
 
     proprio_b = auth_service.creer_utilisateur(db_vide, "proprio-b", "mot-de-passe-solide")
     token_b = auth_service.creer_token(db_vide, proprio_b).token
@@ -137,10 +150,14 @@ def test_invite_est_filtre_a_son_perimetre(client_reel):
     bob = client_reel.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}, headers=_en_tete(token_proprio)).json()
 
     holding_alice = client_reel.post(
-        "/api/portfolio/holdings", json={"ticker": "ALICE", "quantite": 1, "prix_revient_moyen": 10}, headers=_en_tete(token_proprio)
+        "/api/portfolio/holdings",
+        json={"ticker": "ALICE", "quantite": 1, "prix_revient_moyen": 10, "compte_nom": "Compte Test"},
+        headers=_en_tete(token_proprio),
     ).json()
     holding_bob = client_reel.post(
-        "/api/portfolio/holdings", json={"ticker": "BOB", "quantite": 1, "prix_revient_moyen": 10}, headers=_en_tete(token_proprio)
+        "/api/portfolio/holdings",
+        json={"ticker": "BOB", "quantite": 1, "prix_revient_moyen": 10, "compte_nom": "Compte Test"},
+        headers=_en_tete(token_proprio),
     ).json()
     client_reel.put(
         f"/api/portfolio/holdings/{holding_alice['ticker']}/quotites",
@@ -162,7 +179,11 @@ def test_invite_est_filtre_a_son_perimetre(client_reel):
 
 def test_invite_sans_perimetre_ne_voit_rien(client_reel):
     token_proprio = _fonder_foyer(client_reel)
-    client_reel.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 1, "prix_revient_moyen": 10}, headers=_en_tete(token_proprio))
+    client_reel.post(
+        "/api/portfolio/holdings",
+        json={"ticker": "AAA", "quantite": 1, "prix_revient_moyen": 10, "compte_nom": "Compte Test"},
+        headers=_en_tete(token_proprio),
+    )
 
     token_invite = _creer_invite(client_reel, token_proprio, [])
 

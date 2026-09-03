@@ -26,6 +26,16 @@ def _csv_transaction(transaction_id: str, symbol: str = "US0378331005") -> bytes
     return "\n".join([EN_TETE_TRANSACTIONS, ligne]).encode("utf-8")
 
 
+def _importer_transactions(client, contenu: bytes):
+    """Import en deux temps (redesign du 03/09/2026) : aperçu puis confirmation
+    avec un établissement créé à la volée — les tests d'isolation n'ont besoin que
+    du résultat final, pas de vérifier chaque étape intermédiaire."""
+    apercu = client.post("/api/transactions/import/apercu", files={"file": ("grand_livre.csv", contenu, "text/csv")}).json()
+    return client.post(
+        "/api/transactions/import", json={"file_token": apercu["file_token"], "etablissement_nom": "Banque Test"}
+    )
+
+
 # ---------------------------------------------------------------------------
 # Portefeuille : liste, fiche détail, update/delete (IDOR)
 # ---------------------------------------------------------------------------
@@ -155,17 +165,13 @@ def test_meme_transaction_id_importe_par_deux_utilisateurs_nest_jamais_un_doublo
     """Deux comptes courtier différents peuvent, par coïncidence, produire le même
     `transaction_id` — sans ce test, un import ultérieur de l'un pourrait être
     silencieusement ignoré parce que l'AUTRE utilisateur a déjà ce même identifiant."""
-    reponse_a = client.post(
-        "/api/transactions/import", files={"file": ("grand_livre.csv", _csv_transaction("tx-collision"), "text/csv")}
-    )
+    reponse_a = _importer_transactions(client, _csv_transaction("tx-collision"))
     assert reponse_a.status_code == 200
     assert reponse_a.json()["importees"] == 1
     assert reponse_a.json()["doublons_ignores"] == 0
 
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    reponse_b = client.post(
-        "/api/transactions/import", files={"file": ("grand_livre.csv", _csv_transaction("tx-collision"), "text/csv")}
-    )
+    reponse_b = _importer_transactions(client, _csv_transaction("tx-collision"))
 
     assert reponse_b.status_code == 200
     assert reponse_b.json()["importees"] == 1  # PAS un doublon, malgré le même transaction_id
@@ -175,9 +181,9 @@ def test_meme_transaction_id_importe_par_deux_utilisateurs_nest_jamais_un_doublo
 def test_reimporter_le_meme_transaction_id_pour_le_meme_utilisateur_reste_un_doublon(client):
     """Non-régression : le dédoublonnage doit toujours fonctionner À L'INTÉRIEUR d'un
     même compte, seul le comportement INTER-comptes a changé."""
-    client.post("/api/transactions/import", files={"file": ("grand_livre.csv", _csv_transaction("tx-x"), "text/csv")})
+    _importer_transactions(client, _csv_transaction("tx-x"))
 
-    reponse = client.post("/api/transactions/import", files={"file": ("grand_livre.csv", _csv_transaction("tx-x"), "text/csv")})
+    reponse = _importer_transactions(client, _csv_transaction("tx-x"))
 
     assert reponse.json()["importees"] == 0
     assert reponse.json()["doublons_ignores"] == 1

@@ -262,8 +262,18 @@ def _csv_transactions() -> bytes:
 
 
 def _importer_transactions(client: httpx.Client) -> None:
+    """Import en deux temps depuis le 03/09/2026 (compte/établissement
+    obligatoires) : `/import/apercu` renvoie un `file_token`, `/import` (confirmation)
+    n'accepte plus de fichier — un nom de compte/établissement par défaut suffit ici,
+    ce script ne vérifie pas l'écran d'aperçu lui-même (couvert par les tests
+    Playwright dédiés)."""
     files = {"file": ("releve_e2e.csv", _csv_transactions(), "text/csv")}
-    r = client.post("/api/transactions/import", files=files)
+    apercu = client.post("/api/transactions/import/apercu", files=files)
+    apercu.raise_for_status()
+    r = client.post(
+        "/api/transactions/import",
+        json={"file_token": apercu.json()["file_token"], "etablissement_nom": "Trade Republic E2E"},
+    )
     r.raise_for_status()
 
 

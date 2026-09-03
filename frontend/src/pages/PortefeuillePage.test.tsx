@@ -23,6 +23,10 @@ vi.mock('../api/client', () => ({
     // désormais la liste des comptes existants — stub neutre par défaut, les tests
     // de filtre ci-dessous le surchargent quand ils ont besoin de comptes précis.
     listComptes: vi.fn().mockResolvedValue([]),
+    // Établissements (revue du 03/09/2026, compte/établissement obligatoires) —
+    // même rôle que `listComptes` ci-dessus : stub neutre, surchargé par les tests
+    // qui en ont besoin.
+    listEtablissements: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -699,6 +703,8 @@ describe('PortefeuillePage', () => {
           prix_revient_moyen: 100,
           compte_id: COMPTE_PEA.id,
           compte_nom: null,
+          etablissement_id: null,
+          etablissement_nom: null,
           type_actif: 'STOCK',
           valeur_estimee: null,
           taux_pct: null,

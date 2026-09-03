@@ -6,12 +6,13 @@ import BottomNav from './BottomNav'
 
 function utilisateur(overrides: Partial<AuthContextValue['user']> = {}): AuthContextValue {
   return {
-    user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, ...overrides },
+    user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0, ...overrides },
     loading: false,
     login: async () => {},
     register: async () => {},
     logout: () => {},
     completeOnboarding: async () => {},
+    refetchUser: async () => {},
   }
 }
 

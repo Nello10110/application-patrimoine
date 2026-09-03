@@ -41,10 +41,11 @@ from sqlalchemy.orm import sessionmaker
 from app.auth import get_current_user
 from app.database import Base, get_db
 from app.main import app
-from app.models import Holding, Transaction, User
+from app.models import Compte, Holding, Transaction, User
 from app.services import justetf_service, market_data_refresh
 
 _compteur_transaction_id = itertools.count(1)
+_compteur_compte_nom = itertools.count(1)
 
 # Multi-utilisateur (Milestone 2a, isolation des données) : la fixture `db` crée cet
 # utilisateur comme TOUTE PREMIÈRE ligne de la base de test, fraîchement créée à
@@ -221,6 +222,26 @@ def make_transaction(db, **overrides) -> Transaction:
     db.commit()
     db.refresh(tx)
     return tx
+
+
+def make_compte(db, **overrides) -> Compte:
+    """Construit et persiste un compte de test — contourne l'API (donc l'obligation
+    d'`etablissement_id` posée par `CompteCreate`, revue du 03/09/2026) exactement
+    comme `make_holding` ci-dessous contourne `HoldingCreate` : pour les tests qui
+    ne portent pas sur la création d'un compte elle-même, juste sur un compte
+    déjà là."""
+    # Nom par défaut unique (compteur, comme `make_transaction` ci-dessus) :
+    # `UniqueConstraint(user_id, nom)` refuserait un deuxième appel par défaut dans
+    # le même test.
+    defaults = dict(
+        user_id=ID_UTILISATEUR_TEST, nom=f"Compte Test {next(_compteur_compte_nom)}", etablissement_id=None
+    )
+    defaults.update(overrides)
+    compte = Compte(**defaults)
+    db.add(compte)
+    db.commit()
+    db.refresh(compte)
+    return compte
 
 
 def make_holding(db, **overrides) -> Holding:

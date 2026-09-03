@@ -23,7 +23,7 @@ from ..schemas import (
     SessionOut,
     UserOut,
 )
-from ..services import auth_service, oidc_service, preferences_service
+from ..services import auth_service, comptes_service, oidc_service, preferences_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -45,6 +45,11 @@ def _user_out(db: Session, user: User) -> UserOut:
     de configuration initiale dès la connexion, sans appel supplémentaire."""
     sortie = UserOut.model_validate(user)
     sortie.onboarding_termine = preferences_service.onboarding_termine(db, user.id)
+    # `id_foyer`, pas `user.id` : les lignes financières appartiennent au foyer
+    # (`Holding.user_id == id_foyer`), pas à chaque membre individuellement — un
+    # membre voit donc le même compteur que le propriétaire (même écran de
+    # rattrapage, cf. `comptes_service.compter_holdings_sans_compte`).
+    sortie.holdings_sans_compte = comptes_service.compter_holdings_sans_compte(db, auth_service.id_foyer(user))
     return sortie
 
 

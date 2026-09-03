@@ -20,7 +20,7 @@ def test_create_holding_ticker_vide_refuse_en_400(client):
 
 
 def test_create_holding_ticker_normalise_majuscules_sans_espaces(client):
-    reponse = client.post("/api/portfolio/holdings", json={"ticker": "  aapl  ", "quantite": 10})
+    reponse = client.post("/api/portfolio/holdings", json={"ticker": "  aapl  ", "quantite": 10, "compte_nom": "Compte Test"})
     assert reponse.status_code == 200
     body = reponse.json()
     assert body["ticker"] == "AAPL"
@@ -38,7 +38,7 @@ def test_create_holding_quantite_nulle_refusee_en_400(client):
 
 
 def test_create_holding_quantite_positive_acceptee(client):
-    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5})
+    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5, "compte_nom": "Compte Test"})
     assert reponse.status_code == 200
 
 
@@ -51,13 +51,13 @@ def test_create_holding_prix_revient_negatif_refuse_en_400(client):
 
 def test_create_holding_prix_revient_nul_accepte(client):
     reponse = client.post(
-        "/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5, "prix_revient_moyen": 0}
+        "/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5, "prix_revient_moyen": 0, "compte_nom": "Compte Test"}
     )
     assert reponse.status_code == 200
 
 
 def test_create_holding_sans_prix_revient_accepte(client):
-    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5})
+    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5, "compte_nom": "Compte Test"})
     assert reponse.status_code == 200
     assert reponse.json()["prix_revient_moyen"] is None
 
@@ -74,7 +74,7 @@ def test_create_holding_valeur_estimee_negative_refusee_en_400(client):
 
 
 def _creer_holding(client, **overrides):
-    payload = {"ticker": "AAPL", "quantite": 5}
+    payload = {"ticker": "AAPL", "quantite": 5, "compte_nom": "Compte Test"}
     payload.update(overrides)
     reponse = client.post("/api/portfolio/holdings", json=payload)
     assert reponse.status_code == 200

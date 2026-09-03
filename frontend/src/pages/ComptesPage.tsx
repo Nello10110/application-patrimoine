@@ -4,6 +4,7 @@ import type { CompteAvecSolde, Etablissement } from '../api/types'
 import AjoutCompteForm from '../components/AjoutCompteForm'
 import Card from '../components/Card'
 import CompteDetailModal from '../components/CompteDetailModal'
+import EtablissementsCard from '../components/EtablissementsCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import Modale from '../components/Modale'
@@ -99,6 +100,13 @@ export default function ComptesPage() {
           <span className="cursor-help underline decoration-dotted">Différence avec l'écran Épargne ?</span>
         </span>
       </p>
+
+      {/* Relocalisé depuis Réglages → onglet Détenteurs le 03/09/2026 (revue de
+          qualité) : personne ne pensait chercher la gestion des établissements
+          là-bas — elle vit désormais ici, au-dessus de la création d'un compte qui
+          en a justement besoin. Réutilise la liste déjà chargée (`charger`
+          ci-dessus) plutôt qu'un second `GET /etablissements` (patron Z.1). */}
+      <EtablissementsCard etablissements={etablissements} onModifies={charger} />
 
       <Card title="Nouveau compte">
         <AjoutCompteForm etablissements={etablissements} onCreated={charger} />

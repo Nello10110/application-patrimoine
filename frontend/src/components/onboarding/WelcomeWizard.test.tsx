@@ -18,7 +18,10 @@ vi.mock('../../api/client', () => ({
     deleteDetenteur: vi.fn(),
     listHoldings: vi.fn().mockResolvedValue([]),
     createHolding: vi.fn(),
-    importTransactions: vi.fn(),
+    // Import du grand livre en deux temps depuis le 03/09/2026 (compte/
+    // établissement obligatoires) — remplace l'ancien `importTransactions` unique.
+    importTransactionsApercu: vi.fn(),
+    importTransactionsConfirm: vi.fn(),
     // Comptes structurels (écran Comptes, backlog X.1) : `AjoutHoldingForm`,
     // embarqué tel quel (non mocké) dans l'étape "Démarrer le portefeuille", charge
     // désormais la liste des comptes existants — hors de l'objet de ce fichier,
@@ -37,12 +40,13 @@ vi.mock('../../api/client', () => ({
 
 function utilisateurFactice(overrides: Partial<AuthContextValue> = {}): AuthContextValue {
   return {
-    user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: false },
+    user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: false, holdings_sans_compte: 0 },
     loading: false,
     login: async () => {},
     register: async () => {},
     logout: () => {},
     completeOnboarding: vi.fn(),
+    refetchUser: vi.fn(),
     ...overrides,
   }
 }
@@ -122,7 +126,7 @@ describe('WelcomeWizard', () => {
   it('en mode relecture (onboarding déjà terminé), "Terminer" ferme sans rappeler l\'API', async () => {
     const completeOnboarding = vi.fn()
     const onClose = vi.fn()
-    renderWizard(utilisateurFactice({ user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true }, completeOnboarding }), onClose)
+    renderWizard(utilisateurFactice({ user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0 }, completeOnboarding }), onClose)
 
     fireEvent.click(screen.getByRole('button', { name: "Passer l'assistant" }))
 
@@ -216,8 +220,18 @@ describe('WelcomeWizard', () => {
   })
 
   it('un import de transactions réussi recharge le compteur affiché (pas juste son propre bandeau)', async () => {
+    // Import en deux temps depuis le 03/09/2026 (compte/établissement obligatoires) :
+    // l'aperçu propose l'établissement, la confirmation importe pour de bon.
     vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValueOnce([{ ticker: 'AAPL' } as never, { ticker: 'MSFT' } as never])
-    vi.mocked(api.importTransactions).mockResolvedValue({
+    vi.mocked(api.importTransactionsApercu).mockResolvedValue({
+      file_token: 'tok-1',
+      lignes_lues: 10,
+      mouvements_hors_bourse_exclus: 2,
+      comptages: { compte_titres: 8 },
+      noms_par_defaut: { compte_titres: 'Compte-titres' },
+      etablissements: [],
+    })
+    vi.mocked(api.importTransactionsConfirm).mockResolvedValue({
       lignes_lues: 10,
       importees: 8,
       doublons_ignores: 0,
@@ -225,6 +239,7 @@ describe('WelcomeWizard', () => {
       positions_recalculees: 2,
       anomalies_detectees: 0,
       lignes_manuelles_remplacees: 0,
+      comptes_crees: 1,
     })
     renderWizard(utilisateurFactice())
     fireEvent.click(screen.getByRole('button', { name: 'Suivant' }))
@@ -237,12 +252,16 @@ describe('WelcomeWizard', () => {
     const input = document.querySelector('input[type="file"][accept=".csv"]') as HTMLInputElement
     fireEvent.change(input, { target: { files: [fichier] } })
 
+    fireEvent.change(await screen.findByLabelText('Établissement'), { target: { value: '__nouveau__' } })
+    fireEvent.change(screen.getByLabelText('Nom du nouvel établissement (Établissement)'), { target: { value: 'Trade Republic' } })
+    fireEvent.click(screen.getByRole('button', { name: "Confirmer l'import" }))
+
     await screen.findByText(/position\(s\) recalculée\(s\)/)
     expect(await screen.findByText(/compte déjà/)).toBeInTheDocument()
   })
 
   it('la "Bienvenue" et le message final s\'adaptent au rejeu (onboarding déjà terminé)', () => {
-    renderWizard(utilisateurFactice({ user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true } }))
+    renderWizard(utilisateurFactice({ user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0 } }))
 
     expect(screen.getByText(/Retour sur le parcours/)).toBeInTheDocument()
     expect(screen.queryByText(/ça prend deux minutes/)).not.toBeInTheDocument()

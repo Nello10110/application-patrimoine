@@ -17,6 +17,10 @@ export interface Loan {
   capital_restant_du: number
   // Rattachement à un actif (backlog 2.M.2).
   holding_id: number | null
+  // Établissement du CRÉDIT (revue du 03/09/2026) — délibérément indépendant du
+  // bien financé (`holding_id`) : le crédit a sa banque, l'immobilier/le véhicule
+  // n'appartient à aucun établissement. Optionnel, contrairement à `Compte.etablissement`.
+  etablissement_id: number | null
   created_at: string
   updated_at: string
 }
@@ -29,6 +33,7 @@ export interface LoanInput {
   date_debut: string
   duree_mois: number
   capital_restant_du_manuel?: number | null
+  etablissement_id?: number | null
 }
 
 export interface LoanUpdateInput {
@@ -40,6 +45,7 @@ export interface LoanUpdateInput {
   duree_mois?: number
   capital_restant_du_manuel?: number | null
   holding_id?: number | null
+  etablissement_id?: number | null
 }
 
 // Patrimoine net global (roadmap Phase 1) — distinct de `AnalysisResponse.valeur_totale`

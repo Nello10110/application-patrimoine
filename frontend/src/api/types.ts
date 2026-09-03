@@ -7,7 +7,7 @@ export type { AnalysisResponse, BenchmarkOption, CategoryCompositionItem, Catego
 export type { AccessLogEntry, AuthResponse, AuthUser, HouseholdMember, HouseholdMemberInput, OidcConfig, OidcConfigInput, OidcStatus, Role, Session } from './types/authentification'
 export type { BudgetCible, BudgetColumnMapping, BudgetImportResult, BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation, RegleReapplicationResult, RepartitionSortieItem } from './types/budget'
 export type { Detenteur, QuotiteDetenteurItem, QuotiteEntree, TypeDetenteur } from './types/detenteurs'
-export type { ApercuImportDonnees, ColumnMapping, ImportPreview, ImportResult, TransactionImportResult } from './types/import_donnees'
+export type { ApercuImportDonnees, CleCompte, ColumnMapping, ImportPreview, ImportResult, TransactionImportApercu, TransactionImportConfirmInput, TransactionImportResult } from './types/import_donnees'
 export type { AllocationBreakdownItem, Compte, CompteAvecSolde, Etablissement, Holding, HoldingInput, HoldingUpdateInput, MarketData, RepartitionItem, RepartitionParClasseItem, ValorisationInput, ValuationHistoryPoint } from './types/noyau'
 export type { ActifRattache, ContributeurObjectif, DiagnosticObjectif, IndicateursSituation, ObjectifDetail, ObjectifInput, TrajectoirePoint, TypeObjectif } from './types/objectifs'
 export type { DeclarationPatrimoineInput, LienPartage, LienPartageInput, PartageBudget, PartageExposition, PartageMeta, PartageObjectif, PartagePatrimoineNet, PartagePayload, PartagePerformance, PartageRepartitionItem } from './types/partage'

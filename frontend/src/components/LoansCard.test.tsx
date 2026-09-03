@@ -13,6 +13,9 @@ vi.mock('../api/client', () => ({
     deleteLoan: vi.fn(),
     // Rattachement à un actif (backlog 2.M.2) — non testé ici, résolution neutre.
     listHoldings: vi.fn().mockResolvedValue([]),
+    // Établissement du crédit (revue du 03/09/2026) — non testé ici sauf section
+    // dédiée plus bas, résolution neutre par défaut.
+    listEtablissements: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -35,6 +38,7 @@ function loan(overrides: Partial<Loan> = {}): Loan {
     derniere_maj_manuelle: null,
     capital_restant_du: 150000,
     holding_id: null,
+    etablissement_id: null,
     created_at: '2020-01-01T00:00:00',
     updated_at: '2020-01-01T00:00:00',
     ...overrides,
@@ -254,7 +258,7 @@ describe('LoansCard — rattachement à un actif (backlog 2.M.2)', () => {
     render(<LoansCard />)
     await screen.findByText('Crédit immobilier')
 
-    const select = await screen.findByDisplayValue('Aucun')
+    const select = await screen.findByLabelText('Actif rattaché à Crédit immobilier')
     expect(within(select).getByRole('option', { name: 'Maison' })).toBeInTheDocument()
     expect(within(select).getByRole('option', { name: 'Apple' })).toBeInTheDocument()
   })
@@ -265,7 +269,7 @@ describe('LoansCard — rattachement à un actif (backlog 2.M.2)', () => {
     vi.mocked(api.updateLoan).mockResolvedValue(loan({ holding_id: 1 }))
     render(<LoansCard />)
     await screen.findByText('Crédit immobilier')
-    const select = await screen.findByDisplayValue('Aucun')
+    const select = await screen.findByLabelText('Actif rattaché à Crédit immobilier')
 
     fireEvent.change(select, { target: { value: '1' } })
 
@@ -317,7 +321,7 @@ describe('LoansCard — cartes sur mobile (backlog 2.K.4)', () => {
     render(<LoansCard />)
     await screen.findByText('Crédit immobilier')
 
-    fireEvent.change(screen.getByDisplayValue('Aucun'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('Actif rattaché'), { target: { value: '1' } })
 
     await vi.waitFor(() => expect(api.updateLoan).toHaveBeenCalledWith(1, { holding_id: 1 }))
   })

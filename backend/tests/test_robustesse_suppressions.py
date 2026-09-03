@@ -14,7 +14,7 @@ from datetime import datetime
 
 from app.models import Loan, QuotiteHolding, QuotiteLoan
 
-from .conftest import ID_UTILISATEUR_TEST, make_holding
+from .conftest import ID_UTILISATEUR_TEST, make_compte, make_holding
 
 ECRANS_AGREGES = [
     "/api/patrimoine/net",
@@ -179,15 +179,15 @@ def test_supprimer_un_actif_rattache_a_un_objectif_laisse_lobjectif_lisible(clie
 
 
 def test_supprimer_un_actif_rattache_a_un_compte_laisse_le_compte_lisible(client, db):
-    compte = client.post("/api/comptes", json={"nom": "PEA"}).json()
-    h = make_holding(db, ticker="AAA", compte_id=compte["id"])
+    compte = make_compte(db, nom="PEA")
+    h = make_holding(db, ticker="AAA", compte_id=compte.id)
 
     assert client.delete(f"/api/portfolio/holdings/{h.id}").status_code == 200
 
     soldes = {s["compte"]["nom"]: s for s in client.get("/api/comptes/solde").json() if s["compte"] is not None}
     assert soldes["PEA"]["nombre_lignes"] == 0
     assert soldes["PEA"]["solde"] == 0
-    assert client.get(f"/api/comptes/{compte['id']}/holdings").status_code == 200
+    assert client.get(f"/api/comptes/{compte.id}/holdings").status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -198,11 +198,11 @@ def test_supprimer_un_actif_rattache_a_un_compte_laisse_le_compte_lisible(client
 def test_supprimer_un_compte_ne_fait_pas_disparaitre_son_contenu_du_patrimoine(client, db):
     """Régression la plus coûteuse possible : supprimer un « contenant » ne doit
     JAMAIS faire baisser le patrimoine net."""
-    compte = client.post("/api/comptes", json={"nom": "PEA"}).json()
-    make_holding(db, ticker="AAA", compte_id=compte["id"], quantite=10.0, prix_revient_moyen=100.0)
+    compte = make_compte(db, nom="PEA")
+    make_holding(db, ticker="AAA", compte_id=compte.id, quantite=10.0, prix_revient_moyen=100.0)
     net_avant = client.get("/api/patrimoine/net").json()["patrimoine_net"]
 
-    assert client.delete(f"/api/comptes/{compte['id']}").status_code == 200
+    assert client.delete(f"/api/comptes/{compte.id}").status_code == 200
 
     assert client.get("/api/patrimoine/net").json()["patrimoine_net"] == net_avant
     # La ligne existe toujours, simplement rattachée à aucun compte.

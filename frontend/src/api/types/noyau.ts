@@ -96,6 +96,11 @@ export interface HoldingInput {
   // sont fournis, `compte_id` prime.
   compte_id?: number | null
   compte_nom?: string | null
+  // Établissement du compte CRÉÉ À LA VOLÉE (revue du 03/09/2026) — sans objet si
+  // `compte_id` référence un compte déjà existant, ou si `compte_nom` est absent.
+  // Même priorité id > nom que le compte lui-même.
+  etablissement_id?: number | null
+  etablissement_nom?: string | null
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
@@ -116,6 +121,8 @@ export interface HoldingUpdateInput {
   prix_revient_moyen?: number | null
   compte_id?: number | null
   compte_nom?: string | null
+  etablissement_id?: number | null
+  etablissement_nom?: string | null
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Compte, Holding } from '../api/types'
+import type { Compte, Etablissement, Holding } from '../api/types'
 import AjoutHoldingForm from '../components/AjoutHoldingForm'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
@@ -183,12 +183,19 @@ export default function PortefeuillePage() {
   // après création d'un compte à la volée, et un cache mal invalidé les ferait
   // diverger — c'est précisément le risque qui avait fait écarter ce chantier.
   const [comptes, setComptes] = useState<Compte[]>([])
+  const [etablissements, setEtablissements] = useState<Etablissement[]>([])
 
   const chargerComptes = useCallback(() => {
     api.listComptes().then(setComptes).catch(() => setComptes([]))
   }, [])
 
   useEffect(chargerComptes, [chargerComptes])
+  // Chargés une fois pour toute la page (même raison que `comptes` ci-dessus) —
+  // affichés uniquement quand un compte est créé à la volée (revue du 03/09/2026,
+  // établissement obligatoire).
+  useEffect(() => {
+    api.listEtablissements().then(setEtablissements).catch(() => setEtablissements([]))
+  }, [])
 
   // Rafraîchissement des cours en tâche de fond (LOT 4B) : recharge les positions
   // une fois le rafraîchissement terminé (succès ou échec), pour afficher les
@@ -252,7 +259,7 @@ export default function PortefeuillePage() {
       {error && <EtatErreur message={error} onReessayer={load} />}
       {erreurRafraichissement && <EtatErreur message={erreurRafraichissement} />}
 
-      <AjoutHoldingForm onCreated={load} comptes={comptes} onComptesModifies={chargerComptes} />
+      <AjoutHoldingForm onCreated={load} comptes={comptes} etablissements={etablissements} onComptesModifies={chargerComptes} />
 
       {/* Desktop (≥ 768 px, backlog 2.K.4) : contrôles inline, comportement inchangé. */}
       <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
@@ -328,12 +335,13 @@ export default function PortefeuillePage() {
             onRequestDelete={(h) => setConfirmSuppression({ id: h.id, ticker: h.ticker })}
             onSaved={load}
             comptes={comptes}
+            etablissements={etablissements}
             onComptesModifies={chargerComptes}
           />
         )}
       </Card>
 
-      <LoansCard holdings={holdings} />
+      <LoansCard holdings={holdings} etablissements={etablissements} />
 
       {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
 

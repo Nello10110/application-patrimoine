@@ -13,7 +13,9 @@ from ..models import (
     ROLE_INVITE,
     ROLE_MEMBRE,
     ROLE_PROPRIETAIRE,
+    TYPES_ACTIF_SANS_ETABLISSEMENT,
     Compte,
+    Etablissement,
     Holding,
     HoldingImmobilierDetail,
     HoldingValuationHistory,
@@ -183,18 +185,47 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     return ImportResult(imported=imported, skipped=skipped, errors=errors)
 
 
-def _resoudre_compte_id(db: Session, user_id: int, compte_id: int | None, compte_nom: str | None) -> int | None:
+def _resoudre_compte_id(
+    db: Session,
+    user_id: int,
+    compte_id: int | None,
+    compte_nom: str | None,
+    etablissement_id: int | None = None,
+    etablissement_nom: str | None = None,
+) -> int | None:
     """`compte_id` référence un compte déjà existant (vérifié appartenir à
     l'utilisateur — IDOR) ; `compte_nom` crée un compte à la volée s'il n'existe pas
     encore sous ce nom. Si les deux sont fournis, `compte_id` prime (documenté sur
-    `HoldingCreate`/`HoldingUpdate`)."""
+    `HoldingCreate`/`HoldingUpdate`).
+
+    `etablissement_id`/`etablissement_nom` (revue du 03/09/2026) : sans effet quand
+    `compte_id` référence un compte EXISTANT — son établissement ne change pas ici,
+    ce n'est pas le rôle de ce helper (cf. `routers/comptes.py::update_compte` pour
+    éditer un compte). Même priorité id > nom, même IDOR."""
     if compte_id is not None:
         compte = db.get(Compte, compte_id)
         if compte is None or compte.user_id != user_id:
             raise HTTPException(status_code=404, detail="Compte introuvable")
         return compte_id
     if compte_nom:
-        return comptes_service.get_or_create_compte(db, user_id, compte_nom).id
+        etablissement_resolu = _resoudre_etablissement_id(db, user_id, etablissement_id, etablissement_nom)
+        return comptes_service.get_or_create_compte(db, user_id, compte_nom, etablissement_resolu).id
+    return None
+
+
+def _resoudre_etablissement_id(
+    db: Session, user_id: int, etablissement_id: int | None, etablissement_nom: str | None
+) -> int | None:
+    """Même patron que `_resoudre_compte_id`, un cran plus simple : un établissement
+    n'a pas de sous-champ à propager (pas d'« établissement de l'établissement »),
+    donc pas de récursion à prévoir ici."""
+    if etablissement_id is not None:
+        etablissement = db.get(Etablissement, etablissement_id)
+        if etablissement is None or etablissement.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Établissement introuvable")
+        return etablissement_id
+    if etablissement_nom:
+        return comptes_service.get_or_create_etablissement(db, user_id, etablissement_nom).id
     return None
 
 
@@ -443,11 +474,16 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
             detail=f"Une ligne « {payload.ticker} » existe déjà. Modifiez-la plutôt que d'en créer une seconde.",
         )
     donnees = payload.model_dump()
-    # `compte_id`/`compte_nom` (schéma) ne sont pas des colonnes de `Holding` (qui
-    # n'a que `compte_id`, résolu ici) — retirés du dict avant construction.
+    # `compte_id`/`compte_nom`/`etablissement_id`/`etablissement_nom` (schéma) ne
+    # sont pas des colonnes de `Holding` (qui n'a que `compte_id`, résolu ici) —
+    # retirés du dict avant construction. `HoldingCreate._valider_compte_requis`
+    # garantit déjà qu'un compte est fourni pour tout type non exempté — cette
+    # résolution ne peut donc renvoyer `None` que pour un type exempté.
     compte_id = donnees.pop("compte_id")
     compte_nom = donnees.pop("compte_nom")
-    donnees["compte_id"] = _resoudre_compte_id(db, user_id, compte_id, compte_nom)
+    etablissement_id = donnees.pop("etablissement_id")
+    etablissement_nom = donnees.pop("etablissement_nom")
+    donnees["compte_id"] = _resoudre_compte_id(db, user_id, compte_id, compte_nom, etablissement_id, etablissement_nom)
     # `date_valeur_estimee` (immobilier/SCPI/assurance-vie/PER, Phase 1 de
     # `docs/ROADMAP.md`) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
     # ici dès qu'une valeur estimée est fournie à la création.
@@ -479,11 +515,37 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     if holding is None or holding.user_id != user_id:
         raise HTTPException(status_code=404, detail="Ligne introuvable")
     updates = payload.model_dump(exclude_unset=True)
-    # `compte_id`/`compte_nom` ne sont pas des colonnes de `Holding` — résolus en un
-    # seul `compte_id` avant la boucle `setattr` générique ci-dessous. Absents des
-    # deux (`exclude_unset`) : ne pas toucher au compte déjà rattaché.
+    # `compte_id`/`compte_nom`/`etablissement_id`/`etablissement_nom` ne sont pas
+    # des colonnes de `Holding` — résolus en un seul `compte_id` avant la boucle
+    # `setattr` générique ci-dessous. Absents des deux (`exclude_unset`) : ne pas
+    # toucher au compte déjà rattaché.
     if "compte_id" in updates or "compte_nom" in updates:
-        updates["compte_id"] = _resoudre_compte_id(db, user_id, updates.pop("compte_id", None), updates.pop("compte_nom", None))
+        updates["compte_id"] = _resoudre_compte_id(
+            db,
+            user_id,
+            updates.pop("compte_id", None),
+            updates.pop("compte_nom", None),
+            updates.pop("etablissement_id", None),
+            updates.pop("etablissement_nom", None),
+        )
+    else:
+        # Ces deux champs n'ont de sens qu'accompagnés de compte_id/compte_nom (cf.
+        # HoldingUpdate) : s'ils sont fournis seuls, ce n'est jamais volontaire, mais
+        # `exclude_unset` les laisserait sinon dans `updates` et `setattr` échouerait
+        # (`Holding` n'a pas ces attributs).
+        updates.pop("etablissement_id", None)
+        updates.pop("etablissement_nom", None)
+    # Compte obligatoire sauf type exempté (revue du 03/09/2026) : vérifié ICI, sur
+    # l'état FINAL fusionné (existant + patch), jamais dans le schéma — `HoldingUpdate`
+    # est un PATCH partiel, il ne connaît pas seul l'état après application. Même
+    # règle que `HoldingCreate._valider_compte_requis`, à ne jamais faire diverger.
+    type_actif_final = updates.get("type_actif", holding.type_actif)
+    compte_id_final = updates.get("compte_id", holding.compte_id)
+    if type_actif_final not in TYPES_ACTIF_SANS_ETABLISSEMENT and compte_id_final is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Un compte est obligatoire pour cette ligne (sauf immobilier, véhicule ou « autre actif »).",
+        )
     # `date_valeur_estimee` n'avance que si `valeur_estimee` change réellement dans cet
     # appel — pas à chaque modification de la ligne (compte, nom...), pour rester une
     # vraie date de « dernière mise à jour de l'estimation ».

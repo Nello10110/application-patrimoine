@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Compte, Holding } from '../api/types'
+import type { Compte, Etablissement, Holding } from '../api/types'
 import {
   TEXTE_PRIX_REVIENT,
   TEXTE_VALEUR_ESTIMEE,
+  TYPES_ACTIF_SANS_ETABLISSEMENT,
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
   TYPES_EPARGNE,
@@ -15,6 +16,7 @@ import {
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import InfoBulle from './InfoBulle'
+import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
 // Sentinelle pour l'option "+ Nouveau compte..." du sélecteur — distincte de toute
 // valeur réelle possible (un id de compte est toujours numérique).
@@ -27,6 +29,10 @@ const FORM_VIDE = {
   // Un id de compte existant (chaîne numérique), NOUVEAU_COMPTE, ou '' (aucun).
   compte_id: '',
   compte_nom: '',
+  // Établissement du compte créé À LA VOLÉE ci-dessus (revue du 03/09/2026) — sans
+  // objet si `compte_id` n'est pas `NOUVEAU_COMPTE`.
+  etablissement_id: '',
+  etablissement_nom: '',
   type_actif: '',
   valeur_estimee: '',
   taux_pct: '',
@@ -48,6 +54,7 @@ const FORM_VIDE = {
 export default function AjoutHoldingForm({
   onCreated,
   comptes: comptesFournis,
+  etablissements: etablissementsFournis,
   onComptesModifies,
 }: {
   onCreated?: (holding: Holding) => void
@@ -57,6 +64,9 @@ export default function AjoutHoldingForm({
    * `GET /comptes` pour la même page : ce formulaire et `PositionsTable` sont
    * montés côte à côte et demandaient chacun la sienne (backlog Z.1). */
   comptes?: Compte[]
+  /** Même rôle qu'`comptes` ci-dessus, pour la liste des établissements — affichée
+   * uniquement quand un nouveau compte est créé à la volée. */
+  etablissements?: Etablissement[]
   /** À appeler quand un compte a été créé à la volée, pour que l'appelant
    * rafraîchisse la liste qu'il porte. Sans objet en mode autonome. */
   onComptesModifies?: () => void
@@ -65,12 +75,15 @@ export default function AjoutHoldingForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [comptesCharges, setComptesCharges] = useState<Compte[]>([])
+  const [etablissementsCharges, setEtablissementsCharges] = useState<Etablissement[]>([])
   const autonome = comptesFournis === undefined
   const comptes = comptesFournis ?? comptesCharges
+  const etablissements = etablissementsFournis ?? etablissementsCharges
 
   useEffect(() => {
     if (!autonome) return
     api.listComptes().then(setComptesCharges).catch(() => setComptesCharges([]))
+    api.listEtablissements().then(setEtablissementsCharges).catch(() => setEtablissementsCharges([]))
   }, [autonome])
 
   async function handleAdd(e: React.FormEvent) {
@@ -80,12 +93,15 @@ export default function AjoutHoldingForm({
     setError(null)
     try {
       const nouveauCompte = form.compte_id === NOUVEAU_COMPTE
+      const nouvelEtablissement = form.etablissement_id === NOUVEAU_ETABLISSEMENT
       const holding = await api.createHolding({
         ticker: form.ticker.trim().toUpperCase(),
         quantite: Number(form.quantite),
         prix_revient_moyen: form.prix_revient_moyen ? Number(form.prix_revient_moyen) : null,
         compte_id: !nouveauCompte && form.compte_id ? Number(form.compte_id) : null,
         compte_nom: nouveauCompte ? form.compte_nom.trim() || null : null,
+        etablissement_id: nouveauCompte && !nouvelEtablissement && form.etablissement_id ? Number(form.etablissement_id) : null,
+        etablissement_nom: nouveauCompte && nouvelEtablissement ? form.etablissement_nom.trim() || null : null,
         type_actif: form.type_actif || null,
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
         taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
@@ -94,11 +110,13 @@ export default function AjoutHoldingForm({
         date_acquisition: form.date_acquisition || null,
       })
       setForm(FORM_VIDE)
-      // Un compte a pu être créé à la volée (`compte_nom`) : recharge la liste pour
-      // qu'il apparaisse dans le sélecteur dès le prochain ajout.
+      // Un compte (et son établissement) a pu être créé à la volée : recharge les
+      // listes pour qu'ils apparaissent dans les sélecteurs dès le prochain ajout.
       if (nouveauCompte) {
-        if (autonome) api.listComptes().then(setComptesCharges).catch(() => {})
-        else onComptesModifies?.()
+        if (autonome) {
+          api.listComptes().then(setComptesCharges).catch(() => {})
+          if (nouvelEtablissement) api.listEtablissements().then(setEtablissementsCharges).catch(() => {})
+        } else onComptesModifies?.()
       }
       onCreated?.(holding)
     } catch (err) {
@@ -148,9 +166,21 @@ export default function AjoutHoldingForm({
           <select
             value={form.compte_id}
             onChange={(e) => setForm({ ...form, compte_id: e.target.value })}
+            aria-label="Compte"
             className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           >
-            <option value="">— Aucun —</option>
+            {/* Retiré dès que le type choisi n'est pas dispensé de compte (revue du
+                03/09/2026, compte obligatoire) — cf. `TYPES_ACTIF_SANS_ETABLISSEMENT`.
+                Type non dispensé ET aucune sélection encore faite : un placeholder
+                « — Choisir — » reste indispensable, sinon le navigateur présélectionne
+                silencieusement le premier compte de la liste sans que l'état React
+                (`form.compte_id`, resté `''`) ne le reflète — bug réel constaté en
+                recette du 03/09/2026, pas qu'un souci d'affichage. */}
+            {TYPES_ACTIF_SANS_ETABLISSEMENT.has(form.type_actif) ? (
+              <option value="">— Aucun —</option>
+            ) : (
+              form.compte_id === '' && <option value="">— Choisir —</option>
+            )}
             {comptes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nom}
@@ -160,15 +190,29 @@ export default function AjoutHoldingForm({
           </select>
         </label>
         {form.compte_id === NOUVEAU_COMPTE && (
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Nom du nouveau compte
-            <input
-              value={form.compte_nom}
-              onChange={(e) => setForm({ ...form, compte_nom: e.target.value })}
-              className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              placeholder="PEA, CTO..."
-            />
-          </label>
+          <>
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Nom du nouveau compte
+              <input
+                value={form.compte_nom}
+                onChange={(e) => setForm({ ...form, compte_nom: e.target.value })}
+                className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                placeholder="PEA, CTO..."
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+              Établissement
+              <SelecteurEtablissement
+                etablissements={etablissements}
+                value={form.etablissement_id}
+                nomNouveau={form.etablissement_nom}
+                onValueChange={(v) => setForm({ ...form, etablissement_id: v })}
+                onNomNouveauChange={(v) => setForm({ ...form, etablissement_nom: v })}
+                ariaLabel="Établissement du nouveau compte"
+                className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              />
+            </label>
+          </>
         )}
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Type d'actif

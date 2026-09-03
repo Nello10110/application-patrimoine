@@ -111,7 +111,7 @@ def test_creation_et_edition_classiques_gardent_datetime_now_inchange(client):
     `test_holding_immobilier.py`, revérifié ici pour un type Épargne)."""
     cree = client.post(
         "/api/portfolio/holdings",
-        json={"ticker": "AV1", "quantite": 1, "type_actif": "LIFE_INSURANCE", "valeur_estimee": 5000.0},
+        json={"ticker": "AV1", "quantite": 1, "type_actif": "LIFE_INSURANCE", "valeur_estimee": 5000.0, "compte_nom": "Assurance-vie"},
     ).json()
 
     assert cree["date_valeur_estimee"] is not None

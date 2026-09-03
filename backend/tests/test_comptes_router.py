@@ -7,9 +7,9 @@ from .conftest import (
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
+    make_compte,
     make_holding,
 )
-
 
 # ---------------------------------------------------------------------------
 # Établissements
@@ -81,11 +81,16 @@ def test_creer_un_compte_rattache_a_un_etablissement(client):
     assert corps["etablissement"]["nom"] == "Caisse d'Épargne"
 
 
-def test_creer_un_compte_sans_etablissement(client):
+def test_creer_un_compte_sans_etablissement_refuse(client):
+    """`CompteCreate.etablissement_id` obligatoire depuis le 03/09/2026 (demande
+    directe de l'utilisateur : « il n'est pas possible d'avoir des comptes sans
+    établissement ») — un compte existant peut rester sans établissement
+    (`etablissement_id: int | None` sur `CompteOut`), mais la CRÉATION l'exige.
+    `400`, pas `422` : `main.py::gestion_erreurs_validation` uniformise toute
+    `RequestValidationError` (y compris un champ requis absent) en `400`."""
     reponse = client.post("/api/comptes", json={"nom": "PEA"})
 
-    assert reponse.status_code == 200
-    assert reponse.json()["etablissement"] is None
+    assert reponse.status_code == 400
 
 
 def test_creer_un_compte_avec_un_etablissement_dun_autre_foyer_est_refuse(client, db):
@@ -108,10 +113,10 @@ def test_derattacher_un_compte_de_son_etablissement(client):
     assert reponse.json()["etablissement"] is None
 
 
-def test_supprimer_un_compte(client):
-    cree = client.post("/api/comptes", json={"nom": "PEA"}).json()
+def test_supprimer_un_compte(client, db):
+    cree = make_compte(db)
 
-    reponse = client.delete(f"/api/comptes/{cree['id']}")
+    reponse = client.delete(f"/api/comptes/{cree.id}")
 
     assert reponse.status_code == 200
     assert client.get("/api/comptes").json() == []
@@ -127,9 +132,9 @@ def test_compte_introuvable_renvoie_404(client):
 # ---------------------------------------------------------------------------
 
 
-def test_solde_reflete_le_holding_rattache(client):
-    compte = client.post("/api/comptes", json={"nom": "CTO"}).json()
-    client.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte["id"]})
+def test_solde_reflete_le_holding_rattache(client, db):
+    compte = make_compte(db, nom="CTO")
+    client.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte.id})
 
     reponse = client.get("/api/comptes/solde")
 
@@ -150,19 +155,19 @@ def test_solde_sur_portefeuille_vide(client):
 # ---------------------------------------------------------------------------
 
 
-def test_lister_les_holdings_dun_compte(client):
-    compte = client.post("/api/comptes", json={"nom": "CTO"}).json()
-    client.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte["id"]})
-    client.post("/api/portfolio/holdings", json={"ticker": "BBB", "quantite": 5, "prix_revient_moyen": 50.0})  # sans compte
+def test_lister_les_holdings_dun_compte(client, db):
+    compte = make_compte(db, nom="CTO")
+    client.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte.id})
+    make_holding(db, ticker="BBB", quantite=5, prix_revient_moyen=50.0, compte_id=None)  # sans compte
 
-    reponse = client.get(f"/api/comptes/{compte['id']}/holdings")
+    reponse = client.get(f"/api/comptes/{compte.id}/holdings")
 
     assert reponse.status_code == 200
     tickers = {h["ticker"] for h in reponse.json()}
     assert tickers == {"AAA"}
 
 
-def test_la_fiche_detaillee_dune_ligne_expose_son_compte(client):
+def test_la_fiche_detaillee_dune_ligne_expose_son_compte(client, db):
     """`HoldingOut.compte`/`HoldingDetail.compte` (écran Comptes, backlog X.1) :
     la relation `Holding.compte` doit être visible depuis la fiche détaillée et
     depuis la liste du portefeuille, établissement rattaché inclus — pas seulement
@@ -170,7 +175,7 @@ def test_la_fiche_detaillee_dune_ligne_expose_son_compte(client):
     etablissement = client.post("/api/comptes/etablissements", json={"nom": "Banque Test"}).json()
     compte = client.post("/api/comptes", json={"nom": "CTO", "etablissement_id": etablissement["id"]}).json()
     client.post("/api/portfolio/holdings", json={"ticker": "AAA", "quantite": 10, "prix_revient_moyen": 100.0, "compte_id": compte["id"]})
-    client.post("/api/portfolio/holdings", json={"ticker": "BBB", "quantite": 5, "prix_revient_moyen": 50.0})  # sans compte
+    make_holding(db, ticker="BBB", quantite=5, prix_revient_moyen=50.0, compte_id=None)  # sans compte
 
     detail_avec_compte = client.get("/api/portfolio/holdings/AAA/detail").json()
     detail_sans_compte = client.get("/api/portfolio/holdings/BBB/detail").json()
@@ -191,14 +196,14 @@ def test_la_fiche_detaillee_dune_ligne_expose_son_compte(client):
 
 
 def test_repartir_un_compte_entre_deux_detenteurs(client, db):
-    compte = client.post("/api/comptes", json={"nom": "CTO"}).json()
-    make_holding(db, ticker="AAA", compte_id=compte["id"])
-    make_holding(db, ticker="BBB", compte_id=compte["id"])
+    compte = make_compte(db, nom="CTO")
+    make_holding(db, ticker="AAA", compte_id=compte.id)
+    make_holding(db, ticker="BBB", compte_id=compte.id)
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
     bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
 
     reponse = client.put(
-        f"/api/comptes/{compte['id']}/quotites",
+        f"/api/comptes/{compte.id}/quotites",
         json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 50.0}, {"detenteur_id": bob["id"], "quotite_pct": 50.0}]},
     )
 
@@ -213,11 +218,11 @@ def test_quotites_compte_somme_non_100_refusee(client, db):
     # Un compte sans aucune ligne rattachée n'a rien sur quoi appliquer la
     # répartition (`set_quotites_compte` ne fait alors rien, ni erreur ni effet) —
     # la validation « somme = 100 % » ne peut s'observer que sur un compte peuplé.
-    compte = client.post("/api/comptes", json={"nom": "CTO"}).json()
-    make_holding(db, ticker="AAA", compte_id=compte["id"])
+    compte = make_compte(db, nom="CTO")
+    make_holding(db, ticker="AAA", compte_id=compte.id)
     alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
 
-    reponse = client.put(f"/api/comptes/{compte['id']}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 60.0}]})
+    reponse = client.put(f"/api/comptes/{compte.id}/quotites", json={"quotites": [{"detenteur_id": alice["id"], "quotite_pct": 60.0}]})
 
     assert reponse.status_code == 400
 

@@ -7,9 +7,10 @@ rattaché (via `Loan.holding_id`), décision délibérée pour ne jamais toucher
 mécanisme de calcul existant (`compute_parts`, `patrimoine_service`...), déjà
 entremêlé dans plusieurs services financiers testés."""
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..models import Compte, Etablissement, Holding, Loan
+from ..models import TYPES_ACTIF_SANS_ETABLISSEMENT, Compte, Etablissement, Holding, Loan
 from . import analysis_service, detenteurs_service
 
 
@@ -46,6 +47,19 @@ def create_etablissement(db: Session, user_id: int, nom: str) -> Etablissement:
     db.commit()
     db.refresh(etablissement)
     return etablissement
+
+
+def get_or_create_etablissement(db: Session, user_id: int, nom: str) -> Etablissement:
+    """Résolution d'un nom saisi vers un établissement existant, ou création à la
+    volée (revue du 03/09/2026) — même patron que `get_or_create_compte`, pour les
+    formulaires qui créent un compte ET son établissement en une seule saisie
+    (« + Nouvel établissement... » depuis un sélecteur de compte). Contrairement à
+    `create_etablissement`, ne lève JAMAIS sur un nom déjà pris : retrouver
+    l'établissement existant est le comportement attendu ici, pas une erreur."""
+    etablissement = db.query(Etablissement).filter(Etablissement.user_id == user_id, Etablissement.nom == nom).first()
+    if etablissement is not None:
+        return etablissement
+    return create_etablissement(db, user_id, nom)
 
 
 def update_etablissement(db: Session, etablissement: Etablissement, **champs) -> Etablissement:
@@ -105,31 +119,62 @@ def delete_compte(db: Session, compte: Compte) -> None:
     db.commit()
 
 
-def get_or_create_compte_sans_commit(db: Session, user_id: int, nom: str) -> Compte:
+def get_or_create_compte_sans_commit(db: Session, user_id: int, nom: str, etablissement_id: int | None = None) -> Compte:
     """Variante sans commit — pour un appelant qui gère lui-même sa frontière de
     transaction (import CSV en masse, reconstruction du grand livre) : `db.flush()`
     rend le nouvel id visible aux requêtes suivantes de la MÊME session (donc au
     cache local de l'appelant, ex. `comptes_cache` dans `import_confirm`) sans
     committer un travail encore en cours ailleurs dans la même transaction (« tout
-    ou rien », LOT 3.3)."""
+    ou rien », LOT 3.3).
+
+    `etablissement_id` (revue du 03/09/2026) : posé UNIQUEMENT à la création — un
+    compte déjà existant sous ce nom garde son établissement actuel, jamais écrasé
+    silencieusement par un appelant qui en fournirait un différent (ex. deux imports
+    successifs qui ne s'accordent pas sur l'établissement d'un même nom de compte).
+    Pas d'IDOR à vérifier ici (pas d'accès réseau dans ce service) : à charge de
+    l'appelant, comme pour `Compte.etablissement_id` partout ailleurs."""
     compte = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom).first()
     if compte is not None:
         return compte
-    compte = Compte(user_id=user_id, nom=nom, etablissement_id=None)
+    compte = Compte(user_id=user_id, nom=nom, etablissement_id=etablissement_id)
     db.add(compte)
     db.flush()
     return compte
 
 
-def get_or_create_compte(db: Session, user_id: int, nom: str) -> Compte:
+def get_or_create_compte(db: Session, user_id: int, nom: str, etablissement_id: int | None = None) -> Compte:
     """Résolution d'un nom saisi vers un compte existant, ou création à la volée —
     committe immédiatement (usage : une seule mutation isolée, ex.
     `routers/portfolio.py::create_holding`/`update_holding`). Pour un import en
     masse qui gère sa propre transaction, cf. `get_or_create_compte_sans_commit`."""
-    compte = get_or_create_compte_sans_commit(db, user_id, nom)
+    compte = get_or_create_compte_sans_commit(db, user_id, nom, etablissement_id)
     db.commit()
     db.refresh(compte)
     return compte
+
+
+def compter_holdings_sans_compte(db: Session, user_id: int) -> int:
+    """Nombre de lignes financières sans compte (revue du 03/09/2026) — alimente le
+    compteur `holdings_sans_compte` exposé par `/api/auth/me` (même point
+    d'injection que `onboarding_termine`), qui déclenche l'écran de rattrapage
+    bloquant côté frontend tant qu'il est non nul.
+
+    `type_actif IS NULL` doit être COMPTÉ (n'est pas exempté) — c'est la valeur par
+    défaut d'une ligne pas encore catégorisée, précisément ce que cet écran doit
+    corriger, même règle que `HoldingCreate._valider_compte_requis`. D'où le
+    `or_(.is_(None), ...)` plutôt qu'un `.notin_()` seul : `NULL NOT IN (...)` vaut
+    NULL en SQL (ni vrai ni faux), pas TRUE — un `.notin_()` seul EXCLURAIT ces
+    lignes du compte au lieu de les compter (piège déjà documenté sur ce projet,
+    cf. `analysis_service.holdings_financiers`)."""
+    return (
+        db.query(Holding)
+        .filter(
+            Holding.user_id == user_id,
+            Holding.compte_id.is_(None),
+            or_(Holding.type_actif.is_(None), Holding.type_actif.notin_(TYPES_ACTIF_SANS_ETABLISSEMENT)),
+        )
+        .count()
+    )
 
 
 def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: list[tuple[int, float]]) -> None:

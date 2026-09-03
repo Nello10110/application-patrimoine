@@ -15,6 +15,10 @@ export interface AuthUser {
   // provisionné par SSO). Posé explicitement par le backend sur chaque réponse
   // contenant un utilisateur (`register`/`login`/`me`/`onboarding/terminer`).
   onboarding_termine: boolean
+  // Écran de rattrapage bloquant (revue du 03/09/2026, compte obligatoire sur une
+  // ligne financière) : tant que > 0, `App.tsx` affiche `RattrapageComptes` plutôt
+  // que l'application (sauf pour un `invite`, lecture seule).
+  holdings_sans_compte: number
 }
 
 export interface AuthResponse {

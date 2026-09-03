@@ -17,7 +17,7 @@ def test_create_holding_avec_valeur_estimee_pose_la_date(client):
 
 
 def test_create_holding_sans_valeur_estimee_ne_pose_pas_la_date(client):
-    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5})
+    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5, "compte_nom": "Compte Test"})
 
     assert reponse.status_code == 200
     assert reponse.json()["date_valeur_estimee"] is None
@@ -59,7 +59,14 @@ def test_update_dun_autre_champ_ne_touche_pas_la_date_de_valeur_estimee(client):
 def test_create_holding_avec_taux_pct_positif_epargne(client):
     reponse = client.post(
         "/api/portfolio/holdings",
-        json={"ticker": "LIVRETA", "quantite": 1, "type_actif": "REGULATED_SAVINGS", "valeur_estimee": 10000, "taux_pct": 3.0},
+        json={
+            "ticker": "LIVRETA",
+            "quantite": 1,
+            "type_actif": "REGULATED_SAVINGS",
+            "valeur_estimee": 10000,
+            "taux_pct": 3.0,
+            "compte_nom": "Livret A",
+        },
     )
 
     assert reponse.status_code == 200
@@ -77,7 +84,7 @@ def test_create_holding_avec_taux_pct_negatif_vehicule(client):
 
 
 def test_create_holding_sans_taux_pct_reste_none(client):
-    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5})
+    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5, "compte_nom": "Compte Test"})
 
     assert reponse.status_code == 200
     assert reponse.json()["taux_pct"] is None
@@ -85,7 +92,14 @@ def test_create_holding_sans_taux_pct_reste_none(client):
 
 def test_update_taux_pct(client):
     cree = client.post(
-        "/api/portfolio/holdings", json={"ticker": "LIVRETA", "quantite": 1, "type_actif": "REGULATED_SAVINGS", "valeur_estimee": 10000}
+        "/api/portfolio/holdings",
+        json={
+            "ticker": "LIVRETA",
+            "quantite": 1,
+            "type_actif": "REGULATED_SAVINGS",
+            "valeur_estimee": 10000,
+            "compte_nom": "Livret A",
+        },
     ).json()
     assert cree["taux_pct"] is None
 

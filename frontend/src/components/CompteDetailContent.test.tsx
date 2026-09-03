@@ -67,6 +67,7 @@ function loan(overrides: Partial<Loan> = {}): Loan {
     derniere_maj_manuelle: null,
     capital_restant_du: 150000,
     holding_id: null,
+    etablissement_id: null,
     created_at: '2026-01-01T00:00:00',
     updated_at: '2026-01-01T00:00:00',
     ...overrides,

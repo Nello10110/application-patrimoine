@@ -1,0 +1,5 @@
+transaction_id,datetime,date,category,type,asset_class,symbol,name,shares,price,amount,fee,tax,description,account_type
+e2e-tx-pea,2024-02-01T09:00:00.000Z,2024-02-01,TRADING,BUY,STOCK,E2EPEA,E2E PEA,1,50,-50,0,0,Achat PEA E2E,PEA
+e2e-tx-ct,2024-02-02T09:00:00.000Z,2024-02-02,TRADING,BUY,STOCK,E2ECT,E2E Compte-titres,1,150,-150,0,0,Achat CT E2E,DEFAULT
+e2e-tx-crypto,2024-02-03T09:00:00.000Z,2024-02-03,TRADING,BUY,CRYPTO,E2ECRYPTO,E2E Crypto,0.01,40000,-400,0,0,Achat crypto E2E,DEFAULT
+e2e-tx-bond,2024-02-04T09:00:00.000Z,2024-02-04,TRADING,BUY,BOND,E2EBOND,E2E Obligation,1,100,-100,0,0,Achat obligation E2E,DEFAULT

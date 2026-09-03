@@ -3,30 +3,41 @@ import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import EtatErreur from './EtatErreur'
 import InfoBulle from './InfoBulle'
+import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
 const AIDE_NOM_COMPTE =
   "Le nom que VOUS lui donnez, pas un numéro de compte : « PEA Boursorama », « Livret A », « Appartement Lyon ». C'est ce nom qui apparaîtra partout dans l'application."
 const AIDE_ETABLISSEMENT =
-  "Facultatif : la banque ou le courtier qui héberge ce compte, uniquement pour regrouper vos comptes à l'écran. Un établissement se déclare d'abord dans Réglages, onglet Détenteurs."
+  "La banque ou le courtier qui héberge ce compte (revue du 03/09/2026 : un compte doit toujours avoir un établissement). Choisissez-en un existant ou créez-le à la volée."
 
-/** Formulaire d'ajout d'un compte (nom + établissement optionnel) — patron
- * `DetenteursCard.tsx`. Extrait de `ComptesPage.tsx` pour être réutilisé tel quel
- * dans l'assistant de bienvenue (`EtapeComptes.tsx`, backlog X.3). */
+/** Formulaire d'ajout d'un compte (nom + établissement, tous deux obligatoires
+ * depuis le 03/09/2026) — patron `DetenteursCard.tsx`. Extrait de `ComptesPage.tsx`
+ * pour être réutilisé tel quel dans l'assistant de bienvenue (`EtapeComptes.tsx`,
+ * backlog X.3). */
 export default function AjoutCompteForm({ etablissements, onCreated }: { etablissements: Etablissement[]; onCreated: () => void }) {
   const [nom, setNom] = useState('')
   const [etablissementId, setEtablissementId] = useState('')
+  const [etablissementNom, setEtablissementNom] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const etablissementValide = etablissementId === NOUVEAU_ETABLISSEMENT ? etablissementNom.trim() !== '' : etablissementId !== ''
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    if (!nom.trim()) return
+    if (!nom.trim() || !etablissementValide) return
     setSaving(true)
     setError(null)
     try {
-      await api.createCompte(nom.trim(), etablissementId ? Number(etablissementId) : null)
+      let idCible = Number(etablissementId)
+      if (etablissementId === NOUVEAU_ETABLISSEMENT) {
+        const cree = await api.createEtablissement(etablissementNom.trim())
+        idCible = cree.id
+      }
+      await api.createCompte(nom.trim(), idCible)
       setNom('')
       setEtablissementId('')
+      setEtablissementNom('')
       onCreated()
     } catch (err) {
       setError((err as Error).message)
@@ -52,22 +63,20 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
         <span className="inline-flex items-center gap-1">
           Établissement <InfoBulle texte={AIDE_ETABLISSEMENT} />
         </span>
-        <select
+        <SelecteurEtablissement
+          etablissements={etablissements}
           value={etablissementId}
-          onChange={(e) => setEtablissementId(e.target.value)}
+          nomNouveau={etablissementNom}
+          onValueChange={setEtablissementId}
+          onNomNouveauChange={setEtablissementNom}
+          required
+          ariaLabel="Établissement"
           className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        >
-          <option value="">— Sans établissement —</option>
-          {etablissements.map((et) => (
-            <option key={et.id} value={et.id}>
-              {et.nom}
-            </option>
-          ))}
-        </select>
+        />
       </label>
       <button
         type="submit"
-        disabled={saving}
+        disabled={saving || !nom.trim() || !etablissementValide}
         className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
       >
         + Nouveau compte

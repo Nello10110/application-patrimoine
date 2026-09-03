@@ -14,12 +14,13 @@ import ReglagesPage from './ReglagesPage'
 // lit désormais `useAuth()` (bouton "Revoir l'assistant de bienvenue", réservé au
 // propriétaire) — même patron de contexte factice que `Sidebar.test.tsx`.
 const utilisateurFactice: AuthContextValue = {
-  user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true },
+  user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0 },
   loading: false,
   login: async () => {},
   register: async () => {},
   logout: () => {},
   completeOnboarding: async () => {},
+  refetchUser: async () => {},
 }
 
 function renderReglages() {
@@ -487,6 +488,7 @@ function loanDeclaration(overrides: Partial<import('../api/types').Loan> = {}): 
     capital_restant_du_manuel: null,
     derniere_maj_manuelle: null,
     holding_id: null,
+    etablissement_id: null,
     capital_restant_du: 150000,
     created_at: '2020-01-01T00:00:00',
     updated_at: '2020-01-01T00:00:00',

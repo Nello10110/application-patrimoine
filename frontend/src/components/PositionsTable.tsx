@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Compte, Holding } from '../api/types'
+import type { Compte, Etablissement, Holding } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import {
   TEXTE_PRIX_REVIENT,
   TEXTE_VALEUR_ESTIMEE,
+  TYPES_ACTIF_SANS_ETABLISSEMENT,
   TYPES_PATRIMOINE,
   TYPE_ACTIF_OPTIONS,
   TYPES_AVEC_TAUX,
@@ -14,6 +15,7 @@ import {
 } from '../utils/holdingCategories'
 import { formatDate, formatEuro, formatQuantite } from '../utils/format'
 import InfoBulle from './InfoBulle'
+import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
 function RendementCell({ value }: { value: number | null }) {
   if (value === null) return <span className="text-texte-attenue">—</span>
@@ -83,6 +85,10 @@ interface EditForm {
   // Un id de compte existant (chaîne numérique), NOUVEAU_COMPTE, ou '' (aucun).
   compte_id: string
   compte_nom: string
+  // Établissement du compte créé À LA VOLÉE ci-dessus (revue du 03/09/2026) — sans
+  // objet si `compte_id` n'est pas `NOUVEAU_COMPTE`.
+  etablissement_id: string
+  etablissement_nom: string
   type_actif: string
   valeur_estimee: string
   taux_pct: string
@@ -90,14 +96,18 @@ interface EditForm {
 }
 
 /** Sélecteur de compte réutilisé par l'édition mobile et desktop ci-dessous — même
- * choix (existant / aucun / + nouveau) que `AjoutHoldingForm.tsx`. */
+ * choix (existant / aucun / + nouveau) que `AjoutHoldingForm.tsx`. L'option
+ * « — Aucun — » disparaît dès que `type_actif` n'est pas dispensé de compte (revue
+ * du 03/09/2026, compte obligatoire). */
 function CompteEditSelect({
   comptes,
+  etablissements,
   editForm,
   setEditForm,
   ariaLabel,
 }: {
   comptes: Compte[]
+  etablissements: Etablissement[]
   editForm: EditForm
   setEditForm: (f: EditForm) => void
   ariaLabel: string
@@ -111,7 +121,7 @@ function CompteEditSelect({
         aria-label={ariaLabel}
         className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
       >
-        <option value="">— Aucun —</option>
+        {TYPES_ACTIF_SANS_ETABLISSEMENT.has(editForm.type_actif) && <option value="">— Aucun —</option>}
         {comptes.map((c) => (
           <option key={c.id} value={c.id}>
             {c.nom}
@@ -120,14 +130,25 @@ function CompteEditSelect({
         <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
       </select>
       {editForm.compte_id === NOUVEAU_COMPTE && (
-        <input
-          value={editForm.compte_nom}
-          onChange={(e) => setEditForm({ ...editForm, compte_nom: e.target.value })}
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`Nom du nouveau compte (${ariaLabel})`}
-          placeholder="PEA, CTO..."
-          className="mt-1 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
-        />
+        <>
+          <input
+            value={editForm.compte_nom}
+            onChange={(e) => setEditForm({ ...editForm, compte_nom: e.target.value })}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Nom du nouveau compte (${ariaLabel})`}
+            placeholder="PEA, CTO..."
+            className="mt-1 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+          />
+          <SelecteurEtablissement
+            etablissements={etablissements}
+            value={editForm.etablissement_id}
+            nomNouveau={editForm.etablissement_nom}
+            onValueChange={(v) => setEditForm({ ...editForm, etablissement_id: v })}
+            onNomNouveauChange={(v) => setEditForm({ ...editForm, etablissement_nom: v })}
+            ariaLabel={`Établissement du nouveau compte (${ariaLabel})`}
+            className="mt-1 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+          />
+        </>
       )}
     </>
   )
@@ -147,6 +168,7 @@ function PositionCard({
   editError,
   montantsMasques,
   comptes,
+  etablissements,
   onSelect,
   onStartEdit,
   onCancelEdit,
@@ -161,6 +183,7 @@ function PositionCard({
   editError: string | null
   montantsMasques: boolean
   comptes: Compte[]
+  etablissements: Etablissement[]
   onSelect: () => void
   onStartEdit: (e: React.MouseEvent) => void
   onCancelEdit: (e: React.MouseEvent) => void
@@ -201,7 +224,13 @@ function PositionCard({
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Compte
-            <CompteEditSelect comptes={comptes} editForm={editForm} setEditForm={setEditForm} ariaLabel="Compte (édition)" />
+            <CompteEditSelect
+              comptes={comptes}
+              etablissements={etablissements}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              ariaLabel="Compte (édition)"
+            />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
             Type d'actif
@@ -394,6 +423,8 @@ interface PositionsTableProps {
    * `AjoutHoldingForm` sont montés côte à côte sur le Portefeuille et
    * demandaient chacun la sienne (backlog Z.1). */
   comptes?: Compte[]
+  /** Même rôle qu'`comptes` ci-dessus, pour la liste des établissements. */
+  etablissements?: Etablissement[]
   /** À appeler quand un compte a été créé à la volée depuis l'édition en ligne. */
   onComptesModifies?: () => void
 }
@@ -404,6 +435,7 @@ export default function PositionsTable({
   onRequestDelete,
   onSaved,
   comptes: comptesFournis,
+  etablissements: etablissementsFournis,
   onComptesModifies,
 }: PositionsTableProps) {
   const { montantsMasques } = usePreferencesAffichage()
@@ -412,12 +444,15 @@ export default function PositionsTable({
   const estMobile = useEstMobile()
   const [tri, setTriState] = useState<{ cle: CleTri; direction: SensTri } | null>(() => triStocke())
   const [comptesCharges, setComptesCharges] = useState<Compte[]>([])
+  const [etablissementsCharges, setEtablissementsCharges] = useState<Etablissement[]>([])
   const autonome = comptesFournis === undefined
   const comptes = comptesFournis ?? comptesCharges
+  const etablissements = etablissementsFournis ?? etablissementsCharges
 
   useEffect(() => {
     if (!autonome) return
     api.listComptes().then(setComptesCharges).catch(() => setComptesCharges([]))
+    api.listEtablissements().then(setEtablissementsCharges).catch(() => setEtablissementsCharges([]))
   }, [autonome])
 
   function setTri(maj: (prev: { cle: CleTri; direction: SensTri } | null) => { cle: CleTri; direction: SensTri }) {
@@ -438,6 +473,8 @@ export default function PositionsTable({
     prix_revient_moyen: '',
     compte_id: '',
     compte_nom: '',
+    etablissement_id: '',
+    etablissement_nom: '',
     type_actif: '',
     valeur_estimee: '',
     taux_pct: '',
@@ -465,6 +502,8 @@ export default function PositionsTable({
       prix_revient_moyen: h.prix_revient_moyen !== null && h.prix_revient_moyen !== undefined ? String(h.prix_revient_moyen) : '',
       compte_id: h.compte ? String(h.compte.id) : '',
       compte_nom: '',
+      etablissement_id: '',
+      etablissement_nom: '',
       type_actif: h.type_actif ?? '',
       valeur_estimee: h.valeur_estimee !== null && h.valeur_estimee !== undefined ? String(h.valeur_estimee) : '',
       taux_pct: h.taux_pct !== null && h.taux_pct !== undefined ? String(h.taux_pct) : '',
@@ -486,22 +525,27 @@ export default function PositionsTable({
     setEditError(null)
     try {
       const nouveauCompte = editForm.compte_id === NOUVEAU_COMPTE
+      const nouvelEtablissement = editForm.etablissement_id === NOUVEAU_ETABLISSEMENT
       await api.updateHolding(id, {
         quantite: Number(editForm.quantite),
         prix_revient_moyen: editForm.prix_revient_moyen ? Number(editForm.prix_revient_moyen) : null,
         compte_id: !nouveauCompte && editForm.compte_id ? Number(editForm.compte_id) : null,
         compte_nom: nouveauCompte ? editForm.compte_nom.trim() || null : null,
+        etablissement_id: nouveauCompte && !nouvelEtablissement && editForm.etablissement_id ? Number(editForm.etablissement_id) : null,
+        etablissement_nom: nouveauCompte && nouvelEtablissement ? editForm.etablissement_nom.trim() || null : null,
         type_actif: editForm.type_actif || null,
         valeur_estimee: editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
         taux_pct: editForm.taux_pct ? Number(editForm.taux_pct) : null,
         date_acquisition: editForm.date_acquisition || null,
       })
       setEditingId(null)
-      // Un compte a pu être créé à la volée : recharge la liste pour qu'il
-      // apparaisse dans le sélecteur dès la prochaine édition.
+      // Un compte (et son établissement) a pu être créé à la volée : recharge les
+      // listes pour qu'ils apparaissent dans les sélecteurs dès la prochaine édition.
       if (nouveauCompte) {
-        if (autonome) api.listComptes().then(setComptesCharges).catch(() => {})
-        else onComptesModifies?.()
+        if (autonome) {
+          api.listComptes().then(setComptesCharges).catch(() => {})
+          if (nouvelEtablissement) api.listEtablissements().then(setEtablissementsCharges).catch(() => {})
+        } else onComptesModifies?.()
       }
       onSaved()
     } catch (err) {
@@ -573,6 +617,7 @@ export default function PositionsTable({
             editError={editingId === h.id ? editError : null}
             montantsMasques={montantsMasques}
             comptes={comptes}
+            etablissements={etablissements}
             onSelect={() => editingId !== h.id && onSelectTicker(h.ticker)}
             onStartEdit={(e) => startEdit(e, h)}
             onCancelEdit={cancelEdit}
@@ -752,7 +797,13 @@ export default function PositionsTable({
                   </label>
                   <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Compte
-                    <CompteEditSelect comptes={comptes} editForm={editForm} setEditForm={setEditForm} ariaLabel="Compte (édition)" />
+                    <CompteEditSelect
+                      comptes={comptes}
+                      etablissements={etablissements}
+                      editForm={editForm}
+                      setEditForm={setEditForm}
+                      ariaLabel="Compte (édition)"
+                    />
                   </label>
                   <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
                     Type d'actif

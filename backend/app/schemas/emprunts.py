@@ -61,7 +61,14 @@ class LoanBase(BaseModel):
 
 
 class LoanCreate(LoanBase):
-    pass
+    # Établissement du CRÉDIT (revue du 03/09/2026) — OPTIONNEL, contrairement à
+    # `CompteCreate.etablissement_id` : l'utilisateur a formulé cette demande plus
+    # doucement (« j'aimerais bien indiquer », pas « il faut »), et le bien financé
+    # (immobilier, véhicule) reste délibérément indépendant de cet établissement —
+    # cf. `models.Loan.etablissement_id`. Pas vérifié ici (pas d'accès DB dans un
+    # validateur Pydantic) : IDOR contrôlé côté routeur, comme `holding_id` sur
+    # `LoanUpdate`.
+    etablissement_id: int | None = None
 
 
 class LoanUpdate(BaseModel):
@@ -77,6 +84,9 @@ class LoanUpdate(BaseModel):
     # "dérattacher", absence du champ signifie "ne pas toucher" (cf. `routers/loans.py`,
     # exclude_unset=True).
     holding_id: int | None = None
+    # Cf. `LoanCreate.etablissement_id` — même sémantique `exclude_unset=True` que
+    # `holding_id` : absent du corps = ne pas toucher, `null` explicite = dérattacher.
+    etablissement_id: int | None = None
 
     @field_validator("libelle")
     @classmethod
@@ -139,3 +149,4 @@ class LoanOut(LoanBase):
     # d'être systématiquement écrasée par `routers/loans._vers_loan_out`.
     capital_restant_du: float = 0.0
     holding_id: int | None = None
+    etablissement_id: int | None = None

@@ -5,7 +5,6 @@ import type { ScheduledJob } from '../api/types'
 import Card from '../components/Card'
 import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal'
 import DetenteursCard from '../components/DetenteursCard'
-import EtablissementsCard from '../components/EtablissementsCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import GestionFoyerCard from '../components/GestionFoyerCard'
@@ -182,7 +181,6 @@ export default function ReglagesPage() {
       {onglet === 'detenteurs' && (
         <div className="space-y-4">
           <DetenteursCard />
-          <EtablissementsCard />
         </div>
       )}
 

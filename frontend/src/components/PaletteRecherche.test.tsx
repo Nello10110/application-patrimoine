@@ -14,12 +14,13 @@ vi.mock('../api/client', () => ({
 }))
 
 const utilisateurFactice: AuthContextValue = {
-  user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true },
+  user: { id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0 },
   loading: false,
   login: async () => {},
   register: async () => {},
   logout: () => {},
   completeOnboarding: async () => {},
+  refetchUser: async () => {},
 }
 
 function EcranCourant() {
@@ -83,6 +84,7 @@ function loan(overrides: Partial<Loan> = {}): Loan {
     derniere_maj_manuelle: null,
     capital_restant_du: 150000,
     holding_id: null,
+    etablissement_id: null,
     created_at: '2020-01-01T00:00:00',
     updated_at: '2020-01-01T00:00:00',
     ...overrides,

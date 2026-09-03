@@ -78,6 +78,23 @@ TYPES_ACTIF_PATRIMOINE_MANUEL = {
     TYPE_ACTIF_EMPLOYEE_SAVINGS,
     TYPE_ACTIF_VEHICLE,
 }
+
+# Sous-ensemble de `TYPES_ACTIF_PATRIMOINE_MANUEL` dispensé de compte (revue du
+# 03/09/2026, demande directe de l'utilisateur : « les seules lignes sans
+# établissement doivent être l'immobilier et ce genre de choses »). Un bien
+# (immobilier, véhicule) n'est détenu par aucun établissement financier ; une SCPI,
+# une assurance-vie, un PER, un livret ou un compte courant, si — ce sont des
+# produits financiers réels, `EpargnePage` leur crée d'ailleurs déjà un `Compte` 1:1
+# automatiquement. `OTHER_ASSET` reste dans l'ensemble exempté : c'est l'échappatoire
+# explicite pour ce qui ne rentre dans aucune case, même esprit que l'immobilier/le
+# véhicule. Utilisé par `HoldingCreate`/`routers/portfolio.py::update_holding`/
+# `comptes_service.compter_holdings_sans_compte` — TOUJOURS depuis cette seule
+# définition, jamais redupliquée en dur ailleurs.
+TYPES_ACTIF_SANS_ETABLISSEMENT = {
+    TYPE_ACTIF_REAL_ESTATE,
+    TYPE_ACTIF_VEHICLE,
+    TYPE_ACTIF_OTHER_ASSET,
+}
 # Sous-ensemble ci-dessus dédié à l'écran Épargne (backlog § 2.S.1) : comptes et
 # contrats d'épargne au sens large, dont l'utilisateur pilote lui-même la
 # valorisation dans le temps (historique daté) et, optionnellement, un versement
@@ -218,6 +235,17 @@ class Loan(Base):
     # une correspondance issue de la reconstruction du grand livre (cf. docstring de
     # module).
     holding_id: Mapped[int | None] = mapped_column(ForeignKey("holdings.id"), nullable=True, index=True)
+    # Établissement du CRÉDIT (revue du 03/09/2026, demande directe de l'utilisateur :
+    # « j'aimerais bien indiquer l'établissement du crédit mais pour autant
+    # l'immobilier ou le bien ne fait pas partie de l'établissement »). Délibérément
+    # DÉCOUPLÉ de `holding_id` : le bien financé peut n'appartenir à aucun
+    # établissement (cas normal d'un immobilier, cf. `TYPES_ACTIF_SANS_ETABLISSEMENT`)
+    # pendant que sa banque prêteuse, elle, en a un. Nullable et non exigé à la
+    # création, contrairement à `Compte.etablissement_id` : l'utilisateur a formulé
+    # cette demande plus doucement (« j'aimerais bien indiquer », pas « il faut »),
+    # et l'imposer rétroactivement à un emprunt déjà saisi serait de la friction sans
+    # contrepartie.
+    etablissement_id: Mapped[int | None] = mapped_column(ForeignKey("etablissements.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

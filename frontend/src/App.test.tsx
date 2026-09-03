@@ -47,7 +47,7 @@ vi.mock('./api/client', () => ({
 // comme le reste de ce fichier le suppose déjà.
 beforeEach(() => {
   localStorage.setItem('patrimoine_auth_token', 'jeton-de-test')
-  vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true })
+  vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0 })
 })
 
 describe('App — barre latérale (backlog 2.K.2)', () => {
@@ -202,7 +202,7 @@ describe('App — menu du compte (backlog 2.K.2 / 2.K.7)', () => {
 
 describe('App — assistant de configuration initiale (welcome board)', () => {
   it('un propriétaire dont l\'onboarding n\'est pas terminé voit l\'assistant, pas le tableau de bord', async () => {
-    vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: false })
+    vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: false, holdings_sans_compte: 0 })
 
     render(
       <MemoryRouter>
@@ -215,7 +215,7 @@ describe('App — assistant de configuration initiale (welcome board)', () => {
   })
 
   it('un propriétaire dont l\'onboarding est terminé voit directement l\'application', async () => {
-    vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true })
+    vi.mocked(api.getMe).mockResolvedValue({ id: 1, username: 'testeur', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0 })
 
     render(
       <MemoryRouter>
@@ -228,7 +228,7 @@ describe('App — assistant de configuration initiale (welcome board)', () => {
   })
 
   it("un membre du foyer avec onboarding_termine=false voit quand même directement l'application (assistant réservé au propriétaire)", async () => {
-    vi.mocked(api.getMe).mockResolvedValue({ id: 2, username: 'membre', role: 'membre', onboarding_termine: false })
+    vi.mocked(api.getMe).mockResolvedValue({ id: 2, username: 'membre', role: 'membre', onboarding_termine: false, holdings_sans_compte: 0 })
 
     render(
       <MemoryRouter>

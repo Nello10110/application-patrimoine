@@ -50,6 +50,14 @@ class UserOut(BaseModel):
     # et posé explicitement par `routers/auth.py` sur chaque réponse contenant un
     # `UserOut` — jamais rempli automatiquement par `model_validate`, absent de `User`.
     onboarding_termine: bool = False
+    # Écran de rattrapage bloquant (revue du 03/09/2026, compte obligatoire sur une
+    # ligne financière) : pas une colonne de `User`, calculé depuis
+    # `comptes_service.compter_holdings_sans_compte` et posé explicitement par
+    # `routers/auth.py` sur chaque réponse contenant un `UserOut` — même patron que
+    # `onboarding_termine` ci-dessus. Tant que > 0, le frontend affiche l'écran de
+    # rattrapage plutôt que l'application (sauf pour un `invite`, lecture seule, qui
+    # ne peut rien y corriger).
+    holdings_sans_compte: int = 0
 
 
 class AuthResponse(BaseModel):

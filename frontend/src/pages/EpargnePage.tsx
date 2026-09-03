@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Holding, ValuationHistoryPoint } from '../api/types'
+import type { Etablissement, Holding, ValuationHistoryPoint } from '../api/types'
 import { AjoutValorisationForm } from '../components/AjoutValorisationForm'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import Modale from '../components/Modale'
+import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from '../components/SelecteurEtablissement'
 import { SkeletonTexte } from '../components/Skeleton'
 import { ValorisationHistoriqueCard } from '../components/ValorisationHistoriqueCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -24,10 +25,22 @@ type FormulaireCompte = {
   type_actif: string
   valeur_estimee: string
   versement_mensuel: string
+  // Établissement du compte 1:1 créé pour cette ligne (revue du 03/09/2026,
+  // demande directe de l'utilisateur : les comptes créés ici tombaient dans le
+  // même angle mort que ceux créés depuis l'écran Comptes).
+  etablissement_id: string
+  etablissement_nom: string
 }
 
 function formulaireVierge(): FormulaireCompte {
-  return { nom: '', type_actif: OPTIONS_EPARGNE[0]?.value ?? '', valeur_estimee: '', versement_mensuel: '' }
+  return {
+    nom: '',
+    type_actif: OPTIONS_EPARGNE[0]?.value ?? '',
+    valeur_estimee: '',
+    versement_mensuel: '',
+    etablissement_id: '',
+    etablissement_nom: '',
+  }
 }
 
 /** Formulaire d'édition du nom et du versement mensuel d'un compte (backlog 2.S.1,
@@ -259,18 +272,25 @@ function CompteEpargneCard({ holding, onChanged, onDeleted }: { holding: Holding
  * le patrimoine manuel existant (immobilier, assurance-vie...). Cardinalité 1:1
  * (une ligne d'épargne = un compte dédié), pas de sélecteur ici contrairement à
  * `AjoutHoldingForm.tsx` : cet écran n'a jamais exposé la notion de compte à
- * l'utilisateur, ce comportement reste cohérent avec son ergonomie actuelle. */
-function AjoutCompteForm({ onCreated }: { onCreated: () => void }) {
+ * l'utilisateur, ce comportement reste cohérent avec son ergonomie actuelle.
+ * Établissement (revue du 03/09/2026, demande directe de l'utilisateur) :
+ * obligatoire, comme sur l'écran Comptes — sans lui, chaque ligne d'épargne créée
+ * ici retomberait dans le même angle mort que ce chantier corrige ailleurs. */
+function AjoutCompteForm({ etablissements, onCreated }: { etablissements: Etablissement[]; onCreated: () => void }) {
   const [form, setForm] = useState<FormulaireCompte>(formulaireVierge())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const etablissementValide =
+    form.etablissement_id === NOUVEAU_ETABLISSEMENT ? form.etablissement_nom.trim() !== '' : form.etablissement_id !== ''
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.nom.trim()) return
+    if (!form.nom.trim() || !etablissementValide) return
     setSaving(true)
     setError(null)
     try {
+      const nouvelEtablissement = form.etablissement_id === NOUVEAU_ETABLISSEMENT
       await api.createHolding({
         ticker: form.nom.trim().toUpperCase().replace(/\s+/g, '_'),
         nom: form.nom.trim(),
@@ -279,6 +299,8 @@ function AjoutCompteForm({ onCreated }: { onCreated: () => void }) {
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
         versement_mensuel: form.versement_mensuel ? Number(form.versement_mensuel) : null,
         compte_nom: form.nom.trim(),
+        etablissement_id: !nouvelEtablissement ? Number(form.etablissement_id) : null,
+        etablissement_nom: nouvelEtablissement ? form.etablissement_nom.trim() || null : null,
       })
       setForm(formulaireVierge())
       onCreated()
@@ -340,10 +362,23 @@ function AjoutCompteForm({ onCreated }: { onCreated: () => void }) {
           className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
         />
       </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">Établissement</span>
+        <SelecteurEtablissement
+          etablissements={etablissements}
+          value={form.etablissement_id}
+          nomNouveau={form.etablissement_nom}
+          onValueChange={(v) => setForm({ ...form, etablissement_id: v })}
+          onNomNouveauChange={(v) => setForm({ ...form, etablissement_nom: v })}
+          required
+          ariaLabel="Établissement"
+          className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+        />
+      </label>
       <div className="sm:col-span-2">
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !form.nom.trim() || !etablissementValide}
           className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-60"
         >
           {saving ? 'Enregistrement…' : '+ Ajouter un compte'}
@@ -364,6 +399,7 @@ export default function EpargnePage() {
   const [holdings, setHoldings] = useState<Holding[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
+  const [etablissements, setEtablissements] = useState<Etablissement[]>([])
   const { montantsMasques } = usePreferencesAffichage()
 
   function charger() {
@@ -375,6 +411,9 @@ export default function EpargnePage() {
   }
 
   useEffect(charger, [])
+  useEffect(() => {
+    api.listEtablissements().then(setEtablissements).catch(() => setEtablissements([]))
+  }, [])
 
   if (error) return <EtatErreur message={error} onReessayer={charger} />
   if (!holdings) return <SkeletonTexte />
@@ -420,6 +459,7 @@ export default function EpargnePage() {
       {formulaireOuvert && (
         <Card title="Nouveau compte">
           <AjoutCompteForm
+            etablissements={etablissements}
             onCreated={() => {
               setFormulaireOuvert(false)
               charger()

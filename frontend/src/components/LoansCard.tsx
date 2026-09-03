@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { Holding, Loan } from '../api/types'
+import type { Etablissement, Holding, Loan } from '../api/types'
 import { useEstMobile } from '../hooks/useEstMobile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
@@ -83,12 +83,14 @@ function LoanCardMobile({
   loan,
   holdings,
   holdingsIndisponibles,
+  etablissements,
   montantsMasques,
   recalageId,
   recalageValeur,
   setRecalageValeur,
   recalageSaving,
   rattachementSaving,
+  etablissementSaving,
   editionId,
   editForm,
   setEditForm,
@@ -97,6 +99,7 @@ function LoanCardMobile({
   onSaveRecalage,
   onCancelRecalage,
   onRattacher,
+  onRattacherEtablissement,
   onRequestDelete,
   onStartEdition,
   onSaveEdition,
@@ -107,12 +110,14 @@ function LoanCardMobile({
   loan: Loan
   holdings: Holding[]
   holdingsIndisponibles: boolean
+  etablissements: Etablissement[]
   montantsMasques: boolean
   recalageId: number | null
   recalageValeur: string
   setRecalageValeur: (v: string) => void
   recalageSaving: boolean
   rattachementSaving: number | null
+  etablissementSaving: number | null
   editionId: number | null
   editForm: LoanForm
   setEditForm: (f: LoanForm) => void
@@ -121,6 +126,7 @@ function LoanCardMobile({
   onSaveRecalage: () => void
   onCancelRecalage: () => void
   onRattacher: (holdingId: number | null) => void
+  onRattacherEtablissement: (etablissementId: number | null) => void
   onRequestDelete: () => void
   onStartEdition: () => void
   onSaveEdition: () => void
@@ -223,6 +229,26 @@ function LoanCardMobile({
         </select>
       </label>
 
+      <label className="mt-3 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+        {/* Établissement du CRÉDIT (revue du 03/09/2026) — délibérément indépendant
+            de l'actif rattaché ci-dessus : le crédit a sa banque, le bien financé
+            n'appartient à aucun établissement. */}
+        Établissement du crédit
+        <select
+          value={loan.etablissement_id ?? ''}
+          disabled={etablissementSaving === loan.id}
+          onChange={(e) => onRattacherEtablissement(e.target.value === '' ? null : Number(e.target.value))}
+          className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+        >
+          <option value="">Aucun</option>
+          {etablissements.map((et) => (
+            <option key={et.id} value={et.id}>
+              {et.nom}
+            </option>
+          ))}
+        </select>
+      </label>
+
       {detenteursOuverts && <QuotitesEmprunt loanId={loan.id} />}
 
       {/* `flex-wrap` : cinq boutons en `flex-1` ne peuvent pas se réduire sous la
@@ -276,6 +302,7 @@ function LoanCardMobile({
  * recalage manuel (relevé bancaire réel) prime sur le calcul théorique. */
 export default function LoansCard({
   holdings: holdingsFournis,
+  etablissements: etablissementsFournis,
 }: {
   /** Positions fournies par la page. Absentes, la carte les charge elle-même.
    * Fournies (`PortefeuillePage`), elles évitent un second `GET /portfolio/holdings`
@@ -283,6 +310,9 @@ export default function LoansCard({
    * (backlog Z.1). Le sélecteur « Actif rattaché » est le seul usage qu'en fait
    * cette carte. */
   holdings?: Holding[]
+  /** Même rôle qu'`holdings` ci-dessus, pour la liste des établissements — utilisée
+   * par le sélecteur « Établissement du crédit » (revue du 03/09/2026). */
+  etablissements?: Etablissement[]
 } = {}) {
   const { montantsMasques } = usePreferencesAffichage()
   const estMobile = useEstMobile()
@@ -320,6 +350,10 @@ export default function LoansCard({
   const [holdingsIndisponibles, setHoldingsIndisponibles] = useState(false)
   const [rattachementSaving, setRattachementSaving] = useState<number | null>(null)
 
+  const [etablissementsCharges, setEtablissementsCharges] = useState<Etablissement[]>([])
+  const etablissements = etablissementsFournis ?? etablissementsCharges
+  const [etablissementSaving, setEtablissementSaving] = useState<number | null>(null)
+
   function load() {
     setLoading(true)
     api
@@ -341,6 +375,10 @@ export default function LoansCard({
       .then(setHoldings)
       .catch(() => setHoldingsIndisponibles(true))
   }, [holdingsFournis])
+  useEffect(() => {
+    if (etablissementsFournis !== undefined) return
+    api.listEtablissements().then(setEtablissementsCharges).catch(() => setEtablissementsCharges([]))
+  }, [etablissementsFournis])
 
   async function handleRattacher(loanId: number, holdingId: number | null) {
     setRattachementSaving(loanId)
@@ -352,6 +390,19 @@ export default function LoansCard({
       setError((err as Error).message)
     } finally {
       setRattachementSaving(null)
+    }
+  }
+
+  async function handleRattacherEtablissement(loanId: number, etablissementId: number | null) {
+    setEtablissementSaving(loanId)
+    setError(null)
+    try {
+      await api.updateLoan(loanId, { etablissement_id: etablissementId })
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setEtablissementSaving(null)
     }
   }
 
@@ -483,12 +534,14 @@ export default function LoansCard({
               loan={loan}
               holdings={holdings}
               holdingsIndisponibles={holdingsIndisponibles}
+              etablissements={etablissements}
               montantsMasques={montantsMasques}
               recalageId={recalageId}
               recalageValeur={recalageValeur}
               setRecalageValeur={setRecalageValeur}
               recalageSaving={recalageSaving}
               rattachementSaving={rattachementSaving}
+              etablissementSaving={etablissementSaving}
               editionId={editionId}
               editForm={editForm}
               setEditForm={setEditForm}
@@ -497,6 +550,7 @@ export default function LoansCard({
               onSaveRecalage={() => saveRecalage(loan.id)}
               onCancelRecalage={() => setRecalageId(null)}
               onRattacher={(holdingId) => handleRattacher(loan.id, holdingId)}
+              onRattacherEtablissement={(etablissementId) => handleRattacherEtablissement(loan.id, etablissementId)}
               onRequestDelete={() => setConfirmSuppression({ id: loan.id, libelle: loan.libelle })}
               onStartEdition={() => startEdition(loan)}
               onSaveEdition={() => saveEdition(loan.id)}
@@ -520,6 +574,7 @@ export default function LoansCard({
                 <th className="py-2 pr-4">Mensualité</th>
                 <th className="py-2 pr-4">Capital restant dû</th>
                 <th className="py-2 pr-4">Actif rattaché</th>
+                <th className="py-2 pr-4">Établissement du crédit</th>
                 <th className="py-2 pr-4">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -572,6 +627,7 @@ export default function LoansCard({
                       disabled={rattachementSaving === loan.id || holdingsIndisponibles}
                       title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
                       onChange={(e) => handleRattacher(loan.id, e.target.value === '' ? null : Number(e.target.value))}
+                      aria-label={`Actif rattaché à ${loan.libelle}`}
                       className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     >
                       {/* Sans cette option, un emprunt rattaché retombait sur
@@ -581,6 +637,22 @@ export default function LoansCard({
                       {holdings.map((h) => (
                         <option key={h.id} value={h.id}>
                           {h.nom ?? h.ticker}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="py-2 pr-4">
+                    <select
+                      value={loan.etablissement_id ?? ''}
+                      disabled={etablissementSaving === loan.id}
+                      onChange={(e) => handleRattacherEtablissement(loan.id, e.target.value === '' ? null : Number(e.target.value))}
+                      aria-label={`Établissement du crédit de ${loan.libelle}`}
+                      className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                    >
+                      <option value="">Aucun</option>
+                      {etablissements.map((et) => (
+                        <option key={et.id} value={et.id}>
+                          {et.nom}
                         </option>
                       ))}
                     </select>
@@ -612,7 +684,7 @@ export default function LoansCard({
                 </tr>
                 {editionId === loan.id && (
                   <tr key={`${loan.id}-edition`}>
-                    <td colSpan={7} className="bg-surface-elevee py-3 pr-4">
+                    <td colSpan={8} className="bg-surface-elevee py-3 pr-4">
                       <div className="flex flex-wrap items-end gap-3">
                         <LoanFormFields
                           form={editForm}
@@ -639,7 +711,7 @@ export default function LoansCard({
                 )}
                 {detenteursOuvertId === loan.id && (
                   <tr key={`${loan.id}-detenteurs`}>
-                    <td colSpan={7} className="bg-surface-elevee py-3 pr-4">
+                    <td colSpan={8} className="bg-surface-elevee py-3 pr-4">
                       <QuotitesEmprunt loanId={loan.id} />
                     </td>
                   </tr>
@@ -653,6 +725,7 @@ export default function LoansCard({
                   {loans.length} emprunt{loans.length > 1 ? 's' : ''}
                 </td>
                 <td className="py-2 pr-4">{formatEuro(totalRestantDu, 0, montantsMasques)}</td>
+                <td></td>
                 <td></td>
                 <td></td>
               </tr>

@@ -27,7 +27,7 @@ def test_create_holding_avec_date_acquisition(client):
 
 
 def test_create_holding_sans_date_acquisition_reste_none(client):
-    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5})
+    reponse = client.post("/api/portfolio/holdings", json={"ticker": "AAPL", "quantite": 5, "compte_nom": "Compte Test"})
 
     assert reponse.status_code == 200
     assert reponse.json()["date_acquisition"] is None

@@ -157,6 +157,8 @@ from .portefeuille import (  # noqa: F401
     HoldingPricePoint,
     HoldingUpdate,
     ImportResult,
+    TransactionImportApercu,
+    TransactionImportConfirm,
     TransactionImportResult,
     ValorisationInput,
     ValuationHistoryPoint,

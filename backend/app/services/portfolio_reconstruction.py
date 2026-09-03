@@ -383,10 +383,23 @@ class ReconstructionResult:
     lignes_manuelles_remplacees: int
 
 
-def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
+def rebuild_holdings(
+    db: Session, user_id: int, comptes_a_assigner: dict[str, int] | None = None
+) -> ReconstructionResult:
     """Reconstruit les lignes du portefeuille depuis le grand livre, pour UN SEUL
     utilisateur (`user_id`, Milestone 2a) — ne touche jamais aux lignes/transactions
     d'un autre compte.
+
+    `comptes_a_assigner` (revue du 03/09/2026, import multi-comptes) : compte
+    dérivé par `transaction_import.cle_compte` sur la dernière transaction de
+    chaque ticker fraîchement importé (`{ticker: compte_id}`), fourni par
+    `routers/transactions.py::import_transactions` uniquement lors d'un import —
+    `None` pour un simple re-déclenchement manuel (`POST /reconstruct`), qui ne
+    doit assigner aucun nouveau compte. Ne s'applique JAMAIS à un ticker déjà
+    présent dans `comptes_par_ticker` ci-dessous (assignation manuelle ou héritée
+    d'un import précédent) : un ré-import ne réassigne jamais silencieusement une
+    ligne déjà rattachée par l'utilisateur — seuls les tickers encore sans compte
+    en profitent.
 
     Arbitrage saisie manuelle / reconstruction (LOT 3.4) : seules les lignes
     `origine=ORIGINE_RECONSTRUIT` sont supprimées puis recréées — une ligne saisie
@@ -422,6 +435,9 @@ def rebuild_holdings(db: Session, user_id: int) -> ReconstructionResult:
     for h in db.query(Holding).filter(Holding.user_id == user_id).all():
         if h.compte_id is not None and h.ticker not in comptes_par_ticker:
             comptes_par_ticker[h.ticker] = h.compte_id
+    if comptes_a_assigner:
+        for ticker, compte_id in comptes_a_assigner.items():
+            comptes_par_ticker.setdefault(ticker, compte_id)
     # Quotités lues en TUPLES (colonnes explicites) et non en objets ORM : les lignes
     # sont supprimées juste après, et les nouvelles réutiliseront les mêmes ids
     # auto-incrémentés — des instances `QuotiteHolding` restées dans l'identity map de

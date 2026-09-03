@@ -68,6 +68,8 @@ import type {
   SyntheseAnnee,
   ScheduledJob,
   Session,
+  TransactionImportApercu,
+  TransactionImportConfirmInput,
   TransactionImportResult,
   TypeDetenteur,
   ValorisationInput,
@@ -238,7 +240,11 @@ export const api = {
   deleteEtablissement: (id: number) => request<{ ok: boolean }>(`/comptes/etablissements/${id}`, { method: 'DELETE' }),
   listComptes: () => request<Compte[]>('/comptes'),
   listComptesAvecSolde: () => request<CompteAvecSolde[]>('/comptes/solde'),
-  createCompte: (nom: string, etablissementId: number | null) =>
+  // Établissement OBLIGATOIRE à la création (revue du 03/09/2026, demande directe
+  // de l'utilisateur : « il n'est pas possible d'avoir des comptes sans
+  // établissement ») — `updateCompte` ci-dessous reste, lui, inchangé (un compte
+  // déjà existant peut rester sans établissement).
+  createCompte: (nom: string, etablissementId: number) =>
     request<Compte>('/comptes', { method: 'POST', body: JSON.stringify({ nom, etablissement_id: etablissementId }) }),
   updateCompte: (id: number, payload: { nom?: string; etablissement_id?: number | null }) =>
     request<Compte>(`/comptes/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
@@ -247,12 +253,17 @@ export const api = {
   setCompteQuotites: (id: number, quotites: QuotiteEntree[]) =>
     request<{ ok: boolean }>(`/comptes/${id}/quotites`, { method: 'PUT', body: JSON.stringify({ quotites }) }),
 
-  // Transactions & performance
-  importTransactions: (file: File) => {
+  // Transactions & performance — import du grand livre en deux temps (revue du
+  // 03/09/2026, demande directe de l'utilisateur : « il faut qu'à l'import il me
+  // demande et remplisse l'établissement »), même patron que `importPreview`/
+  // `importConfirm` ci-dessus pour le relevé de positions.
+  importTransactionsApercu: (file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return request<TransactionImportResult>('/transactions/import', { method: 'POST', body: form })
+    return request<TransactionImportApercu>('/transactions/import/apercu', { method: 'POST', body: form })
   },
+  importTransactionsConfirm: (payload: TransactionImportConfirmInput) =>
+    request<TransactionImportResult>('/transactions/import', { method: 'POST', body: JSON.stringify(payload) }),
   getPerformance: () => request<PerformanceSummary>('/performance'),
   getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
   // Métriques de performance de niveau professionnel (backlog 2.P.2).

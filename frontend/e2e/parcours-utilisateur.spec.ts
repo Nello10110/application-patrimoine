@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { cardByTitle } from './helpers'
+import { cardByTitle, positionsTable } from './helpers'
 
 /**
  * Recette du 02/09/2026 (demande utilisateur avant démonstration) : simule les
@@ -19,31 +19,39 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
 
     const nom = `Doublon ${Date.now().toString().slice(-6)}`
     const carte = cardByTitle(page, 'Nouveau compte')
+    // Établissement obligatoire à la création depuis le 03/09/2026 (revue de
+    // qualité) — celui déjà seedé (« Banque E2E »).
+    await carte.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
 
     await carte.getByPlaceholder('PEA, Livret A...').fill(nom)
     await carte.getByRole('button', { name: '+ Nouveau compte' }).click()
-    await expect(cardByTitle(page, 'Sans établissement').getByText(nom)).toBeVisible()
+    const groupeBanque = cardByTitle(page, 'Banque E2E')
+    await expect(groupeBanque.getByText(nom)).toBeVisible()
 
     // Deuxième création du même nom : avant correction, cette requête renvoyait
-    // une 500 (IntegrityError SQLAlchemy non interceptée).
+    // une 500 (IntegrityError SQLAlchemy non interceptée). Établissement resélectionné :
+    // une création réussie réinitialise tout le formulaire, établissement inclus.
+    await carte.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
     await carte.getByPlaceholder('PEA, Livret A...').fill(nom)
     await carte.getByRole('button', { name: '+ Nouveau compte' }).click()
 
     await expect(page.getByText(/existe déjà/)).toBeVisible()
     // L'écran reste utilisable et le compte d'origine intact (une seule ligne).
     await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
-    const lignes = cardByTitle(page, 'Sans établissement').locator('li').filter({ hasText: nom })
+    const lignes = groupeBanque.locator('li').filter({ hasText: nom })
     await expect(lignes).toHaveCount(1)
 
     // Nettoyage : cette spec s'exécute sur la base partagée des autres specs.
     await lignes.getByRole('button', { name: `Supprimer le compte ${nom}`, exact: true }).click()
     await page.getByRole('dialog', { name: 'Supprimer ce compte ?' }).getByRole('button', { name: 'Supprimer' }).click()
-    await expect(cardByTitle(page, 'Sans établissement').getByText(nom)).not.toBeVisible()
+    await expect(groupeBanque.getByText(nom)).not.toBeVisible()
   })
 
   test('créer deux établissements du même nom affiche un message clair', async ({ page }) => {
-    await page.goto('/reglages')
-    await page.getByRole('tab', { name: 'Détenteurs' }).click()
+    // Relocalisée depuis Réglages → onglet Détenteurs le 03/09/2026 (revue de
+    // qualité) — `EtablissementsCard` vit désormais sur l'écran Comptes.
+    await page.goto('/comptes')
+    await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
     const carte = cardByTitle(page, 'Établissements')
 
     const nom = `Étab doublon ${Date.now().toString().slice(-6)}`
@@ -138,12 +146,36 @@ test.describe('Ergonomie — le guidage promis est réellement présent à l\'é
   })
 
   test('le bucket « Sans compte » explique qu\'il n\'est pas un compte', async ({ page }) => {
+    // Revue du 03/09/2026 (compte/établissement obligatoires) : le seed ne laisse
+    // plus AUCUNE ligne sans compte (E2ENVDA, seule ligne auparavant non
+    // rattachée, reçoit désormais un compte automatiquement à l'import du grand
+    // livre — cf. `seed_e2e.py`) — un foyer conforme ne peuple plus jamais ce
+    // bucket. Seul un actif dispensé de compte (immobilier, véhicule, « autre
+    // actif ») peut légitimement y figurer désormais : ce test en crée un pour de
+    // vrai plutôt que de dépendre d'un état de seed qui n'existe plus.
+    const ticker = `AUTRE${Date.now().toString().slice(-5)}`
+    await page.goto('/patrimoine')
+    await expect(page.getByRole('heading', { name: 'Portefeuille' })).toBeVisible()
+    const formulaire = cardByTitle(page, 'Ajouter une ligne manuellement')
+    await formulaire.getByPlaceholder('AAPL').fill(ticker)
+    await formulaire.getByLabel('Quantité').fill('1')
+    await formulaire.getByLabel('Type d\'actif').selectOption('Autre actif')
+    await formulaire.getByRole('button', { name: 'Ajouter' }).click()
+    // Scopé à la table des positions : le ticker apparaît aussi comme <option> du
+    // sélecteur "Actif rattaché" de la carte des emprunts, plus bas sur la même page.
+    const positions = positionsTable(page)
+    await expect(positions.getByText(ticker)).toBeVisible()
+
     await page.goto('/comptes')
     await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
-
-    // Le seed laisse toujours au moins une ligne non rattachée (E2ENVDA, issue de
-    // l'import de transactions — cf. seed_e2e.py).
     await expect(page.getByTitle(/n'est pas un compte/)).toBeVisible()
+
+    // Nettoyage : cette ligne n'existe que pour ce test.
+    await page.goto('/patrimoine')
+    const ligne = positionsTable(page).locator('tr', { has: page.getByText(ticker) })
+    await ligne.getByRole('button', { name: 'Supprimer' }).click()
+    await page.getByRole('button', { name: 'Supprimer', exact: true }).last().click()
+    await expect(positionsTable(page).getByText(ticker)).not.toBeVisible()
   })
 
   test('la confusion Comptes / Épargne est levée directement sur l\'écran', async ({ page }) => {

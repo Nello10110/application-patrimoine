@@ -8,6 +8,13 @@ vi.mock('../api/client', () => ({
   api: {
     listComptesAvecSolde: vi.fn(),
     listEtablissements: vi.fn(),
+    // Établissement requis à la création d'un compte (revue du 03/09/2026,
+    // compte/établissement obligatoires) — `EtablissementsCard`, relocalisée sur
+    // cet écran, et `AjoutCompteForm` (« + Nouvel établissement... ») en ont
+    // désormais besoin.
+    createEtablissement: vi.fn(),
+    updateEtablissement: vi.fn(),
+    deleteEtablissement: vi.fn(),
     createCompte: vi.fn(),
     deleteCompte: vi.fn(),
   },
@@ -83,16 +90,21 @@ describe('ComptesPage', () => {
   })
 
   it('créer un compte appelle createCompte puis recharge la liste', async () => {
+    const etablissement: Etablissement = { id: 7, nom: 'Boursorama', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' }
     vi.mocked(api.listComptesAvecSolde).mockResolvedValueOnce([]).mockResolvedValue([ligne({ compte: compte({ nom: 'Nouveau CTO' }) })])
-    vi.mocked(api.createCompte).mockResolvedValue(compte({ nom: 'Nouveau CTO' }))
+    // Établissement obligatoire à la création (revue du 03/09/2026) — existant ici
+    // (contrairement à `EpargnePage.test.tsx`), choisi directement dans la liste.
+    vi.mocked(api.listEtablissements).mockResolvedValue([etablissement])
+    vi.mocked(api.createCompte).mockResolvedValue(compte({ nom: 'Nouveau CTO', etablissement }))
     render(<ComptesPage />)
     await screen.findByText('Aucun compte déclaré.')
 
     fireEvent.change(screen.getByPlaceholderText('PEA, Livret A...'), { target: { value: 'Nouveau CTO' } })
+    fireEvent.change(screen.getByLabelText('Établissement'), { target: { value: '7' } })
     fireEvent.click(screen.getByRole('button', { name: '+ Nouveau compte' }))
 
     await screen.findByText('Nouveau CTO')
-    expect(api.createCompte).toHaveBeenCalledWith('Nouveau CTO', null)
+    expect(api.createCompte).toHaveBeenCalledWith('Nouveau CTO', 7)
   })
 
   it('cliquer un compte ouvre la fiche détaillée (modale)', async () => {

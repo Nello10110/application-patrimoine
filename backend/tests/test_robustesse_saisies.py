@@ -22,6 +22,7 @@ from .conftest import (
     NOM_UTILISATEUR_B,
     NOM_UTILISATEUR_TEST,
     basculer_utilisateur,
+    make_compte,
     make_holding,
 )
 
@@ -30,7 +31,12 @@ REFUS = {400, 422}
 
 
 def _payload_holding(**overrides) -> dict:
-    return {"ticker": "AAA", "quantite": 10.0, "prix_revient_moyen": 100.0, **overrides}
+    # `compte_nom` par défaut (revue du 03/09/2026, compte obligatoire) : ce
+    # fichier teste la robustesse de CHAQUE champ pris isolément, pas la règle
+    # « compte obligatoire » elle-même (déjà couverte par
+    # `test_portfolio_router.py`/`test_comptes_router.py`) — sans lui, toute
+    # requête ici échouerait pour la mauvaise raison.
+    return {"ticker": "AAA", "quantite": 10.0, "prix_revient_moyen": 100.0, "compte_nom": "Compte Robustesse", **overrides}
 
 
 # ---------------------------------------------------------------------------
@@ -86,11 +92,9 @@ def test_holding_inexistant_renvoie_404(client):
 def test_holding_avec_compte_id_dun_autre_foyer_refuse(client, db):
     """IDOR : rattacher sa ligne au compte de quelqu'un d'autre ne doit jamais
     réussir silencieusement."""
-    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
-    compte_b = client.post("/api/comptes", json={"nom": "PEA de B"}).json()
-    basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
+    compte_b = make_compte(db, user_id=ID_UTILISATEUR_B, nom="PEA de B")
 
-    reponse = client.post("/api/portfolio/holdings", json=_payload_holding(compte_id=compte_b["id"]))
+    reponse = client.post("/api/portfolio/holdings", json=_payload_holding(compte_id=compte_b.id))
     assert reponse.status_code in REFUS | {404}
 
 
@@ -106,8 +110,9 @@ def test_compte_nom_vide_refuse(client):
 def test_compte_nom_en_doublon_refuse(client):
     """`UniqueConstraint(user_id, nom)` : le doublon doit produire un refus
     exploitable, jamais une 500 d'intégrité SQL remontée brute."""
-    client.post("/api/comptes", json={"nom": "PEA"})
-    reponse = client.post("/api/comptes", json={"nom": "PEA"})
+    etablissement = client.post("/api/comptes/etablissements", json={"nom": "Banque Test"}).json()
+    client.post("/api/comptes", json={"nom": "PEA", "etablissement_id": etablissement["id"]})
+    reponse = client.post("/api/comptes", json={"nom": "PEA", "etablissement_id": etablissement["id"]})
     assert reponse.status_code in REFUS
 
 
@@ -117,10 +122,10 @@ def test_etablissement_nom_en_doublon_refuse(client):
     assert reponse.status_code in REFUS
 
 
-def test_renommer_un_compte_vers_un_nom_deja_pris_refuse(client):
-    client.post("/api/comptes", json={"nom": "PEA"})
-    autre = client.post("/api/comptes", json={"nom": "CTO"}).json()
-    assert client.patch(f"/api/comptes/{autre['id']}", json={"nom": "PEA"}).status_code in REFUS
+def test_renommer_un_compte_vers_un_nom_deja_pris_refuse(client, db):
+    make_compte(db, nom="PEA")
+    autre = make_compte(db, nom="CTO")
+    assert client.patch(f"/api/comptes/{autre.id}", json={"nom": "PEA"}).status_code in REFUS
 
 
 def test_compte_rattache_a_un_etablissement_inexistant_refuse(client):
@@ -177,10 +182,10 @@ def test_quotites_compte_avec_detenteur_dun_autre_foyer_refusees(client, db):
     detenteur_b = client.post("/api/detenteurs", json={"nom": "Intrus", "type": "personne"}).json()
     basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
 
-    compte = client.post("/api/comptes", json={"nom": "CTO"}).json()
-    make_holding(db, ticker="AAA", compte_id=compte["id"])
+    compte = make_compte(db, nom="CTO")
+    make_holding(db, ticker="AAA", compte_id=compte.id)
     reponse = client.put(
-        f"/api/comptes/{compte['id']}/quotites",
+        f"/api/comptes/{compte.id}/quotites",
         json={"quotites": [{"detenteur_id": detenteur_b["id"], "quotite_pct": 100.0}]},
     )
     assert reponse.status_code in REFUS
@@ -375,15 +380,17 @@ def test_preference_taux_imposition_negatif_refuse(client):
 
 def test_import_transactions_fichier_vide_ne_plante_pas(client):
     """Un CSV vide est une erreur d'utilisateur banale (mauvais fichier
-    sélectionné) : refus explicite attendu, jamais une 500."""
-    reponse = client.post("/api/transactions/import", files={"file": ("vide.csv", b"", "text/csv")})
+    sélectionné) : refus explicite attendu, jamais une 500. Le parsing se fait à
+    l'ÉTAPE D'APERÇU depuis le redesign du 03/09/2026 (import en deux temps) —
+    `/import` (confirmation) ne reçoit plus de fichier du tout."""
+    reponse = client.post("/api/transactions/import/apercu", files={"file": ("vide.csv", b"", "text/csv")})
     assert reponse.status_code in REFUS
 
 
 def test_import_transactions_binaire_ne_plante_pas(client):
     """Cas réel : l'utilisateur envoie un PDF/XLSX au lieu du CSV."""
     contenu = bytes([0x00, 0x01, 0x02, 0xFF, 0xFE]) * 100
-    reponse = client.post("/api/transactions/import", files={"file": ("releve.pdf", contenu, "application/pdf")})
+    reponse = client.post("/api/transactions/import/apercu", files={"file": ("releve.pdf", contenu, "application/pdf")})
     assert reponse.status_code in REFUS
 
 
@@ -403,10 +410,14 @@ def test_creer_deux_lignes_du_meme_ticker_est_refuse(client):
     (`compute_holding_returns`) — la seconde écrasait silencieusement les chiffres
     de la première à l'export CSV. Un refus explicite vaut mieux qu'un chiffre faux :
     pour renforcer une position, on modifie la ligne existante."""
-    premiere = client.post("/api/portfolio/holdings", json={"ticker": "DOUBLON", "quantite": 1, "prix_revient_moyen": 100.0})
+    premiere = client.post(
+        "/api/portfolio/holdings", json={"ticker": "DOUBLON", "quantite": 1, "prix_revient_moyen": 100.0, "compte_nom": "Compte Doublon"}
+    )
     assert premiere.status_code == 200
 
-    seconde = client.post("/api/portfolio/holdings", json={"ticker": "DOUBLON", "quantite": 5, "prix_revient_moyen": 200.0})
+    seconde = client.post(
+        "/api/portfolio/holdings", json={"ticker": "DOUBLON", "quantite": 5, "prix_revient_moyen": 200.0, "compte_nom": "Compte Doublon"}
+    )
 
     assert seconde.status_code == 400
     assert "existe déjà" in seconde.json()["detail"]

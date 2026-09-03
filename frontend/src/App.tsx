@@ -6,6 +6,7 @@ import FilDAriane from './components/FilDAriane'
 import { SkeletonTexte } from './components/Skeleton'
 import { useAppliquerTheme } from './hooks/useTheme'
 import Sidebar from './components/Sidebar'
+import RattrapageComptes from './components/onboarding/RattrapageComptes'
 import WelcomeWizard from './components/onboarding/WelcomeWizard'
 import { AuthProvider } from './contexts/AuthContext'
 import { PreferencesAffichageProvider } from './contexts/PreferencesAffichageContext'
@@ -59,6 +60,13 @@ function AppAuthentifiee() {
   // le voir. `onboarding_termine` (`UserParametre`, cf. `preferences_service.py`)
   // reste `False` tant que l'assistant n'a pas été terminé ou explicitement passé.
   if (user.role === 'proprietaire' && !user.onboarding_termine) return <WelcomeWizard />
+  // Écran de rattrapage bloquant (revue du 03/09/2026, compte obligatoire sur une
+  // ligne financière) : `proprietaire` ET `membre` peuvent tous deux créer des
+  // lignes sans compte (`_peut_ecrire` côté backend), donc tous deux doivent voir
+  // ce gate — contrairement à l'onboarding ci-dessus, réservé au propriétaire. Un
+  // `invite`, lecture seule, ne peut rien y corriger : jamais bloqué par un état
+  // qu'il ne peut pas changer lui-même.
+  if (user.role !== 'invite' && user.holdings_sans_compte > 0) return <RattrapageComptes />
 
   return (
     <PreferencesAffichageProvider>

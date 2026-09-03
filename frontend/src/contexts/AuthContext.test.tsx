@@ -16,7 +16,7 @@ vi.mock('../api/client', () => ({
 }))
 
 function utilisateur(overrides: Partial<AuthUser> = {}): AuthUser {
-  return { id: 1, username: 'alice', role: 'proprietaire', onboarding_termine: true, ...overrides }
+  return { id: 1, username: 'alice', role: 'proprietaire', onboarding_termine: true, holdings_sans_compte: 0, ...overrides }
 }
 
 function Sonde() {

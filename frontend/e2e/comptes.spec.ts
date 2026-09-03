@@ -77,34 +77,33 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(modale.getByText(/1 ligne, et 1 emprunt rattaché/)).toBeVisible()
   })
 
-  test('cycle complet via l\'IHM : créer un compte, le renommer, le rattacher à un établissement puis le supprimer', async ({ page }) => {
+  test('cycle complet via l\'IHM : créer un compte avec établissement, le renommer puis le supprimer', async ({ page }) => {
     const nomCompte = `E2E CRUD ${Date.now().toString().slice(-6)}`
     const nomRenomme = `${nomCompte} (renommé)`
 
-    // Création (« Sans établissement » par défaut, aucun sélectionné).
+    // Établissement obligatoire à la CRÉATION depuis le 03/09/2026 (revue de
+    // qualité, compte/établissement obligatoires) — choisi directement dans le
+    // formulaire, celui déjà seedé (« Banque E2E »), plutôt qu'un rattachement a
+    // posteriori comme avant cette revue.
     const carteNouveauCompte = cardByTitle(page, 'Nouveau compte')
     await carteNouveauCompte.getByPlaceholder('PEA, Livret A...').fill(nomCompte)
+    await carteNouveauCompte.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
     await carteNouveauCompte.getByRole('button', { name: '+ Nouveau compte' }).click()
 
-    const groupeSansEtablissement = cardByTitle(page, 'Sans établissement')
-    await expect(groupeSansEtablissement.getByText(nomCompte)).toBeVisible()
+    const groupeBanque = cardByTitle(page, 'Banque E2E')
+    await expect(groupeBanque.getByText(nomCompte)).toBeVisible()
 
-    // Modification : renommage ET rattachement à l'établissement seedé (« Banque
-    // E2E ») — les deux champs de `CompteInfosForm` en une seule soumission. Le
-    // compte vient d'être créé sans aucune ligne rattachée : la carte "Répartition
-    // entre détenteurs" ne s'affiche pas encore (`QuotitesCompte`, nombreLignes=0),
-    // donc "Enregistrer" est ici sans ambiguïté (un seul bouton dans la modale).
-    await groupeSansEtablissement.getByText(nomCompte).click()
+    // Renommage seul : l'établissement est déjà posé, `CompteInfosForm` le garde
+    // inchangé. Le compte vient d'être créé sans aucune ligne rattachée : la carte
+    // "Répartition entre détenteurs" ne s'affiche pas encore (`QuotitesCompte`,
+    // nombreLignes=0), donc "Enregistrer" est ici sans ambiguïté (un seul bouton
+    // dans la modale).
+    await groupeBanque.getByText(nomCompte).click()
     const modale = page.getByRole('dialog')
     await modale.getByLabel('Nom du compte').fill(nomRenomme)
-    await modale.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
     await modale.getByRole('button', { name: 'Enregistrer' }).click()
 
     await expect(modale.getByRole('heading', { name: nomRenomme }).first()).toBeVisible()
-    // `.first()` : "Banque E2E" apparaît aussi comme `<option>` sélectionnée du
-    // `<select>` Établissement — l'en-tête (premier match dans le DOM) suffit à
-    // confirmer le rattachement.
-    await expect(modale.getByText('Banque E2E').first()).toBeVisible()
     await modale.getByRole('button', { name: 'Fermer' }).click()
 
     // La liste de `ComptesPage` n'est pas rafraîchie automatiquement à la fermeture
@@ -114,11 +113,9 @@ test.describe('Comptes (backlog X.1)', () => {
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
 
-    // Le compte renommé a rejoint le groupe "Banque E2E" (déjà présent, seedé) et a
-    // quitté "Sans établissement".
-    const groupeBanque = cardByTitle(page, 'Banque E2E')
-    await expect(groupeBanque.getByText(nomRenomme)).toBeVisible()
-    await expect(groupeSansEtablissement.getByText(nomRenomme)).not.toBeVisible()
+    // Le compte renommé reste dans le groupe "Banque E2E" (déjà présent, seedé).
+    const groupeBanqueApresRechargement = cardByTitle(page, 'Banque E2E')
+    await expect(groupeBanqueApresRechargement.getByText(nomRenomme)).toBeVisible()
 
     // Suppression : ne touche jamais l'établissement, ni les autres comptes du même
     // groupe (PEA E2E, seedé, doit rester visible).
@@ -128,7 +125,7 @@ test.describe('Comptes (backlog X.1)', () => {
     // (cliquable pour ouvrir le détail) et son nom accessible, calculé depuis son
     // contenu, INCLUT désormais l'`aria-label` du bouton — une recherche par
     // sous-chaîne matcherait donc les deux.
-    const ligne = groupeBanque.locator('li').filter({ hasText: nomRenomme })
+    const ligne = groupeBanqueApresRechargement.locator('li').filter({ hasText: nomRenomme })
     await ligne.getByRole('button', { name: `Supprimer le compte ${nomRenomme}`, exact: true }).click()
     // Confirmation obligatoire depuis la recette du 02/09/2026 (le bouton est sur
     // une ligne elle-même cliquable) — la modale rappelle le sort des lignes.
@@ -136,7 +133,40 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(confirmation).toBeVisible()
     await confirmation.getByRole('button', { name: 'Supprimer' }).click()
 
-    await expect(groupeBanque.getByText(nomRenomme)).not.toBeVisible()
-    await expect(groupeBanque.getByText('PEA E2E')).toBeVisible()
+    await expect(groupeBanqueApresRechargement.getByText(nomRenomme)).not.toBeVisible()
+    await expect(groupeBanqueApresRechargement.getByText('PEA E2E')).toBeVisible()
+  })
+
+  test('créer un compte sans établissement est refusé (bouton désactivé)', async ({ page }) => {
+    // Revue du 03/09/2026, demande directe de l'utilisateur : « il n'est pas
+    // possible d'avoir des comptes sans établissement ».
+    const carteNouveauCompte = cardByTitle(page, 'Nouveau compte')
+    await carteNouveauCompte.getByPlaceholder('PEA, Livret A...').fill('Compte sans étab E2E')
+
+    await expect(carteNouveauCompte.getByRole('button', { name: '+ Nouveau compte' })).toBeDisabled()
+  })
+
+  test('crée, renomme puis supprime un établissement (backlog X.1)', async ({ page }) => {
+    // Relocalisé depuis Réglages → onglet Détenteurs le 03/09/2026 (revue de
+    // qualité) : personne ne pensait chercher la gestion des établissements
+    // là-bas — elle vit désormais ici, au-dessus de la création d'un compte.
+    const carteEtablissements = cardByTitle(page, 'Établissements')
+    const nomEtablissement = `E2E Étab ${Date.now().toString().slice(-6)}`
+    const nomRenomme = `${nomEtablissement} (renommé)`
+
+    await carteEtablissements.getByPlaceholder("Caisse d'Épargne").fill(nomEtablissement)
+    await carteEtablissements.getByRole('button', { name: 'Ajouter' }).click()
+    const ligne = carteEtablissements.locator('li').filter({ hasText: nomEtablissement })
+    await expect(ligne).toBeVisible()
+
+    await ligne.getByRole('button', { name: 'Modifier' }).click()
+    const champEdition = carteEtablissements.getByLabel('Nom (édition)')
+    await champEdition.fill(nomRenomme)
+    await carteEtablissements.getByRole('button', { name: 'Enregistrer' }).click()
+    const ligneRenommee = carteEtablissements.locator('li').filter({ hasText: nomRenomme })
+    await expect(ligneRenommee).toBeVisible()
+
+    await ligneRenommee.getByRole('button', { name: 'Supprimer' }).click()
+    await expect(carteEtablissements.getByText(nomRenomme)).not.toBeVisible()
   })
 })

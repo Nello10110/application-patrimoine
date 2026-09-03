@@ -15,6 +15,9 @@ vi.mock('../api/client', () => ({
     setHoldingValorisation: vi.fn(),
     updateHoldingValuationPoint: vi.fn(),
     deleteHoldingValuationPoint: vi.fn(),
+    // Établissements (revue du 03/09/2026, compte/établissement obligatoires) :
+    // `AjoutCompteForm` local à cette page en a désormais besoin.
+    listEtablissements: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -129,11 +132,16 @@ describe('EpargnePage (backlog 2.S.1)', () => {
 
     fireEvent.change(screen.getByLabelText('Nom du compte'), { target: { value: 'Livret A' } })
     fireEvent.change(screen.getByLabelText('Valeur initiale (€, optionnel)'), { target: { value: '5000' } })
+    // Établissement obligatoire depuis le 03/09/2026 (revue de qualité, compte/
+    // établissement obligatoires) — aucun établissement existant ici (mock vide),
+    // donc « + Nouvel établissement... ».
+    fireEvent.change(screen.getByLabelText('Établissement'), { target: { value: '__nouveau__' } })
+    fireEvent.change(screen.getByLabelText("Nom du nouvel établissement (Établissement)"), { target: { value: 'Boursorama' } })
     fireEvent.click(screen.getByRole('button', { name: '+ Ajouter un compte' }))
 
     await vi.waitFor(() =>
       expect(api.createHolding).toHaveBeenCalledWith(
-        expect.objectContaining({ nom: 'Livret A', valeur_estimee: 5000, quantite: 1 }),
+        expect.objectContaining({ nom: 'Livret A', valeur_estimee: 5000, quantite: 1, etablissement_nom: 'Boursorama' }),
       ),
     )
     await vi.waitFor(() => expect(api.listHoldings).toHaveBeenCalledTimes(2))

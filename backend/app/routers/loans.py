@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Holding, Loan, QuotiteHolding, QuotiteLoan, User
+from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Etablissement, Holding, Loan, QuotiteHolding, QuotiteLoan, User
 from ..schemas import LoanCreate, LoanOut, LoanUpdate, QuotitesUpdate
 from ..services import auth_service, detenteurs_service, historique_cache, loan_service
 
@@ -53,7 +53,12 @@ def list_loans(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 @router.post("", response_model=LoanOut)
 def create_loan(payload: LoanCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
-    loan = Loan(**payload.model_dump(), user_id=auth_service.id_foyer(current_user))
+    user_id = auth_service.id_foyer(current_user)
+    if payload.etablissement_id is not None:
+        etablissement = db.get(Etablissement, payload.etablissement_id)
+        if etablissement is None or etablissement.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Établissement introuvable")
+    loan = Loan(**payload.model_dump(), user_id=user_id)
     db.add(loan)
     db.commit()
     db.refresh(loan)
@@ -74,6 +79,12 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: Session = Depends(get_db)
         cible = db.get(Holding, updates["holding_id"])
         if cible is None or cible.user_id != auth_service.id_foyer(current_user):
             raise HTTPException(status_code=404, detail="Actif introuvable")
+    # Établissement du crédit : même vérification IDOR que `holding_id` ci-dessus —
+    # `None` (dérattachement) ne nécessite aucune vérification.
+    if "etablissement_id" in updates and updates["etablissement_id"] is not None:
+        etablissement = db.get(Etablissement, updates["etablissement_id"])
+        if etablissement is None or etablissement.user_id != auth_service.id_foyer(current_user):
+            raise HTTPException(status_code=404, detail="Établissement introuvable")
     # Un recalage manuel du capital restant dû (relevé bancaire réel) horodate
     # `derniere_maj_manuelle` — même logique que `Holding.date_valeur_estimee`
     # (`routers/portfolio.py`) : seul un changement réel du champ concerné avance la

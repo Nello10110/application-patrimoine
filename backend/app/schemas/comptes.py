@@ -60,7 +60,13 @@ class CompteBase(BaseModel):
 
 
 class CompteCreate(CompteBase):
-    pass
+    # Établissement OBLIGATOIRE à la création (revue du 03/09/2026, demande directe
+    # de l'utilisateur : « il n'est pas possible d'avoir des comptes sans
+    # établissement »). Réécrit ici plutôt que sur `CompteBase`, dont hérite aussi
+    # `CompteOut` : une LECTURE doit rester capable de représenter un compte déjà
+    # existant sans établissement (créé avant cette règle) — seule la création est
+    # cadrée par cette demande, pas la modification d'un compte existant.
+    etablissement_id: int
 
 
 class CompteUpdate(BaseModel):

@@ -55,6 +55,13 @@ test.describe('Portefeuille', () => {
     await formulaireAjout.getByLabel('Ticker').fill(ticker)
     await formulaireAjout.getByLabel('Quantité', { exact: true }).fill('3')
     await formulaireAjout.getByLabel('Prix de revient').fill('10')
+    // Compte obligatoire depuis le 03/09/2026 (revue de qualité, compte/
+    // établissement obligatoires) — créé à la volée, sans établissement (optionnel
+    // sur ce chemin). `getByRole` + `exact` plutôt que `getByLabel('Compte')` : ce
+    // dernier matche aussi le sélecteur "Type d'actif" par correspondance floue de
+    // Playwright sur les libellés multi-mots de ce formulaire.
+    await formulaireAjout.getByRole('combobox', { name: 'Compte', exact: true }).selectOption({ label: '+ Nouveau compte...' })
+    await formulaireAjout.getByLabel('Nom du nouveau compte').fill(`Compte ${ticker}`)
     await formulaireAjout.getByRole('button', { name: 'Ajouter', exact: true }).click()
 
     await expect(positions.getByText(ticker)).toBeVisible()

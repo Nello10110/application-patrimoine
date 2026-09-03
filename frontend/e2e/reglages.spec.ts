@@ -14,28 +14,6 @@ test.describe('Réglages', () => {
     await expect(page.getByText('Bob (Personne)')).toBeVisible()
   })
 
-  test('onglet Détenteurs : crée, renomme puis supprime un établissement (backlog X.1)', async ({ page }) => {
-    await page.getByRole('tab', { name: 'Détenteurs' }).click()
-    const carteEtablissements = page.locator('div.rounded-xl.border.bg-surface').filter({ has: page.getByRole('heading', { name: 'Établissements' }) })
-    const nomEtablissement = `E2E Étab ${Date.now().toString().slice(-6)}`
-    const nomRenomme = `${nomEtablissement} (renommé)`
-
-    await carteEtablissements.getByPlaceholder("Caisse d'Épargne").fill(nomEtablissement)
-    await carteEtablissements.getByRole('button', { name: 'Ajouter' }).click()
-    const ligne = carteEtablissements.locator('li').filter({ hasText: nomEtablissement })
-    await expect(ligne).toBeVisible()
-
-    await ligne.getByRole('button', { name: 'Modifier' }).click()
-    const champEdition = carteEtablissements.getByLabel('Nom (édition)')
-    await champEdition.fill(nomRenomme)
-    await carteEtablissements.getByRole('button', { name: 'Enregistrer' }).click()
-    const ligneRenommee = carteEtablissements.locator('li').filter({ hasText: nomRenomme })
-    await expect(ligneRenommee).toBeVisible()
-
-    await ligneRenommee.getByRole('button', { name: 'Supprimer' }).click()
-    await expect(carteEtablissements.getByText(nomRenomme)).not.toBeVisible()
-  })
-
   test('onglet Comptes & sécurité : crée un membre du foyer', async ({ page }) => {
     await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
     await expect(page.getByText('Comptes du foyer')).toBeVisible()
@@ -75,9 +53,13 @@ test.describe('Réglages', () => {
     await expect(assistant.getByRole('heading', { name: 'Comptes', exact: true })).toBeVisible()
     // "Banque E2E" apparaît à plusieurs endroits de cette étape (liste des comptes,
     // `<option>` du sélecteur Établissement) : on cible la ligne de la carte
-    // Établissements elle-même, via son bouton "Modifier" — structurellement unique
-    // à cette carte, aucune ambiguïté possible.
-    const ligneEtablissement = assistant.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Modifier' }) })
+    // Établissements elle-même via son bouton "Modifier", filtrée par son propre
+    // texte — depuis que le seed importe aussi un grand livre multi-comptes (« Trade
+    // Republic E2E »), la carte Établissements en liste deux, pas une seule.
+    const ligneEtablissement = assistant
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('button', { name: 'Modifier' }) })
+      .filter({ hasText: 'Banque E2E' })
     await expect(ligneEtablissement).toContainText('Banque E2E')
     await assistant.getByRole('button', { name: 'Suivant' }).click()
     await expect(assistant.getByRole('heading', { name: 'Démarrer le portefeuille' })).toBeVisible()

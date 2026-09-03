@@ -53,6 +53,14 @@ export const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
   { value: 'OTHER_ASSET', label: 'Autre actif' },
 ]
 
+// Sous-ensemble de `TYPES_PATRIMOINE` dispensé de compte (revue du 03/09/2026,
+// demande directe de l'utilisateur : « les seules lignes sans établissement
+// doivent être l'immobilier et ce genre de choses ») — miroir de
+// `models.TYPES_ACTIF_SANS_ETABLISSEMENT` côté backend, TOUJOURS tenu à jour avec
+// lui. Un `type_actif` non précisé (`''`) n'est PAS exempté : le sélecteur de
+// compte doit garder l'option « — Aucun — » retirée par défaut.
+export const TYPES_ACTIF_SANS_ETABLISSEMENT = new Set(['REAL_ESTATE', 'VEHICLE', 'OTHER_ASSET'])
+
 // Types pour lesquels `taux_pct` a un sens (backlog § 2.M.1) : intérêt attendu pour
 // l'épargne, décote attendue pour un véhicule — affiche le libellé et le signe
 // suggéré adaptés au type sélectionné plutôt qu'un champ générique muet.

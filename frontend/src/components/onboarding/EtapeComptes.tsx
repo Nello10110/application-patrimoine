@@ -49,7 +49,8 @@ export default function EtapeComptes() {
         assurance-vie, immobilier...), déclare-les ici pour tout regrouper par établissement sur l'écran{' '}
         <span className="font-medium text-texte">Comptes</span> et définir une répartition entre détenteurs pour un
         compte entier en une fois. Sans objet, ou pas encore prêt ? Cette étape se passe sans rien saisir — un compte se
-        crée de toute façon à la volée depuis le formulaire d'ajout d'une position.
+        crée de toute façon à la volée depuis le formulaire d'ajout d'une position (l'établissement sera alors demandé
+        aussi, un compte ne pouvant plus en être dépourvu).
       </p>
 
       <EtablissementsCard etablissements={etablissements} onModifies={charger} />
