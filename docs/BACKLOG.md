@@ -3127,6 +3127,56 @@ doublon ne pouvait pas se produire. Corrigé en fournissant une vraie ligne et e
 couvrant `LoansCard` dans son propre fichier, dans ses deux modes.
 
 ---
+#### Z.4 — `majeur` · `S` · `P1` · `traité` (03/09/2026) — Composition d'un ETF neuf : justETF n'était consulté qu'une fois par semaine
+
+Signalé par l'utilisateur sur son homelab après ajout de **FR0011550185** (BNP Paribas
+Easy S&P 500) : « certaines infos remontent mais pas la répartition géographique, bien
+présente sur justETF ». Décrit comme une régression — **ce n'en était pas une** :
+`justetf_service.py` n'a pas été modifié depuis le 30/08/2026, et l'extraction elle-même
+fonctionne (vérifiée en direct sur cet ISIN : 3 zones, 5 secteurs, description, top 10).
+
+**Cause.** L'ordre « justETF d'abord, yfinance en repli » que documente
+`market_data_service` n'était appliqué qu'au **prix**. La composition, elle, partait
+toujours sur yfinance ; la donnée justETF n'arrivait que par `justetf_refresh`, job
+**hebdomadaire**. Or yfinance fournit bien la répartition sectorielle mais **aucune
+répartition géographique** pour beaucoup d'ETF européens.
+
+Reproduit sur base isolée avec le vrai ISIN :
+
+| | Après ajout + rafraîchissement des cours | Après le job hebdomadaire |
+|---|---|---|
+| `sector` | 11 lignes (yfinance) | 5 lignes (justETF) |
+| `geo` | **0 ligne** | **3 lignes** |
+| description | absente | présente |
+
+L'écran restait donc incomplet **jusqu'à sept jours**, sans que rien n'indique qu'il
+suffisait d'attendre.
+
+**Corrigé** par `_composition_justetf_ou_yfinance` : justETF est consulté en premier,
+yfinance ne sert que si justETF ne couvre pas l'ETF (listes vides) ou est injoignable
+(`None`). Le coût est borné — l'appel n'a lieu que sous la garde
+`a_deja_composition_justetf`, donc **une fois par ETF neuf**, jamais à chaque
+rafraîchissement de prix.
+
+**Un défaut du correctif lui-même, révélé par son propre test** : la garde exigeait un
+ticker Yahoo (`ticker_resolu is not None`) AVANT d'essayer justETF, qui ne travaille
+pourtant qu'à partir de l'ISIN. Un ETF couvert par justETF mais non résolu par la
+recherche Yahoo serait resté sans aucune composition. La garde a été déplacée sur le
+seul repli.
+
+**Vérifié que le repli tient toujours** sur deux ETF réels que justETF ne couvre pas
+(FR0011869312, FR0013412012) : 11 lignes sectorielles chacun, `source='composition'`.
+
+**Tests** : 3 dans `test_market_data_service.py` — ETF couvert (géo présente dès le
+premier rafraîchissement), ETF non couvert (repli yfinance), justETF injoignable (le
+repli joue aussi). Vérifiés en réintroduisant l'ancien comportement.
+
+**Reste à faire côté utilisateur** : les ETF déjà en base avec une composition yfinance
+ne basculent pas d'eux-mêmes, la garde `a_deja_composition_justetf` ne s'applique qu'à
+l'absence de ligne justETF. Un « Rafraîchir maintenant » du job justETF depuis Réglages
+les met à niveau en une fois.
+
+---
 ---
 ## 3. Hors périmètre (assumé)
 
@@ -3198,7 +3248,7 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 | **Lot 9 — Retours terrain** | R.1, R.2, R.3 · S.1, S.2, S.3 · T.1, T.2, T.3 · U.1, U.2, U.3, U.4 · V.1 · W.1 | Lots 4-7 (usage réel) | `L` | **Livré** 25-31/08/2026 (15/15) |
 | **Lot 10 — Comptes structurels** | X.1, X.2, X.3, X.4, X.5 | Lot 4 (modèle de détention) | `L` | **Livré** 01-02/09/2026 (5/5) |
 | **Lot 11 — Sauvegarde et portabilité** | Y.1, Y.2, Y.3 | — | `M` | **Livré** 02/09/2026 (3/3) |
-| **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3 | — | `L` | **Livré** 03/09/2026 (4/4) |
+| **Lot 12 — Revue de qualité** | Z.0, Z.1, Z.2, Z.3, Z.4 | — | `L` | **Livré** 03/09/2026 (5/5) |
 
 **Pourquoi cet ordre.**
 

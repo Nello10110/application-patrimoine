@@ -450,3 +450,99 @@ def test_refresh_tickers_fund_ne_recalcule_plus_le_ter_une_fois_connu(db, monkey
 
     cache = db.get(MarketDataCache, "IE00TER")
     assert cache.frais_gestion_pct == 0.10  # inchangé
+
+
+# --- Composition : justETF d'abord, yfinance en repli (03/09/2026) ---------------
+
+
+def _fiche_justetf(geo=None, secteurs=None, top=None):
+    from app.services.justetf_service import FicheJustETF
+
+    return FicheJustETF(
+        geo_rows=geo or [],
+        sector_rows=secteurs or [],
+        geo_brut=[],
+        sector_brut=[],
+        description=None,
+        top_holdings=top or [],
+    )
+
+
+def test_un_etf_couvert_par_justetf_obtient_sa_repartition_geographique_des_le_premier_rafraichissement(db, monkeypatch):
+    """Signalé le 03/09/2026 sur FR0011550185, un S&P 500 pourtant parfaitement
+    couvert par justETF : après ajout, la répartition SECTORIELLE apparaissait —
+    yfinance la fournit — mais pas la GÉOGRAPHIQUE, que yfinance ne donne pas pour
+    beaucoup d'ETF européens. Elle n'arrivait qu'avec le job justETF, HEBDOMADAIRE :
+    jusqu'à sept jours d'écran incomplet, sans que rien n'indique qu'il fallait
+    attendre.
+
+    L'ordre « justETF d'abord, yfinance en repli » était pourtant déjà documenté —
+    il n'était appliqué qu'au prix, jamais à la composition."""
+    from app.services import justetf_service
+
+    make_holding(db, ticker="FR0011550185", type_actif="FUND")
+    monkeypatch.setattr(justetf_service, "fetch_price", lambda isin: {"prix_actuel": 33.5, "devise": "EUR"})
+    monkeypatch.setattr(
+        justetf_service,
+        "fetch_composition",
+        lambda isin: _fiche_justetf(
+            geo=[{"categorie": "Amérique du Nord", "poids": 0.97}, {"categorie": "Europe", "poids": 0.03}],
+            secteurs=[{"categorie": "Technologies de l'information", "poids": 1.0}],
+            top=[{"nom": "Apple", "poids": 0.07}],
+        ),
+    )
+
+    market_data_service.refresh_tickers(db, [("FR0011550185", "FUND")])
+
+    zones = db.query(FundComposition).filter(FundComposition.ticker == "FR0011550185", FundComposition.type == "geo").all()
+    assert [z.categorie for z in zones] == ["Amérique du Nord", "Europe"]
+    assert {z.source for z in zones} == {SOURCE_JUSTETF}
+    # Le top 10 nominatif suit le même chemin.
+    assert db.query(FundTopHolding).filter(FundTopHolding.ticker == "FR0011550185").count() == 1
+
+
+def test_un_etf_non_couvert_par_justetf_retombe_sur_yfinance(db, monkeypatch):
+    """L'autre moitié du contrat, et la plus facile à casser en corrigeant la
+    première : justETF ne couvre pas tout (ETF obligataires, matières premières,
+    ETC) et rend alors des listes vides. Sans ce test, un correctif qui ferait
+    confiance à justETF sans vérifier priverait ces ETF de TOUTE composition."""
+    from app.services import justetf_service
+
+    make_holding(db, ticker="LU0000000000", type_actif="FUND")
+    monkeypatch.setattr(justetf_service, "fetch_price", lambda isin: {"prix_actuel": 10.0, "devise": "EUR"})
+    # Couverture absente : fiche vide sur les deux axes de composition.
+    monkeypatch.setattr(justetf_service, "fetch_composition", lambda isin: _fiche_justetf())
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db_, isin, ac: "XXX.PA")
+    monkeypatch.setattr(
+        market_data_service,
+        "fetch_fund_composition",
+        lambda ticker, cache, nom=None: ([], [{"categorie": "Finance", "poids": 1.0, "source": SOURCE_COMPOSITION}], []),
+    )
+
+    market_data_service.refresh_tickers(db, [("LU0000000000", "FUND")])
+
+    lignes = db.query(FundComposition).filter(FundComposition.ticker == "LU0000000000").all()
+    assert [l.categorie for l in lignes] == ["Finance"]
+    assert {l.source for l in lignes} == {SOURCE_COMPOSITION}
+
+
+def test_justetf_injoignable_ne_prive_pas_l_etf_de_composition(db, monkeypatch):
+    """`fetch_composition` rend `None` sur échec réseau ou parsing. Le repli doit
+    jouer là aussi, sinon une indisponibilité passagère de justETF viderait la
+    composition de tous les ETF au prochain rafraîchissement de prix."""
+    from app.services import justetf_service
+
+    make_holding(db, ticker="LU1111111111", type_actif="FUND")
+    monkeypatch.setattr(justetf_service, "fetch_price", lambda isin: {"prix_actuel": 10.0, "devise": "EUR"})
+    monkeypatch.setattr(justetf_service, "fetch_composition", lambda isin: None)
+    monkeypatch.setattr(market_data_service, "resolve_ticker", lambda db_, isin, ac: "YYY.PA")
+    monkeypatch.setattr(
+        market_data_service,
+        "fetch_fund_composition",
+        lambda ticker, cache, nom=None: ([{"categorie": "Europe", "poids": 1.0, "source": SOURCE_INDICE}], [], []),
+    )
+
+    market_data_service.refresh_tickers(db, [("LU1111111111", "FUND")])
+
+    lignes = db.query(FundComposition).filter(FundComposition.ticker == "LU1111111111").all()
+    assert [l.categorie for l in lignes] == ["Europe"]

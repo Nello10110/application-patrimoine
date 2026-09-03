@@ -247,6 +247,50 @@ def fetch_one(identifiant: str, ticker_resolu: str | None, fx_cache: dict[str, f
         return {"ticker": identifiant, "erreur": f"Erreur de récupération: {exc}"}
 
 
+def _composition_justetf_ou_yfinance(
+    isin: str, ticker_resolu: str | None, stock_info_cache: dict[str, dict], nom_fonds: str | None
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Composition d'un ETF : justETF d'abord, yfinance en repli.
+
+    C'est l'ordre que la docstring de ce module documente depuis l'Increment 9 — il
+    n'était jusqu'ici appliqué qu'au PRIX. La composition, elle, partait toujours sur
+    yfinance, et la donnée justETF n'arrivait que par le job hebdomadaire
+    `justetf_service.refresh_all`.
+
+    Conséquence pour un ETF fraîchement ajouté (signalée le 03/09/2026 sur
+    FR0011550185, un S&P 500 pourtant parfaitement couvert par justETF) : la
+    répartition SECTORIELLE apparaissait — yfinance la fournit — mais pas la
+    répartition GÉOGRAPHIQUE, que yfinance ne donne pas pour beaucoup d'ETF
+    européens. L'écran restait dans cet état incomplet jusqu'à sept jours, sans que
+    rien n'indique qu'il fallait simplement attendre.
+
+    Le repli yfinance reste indispensable : justETF ne couvre pas tous les ETF
+    (obligataires, matières premières, ETC), et rend alors des listes vides.
+    """
+    fiche = justetf_service.fetch_composition(isin)
+    if fiche is not None and (fiche.geo_rows or fiche.sector_rows):
+        # `fetch_composition` rend des lignes sans champ `source` (il est implicite
+        # pour ce module) : on le pose ici, `refresh_tickers` l'écrivant tel quel.
+        geo = [{**row, "source": SOURCE_JUSTETF} for row in fiche.geo_rows]
+        secteurs = [{**row, "source": SOURCE_JUSTETF} for row in fiche.sector_rows]
+        # Top 10 : justETF le donne nominatif mais sans symbole ni pays/secteur —
+        # `FundTopHolding.holding_symbol` fait partie de la clé d'unicité, on retombe
+        # donc sur le nom, comme le fait `justetf_service.refresh_all`.
+        top = [
+            {"symbol": row["nom"], "nom": row["nom"], "poids": row["poids"], "pays": None, "secteur": None}
+            for row in fiche.top_holdings
+        ]
+        return geo, secteurs, top
+
+    if ticker_resolu is None:
+        # Repli impossible sans ticker Yahoo : mieux vaut aucune composition qu'une
+        # exception. L'ETF en restera dépourvu jusqu'à ce que justETF le couvre ou
+        # que la résolution aboutisse (elle est réessayée tous les jours en cas
+        # d'échec, cf. `DUREE_CACHE_ECHEC_JOURS`).
+        return [], [], []
+    return fetch_fund_composition(ticker_resolu, stock_info_cache, nom_fonds)
+
+
 def fetch_fund_composition(
     ticker_resolu: str, stock_info_cache: dict[str, dict], nom_fonds: str | None = None
 ) -> tuple[list[dict], list[dict], list[dict]]:
@@ -441,9 +485,26 @@ def refresh_tickers(
         if not a_deja_composition_justetf:
             db.query(FundComposition).filter(FundComposition.ticker == identifiant).delete()
             db.query(FundTopHolding).filter(FundTopHolding.ticker == identifiant).delete()
-            if asset_class == "FUND" and ticker_resolu is not None and data.get("erreur") is None:
-                geo_rows, sector_rows, top_holdings_detail = fetch_fund_composition(
-                    ticker_resolu, stock_info_cache, data.get("nom")
+            # `ticker_resolu` n'est PAS exigé ici : justETF ne travaille qu'à partir
+            # de l'ISIN. L'exiger en amont privait de toute composition un ETF que
+            # justETF couvre mais que la recherche Yahoo ne résout pas — cas mis en
+            # évidence par le test de non-régression ci-dessous. Le ticker Yahoo
+            # n'est nécessaire qu'au repli, où il est revérifié.
+            if asset_class == "FUND" and data.get("erreur") is None:
+                # justETF D'ABORD, yfinance en repli — c'est l'ordre que documente ce
+                # module, mais il n'était appliqué qu'au prix, jamais à la composition.
+                # Conséquence (signalée le 03/09/2026 sur FR0011550185) : un ETF
+                # fraîchement ajouté recevait la composition yfinance, qui ne fournit
+                # AUCUNE répartition géographique pour beaucoup d'ETF européens — et
+                # devait attendre le job justETF, HEBDOMADAIRE, pour l'obtenir. Jusqu'à
+                # sept jours avec des secteurs mais pas de zones, sur un ETF que
+                # justETF couvre parfaitement.
+                #
+                # Le coût est borné : cet appel n'a lieu que sous la garde
+                # `a_deja_composition_justetf` ci-dessus, donc UNE fois par ETF neuf,
+                # jamais à chaque rafraîchissement de prix.
+                geo_rows, sector_rows, top_holdings_detail = _composition_justetf_ou_yfinance(
+                    identifiant, ticker_resolu, stock_info_cache, data.get("nom")
                 )
                 for row in geo_rows:
                     db.add(
