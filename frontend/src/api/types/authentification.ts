@@ -75,4 +75,11 @@ export interface HouseholdMember {
   detenteur_ids: number[]
   email?: string | null
   nom?: string | null
+  // Écran d'administration des comptes (revue du 04/09/2026) : `null` = compte mot
+  // de passe local, une chaîne = provisionné/lié via ce fournisseur SSO (son
+  // `display_name` — pas juste un booléen, pour afficher directement lequel).
+  oidc_display_name?: string | null
+  derniere_connexion?: string | null
+  sessions_actives?: number
+  verrouille_jusqua?: string | null
 }

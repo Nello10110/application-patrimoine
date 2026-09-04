@@ -11,8 +11,10 @@ tard sans invalider les mots de passe déjà enregistrés.
 
 import hashlib
 import secrets
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, AuthToken, User
@@ -178,6 +180,36 @@ def supprimer_token(db: Session, token: str) -> None:
 
 def lister_sessions(db: Session, user_id: int) -> list[AuthToken]:
     return db.query(AuthToken).filter(AuthToken.user_id == user_id).order_by(AuthToken.derniere_utilisation.desc()).all()
+
+
+def dernieres_connexions_reussies(db: Session, user_ids: Sequence[int]) -> dict[int, datetime]:
+    """Dernière connexion réussie par utilisateur (écran d'administration des comptes
+    du foyer) — une seule requête groupée plutôt qu'une par membre, pour éviter un
+    N+1 même si un foyer reste en pratique de taille restreinte."""
+    if not user_ids:
+        return {}
+    lignes = (
+        db.query(AccessLogEntry.user_id, func.max(AccessLogEntry.timestamp))
+        .filter(AccessLogEntry.user_id.in_(user_ids), AccessLogEntry.action == "login", AccessLogEntry.resultat == "succes")
+        .group_by(AccessLogEntry.user_id)
+        .all()
+    )
+    return dict(lignes)
+
+
+def nombre_sessions_actives(db: Session, user_ids: Sequence[int]) -> dict[int, int]:
+    """Nombre de jetons de session non expirés par utilisateur (écran
+    d'administration des comptes du foyer) — même logique groupée que
+    `dernieres_connexions_reussies`."""
+    if not user_ids:
+        return {}
+    lignes = (
+        db.query(AuthToken.user_id, func.count(AuthToken.token))
+        .filter(AuthToken.user_id.in_(user_ids), AuthToken.expires_at > _maintenant_naif())
+        .group_by(AuthToken.user_id)
+        .all()
+    )
+    return dict(lignes)
 
 
 def session_par_id(db: Session, id_session: str) -> AuthToken | None:

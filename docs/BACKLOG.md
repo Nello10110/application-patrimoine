@@ -1064,6 +1064,19 @@ conçue pour un usage `localhost`. L'exposer change la nature du risque.
   d'environnement `PATRIMOINE_BACKUP_KEY` (absente : le job échoue proprement, statut visible dans
   Réglages, sans affecter les autres jobs ni planter le scheduler) — cf. `docs/MANUEL_EXPLOITATION.md`.
 
+**Complété le 04/09/2026** (demande directe de l'utilisateur : un écran d'administration des comptes) :
+la carte « Comptes du foyer » (`GestionFoyerCard.tsx`) affiche désormais, par compte, ce qu'un
+propriétaire ne pouvait jusque-là voir nulle part — origine locale ou provisionnée/liée via SSO (avec
+le nom du fournisseur, `oidc_display_name`, jamais juste un booléen), dernière connexion réussie,
+nombre de sessions actives, et un éventuel verrouillage en cours (mêmes calculs que le journal d'accès
+et les sessions, jamais dupliqués). Le rôle (`membre`/`invite`) devient éditable directement depuis la
+liste (`PATCH /api/auth/household-members/{id}`, nouveau, réservé au propriétaire, IDOR-safe comme le
+`DELETE` existant) — jusque-là seule la suppression + recréation permettait de changer un rôle. Calculs
+groupés côté serveur (`auth_service.dernieres_connexions_reussies`/`nombre_sessions_actives`, une seule
+requête pour tout le foyer) plutôt qu'un aller-retour par membre. Vérifié en conditions réelles
+(Playwright, backend isolé) : création → badge « Connexion locale » → changement de rôle persisté après
+rechargement → suppression.
+
 **Reste hors périmètre, explicitement reporté** :
 - **TOTP (second facteur)** et **migration du jeton vers un cookie `Secure`/`SameSite=Strict`** — un
   incrément ultérieur.

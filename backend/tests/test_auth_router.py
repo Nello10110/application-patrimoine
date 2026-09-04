@@ -542,3 +542,176 @@ def test_supprimer_un_membre_conserve_son_journal_sans_reference_pendante(client
     assert db_vide.query(AccessLogEntry).filter(AccessLogEntry.user_id == membre["id"]).count() == 0, (
         "aucune entrée ne doit conserver une référence vers le compte supprimé"
     )
+
+
+# --- Écran d'administration des comptes (revue du 04/09/2026) ----------------------
+#
+# Origine locale/SSO + nom du fournisseur, dernière connexion réussie, nombre de
+# sessions actives, verrouillage en cours, et rôle éditable — cf.
+# `HouseholdMemberOut`/`HouseholdMemberRoleUpdate` (schemas/authentification.py) et
+# `_household_member_out` (routers/auth.py).
+
+
+def test_liste_des_membres_signale_un_compte_local(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_paul}"},
+    )
+
+    membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {token_paul}"}).json()
+
+    assert membres[0]["oidc_display_name"] is None
+    assert membres[0]["derniere_connexion"] is None
+    assert membres[0]["sessions_actives"] == 0
+    assert membres[0]["verrouille_jusqua"] is None
+
+
+def test_liste_des_membres_signale_un_compte_provisionne_par_oidc(client_reel, db_vide, monkeypatch):
+    oidc_service = _configurer_oidc(monkeypatch)
+    monkeypatch.setenv(oidc_service.VARIABLE_DISPLAY_NAME, "Authentik")
+    monkeypatch.setattr(oidc_service, "echanger_code", lambda config, code, code_verifier: {"access_token": "at-123"})
+    monkeypatch.setattr(oidc_service, "recuperer_identite", lambda config, access_token: {"sub": "sub-1", "preferred_username": "alice"})
+
+    verifier, _ = oidc_service.code_verifier_et_challenge()
+    state = oidc_service.construire_state(verifier, "secret-xyz")
+    jeton_proprietaire = client_reel.get(
+        f"/api/auth/oidc/callback?code=un-code&state={state}", follow_redirects=False
+    ).headers["location"].split("#token=")[1]
+
+    membres = client_reel.get(
+        "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
+    ).json()
+
+    # Premier compte OIDC : devient propriétaire (bootstrap), donc jamais listé par
+    # `/household-members` (qui ne liste que SES membres, pas lui-même) — on crée un
+    # second compte OIDC pour vérifier le signalement dans la liste.
+    assert membres == []
+
+    monkeypatch.setattr(oidc_service, "recuperer_identite", lambda config, access_token: {"sub": "sub-2", "preferred_username": "bob"})
+    verifier2, _ = oidc_service.code_verifier_et_challenge()
+    state2 = oidc_service.construire_state(verifier2, "secret-xyz")
+    client_reel.get(f"/api/auth/oidc/callback?code=un-code&state={state2}", follow_redirects=False)
+
+    membres = client_reel.get(
+        "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
+    ).json()
+
+    assert len(membres) == 1
+    assert membres[0]["username"] == "bob"
+    assert membres[0]["oidc_display_name"] == "Authentik"
+
+
+def test_liste_des_membres_reflete_la_derniere_connexion_reussie(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_paul}"},
+    )
+
+    client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mot-de-passe-solide"})
+
+    membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {token_paul}"}).json()
+
+    assert membres[0]["derniere_connexion"] is not None
+    assert membres[0]["sessions_actives"] == 1
+
+
+def test_liste_des_membres_reflete_un_verrouillage_en_cours(client_reel):
+    from app.services import auth_service
+
+    token_paul = _inscrire(client_reel).json()["token"]
+    client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_paul}"},
+    )
+    for _ in range(auth_service.SEUIL_TENTATIVES):
+        client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mauvais-mot-de-passe"})
+
+    membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {token_paul}"}).json()
+
+    assert membres[0]["verrouille_jusqua"] is not None
+
+
+def test_modifier_le_role_dun_membre_fonctionne(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+    assert membre["role"] == "membre"
+
+    reponse = client_reel.patch(f"/api/auth/household-members/{membre['id']}", json={"role": "invite"}, headers=entete)
+
+    assert reponse.status_code == 200
+    assert reponse.json()["role"] == "invite"
+    membres = client_reel.get("/api/auth/household-members", headers=entete).json()
+    assert membres[0]["role"] == "invite"
+
+
+def test_modifier_le_role_avec_une_valeur_invalide_est_refuse(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+
+    reponse = client_reel.patch(f"/api/auth/household-members/{membre['id']}", json={"role": "proprietaire"}, headers=entete)
+
+    # Le gestionnaire d'erreurs global (`main.py`) fait remonter les `ValueError` des
+    # validateurs Pydantic en 400 (message français), pas le 422 par défaut de
+    # FastAPI — même comportement que la création (`HouseholdMemberCreate`).
+    assert reponse.status_code == 400
+
+
+def test_modifier_le_role_refuse_a_un_non_proprietaire(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete_paul = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete_paul,
+    ).json()
+    token_membre = client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mot-de-passe-solide"}).json()["token"]
+
+    reponse = client_reel.patch(
+        f"/api/auth/household-members/{membre['id']}",
+        json={"role": "invite"},
+        headers={"Authorization": f"Bearer {token_membre}"},
+    )
+
+    assert reponse.status_code == 403
+
+
+def test_modifier_le_role_dun_membre_dun_autre_foyer_renvoie_404(client_reel, db_vide):
+    from app.services import auth_service as auth_service_module
+
+    token_paul = _inscrire(client_reel, username="paul").json()["token"]
+    membre_paul = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint-paul", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_paul}"},
+    ).json()
+
+    # Second foyer : `/register` se ferme après le tout premier compte (cf.
+    # docstring de `register`) — on crée directement ce second propriétaire via le
+    # service, comme le ferait un second déploiement/onboarding.
+    auth_service_module.creer_utilisateur(db_vide, "alice-intruse", "mot-de-passe-solide")
+    token_alice = client_reel.post(
+        "/api/auth/login", json={"username": "alice-intruse", "password": "mot-de-passe-solide"}
+    ).json()["token"]
+
+    reponse = client_reel.patch(
+        f"/api/auth/household-members/{membre_paul['id']}",
+        json={"role": "invite"},
+        headers={"Authorization": f"Bearer {token_alice}"},
+    )
+
+    assert reponse.status_code == 404

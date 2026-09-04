@@ -15,6 +15,7 @@ from ..schemas import (
     AuthResponse,
     HouseholdMemberCreate,
     HouseholdMemberOut,
+    HouseholdMemberRoleUpdate,
     LoginRequest,
     OidcStatus,
     RegisterRequest,
@@ -226,6 +227,30 @@ def get_access_log(
     return [AccessLogEntryOut.model_validate(e) for e in entrees]
 
 
+def _nom_affiche_oidc(membre: User) -> str | None:
+    """`None` = compte mot de passe local. Sinon, le `display_name` du fournisseur
+    SSO actuellement configuré (ou son défaut si la configuration a depuis été
+    désactivée/modifiée : le compte reste provisionné via SSO, l'affichage ne doit
+    pas dépendre de l'état ACTUEL de la config pour ça)."""
+    if membre.oidc_subject is None:
+        return None
+    config = oidc_service.charger_config()
+    return config.display_name if config is not None else oidc_service.DISPLAY_NAME_PAR_DEFAUT
+
+
+def _household_member_out(db: Session, membre: User) -> HouseholdMemberOut:
+    """Cas d'un seul membre (création/changement de rôle) — la liste (`GET`) groupe
+    les mêmes requêtes pour tout le foyer en une fois plutôt que d'appeler ceci par
+    membre, pour éviter un N+1."""
+    sortie = HouseholdMemberOut.model_validate(membre)
+    sortie.detenteur_ids = [p.detenteur_id for p in db.query(PerimetreInvite).filter(PerimetreInvite.user_id == membre.id).all()]
+    sortie.oidc_display_name = _nom_affiche_oidc(membre)
+    sortie.derniere_connexion = auth_service.dernieres_connexions_reussies(db, [membre.id]).get(membre.id)
+    sortie.sessions_actives = auth_service.nombre_sessions_actives(db, [membre.id]).get(membre.id, 0)
+    sortie.verrouille_jusqua = auth_service.verrouillage_actif(db, membre.username)
+    return sortie
+
+
 @router.post("/household-members", response_model=HouseholdMemberOut)
 def create_household_member(
     payload: HouseholdMemberCreate,
@@ -235,29 +260,53 @@ def create_household_member(
     if auth_service.utilisateur_par_username(db, payload.username) is not None:
         raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
     membre = auth_service.creer_utilisateur(db, payload.username, payload.password, role=payload.role, owner_user_id=current_user.id)
-    detenteur_ids = []
     if payload.detenteur_ids:
         detenteurs_valides = (
             db.query(Detenteur).filter(Detenteur.id.in_(payload.detenteur_ids), Detenteur.user_id == current_user.id).all()
         )
         for detenteur in detenteurs_valides:
             db.add(PerimetreInvite(user_id=membre.id, detenteur_id=detenteur.id))
-            detenteur_ids.append(detenteur.id)
         db.commit()
-    sortie = HouseholdMemberOut.model_validate(membre)
-    sortie.detenteur_ids = detenteur_ids
-    return sortie
+    return _household_member_out(db, membre)
 
 
 @router.get("/household-members", response_model=list[HouseholdMemberOut])
 def list_household_members(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
     membres = db.query(User).filter(User.owner_user_id == current_user.id).order_by(User.created_at).all()
+    ids = [m.id for m in membres]
+    detenteur_ids_par_membre: dict[int, list[int]] = {}
+    for p in db.query(PerimetreInvite).filter(PerimetreInvite.user_id.in_(ids)).all():
+        detenteur_ids_par_membre.setdefault(p.user_id, []).append(p.detenteur_id)
+    dernieres = auth_service.dernieres_connexions_reussies(db, ids)
+    sessions = auth_service.nombre_sessions_actives(db, ids)
     resultats = []
     for membre in membres:
         sortie = HouseholdMemberOut.model_validate(membre)
-        sortie.detenteur_ids = [p.detenteur_id for p in db.query(PerimetreInvite).filter(PerimetreInvite.user_id == membre.id).all()]
+        sortie.detenteur_ids = detenteur_ids_par_membre.get(membre.id, [])
+        sortie.oidc_display_name = _nom_affiche_oidc(membre)
+        sortie.derniere_connexion = dernieres.get(membre.id)
+        sortie.sessions_actives = sessions.get(membre.id, 0)
+        # Pas batchable simplement (fenêtre glissante par utilisateur) — foyer
+        # restreint en pratique, un aller-retour de plus par membre reste négligeable.
+        sortie.verrouille_jusqua = auth_service.verrouillage_actif(db, membre.username)
         resultats.append(sortie)
     return resultats
+
+
+@router.patch("/household-members/{id}", response_model=HouseholdMemberOut)
+def update_household_member_role(
+    id: int,
+    payload: HouseholdMemberRoleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
+):
+    membre = db.get(User, id)
+    if membre is None or membre.owner_user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    membre.role = payload.role
+    db.commit()
+    db.refresh(membre)
+    return _household_member_out(db, membre)
 
 
 @router.delete("/household-members/{id}", status_code=204)

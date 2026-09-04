@@ -138,3 +138,26 @@ class HouseholdMemberOut(BaseModel):
     detenteur_ids: list[int] = []
     email: str | None = None
     nom: str | None = None
+    # Écran d'administration des comptes (Réglages → Comptes & sécurité) : `None` =
+    # compte mot de passe local, une chaîne = provisionné/lié via ce fournisseur SSO
+    # (son `display_name`, cf. `oidc_service.charger_config` — pas seulement un
+    # booléen, pour afficher directement lequel). Posé explicitement par
+    # `routers/auth.py`, jamais rempli par `model_validate` (calculé, pas une
+    # colonne de `User`).
+    oidc_display_name: str | None = None
+    # Calculés depuis le journal d'accès/les jetons de session, jamais des colonnes
+    # de `User` — mêmes conventions que `oidc_display_name` ci-dessus.
+    derniere_connexion: datetime | None = None
+    sessions_actives: int = 0
+    verrouille_jusqua: datetime | None = None
+
+
+class HouseholdMemberRoleUpdate(BaseModel):
+    role: str
+
+    @field_validator("role")
+    @classmethod
+    def _valider_role(cls, v: str) -> str:
+        if v not in ROLES_ASSIGNABLES:
+            raise ValueError("Le rôle doit être 'membre' ou 'invite'")
+        return v

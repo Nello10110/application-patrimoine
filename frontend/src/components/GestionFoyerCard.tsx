@@ -5,13 +5,17 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { SkeletonTexte } from './Skeleton'
+import { formatDateHeure } from '../utils/format'
 
 const ROLE_LABELS: Record<Role, string> = { proprietaire: 'Propriétaire', membre: 'Membre du foyer', invite: 'Invité' }
 
-/** Comptes du foyer (backlog 2.L.2) : le propriétaire crée les comptes membre/invité
- * — l'auto-inscription se ferme après le tout premier compte (`routers/auth.py`).
- * Un invité doit se voir assigner au moins un détenteur pour voir quoi que ce soit
- * (périmètre vide par défaut, jamais "tout le foyer" implicitement). */
+/** Comptes du foyer (backlog 2.L.2, écran d'administration étendu le 04/09/2026) :
+ * le propriétaire crée les comptes membre/invité — l'auto-inscription se ferme après
+ * le tout premier compte (`routers/auth.py`). Un invité doit se voir assigner au
+ * moins un détenteur pour voir quoi que ce soit (périmètre vide par défaut, jamais
+ * "tout le foyer" implicitement). Origine locale/SSO, dernière connexion, sessions
+ * actives, verrouillage en cours et rôle éditable calculés côté serveur
+ * (`_household_member_out`, `routers/auth.py`) — jamais recalculés ici. */
 export default function GestionFoyerCard() {
   const [membres, setMembres] = useState<HouseholdMember[]>([])
   const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
@@ -22,6 +26,7 @@ export default function GestionFoyerCard() {
   const [role, setRole] = useState<'membre' | 'invite'>('membre')
   const [detenteurIds, setDetenteurIds] = useState<number[]>([])
   const [saving, setSaving] = useState(false)
+  const [changingRoleId, setChangingRoleId] = useState<number | null>(null)
 
   function load() {
     setLoading(true)
@@ -69,6 +74,19 @@ export default function GestionFoyerCard() {
     }
   }
 
+  async function handleRoleChange(id: number, nouveauRole: 'membre' | 'invite') {
+    setError(null)
+    setChangingRoleId(id)
+    try {
+      await api.updateHouseholdMemberRole(id, nouveauRole)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setChangingRoleId(null)
+    }
+  }
+
   function toggleDetenteur(id: number) {
     setDetenteurIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
   }
@@ -87,17 +105,63 @@ export default function GestionFoyerCard() {
         <EtatVide titre="Aucun autre compte dans ce foyer." description="Ajoute un membre ou un invité avec le formulaire ci-dessous." />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
-          {membres.map((m) => (
-            <li key={m.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="text-texte">
-                {m.nom || m.username} <span className="text-xs text-texte-attenue">({ROLE_LABELS[m.role]})</span>
-                {m.email && <span className="ml-1 text-xs text-texte-attenue">· {m.email}</span>}
-              </span>
-              <button onClick={() => handleDelete(m.id)} className="text-xs text-negatif hover:underline">
-                Supprimer
-              </button>
-            </li>
-          ))}
+          {membres.map((m) => {
+            const verrouille = m.verrouille_jusqua && new Date(m.verrouille_jusqua) > new Date()
+            return (
+              <li key={m.id} className="flex flex-col gap-1.5 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-texte">
+                    <span className="font-medium">{m.nom || m.username}</span>
+                    {m.email && <span className="text-xs text-texte-attenue">· {m.email}</span>}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-texte-attenue">
+                    <span title={m.oidc_display_name ? `Compte provisionné/lié via ${m.oidc_display_name}` : 'Compte mot de passe local'}>
+                      {m.oidc_display_name ? `Connexion SSO (${m.oidc_display_name})` : 'Connexion locale'}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {m.derniere_connexion ? `Dernière connexion ${formatDateHeure(m.derniere_connexion)}` : 'Jamais connecté'}
+                    </span>
+                    {!!m.sessions_actives && (
+                      <span>
+                        · {m.sessions_actives} session{m.sessions_actives > 1 ? 's' : ''} active{m.sessions_actives > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {verrouille && (
+                      <span
+                        className="rounded-full bg-negatif/10 px-1.5 py-0.5 font-medium text-negatif"
+                        title="Trop de tentatives de connexion échouées récentes"
+                      >
+                        Verrouillé jusqu'à {formatDateHeure(m.verrouille_jusqua!)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs text-texte-attenue">
+                    Rôle
+                    <select
+                      aria-label={`Rôle de ${m.username}`}
+                      value={m.role}
+                      disabled={changingRoleId === m.id}
+                      onChange={(e) => handleRoleChange(m.id, e.target.value as 'membre' | 'invite')}
+                      className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
+                    >
+                      <option value="membre">{ROLE_LABELS.membre}</option>
+                      <option value="invite">{ROLE_LABELS.invite}</option>
+                    </select>
+                  </label>
+                  <button
+                    onClick={() => handleDelete(m.id)}
+                    aria-label={`Supprimer le compte ${m.username}`}
+                    className="text-xs text-negatif hover:underline"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
 

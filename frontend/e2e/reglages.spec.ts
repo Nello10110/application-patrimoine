@@ -14,7 +14,10 @@ test.describe('Réglages', () => {
     await expect(page.getByText('Bob (Personne)')).toBeVisible()
   })
 
-  test('onglet Comptes & sécurité : crée un membre du foyer', async ({ page }) => {
+  test('onglet Comptes & sécurité : crée un membre du foyer, modifie son rôle puis le supprime', async ({ page }) => {
+    // Écran d'administration des comptes étendu le 04/09/2026 : origine locale/SSO,
+    // dernière connexion, rôle éditable — ce test couvre le cycle complet plutôt que
+    // la seule création, désormais qu'il y a plus à vérifier sur la ligne créée.
     await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
     await expect(page.getByText('Comptes du foyer')).toBeVisible()
 
@@ -23,6 +26,25 @@ test.describe('Réglages', () => {
     await page.getByLabel('Mot de passe', { exact: true }).fill('MembreE2eTest1!')
     await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
     await expect(page.getByText(nomMembre)).toBeVisible()
+
+    // Créé au mot de passe (pas via SSO) : jamais encore connecté.
+    await expect(page.getByText('Connexion locale')).toBeVisible()
+    await expect(page.getByText('Jamais connecté')).toBeVisible()
+
+    const selecteurRole = page.getByLabel(`Rôle de ${nomMembre}`)
+    await expect(selecteurRole).toHaveValue('membre')
+    await selecteurRole.selectOption('invite')
+    // Persisté côté serveur : un rechargement doit conserver la nouvelle valeur, pas
+    // seulement l'état local du `<select>`.
+    await page.reload()
+    await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
+    await expect(page.getByLabel(`Rôle de ${nomMembre}`)).toHaveValue('invite')
+
+    // Nettoyage : ce compte n'existe que pour ce test. Nom du bouton précisé
+    // (`aria-label`, `GestionFoyerCard.tsx`) : "Supprimer" seul serait ambigu si un
+    // autre membre du foyer existait déjà sur cette instance.
+    await page.getByRole('button', { name: `Supprimer le compte ${nomMembre}` }).click()
+    await expect(page.getByText(nomMembre)).not.toBeVisible()
   })
 
   test('onglet Général : préférences de calcul du coût de revient', async ({ page }) => {

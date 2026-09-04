@@ -77,6 +77,7 @@ vi.mock('../api/client', () => ({
     getAccessLog: vi.fn().mockResolvedValue([]),
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
     createHouseholdMember: vi.fn(),
+    updateHouseholdMemberRole: vi.fn(),
     deleteHouseholdMember: vi.fn(),
     // Liens de partage (backlog 2.Q.1) : hors de l'objet des autres blocs de ce
     // fichier, stub neutre par défaut (aucun lien existant).
@@ -211,6 +212,96 @@ describe('ReglagesPage — Comptes du foyer, affichage nom/email (backlog SSO)',
     ouvrirOnglet('Comptes & sécurité')
 
     await screen.findByText('conjoint')
+  })
+})
+
+describe('ReglagesPage — écran d’administration des comptes du foyer (revue du 04/09/2026)', () => {
+  it('signale une connexion locale quand oidc_display_name est absent', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 3, username: 'conjoint', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [], oidc_display_name: null },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    await screen.findByText('Connexion locale')
+  })
+
+  it('signale le fournisseur SSO quand oidc_display_name est renseigné', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 4, username: 'bob', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [], oidc_display_name: 'Authentik' },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    await screen.findByText('Connexion SSO (Authentik)')
+  })
+
+  it('affiche "Jamais connecté" en l’absence de dernière connexion, sinon la date', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 5, username: 'jamais', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [], derniere_connexion: null },
+      { id: 6, username: 'deja', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [], derniere_connexion: '2026-09-01T10:30:00' },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    await screen.findByText('Jamais connecté')
+    expect(screen.getByText(/Dernière connexion/)).toBeInTheDocument()
+  })
+
+  it('affiche un badge de verrouillage quand verrouille_jusqua est dans le futur', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      {
+        id: 7,
+        username: 'attaque',
+        role: 'membre',
+        created_at: '2026-01-01T00:00:00',
+        detenteur_ids: [],
+        verrouille_jusqua: new Date(Date.now() + 60_000).toISOString(),
+      },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    expect(await screen.findByText(/Verrouillé jusqu'à/)).toBeInTheDocument()
+  })
+
+  it('n’affiche pas de badge de verrouillage quand verrouille_jusqua est dans le passé', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      {
+        id: 8,
+        username: 'ancien-verrou',
+        role: 'membre',
+        created_at: '2026-01-01T00:00:00',
+        detenteur_ids: [],
+        verrouille_jusqua: '2020-01-01T00:00:00',
+      },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    await screen.findByText('ancien-verrou')
+    expect(screen.queryByText(/Verrouillé jusqu'à/)).not.toBeInTheDocument()
+  })
+
+  it('changer le rôle dans le sélecteur appelle updateHouseholdMemberRole puis recharge la liste', async () => {
+    vi.mocked(api.listHouseholdMembers)
+      .mockResolvedValueOnce([{ id: 9, username: 'conjoint', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [] }])
+      .mockResolvedValue([{ id: 9, username: 'conjoint', role: 'invite', created_at: '2026-01-01T00:00:00', detenteur_ids: [] }])
+    vi.mocked(api.updateHouseholdMemberRole).mockResolvedValue({
+      id: 9,
+      username: 'conjoint',
+      role: 'invite',
+      created_at: '2026-01-01T00:00:00',
+      detenteur_ids: [],
+    })
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+    await screen.findByText('conjoint')
+
+    fireEvent.change(screen.getByLabelText('Rôle de conjoint'), { target: { value: 'invite' } })
+
+    await vi.waitFor(() => expect(api.updateHouseholdMemberRole).toHaveBeenCalledWith(9, 'invite'))
+    expect(await screen.findByLabelText('Rôle de conjoint')).toHaveValue('invite')
   })
 })
 
