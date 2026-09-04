@@ -12,7 +12,7 @@ from datetime import datetime
 
 import pytest
 
-from app.models import Compte, Holding, Loan, QuotiteHolding
+from app.models import Compte, Detenteur, Etablissement, Holding, LienPartage, Loan, Objectif, PerimetreInvite, QuotiteHolding, Salaire, User
 from app.services import donnees_service
 
 from .conftest import (
@@ -388,3 +388,132 @@ def test_import_refuse_laisse_les_donnees_intactes(db):
 
     apres = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
     assert len(apres["donnees"]["holdings"]) == nombre_holdings
+
+
+# ---------------------------------------------------------------------------
+# Remise à zéro complète du foyer (revue du 05/09/2026, gestion du foyer dans sa
+# globalité) — `reinitialiser_foyer` et l'endpoint `/donnees/effacer`.
+# ---------------------------------------------------------------------------
+
+
+def test_reinitialiser_foyer_efface_tout_le_patrimoine(client, db):
+    _peupler_foyer(client, db)
+    assert db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST).count() > 0
+
+    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST])
+
+    assert db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Etablissement).filter(Etablissement.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Detenteur).filter(Detenteur.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Loan).filter(Loan.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Objectif).filter(Objectif.user_id == ID_UTILISATEUR_TEST).count() == 0
+    assert db.query(Salaire).filter(Salaire.user_id == ID_UTILISATEUR_TEST).count() == 0
+
+
+def test_reinitialiser_foyer_ne_touche_pas_un_autre_foyer(client, db):
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+    make_holding(db, ticker="FOYER-B", user_id=ID_UTILISATEUR_B)
+    basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
+    _peupler_foyer(client, db)
+
+    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST])
+
+    assert db.query(Holding).filter(Holding.user_id == ID_UTILISATEUR_B).count() == 1
+
+
+def test_reinitialiser_foyer_preserve_les_comptes_utilisateurs(client, db):
+    """Décision utilisateur : la remise à zéro efface les données comptables, jamais
+    les comptes du foyer eux-mêmes."""
+    membre = client.post(
+        "/api/auth/household-members", json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"}
+    ).json()
+    _peupler_foyer(client, db)
+
+    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST, membre["id"]])
+
+    assert db.get(User, ID_UTILISATEUR_TEST) is not None
+    assert db.get(User, membre["id"]) is not None
+
+
+def test_reinitialiser_foyer_efface_les_liens_de_partage(client, db):
+    """`LienPartage` est volontairement exclu de `TABLES` (export/import) mais
+    reste une donnée du foyer à effacer pour une remise à zéro réelle."""
+    _peupler_foyer(client, db)
+    client.post("/api/partage", json={"nom": "Pour la banque"})
+    assert db.query(LienPartage).filter(LienPartage.user_id == ID_UTILISATEUR_TEST).count() == 1
+
+    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST])
+
+    assert db.query(LienPartage).filter(LienPartage.user_id == ID_UTILISATEUR_TEST).count() == 0
+
+
+def test_reinitialiser_foyer_efface_les_perimetres_invites_et_resiste_a_la_reutilisation_dun_id(client, db):
+    """Cas limite critique : `PerimetreInvite.user_id` est le compte de l'invité,
+    jamais l'ancre du foyer — sans nettoyage explicite, un id de détenteur réutilisé
+    par SQLite après une suppression totale ferait courir le risque qu'un vieux
+    périmètre d'invité donne accès à une donnée totalement différente créée après
+    coup."""
+    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    invite = client.post(
+        "/api/auth/household-members",
+        json={"username": "invite-test", "password": "mot-de-passe-solide", "role": "invite", "detenteur_ids": [alice["id"]]},
+    ).json()
+    assert db.query(PerimetreInvite).filter(PerimetreInvite.user_id == invite["id"]).count() == 1
+
+    donnees_service.reinitialiser_foyer(db, ID_UTILISATEUR_TEST, [ID_UTILISATEUR_TEST, invite["id"]])
+
+    assert db.query(PerimetreInvite).filter(PerimetreInvite.user_id == invite["id"]).count() == 0
+
+    # Un nouveau détenteur créé après coup ne doit jamais hériter, via un id
+    # réutilisé par SQLite, d'un périmètre laissé par l'ancienne Alice.
+    nouveau = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    assert (
+        db.query(PerimetreInvite)
+        .filter(PerimetreInvite.user_id == invite["id"], PerimetreInvite.detenteur_id == nouveau["id"])
+        .count()
+        == 0
+    )
+
+
+def test_endpoint_effacer_refuse_une_confirmation_incorrecte(client, db):
+    _peupler_foyer(client, db)
+
+    reponse = client.post("/api/donnees/effacer", json={"confirmation": "mauvaise-phrase"})
+
+    assert reponse.status_code == 400
+    assert "SUPPRIMER" in reponse.json()["detail"]
+    assert len(client.get("/api/portfolio/holdings").json()) > 0
+
+
+def test_endpoint_effacer_avec_supprimer_sans_nom_de_foyer(client, db):
+    _peupler_foyer(client, db)
+
+    reponse = client.post("/api/donnees/effacer", json={"confirmation": "SUPPRIMER"})
+
+    assert reponse.status_code == 200
+    assert client.get("/api/portfolio/holdings").json() == []
+
+
+def test_endpoint_effacer_exige_le_nom_du_foyer_sil_est_defini(client, db):
+    _peupler_foyer(client, db)
+    client.patch("/api/auth/foyer", json={"nom": "Famille Test"})
+
+    refuse = client.post("/api/donnees/effacer", json={"confirmation": "SUPPRIMER"})
+    assert refuse.status_code == 400
+
+    reponse = client.post("/api/donnees/effacer", json={"confirmation": "Famille Test"})
+    assert reponse.status_code == 200
+    assert client.get("/api/portfolio/holdings").json() == []
+
+
+def test_endpoint_effacer_preserve_les_comptes_utilisateurs(client, db):
+    membre = client.post(
+        "/api/auth/household-members", json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"}
+    ).json()
+    _peupler_foyer(client, db)
+
+    reponse = client.post("/api/donnees/effacer", json={"confirmation": "SUPPRIMER"})
+
+    assert reponse.status_code == 200
+    assert db.get(User, membre["id"]) is not None

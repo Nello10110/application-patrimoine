@@ -7,6 +7,7 @@ import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal
 import DetenteursCard from '../components/DetenteursCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
+import FoyerCard from '../components/FoyerCard'
 import GestionFoyerCard from '../components/GestionFoyerCard'
 import { IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
 import JobCard from '../components/JobCard'
@@ -119,6 +120,7 @@ export default function ReglagesPage() {
               </button>
             </Card>
           )}
+          <FoyerCard />
           <PreferencesCard />
           <Card title="Exporter">
             <p className="mb-4 text-sm text-texte">

@@ -2912,6 +2912,48 @@ foyers, import d'un export d'un AUTRE foyer, survie des dates, fichiers invalide
 d'orphelines), 9 tests `SauvegardeDonneesCard.test.tsx`, 3 tests E2E `sauvegarde-donnees.spec.ts`
 (téléchargement réel, refus d'un fichier étranger, aller-retour complet en navigateur).
 
+**Complété le 05/09/2026** (demande directe de l'utilisateur : « gérer le foyer dans sa globalité »,
+le nommer/éditer/supprimer, la suppression revenant à effacer toutes les données comptables) :
+- **Nom du foyer** : réglage libre et partagé (`preferences_service.lire_nom_foyer`/`enregistrer_nom_foyer`,
+  clé `foyer_nom` dans `UserParametre`, sous `id_foyer` — pas de migration Alembic nécessaire), éditable
+  par le propriétaire (`PATCH /api/auth/foyer`), visible par tout le foyer (`UserOut.foyer_nom`, comme
+  `onboarding_termine`). Carte dédiée `FoyerCard.tsx` (Réglages, onglet Général).
+- **Remise à zéro complète des données** (`POST /api/donnees/effacer`) : nouvelle fonction
+  `donnees_service.reinitialiser_foyer`, qui réutilise `_supprimer_donnees_du_foyer` (déjà au cœur de
+  l'import-remplacement de Y.1, donc déjà verrouillée par ses 23 tests) et y ajoute explicitement
+  `LienPartage`/`PerimetreInvite` — deux tables volontairement exclues de `TABLES` (sensibles/propres à
+  l'instance) mais qui restent des données du foyer à effacer pour une remise à zéro réelle. Sans ce
+  nettoyage, un id de détenteur/compte réutilisé par SQLite après une suppression totale aurait pu faire
+  pointer un vieux lien de partage ou périmètre d'invité vers une donnée totalement différente créée
+  ensuite — cas limite identifié à l'exploration, verrouillé par un test dédié
+  (`test_reinitialiser_foyer_efface_les_perimetres_invites_et_resiste_a_la_reutilisation_dun_id`).
+  Décisions arbitrées avec l'utilisateur : **périmètre = données comptables uniquement**, aucun compte
+  utilisateur (propriétaire/membre/invité) supprimé ; **pas de sauvegarde forcée**, une confirmation
+  forte suffit — la phrase à taper exactement est le nom du foyer s'il est défini, sinon `"SUPPRIMER"`
+  (vérifiée côté serveur, jamais confiance à la seule confirmation IHM), même principe que la
+  confirmation par nom avant suppression d'un dépôt GitHub. Effet de bord assumé (pas contourné) :
+  `UserParametre` fait partie de `TABLES`, donc la remise à zéro efface aussi `budget_categories_initialisees`
+  (les catégories par défaut seront re-semées au prochain besoin, correct) et `onboarding_termine` **du
+  propriétaire** (l'assistant de bienvenue réapparaîtra à sa prochaine connexion — cohérent avec
+  « repartir à zéro »).
+
+  **Écarté après investigation**, à la demande initiale de l'utilisateur — transfert de propriété
+  (désigner un nouveau propriétaire depuis le sélecteur de rôle de sa propre ligne, cf. § 2.L.2) : rôle
+  et `owner_user_id` ne sont pas les seules choses à basculer, 16 tables ancrent les données au foyer via
+  un `user_id` qui pointe en dur vers l'id du propriétaire d'origine, jamais recalculé. Un vrai transfert
+  exigerait de ré-ancrer ces 16 tables en une transaction atomique — projet à part entière, pas un effet
+  de bord d'un sélecteur de rôle. Reporté, à cadrer séparément si le besoin se confirme.
+
+  **Tests** : `test_preferences_service.py` (nom du foyer), `test_auth_router.py` (endpoint de
+  renommage, visibilité partagée, réservé au propriétaire), 12 nouveaux tests dans
+  `test_donnees_export_import.py` (remise à zéro, isolation entre foyers, préservation des comptes
+  utilisateurs, liens de partage et périmètres d'invités effacés, cas limite de réutilisation d'id),
+  `FoyerCard.test.tsx` (nouveau) et 7 tests ajoutés à `SauvegardeDonneesCard.test.tsx` (phrase de
+  confirmation affichée dynamiquement, bouton verrouillé tant que la saisie ne correspond pas, annulation
+  sans effet). E2E (`reglages.spec.ts`) : renommage persistant après rechargement, et mécanique de
+  confirmation vérifiée en conditions réelles **sans jamais déclencher le wipe** (base E2E partagée par
+  toute la suite).
+
 #### Y.2 — `majeur` · `S` · `P0` · `traité` (02/09/2026) — Bug : la sauvegarde planifiée ciblait la mauvaise base
 
 Question de l'utilisateur en suite de Y.1 : « au niveau des sauvegardes régulières, comment ça se passe

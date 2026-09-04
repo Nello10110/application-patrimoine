@@ -13,6 +13,7 @@ from ..models import ROLE_PROPRIETAIRE, AccessLogEntry, AuthToken, Detenteur, Pe
 from ..schemas import (
     AccessLogEntryOut,
     AuthResponse,
+    FoyerNomUpdate,
     HouseholdMemberCreate,
     HouseholdMemberOut,
     HouseholdMemberUpdate,
@@ -49,6 +50,7 @@ def _user_out(db: Session, user: User) -> UserOut:
     # membre voit donc le même compteur que le propriétaire (même écran de
     # rattrapage, cf. `comptes_service.compter_holdings_sans_compte`).
     sortie.holdings_sans_compte = comptes_service.compter_holdings_sans_compte(db, auth_service.id_foyer(user))
+    sortie.foyer_nom = preferences_service.lire_nom_foyer(db, auth_service.id_foyer(user))
     return sortie
 
 
@@ -174,6 +176,19 @@ def logout(
 
 @router.get("/me", response_model=UserOut)
 def me(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return _user_out(db, current_user)
+
+
+@router.patch("/foyer", response_model=UserOut)
+def renommer_foyer(
+    payload: FoyerNomUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
+):
+    """Nom libre du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité) —
+    réservé au propriétaire comme les autres actions d'administration du foyer
+    (comptes du foyer, export/import/remise à zéro des données)."""
+    preferences_service.enregistrer_nom_foyer(db, auth_service.id_foyer(current_user), payload.nom)
     return _user_out(db, current_user)
 
 

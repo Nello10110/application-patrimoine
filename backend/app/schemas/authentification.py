@@ -58,6 +58,12 @@ class UserOut(BaseModel):
     # rattrapage plutôt que l'application (sauf pour un `invite`, lecture seule, qui
     # ne peut rien y corriger).
     holdings_sans_compte: int = 0
+    # Nom libre du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité) :
+    # pas une colonne de `User`, calculé depuis
+    # `preferences_service.lire_nom_foyer` et posé explicitement par
+    # `routers/auth.py` — même patron que `onboarding_termine` ci-dessus. `None`
+    # tant qu'aucun nom n'a été renseigné.
+    foyer_nom: str | None = None
 
 
 class AuthResponse(BaseModel):
@@ -177,4 +183,19 @@ class HouseholdMemberUpdate(BaseModel):
         v = v.strip()
         if not (2 <= len(v) <= 32):
             raise ValueError(MESSAGE_NOM_UTILISATEUR_INVALIDE)
+        return v
+
+
+MESSAGE_NOM_FOYER_INVALIDE = "Le nom du foyer doit contenir entre 1 et 60 caractères."
+
+
+class FoyerNomUpdate(BaseModel):
+    nom: str
+
+    @field_validator("nom")
+    @classmethod
+    def _valider_nom(cls, v: str) -> str:
+        v = v.strip()
+        if not (1 <= len(v) <= 60):
+            raise ValueError(MESSAGE_NOM_FOYER_INVALIDE)
         return v

@@ -19,6 +19,11 @@ export interface AuthUser {
   // ligne financière) : tant que > 0, `App.tsx` affiche `RattrapageComptes` plutôt
   // que l'application (sauf pour un `invite`, lecture seule).
   holdings_sans_compte: number
+  // Nom libre du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité) —
+  // `null` tant qu'aucun nom n'a été renseigné. Réglage partagé par tout le foyer
+  // (propriétaire, membres, invités voient tous le même), éditable par le
+  // propriétaire seul (`PATCH /auth/foyer`).
+  foyer_nom?: string | null
 }
 
 export interface AuthResponse {

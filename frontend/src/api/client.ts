@@ -158,6 +158,8 @@ export const api = {
   getMe: () => request<AuthUser>('/auth/me'),
   completeOnboarding: () => request<AuthUser>('/auth/onboarding/terminer', { method: 'POST' }),
   getOidcStatus: () => request<OidcStatus>('/auth/oidc/status'),
+  // Nom du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité).
+  updateFoyerNom: (nom: string) => request<AuthUser>('/auth/foyer', { method: 'PATCH', body: JSON.stringify({ nom }) }),
 
   // Sessions et journal d'accès (backlog 2.L.2).
   listSessions: () => request<Session[]>('/auth/sessions'),
@@ -348,6 +350,10 @@ export const api = {
     form.append('file', fichier)
     return request<{ ok: boolean; contenu: Record<string, number> }>('/donnees/import', { method: 'POST', body: form })
   },
+  // Remise à zéro complète du foyer (revue du 05/09/2026) — `confirmation` doit
+  // correspondre exactement au nom du foyer, ou à "SUPPRIMER" si aucun nom n'est
+  // défini (vérifié côté serveur, cf. `routers/donnees.py::effacer`).
+  effacerFoyer: (confirmation: string) => request<{ ok: boolean }>('/donnees/effacer', { method: 'POST', body: JSON.stringify({ confirmation }) }),
 
   // Personnes/sociétés du foyer et quotités (backlog 2.L.1).
   listDetenteurs: () => request<Detenteur[]>('/detenteurs'),

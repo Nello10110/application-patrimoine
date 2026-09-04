@@ -34,6 +34,7 @@ foyer contient exactement le contenu du fichier.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
@@ -53,11 +54,13 @@ from ..models import (
     Holding,
     HoldingImmobilierDetail,
     HoldingValuationHistory,
+    LienPartage,
     Loan,
     MouvementBancaire,
     Objectif,
     ObjectifActif,
     ObjectifContributeur,
+    PerimetreInvite,
     QuotiteHolding,
     QuotiteLoan,
     RegleCategorisation,
@@ -281,6 +284,39 @@ def _supprimer_donnees_du_foyer(db: Session, user_id: int) -> None:
             if ids:
                 db.query(modele).filter(getattr(modele, table.scope_par).in_(ids)).delete(synchronize_session=False)
     db.flush()
+
+
+def reinitialiser_foyer(db: Session, user_id: int, ids_comptes_foyer: Sequence[int]) -> None:
+    """Remise à zéro complète et destructrice du foyer (revue du 05/09/2026, demande
+    directe de l'utilisateur) — TOUT le patrimoine (`_supprimer_donnees_du_foyer`,
+    donc `TABLES`) PLUS `LienPartage`/`PerimetreInvite`, deux tables volontairement
+    exclues de `TABLES` (export/import, sensibles/propres à l'instance, cf. docstring
+    de module) mais qui restent des données du foyer à part entière pour une remise
+    à zéro : sans ce nettoyage, un id de détenteur/compte réutilisé par SQLite après
+    une suppression totale (pas d'`AUTOINCREMENT` explicite sur ces tables) ferait
+    courir le risque qu'un vieux lien de partage public ou périmètre d'invité pointe
+    silencieusement vers une donnée totalement différente créée plus tard.
+
+    `ids_comptes_foyer` : tous les comptes utilisateurs du foyer (propriétaire +
+    membres/invités) — `PerimetreInvite.user_id` est le compte de l'invité lui-même,
+    jamais l'ancre du foyer (`id_foyer`), contrairement à toutes les autres tables
+    ici.
+
+    Ne touche JAMAIS `users`/`auth_tokens`/`access_log_entries` : les comptes
+    utilisateurs et le journal d'accès survivent à une remise à zéro des données,
+    par décision explicite de l'utilisateur (seules les données comptables sont
+    effacées)."""
+    try:
+        _supprimer_donnees_du_foyer(db, user_id)
+        db.query(LienPartage).filter(LienPartage.user_id == user_id).delete(synchronize_session=False)
+        if ids_comptes_foyer:
+            db.query(PerimetreInvite).filter(PerimetreInvite.user_id.in_(ids_comptes_foyer)).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("remise a zero du foyer annulee (foyer %s)", user_id)
+        raise
+    logger.info("foyer %s remis a zero", user_id)
 
 
 class ValeurInvalideError(ValueError):

@@ -25,6 +25,7 @@ from .authentification import (  # noqa: F401
     MESSAGE_NOM_UTILISATEUR_INVALIDE,
     AccessLogEntryOut,
     AuthResponse,
+    FoyerNomUpdate,
     HouseholdMemberCreate,
     HouseholdMemberOut,
     HouseholdMemberUpdate,
@@ -81,6 +82,9 @@ from .detenteurs import (  # noqa: F401
     QuotiteDetenteurItem,
     QuotiteEntree,
     QuotitesUpdate,
+)
+from .donnees import (  # noqa: F401
+    EffacerFoyerRequest,
 )
 from .donnees_marche import (  # noqa: F401
     EtatRafraichissement,

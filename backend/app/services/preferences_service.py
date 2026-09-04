@@ -21,6 +21,7 @@ _CLE_METHODE_COUT = "methode_cout"
 _CLE_BUDGET_CATEGORIES_INITIALISEES = "budget_categories_initialisees"
 _CLE_TAUX_IMPOSITION_PCT = "taux_imposition_pct"
 _CLE_ONBOARDING_TERMINE = "onboarding_termine"
+_CLE_FOYER_NOM = "foyer_nom"
 
 # Méthode de calcul du coût de revient (LOT 5.6) : coût moyen pondéré (défaut
 # historique, comportement inchangé) ou FIFO (premier entré, premier sorti), cf.
@@ -94,6 +95,19 @@ def onboarding_termine(db: Session, user_id: int) -> bool:
 def marquer_onboarding_termine(db: Session, user_id: int) -> None:
     if not onboarding_termine(db, user_id):
         _ecrire_valeur_brute(db, _CLE_ONBOARDING_TERMINE, user_id, "1")
+
+
+def lire_nom_foyer(db: Session, user_id: int) -> str | None:
+    """Nom libre donné au foyer (revue du 05/09/2026, gestion du foyer dans sa
+    globalité) — réglage PARTAGÉ du foyer (`id_foyer(current_user)`, comme
+    `methode_cout`), pas propre à chaque compte comme `onboarding_termine`. `None`
+    tant qu'il n'a jamais été renseigné."""
+    return _lire_valeur_brute(db, _CLE_FOYER_NOM, user_id)
+
+
+def enregistrer_nom_foyer(db: Session, user_id: int, nom: str) -> None:
+    _ecrire_valeur_brute(db, _CLE_FOYER_NOM, user_id, nom)
+    db.commit()
 
 
 def lire_preferences(db: Session, user_id: int) -> dict:

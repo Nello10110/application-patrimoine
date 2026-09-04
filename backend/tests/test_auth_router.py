@@ -827,3 +827,68 @@ def test_renommer_le_proprietaire_lui_meme_renvoie_404(client_reel):
     )
 
     assert reponse.status_code == 404
+
+
+# --- Nom du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité) -------
+
+
+def test_renommer_le_foyer_fonctionne_et_se_reflete_sur_me(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+
+    reponse = client_reel.patch("/api/auth/foyer", json={"nom": "Famille Dupont"}, headers=entete)
+
+    assert reponse.status_code == 200
+    assert reponse.json()["foyer_nom"] == "Famille Dupont"
+    assert client_reel.get("/api/auth/me", headers=entete).json()["foyer_nom"] == "Famille Dupont"
+
+
+def test_renommer_le_foyer_vide_est_refuse(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+
+    reponse = client_reel.patch("/api/auth/foyer", json={"nom": "   "}, headers={"Authorization": f"Bearer {token_paul}"})
+
+    assert reponse.status_code == 400
+
+
+def test_renommer_le_foyer_trop_long_est_refuse(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+
+    reponse = client_reel.patch(
+        "/api/auth/foyer", json={"nom": "x" * 61}, headers={"Authorization": f"Bearer {token_paul}"}
+    )
+
+    assert reponse.status_code == 400
+
+
+def test_renommer_le_foyer_refuse_a_un_non_proprietaire(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_paul}"},
+    )
+    token_membre = client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mot-de-passe-solide"}).json()["token"]
+
+    reponse = client_reel.patch(
+        "/api/auth/foyer", json={"nom": "Nouveau nom"}, headers={"Authorization": f"Bearer {token_membre}"}
+    )
+
+    assert reponse.status_code == 403
+
+
+def test_le_nom_du_foyer_est_visible_par_un_membre_du_foyer(client_reel):
+    # Réglage PARTAGÉ du foyer (stocké sous `id_foyer`, pas par compte) : un membre
+    # doit voir le même nom que le propriétaire, même s'il ne peut pas le modifier.
+    token_paul = _inscrire(client_reel).json()["token"]
+    client_reel.patch("/api/auth/foyer", json={"nom": "Famille Dupont"}, headers={"Authorization": f"Bearer {token_paul}"})
+    client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers={"Authorization": f"Bearer {token_paul}"},
+    )
+    token_membre = client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mot-de-passe-solide"}).json()["token"]
+
+    reponse = client_reel.get("/api/auth/me", headers={"Authorization": f"Bearer {token_membre}"})
+
+    assert reponse.json()["foyer_nom"] == "Famille Dupont"

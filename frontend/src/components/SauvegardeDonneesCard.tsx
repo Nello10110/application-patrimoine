@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { ApercuImportDonnees } from '../api/types'
+import { useAuth } from '../hooks/useAuth'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import Modale from './Modale'
@@ -44,6 +45,7 @@ function libelle(table: string): string {
  * l'existant — le laisser se déclencher au simple choix d'un fichier serait une
  * faute d'ergonomie sur une action de cette portée. */
 export default function SauvegardeDonneesCard() {
+  const { user } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
   const [fichier, setFichier] = useState<File | null>(null)
   const [apercu, setApercu] = useState<ApercuImportDonnees | null>(null)
@@ -51,6 +53,15 @@ export default function SauvegardeDonneesCard() {
   const [importEnCours, setImportEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [succes, setSucces] = useState<string | null>(null)
+
+  // Remise à zéro complète du foyer (revue du 05/09/2026) : confirmation par saisie
+  // de texte exacte, jamais un simple clic — la phrase attendue est le nom du foyer
+  // s'il est défini, sinon "SUPPRIMER" (même vérification côté serveur, cf.
+  // `routers/donnees.py::effacer` — jamais confiance à la seule confirmation IHM).
+  const phraseAttendue = user?.foyer_nom || 'SUPPRIMER'
+  const [wipeOuverte, setWipeOuverte] = useState(false)
+  const [confirmationSaisie, setConfirmationSaisie] = useState('')
+  const [wipeEnCours, setWipeEnCours] = useState(false)
 
   /** Remet le choix de fichier à zéro (ferme la confirmation, vide le champ) SANS
    * toucher au message d'erreur : cette fonction est appelée depuis les `catch`,
@@ -116,6 +127,25 @@ export default function SauvegardeDonneesCard() {
     }
   }
 
+  async function confirmerEffacement() {
+    if (confirmationSaisie !== phraseAttendue) return
+    setWipeEnCours(true)
+    setErreur(null)
+    try {
+      await api.effacerFoyer(confirmationSaisie)
+      // La remise à zéro touche quasiment tous les écrans (patrimoine, budget,
+      // objectifs, comptes...) — un rechargement complet est plus sûr que de
+      // propager un callback de rafraîchissement à travers tout l'arbre de
+      // composants. L'assistant de bienvenue réapparaîtra (son drapeau est lui
+      // aussi une donnée du foyer désormais effacée) : c'est cohérent avec "repartir
+      // à zéro", pas une anomalie.
+      window.location.reload()
+    } catch (err) {
+      setErreur((err as Error).message)
+      setWipeEnCours(false)
+    }
+  }
+
   return (
     <Card title="Sauvegarde complète des données">
       <p className="mb-4 text-sm text-texte">
@@ -153,6 +183,22 @@ export default function SauvegardeDonneesCard() {
           className="block w-full text-sm text-texte file:mr-3 file:rounded-md file:border-0 file:bg-surface-elevee file:px-4 file:py-2 file:text-sm file:font-medium file:text-texte"
         />
         {analyse && <p className="mt-2 text-sm text-texte-attenue">Analyse du fichier…</p>}
+      </div>
+
+      <div className="mt-6 border-t border-bordure pt-4">
+        <p className="mb-1 text-sm font-medium text-texte">Réinitialiser le foyer</p>
+        <p className="mb-3 text-sm text-texte-attenue">
+          Efface <span className="font-medium text-negatif">définitivement</span> tout le patrimoine du foyer
+          (comptes, établissements, positions, transactions, emprunts, budget, objectifs...) et les liens de partage.
+          Les comptes du foyer (propriétaire, membres, invités) ne sont, eux, jamais supprimés.
+        </p>
+        <button
+          type="button"
+          onClick={() => setWipeOuverte(true)}
+          className="rounded-md border border-negatif px-4 py-2 text-sm font-medium text-negatif"
+        >
+          Réinitialiser le foyer
+        </button>
       </div>
 
       {succes && <p className="mt-3 text-sm text-positif">{succes}</p>}
@@ -196,6 +242,62 @@ export default function SauvegardeDonneesCard() {
                   className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {importEnCours ? 'Import en cours…' : 'Remplacer mes données'}
+                </button>
+              </div>
+            </>
+          )}
+        </Modale>
+      )}
+
+      {wipeOuverte && (
+        <Modale
+          onClose={() => {
+            setWipeOuverte(false)
+            setConfirmationSaisie('')
+          }}
+          panelClassName="w-full max-w-md rounded-xl bg-surface p-6 shadow-xl"
+        >
+          {({ titleId }) => (
+            <>
+              <h2 id={titleId} className="text-lg font-semibold text-texte">
+                Réinitialiser le foyer ?
+              </h2>
+              <p className="mt-2 text-sm text-texte">
+                Seront effacés : tout le patrimoine (comptes, établissements, positions, transactions, immobilier,
+                emprunts, budget, objectifs, salaires) et les liens de partage.
+              </p>
+              <p className="mt-2 text-sm text-texte">
+                Ne seront <span className="font-medium text-texte">pas</span> touchés : les comptes du foyer
+                (propriétaire, membres, invités) et le journal d'accès.
+              </p>
+              <p className="mt-3 text-sm text-negatif">Cette action est irréversible.</p>
+              <label className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+                Pour confirmer, tapez exactement « {phraseAttendue} » ci-dessous
+                <input
+                  value={confirmationSaisie}
+                  onChange={(e) => setConfirmationSaisie(e.target.value)}
+                  aria-label="Confirmation de la réinitialisation du foyer"
+                  autoComplete="off"
+                  className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                />
+              </label>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setWipeOuverte(false)
+                    setConfirmationSaisie('')
+                  }}
+                  disabled={wipeEnCours}
+                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmerEffacement}
+                  disabled={wipeEnCours || confirmationSaisie !== phraseAttendue}
+                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                >
+                  {wipeEnCours ? 'Réinitialisation en cours…' : 'Réinitialiser définitivement'}
                 </button>
               </div>
             </>

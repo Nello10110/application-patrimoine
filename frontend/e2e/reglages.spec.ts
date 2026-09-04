@@ -67,6 +67,50 @@ test.describe('Réglages', () => {
     await expect(page.getByText('Coût moyen pondéré')).toBeVisible()
   })
 
+  // Gestion du foyer dans sa globalité (revue du 05/09/2026, demande directe de
+  // l'utilisateur) : nommage, et mécanique de confirmation avant remise à zéro.
+  test('onglet Général : renommer le foyer persiste après rechargement', async ({ page }) => {
+    const nomFoyer = `Foyer E2E ${Date.now().toString().slice(-6)}`
+    const champNom = page.getByLabel('Nom du foyer')
+    await champNom.fill(nomFoyer)
+    await page.getByRole('button', { name: 'Enregistrer' }).click()
+
+    await expect(page.getByText('Nom enregistré.')).toBeVisible()
+
+    await page.reload()
+    await expect(page.getByLabel('Nom du foyer')).toHaveValue(nomFoyer)
+  })
+
+  test('onglet Général : la réinitialisation du foyer exige la phrase de confirmation exacte, jamais confirmée ici', async ({ page }) => {
+    // Ne clique JAMAIS sur la confirmation finale : la base E2E est partagée par
+    // toute la suite, un vrai wipe la détruirait pour les tests suivants. Seule la
+    // MÉCANIQUE de confirmation est vérifiée ici.
+    await page.getByRole('button', { name: 'Réinitialiser le foyer' }).click()
+    const modale = page.getByRole('dialog', { name: 'Réinitialiser le foyer ?' })
+    await expect(modale).toBeVisible()
+
+    // La phrase attendue (nom du foyer déjà défini, ou "SUPPRIMER" sinon) est
+    // affichée en clair dans la modale — on la lit plutôt que de la deviner, pour
+    // que ce test reste correct quel que soit l'état du nom du foyer sur cette
+    // instance (potentiellement déjà nommé par le test précédent, ou par un autre).
+    const texteConsigne = await modale.getByText(/tapez exactement/).textContent()
+    const phrase = texteConsigne?.match(/« (.+) »/)?.[1]
+    expect(phrase).toBeTruthy()
+
+    const champConfirmation = modale.getByLabel('Confirmation de la réinitialisation du foyer')
+    const boutonConfirmer = modale.getByRole('button', { name: 'Réinitialiser définitivement' })
+    await expect(boutonConfirmer).toBeDisabled()
+
+    await champConfirmation.fill('une phrase manifestement incorrecte')
+    await expect(boutonConfirmer).toBeDisabled()
+
+    await champConfirmation.fill(phrase!)
+    await expect(boutonConfirmer).toBeEnabled()
+
+    await modale.getByRole('button', { name: 'Annuler' }).click()
+    await expect(modale).not.toBeVisible()
+  })
+
   // Assistant de configuration initiale (welcome board) : le compte seedé a déjà
   // `onboarding_termine=true` (cf. `backend/scripts/seed_e2e.py`), donc jamais vu au
   // chargement — ce test couvre uniquement le rejeu depuis Réglages, en conditions

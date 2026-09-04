@@ -20,7 +20,8 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
-from ..services import auth_service, donnees_service, historique_cache
+from ..schemas import EffacerFoyerRequest
+from ..services import auth_service, donnees_service, historique_cache, preferences_service
 
 router = APIRouter(prefix="/api/donnees", tags=["donnees"])
 
@@ -28,6 +29,10 @@ router = APIRouter(prefix="/api/donnees", tags=["donnees"])
 # lignes de patrimoine, pas des pièces jointes). Ce plafond écarte surtout l'envoi
 # accidentel d'un fichier sans rapport, avant même de tenter de le désérialiser.
 TAILLE_MAX_IMPORT = 50 * 1024 * 1024
+
+# Phrase à taper pour confirmer une remise à zéro complète du foyer, quand aucun nom
+# de foyer n'a été renseigné (cf. `effacer` ci-dessous) — sinon, le nom du foyer lui-même.
+PHRASE_CONFIRMATION_PAR_DEFAUT = "SUPPRIMER"
 
 
 @router.get("/export")
@@ -82,6 +87,37 @@ async def importer(
     # Les historiques mis en cache décrivent un patrimoine qui n'existe plus.
     historique_cache.invalider_historiques_patrimoine(db)
     return {"ok": True, "contenu": contenu}
+
+
+@router.post("/effacer")
+def effacer(
+    payload: EffacerFoyerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remise à zéro COMPLÈTE et destructrice du foyer (revue du 05/09/2026, demande
+    directe de l'utilisateur) : efface tout le patrimoine (comme un import qui
+    n'importerait rien derrière, cf. `donnees_service.reinitialiser_foyer`) — jamais
+    les comptes utilisateurs du foyer (propriétaire/membres/invités), qui restent
+    connectables et vides ensuite.
+
+    Confirmation exigée dans le corps de la requête (`confirmation`), vérifiée ici
+    plutôt que de faire confiance à la seule confirmation côté IHM (`Modale.tsx`) :
+    le nom du foyer s'il est renseigné, sinon le mot `PHRASE_CONFIRMATION_PAR_DEFAUT`
+    — même principe que la confirmation par nom avant suppression d'un dépôt GitHub.
+    """
+    user_id = auth_service.id_foyer(current_user)
+    attendu = preferences_service.lire_nom_foyer(db, user_id) or PHRASE_CONFIRMATION_PAR_DEFAUT
+    if payload.confirmation.strip() != attendu:
+        raise HTTPException(status_code=400, detail=f"Confirmation incorrecte. Tapez exactement « {attendu} » pour confirmer.")
+
+    ids_comptes_foyer = [
+        ligne.id for ligne in db.query(User.id).filter((User.id == user_id) | (User.owner_user_id == user_id)).all()
+    ]
+    donnees_service.reinitialiser_foyer(db, user_id, ids_comptes_foyer)
+    # Les historiques mis en cache décrivent un patrimoine qui n'existe plus.
+    historique_cache.invalider_historiques_patrimoine(db)
+    return {"ok": True}
 
 
 async def _lire_document(file: UploadFile) -> dict:

@@ -62,6 +62,10 @@ vi.mock('../api/client', () => ({
     deleteCompte: vi.fn(),
     getPreferences: vi.fn().mockResolvedValue({ methode_cout: 'cout_moyen_pondere', taux_imposition_pct: null }),
     updatePreferences: vi.fn(),
+    // Nom du foyer / réinitialisation du foyer (revue du 05/09/2026) : hors de
+    // l'objet des blocs de ce fichier, stubs neutres par défaut.
+    updateFoyerNom: vi.fn(),
+    effacerFoyer: vi.fn(),
     listJobs: vi.fn().mockResolvedValue([]),
     // Déclaration de patrimoine (backlog 2.Q.2) : hors de l'objet des autres blocs
     // de ce fichier, stubs neutres par défaut.

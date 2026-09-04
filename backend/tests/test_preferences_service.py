@@ -79,3 +79,24 @@ def test_les_preferences_de_deux_comptes_ne_se_melangent_pas(db):
         "methode_cout": "cout_moyen_pondere",
         "taux_imposition_pct": None,
     }
+
+
+# --- Nom du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité) -------
+
+
+def test_lire_nom_foyer_none_sur_foyer_neuf(db):
+    assert preferences_service.lire_nom_foyer(db, ID_UTILISATEUR_TEST) is None
+
+
+def test_enregistrer_puis_relire_le_nom_du_foyer(db):
+    preferences_service.enregistrer_nom_foyer(db, ID_UTILISATEUR_TEST, "Famille Dupont")
+
+    assert preferences_service.lire_nom_foyer(db, ID_UTILISATEUR_TEST) == "Famille Dupont"
+
+
+def test_enregistrer_le_nom_du_foyer_ecrase_une_valeur_deja_presente(db):
+    preferences_service.enregistrer_nom_foyer(db, ID_UTILISATEUR_TEST, "Ancien nom")
+    preferences_service.enregistrer_nom_foyer(db, ID_UTILISATEUR_TEST, "Nouveau nom")
+
+    assert preferences_service.lire_nom_foyer(db, ID_UTILISATEUR_TEST) == "Nouveau nom"
+    assert db.query(UserParametre).filter(UserParametre.user_id == ID_UTILISATEUR_TEST, UserParametre.cle == "foyer_nom").count() == 1
