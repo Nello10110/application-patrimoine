@@ -1,8 +1,8 @@
 """Connexion SSO via un fournisseur OIDC (backlog SSO) — pas lié à une stack
 particulière : le fournisseur (Authentik, Keycloak, Zitadel, Okta...) est entièrement
-configuré depuis Réglages, jamais codé en dur dans ce module. L'utilisateur de ce
-déploiement utilise Authentik en pratique (mentionné ici et dans la documentation à
-titre d'exemple concret), mais rien dans ce code ne le suppose.
+configuré par variables d'environnement, jamais codé en dur dans ce module.
+L'utilisateur de ce déploiement utilise Authentik en pratique (mentionné ici et dans
+la documentation à titre d'exemple concret), mais rien dans ce code ne le suppose.
 
 Point de sécurité central de ce module, à ne jamais perdre de vue : il ne fait
 JAMAIS confiance à un en-tête envoyé par un proxy (`X-authentik-*`/`X-forwarded-*`
@@ -14,17 +14,20 @@ navigateur) : l'échange du code d'autorisation contre un jeton d'accès, puis l
 `userinfo` avec ce jeton. Retirer un éventuel proxy en amont n'a donc aucun effet sur
 la sécurité de ce flux.
 
-Configuration administrable depuis Réglages (propriétaire), stockée dans la table
-générique `Parametre` — sauf le `client_secret`, chiffré au repos (Fernet) avec une
-clé qui, elle, reste en variable d'environnement (`PATRIMOINE_SECRET_KEY`) : jamais
-le secret en clair dans le fichier SQLite (sauvegardes comprises). Même principe que
-`services/backup_service.py` (`PATRIMOINE_BACKUP_KEY`), à qui ce module emprunte son
-patron de chiffrement — clé volontairement distincte de celle des sauvegardes
-(séparation des clés, la compromission de l'une ne doit pas compromettre l'autre).
+Configuration entièrement portée par des variables d'environnement (`PATRIMOINE_OIDC_*`,
+posées dans le `.env`/`compose` de l'exploitant — cf. docs/MANUEL_EXPLOITATION.md
+§12.1) — pas par une interface d'administration en base : un `client_secret` qui ne
+vit jamais qu'en variable d'environnement n'a pas besoin d'être chiffré au repos,
+contrairement à un secret stocké en base de données. Toute modification exige un
+redémarrage du backend (les variables d'environnement ne sont lues qu'à l'appel, mais
+un process Docker ne les recharge qu'au redémarrage).
 
-Pas de nouvelle dépendance (`requests`/`cryptography` sont déjà présentes) : PKCE et
-la signature du `state` anti-CSRF utilisent `hashlib`/`hmac`/`secrets`/`base64` de la
-bibliothèque standard, cohérent avec la philosophie déjà appliquée dans ce projet.
+Pas de nouvelle dépendance (`requests` est déjà présente) : PKCE et la signature du
+`state` anti-CSRF utilisent `hashlib`/`hmac`/`secrets`/`base64` de la bibliothèque
+standard, cohérent avec la philosophie déjà appliquée dans ce projet. La clé HMAC qui
+signe le `state` est dérivée du `client_secret` OIDC lui-même (déjà un secret fort,
+jamais transmis au navigateur, disponible partout où `OidcConfig` l'est) — pas besoin
+d'une variable d'environnement dédiée à cette seule fin.
 """
 
 import base64
@@ -37,37 +40,38 @@ from dataclasses import dataclass
 from urllib.parse import urlencode
 
 import requests
-from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.orm import Session
 
-from ..models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, Parametre, User
-from . import auth_service, cles_chiffrement
+from ..models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, User
+from . import auth_service
 
-CLE_ISSUER = "oidc_issuer"
-CLE_CLIENT_ID = "oidc_client_id"
-CLE_CLIENT_SECRET_CHIFFRE = "oidc_client_secret_chiffre"
-CLE_REDIRECT_URI = "oidc_redirect_uri"
-CLE_FRONTEND_URL = "oidc_frontend_url"
-CLE_ENABLED = "oidc_config_enabled"
-CLE_DISPLAY_NAME = "oidc_display_name"
-CLE_CLAIM_USERNAME = "oidc_claim_username"
-CLE_CLAIM_EMAIL = "oidc_claim_email"
-CLE_CLAIM_NOM = "oidc_claim_nom"
-CLES_TEXTE = (CLE_ISSUER, CLE_CLIENT_ID, CLE_REDIRECT_URI, CLE_FRONTEND_URL)
-# Clés facultatives : jamais requises pour qu'une configuration soit "complète"
-# (`charger_config`), toujours lues avec un repli sensé si absentes.
-CLES_FACULTATIVES = (CLE_ENABLED, CLE_DISPLAY_NAME, CLE_CLAIM_USERNAME, CLE_CLAIM_EMAIL, CLE_CLAIM_NOM)
-TOUTES_LES_CLES = CLES_TEXTE + CLES_FACULTATIVES + (CLE_CLIENT_SECRET_CHIFFRE,)
-
-VARIABLE_CLE_CHIFFREMENT = "PATRIMOINE_SECRET_KEY"
+VARIABLE_ENABLED = "PATRIMOINE_OIDC_ENABLED"
+VARIABLE_ISSUER = "PATRIMOINE_OIDC_ISSUER"
+VARIABLE_CLIENT_ID = "PATRIMOINE_OIDC_CLIENT_ID"
+VARIABLE_CLIENT_SECRET = "PATRIMOINE_OIDC_CLIENT_SECRET"
+VARIABLE_REDIRECT_URI = "PATRIMOINE_OIDC_REDIRECT_URI"
+VARIABLE_FRONTEND_URL = "PATRIMOINE_OIDC_FRONTEND_URL"
+VARIABLE_DISPLAY_NAME = "PATRIMOINE_OIDC_DISPLAY_NAME"
+VARIABLE_CLAIM_USERNAME = "PATRIMOINE_OIDC_CLAIM_USERNAME"
+VARIABLE_CLAIM_EMAIL = "PATRIMOINE_OIDC_CLAIM_EMAIL"
+VARIABLE_CLAIM_NOM = "PATRIMOINE_OIDC_CLAIM_NOM"
+# Obligatoires si `VARIABLE_ENABLED` vaut vrai — une seule manquante désactive tout
+# le flux (cf. `charger_config`), sans exception.
+VARIABLES_OBLIGATOIRES = (
+    VARIABLE_ISSUER,
+    VARIABLE_CLIENT_ID,
+    VARIABLE_CLIENT_SECRET,
+    VARIABLE_REDIRECT_URI,
+    VARIABLE_FRONTEND_URL,
+)
 
 STATE_TTL_SECONDES = 300  # 5 minutes : largement suffisant pour l'aller-retour vers le fournisseur SSO
 SCOPES = "openid profile email"
 
 DISPLAY_NAME_PAR_DEFAUT = "SSO"
 # Claims standard des scopes OIDC `profile`/`email` (déjà demandés ci-dessus) — repris
-# tels quels par la plupart des fournisseurs, personnalisables depuis Réglages si le
-# fournisseur utilisé s'en écarte.
+# tels quels par la plupart des fournisseurs, personnalisables par variable
+# d'environnement si le fournisseur utilisé s'en écarte.
 CLAIM_USERNAME_PAR_DEFAUT = "preferred_username"
 CLAIM_EMAIL_PAR_DEFAUT = "email"
 CLAIM_NOM_PAR_DEFAUT = "name"
@@ -80,32 +84,11 @@ class OidcError(Exception):
     déjà en français, sûr à renvoyer tel quel dans `?oidc_error=`)."""
 
 
-class CleChiffrementAbsenteError(RuntimeError):
-    """La variable d'environnement `PATRIMOINE_SECRET_KEY` n'est pas définie — cf.
-    `docs/MANUEL_EXPLOITATION.md` pour la génération et le déploiement de la clé."""
-
-
-def _fernet() -> Fernet:
-    # Même tolérance que pour la sauvegarde chiffrée (backlog Y.3, cf.
-    # `cles_chiffrement`) : une vraie clé Fernet est utilisée telle quelle (les
-    # secrets déjà chiffrés restent déchiffrables), toute phrase secrète assez
-    # longue est dérivée. `_cle_hmac` ci-dessous, elle, consomme la valeur BRUTE et
-    # reste donc indifférente au format.
-    cle = os.environ.get(VARIABLE_CLE_CHIFFREMENT)
-    if not cle:
-        raise CleChiffrementAbsenteError(f"{VARIABLE_CLE_CHIFFREMENT} non définie — voir docs/MANUEL_EXPLOITATION.md")
-    return cles_chiffrement.fernet_depuis(cle, nom_variable=VARIABLE_CLE_CHIFFREMENT)
-
-
-def cle_chiffrement_definie() -> bool:
-    return bool(os.environ.get(VARIABLE_CLE_CHIFFREMENT))
-
-
 @dataclass
 class OidcConfig:
     issuer: str
     client_id: str
-    client_secret: str  # déchiffré, jamais journalisé ni renvoyé par l'API
+    client_secret: str  # jamais journalisé ni renvoyé par l'API
     redirect_uri: str
     frontend_url: str
     display_name: str
@@ -114,127 +97,35 @@ class OidcConfig:
     claim_nom: str
 
 
-def _lire(db: Session, cle: str) -> str | None:
-    parametre = db.get(Parametre, cle)
-    return parametre.valeur if parametre else None
+def _active() -> bool:
+    return os.environ.get(VARIABLE_ENABLED, "").strip().lower() in ("1", "true")
 
 
-def _lire_avec_defaut(db: Session, cle: str, defaut: str) -> str:
-    return _lire(db, cle) or defaut
-
-
-def _lire_bool(db: Session, cle: str, defaut: bool) -> bool:
-    valeur = _lire(db, cle)
-    return defaut if valeur is None else valeur == "1"
-
-
-def _ecrire(db: Session, cle: str, valeur: str) -> None:
-    parametre = db.get(Parametre, cle)
-    if parametre is None:
-        db.add(Parametre(cle=cle, valeur=valeur))
-    else:
-        parametre.valeur = valeur
-    db.commit()
-
-
-def charger_config(db: Session) -> OidcConfig | None:
-    """`None` si un des 4 champs texte obligatoires manque, si aucun secret n'est
-    enregistré, si `PATRIMOINE_SECRET_KEY` est absente, si le déchiffrement échoue
-    (`InvalidToken` — ex. clé tournée depuis l'enregistrement), ou si la coche
-    « Activée » est décochée — désactiver revient, du point de vue de cette fonction
-    (et donc de `/oidc/status`/`/oidc/login`/`/oidc/callback`), exactement à une
-    configuration incomplète. Jamais d'exception propagée : cette fonction est
-    appelée par `GET /oidc/status`, public et sur le chemin critique de la page de
-    connexion."""
-    if not _lire_bool(db, CLE_ENABLED, True):
+def charger_config() -> OidcConfig | None:
+    """`None` si `PATRIMOINE_OIDC_ENABLED` n'est pas activée, ou si l'une des 5
+    variables obligatoires est absente — jamais d'exception propagée : cette
+    fonction est appelée par `GET /oidc/status`, public et sur le chemin critique de
+    la page de connexion."""
+    if not _active():
         return None
-    valeurs = {cle: _lire(db, cle) for cle in CLES_TEXTE}
-    if any(v is None for v in valeurs.values()):
-        return None
-    secret_chiffre = _lire(db, CLE_CLIENT_SECRET_CHIFFRE)
-    if secret_chiffre is None:
-        return None
-    try:
-        secret = _fernet().decrypt(secret_chiffre.encode("utf-8")).decode("utf-8")
-    except (CleChiffrementAbsenteError, InvalidToken):
+    valeurs = {var: os.environ.get(var) for var in VARIABLES_OBLIGATOIRES}
+    if any(not v for v in valeurs.values()):
         return None
     return OidcConfig(
-        issuer=valeurs[CLE_ISSUER],
-        client_id=valeurs[CLE_CLIENT_ID],
-        client_secret=secret,
-        redirect_uri=valeurs[CLE_REDIRECT_URI],
-        frontend_url=valeurs[CLE_FRONTEND_URL],
-        display_name=_lire_avec_defaut(db, CLE_DISPLAY_NAME, DISPLAY_NAME_PAR_DEFAUT),
-        claim_username=_lire_avec_defaut(db, CLE_CLAIM_USERNAME, CLAIM_USERNAME_PAR_DEFAUT),
-        claim_email=_lire_avec_defaut(db, CLE_CLAIM_EMAIL, CLAIM_EMAIL_PAR_DEFAUT),
-        claim_nom=_lire_avec_defaut(db, CLE_CLAIM_NOM, CLAIM_NOM_PAR_DEFAUT),
+        issuer=valeurs[VARIABLE_ISSUER],
+        client_id=valeurs[VARIABLE_CLIENT_ID],
+        client_secret=valeurs[VARIABLE_CLIENT_SECRET],
+        redirect_uri=valeurs[VARIABLE_REDIRECT_URI],
+        frontend_url=valeurs[VARIABLE_FRONTEND_URL],
+        display_name=os.environ.get(VARIABLE_DISPLAY_NAME, "").strip() or DISPLAY_NAME_PAR_DEFAUT,
+        claim_username=os.environ.get(VARIABLE_CLAIM_USERNAME, "").strip() or CLAIM_USERNAME_PAR_DEFAUT,
+        claim_email=os.environ.get(VARIABLE_CLAIM_EMAIL, "").strip() or CLAIM_EMAIL_PAR_DEFAUT,
+        claim_nom=os.environ.get(VARIABLE_CLAIM_NOM, "").strip() or CLAIM_NOM_PAR_DEFAUT,
     )
 
 
-def enabled(db: Session) -> bool:
-    return charger_config(db) is not None
-
-
-def config_admin(db: Session) -> dict:
-    """Les champs texte + indicateurs booléens — jamais le secret déchiffré, sous
-    aucune forme. `enabled` est lu indépendamment du garde de `charger_config`, pour
-    que la coche reflète toujours son état réel même quand elle est décochée (sinon
-    impossible de la recocher depuis Réglages). Pour `GET /oidc/config` (propriétaire)."""
-    return {
-        "issuer": _lire(db, CLE_ISSUER),
-        "client_id": _lire(db, CLE_CLIENT_ID),
-        "redirect_uri": _lire(db, CLE_REDIRECT_URI),
-        "frontend_url": _lire(db, CLE_FRONTEND_URL),
-        "secret_configure": _lire(db, CLE_CLIENT_SECRET_CHIFFRE) is not None,
-        "cle_chiffrement_definie": cle_chiffrement_definie(),
-        "enabled": _lire_bool(db, CLE_ENABLED, True),
-        "display_name": _lire_avec_defaut(db, CLE_DISPLAY_NAME, DISPLAY_NAME_PAR_DEFAUT),
-        "claim_username": _lire_avec_defaut(db, CLE_CLAIM_USERNAME, CLAIM_USERNAME_PAR_DEFAUT),
-        "claim_email": _lire_avec_defaut(db, CLE_CLAIM_EMAIL, CLAIM_EMAIL_PAR_DEFAUT),
-        "claim_nom": _lire_avec_defaut(db, CLE_CLAIM_NOM, CLAIM_NOM_PAR_DEFAUT),
-    }
-
-
-def enregistrer_config(
-    db: Session,
-    *,
-    issuer: str,
-    client_id: str,
-    redirect_uri: str,
-    frontend_url: str,
-    client_secret: str | None,
-    enabled: bool = True,
-    display_name: str | None = None,
-    claim_username: str | None = None,
-    claim_email: str | None = None,
-    claim_nom: str | None = None,
-) -> None:
-    """Upsert des champs texte + de la coche d'activation. `client_secret` fourni
-    (non vide) → chiffré et upserté (lève `CleChiffrementAbsenteError` si la clé
-    manque) ; `None`/vide → le secret déjà enregistré est conservé tel quel, pour
-    modifier les autres champs sans avoir à ressaisir le secret à chaque fois.
-    `display_name`/`claim_*` vides ou omis → repli sur leur valeur par défaut plutôt
-    que d'enregistrer une chaîne vide (évite un champ Réglages laissé vide par
-    inadvertance qui casserait silencieusement le mapping)."""
-    _ecrire(db, CLE_ISSUER, issuer.strip())
-    _ecrire(db, CLE_CLIENT_ID, client_id.strip())
-    _ecrire(db, CLE_REDIRECT_URI, redirect_uri.strip())
-    _ecrire(db, CLE_FRONTEND_URL, frontend_url.strip())
-    _ecrire(db, CLE_ENABLED, "1" if enabled else "0")
-    _ecrire(db, CLE_DISPLAY_NAME, (display_name or "").strip() or DISPLAY_NAME_PAR_DEFAUT)
-    _ecrire(db, CLE_CLAIM_USERNAME, (claim_username or "").strip() or CLAIM_USERNAME_PAR_DEFAUT)
-    _ecrire(db, CLE_CLAIM_EMAIL, (claim_email or "").strip() or CLAIM_EMAIL_PAR_DEFAUT)
-    _ecrire(db, CLE_CLAIM_NOM, (claim_nom or "").strip() or CLAIM_NOM_PAR_DEFAUT)
-    if client_secret:
-        chiffre = _fernet().encrypt(client_secret.strip().encode("utf-8")).decode("utf-8")
-        _ecrire(db, CLE_CLIENT_SECRET_CHIFFRE, chiffre)
-    _discovery_cache.clear()
-
-
-def effacer_config(db: Session) -> None:
-    db.query(Parametre).filter(Parametre.cle.in_(TOUTES_LES_CLES)).delete(synchronize_session=False)
-    db.commit()
-    _discovery_cache.clear()
+def enabled() -> bool:
+    return charger_config() is not None
 
 
 def _issuer_normalise(issuer: str) -> str:
@@ -245,8 +136,7 @@ def _discovery(issuer: str) -> dict:
     """Découverte OIDC standard (`.well-known/openid-configuration`) plutôt que des
     URLs codées en dur pour un fournisseur particulier : robuste aux versions et aux
     schémas d'URL différents d'un fournisseur à l'autre. Mise en cache en mémoire
-    process, clé = issuer — invalidée explicitement par
-    `enregistrer_config`/`effacer_config` (l'issuer peut changer sans redémarrage)."""
+    process, clé = issuer."""
     issuer = _issuer_normalise(issuer)
     if issuer not in _discovery_cache:
         reponse = requests.get(f"{issuer}.well-known/openid-configuration", timeout=10)
@@ -263,28 +153,20 @@ def code_verifier_et_challenge() -> tuple[str, str]:
     return verifier, challenge
 
 
-def _cle_hmac() -> bytes:
-    """Réutilise `PATRIMOINE_SECRET_KEY` comme clé HMAC brute pour signer le
-    `state` — préoccupation propre à cette application (pas au fournisseur SSO),
-    distincte du chiffrement Fernet du `client_secret` bien qu'utilisant la même
-    variable d'environnement. `construire_state`/`verifier_state` ne sont appelées
-    qu'après le garde `enabled(db)` du routeur, donc la clé est garantie présente ici."""
-    return (os.environ.get(VARIABLE_CLE_CHIFFREMENT) or "").encode("utf-8")
-
-
-def construire_state(code_verifier: str) -> str:
+def construire_state(code_verifier: str, client_secret: str) -> str:
     """`state` auto-porteur et signé — aucune table ni session serveur nécessaire
     pour le vérifier au retour du fournisseur SSO (fonctionne même avec plusieurs
-    workers). Format : `nonce.horodatage.code_verifier.signature`, chaque partie en
-    base64url."""
+    workers). Signé avec `client_secret` (préoccupation propre à cette application,
+    pas au fournisseur SSO) plutôt qu'une variable d'environnement dédiée. Format :
+    `nonce.horodatage.code_verifier.signature`, chaque partie en base64url."""
     nonce = secrets.token_urlsafe(16)
     horodatage = str(int(time.time()))
     charge = f"{nonce}.{horodatage}.{code_verifier}"
-    signature = hmac.new(_cle_hmac(), charge.encode("utf-8"), hashlib.sha256).hexdigest()
+    signature = hmac.new(client_secret.encode("utf-8"), charge.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{charge}.{signature}"
 
 
-def verifier_state(state_recu: str) -> str:
+def verifier_state(state_recu: str, client_secret: str) -> str:
     """Vérifie la signature (comparaison à temps constant) et la fraîcheur du
     `state` reçu. Renvoie le `code_verifier` PKCE encodé dedans, à réutiliser pour
     l'échange de code. Lève `OidcError` sinon (jamais de détail technique exposé)."""
@@ -293,7 +175,7 @@ def verifier_state(state_recu: str) -> str:
         raise OidcError("Connexion SSO invalide (state malformé). Réessayez.")
     nonce, horodatage, code_verifier, signature_recue = parties
     charge = f"{nonce}.{horodatage}.{code_verifier}"
-    signature_attendue = hmac.new(_cle_hmac(), charge.encode("utf-8"), hashlib.sha256).hexdigest()
+    signature_attendue = hmac.new(client_secret.encode("utf-8"), charge.encode("utf-8"), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature_recue, signature_attendue):
         raise OidcError("Connexion SSO invalide (state altéré). Réessayez.")
     if time.time() - int(horodatage) > STATE_TTL_SECONDES:

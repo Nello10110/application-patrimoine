@@ -26,47 +26,14 @@ export interface AuthResponse {
   user: AuthUser
 }
 
-// Connexion SSO (OIDC applicatif) — `enabled` reflète si la configuration
-// (Réglages → Connexion SSO, propriétaire) est complète, activée, sur ce déploiement.
-// `display_name` : texte choisi par le propriétaire pour le bouton de connexion
-// (jamais un nom de fournisseur figé dans le code).
+// Connexion SSO (OIDC applicatif) — `enabled` reflète si la configuration, portée
+// par les variables d'environnement `PATRIMOINE_OIDC_*` du serveur (pas de réglage
+// modifiable depuis l'IHM), est complète et activée sur ce déploiement.
+// `display_name` : texte choisi par variable d'environnement pour le bouton de
+// connexion (jamais un nom de fournisseur figé dans le code).
 export interface OidcStatus {
   enabled: boolean
   display_name: string
-}
-
-// Administration de la configuration (propriétaire) — `client_secret` n'apparaît
-// jamais dans une réponse, seulement `secret_configure` (une valeur est enregistrée
-// ou non). `cle_chiffrement_definie` reflète `PATRIMOINE_SECRET_KEY` côté serveur :
-// sans elle, aucun secret ne peut être chiffré, donc enregistré. `claim_*` : nom du
-// claim OIDC mappé vers chaque attribut utilisateur (valeurs par défaut standard si
-// jamais personnalisées).
-export interface OidcConfig {
-  issuer: string | null
-  client_id: string | null
-  redirect_uri: string | null
-  frontend_url: string | null
-  secret_configure: boolean
-  cle_chiffrement_definie: boolean
-  enabled: boolean
-  display_name: string
-  claim_username: string
-  claim_email: string
-  claim_nom: string
-}
-
-export interface OidcConfigInput {
-  issuer: string
-  client_id: string
-  redirect_uri: string
-  frontend_url: string
-  // Omis ou vide : le secret déjà enregistré est conservé tel quel.
-  client_secret?: string
-  enabled?: boolean
-  display_name?: string
-  claim_username?: string
-  claim_email?: string
-  claim_nom?: string
 }
 
 // Sessions et journal d'accès (backlog 2.L.2).

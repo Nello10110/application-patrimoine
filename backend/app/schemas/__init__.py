@@ -21,7 +21,6 @@ from .analyse import (  # noqa: F401
     RiskIndicators,
 )
 from .authentification import (  # noqa: F401
-    MESSAGE_CHAMP_OIDC_VIDE,
     MESSAGE_MOT_DE_PASSE_TROP_COURT,
     MESSAGE_NOM_UTILISATEUR_INVALIDE,
     AccessLogEntryOut,
@@ -29,8 +28,6 @@ from .authentification import (  # noqa: F401
     HouseholdMemberCreate,
     HouseholdMemberOut,
     LoginRequest,
-    OidcConfigOut,
-    OidcConfigUpdate,
     OidcStatus,
     RegisterRequest,
     SessionOut,

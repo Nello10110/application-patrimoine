@@ -8,7 +8,7 @@ import DetenteursCard from '../components/DetenteursCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import GestionFoyerCard from '../components/GestionFoyerCard'
-import { IconBouclier, IconCle, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
+import { IconBouclier, IconHorloge, IconPartage, IconPersonne, IconReglages } from '../components/icons'
 import JobCard from '../components/JobCard'
 import JournalAccesCard from '../components/JournalAccesCard'
 import WelcomeWizard from '../components/onboarding/WelcomeWizard'
@@ -17,17 +17,15 @@ import PreferencesCard from '../components/PreferencesCard'
 import SauvegardeDonneesCard from '../components/SauvegardeDonneesCard'
 import SessionsCard from '../components/SessionsCard'
 import { SkeletonTexte } from '../components/Skeleton'
-import SsoCard from '../components/SsoCard'
 import { useAuth } from '../hooks/useAuth'
 
-type OngletKey = 'general' | 'detenteurs' | 'securite' | 'partage' | 'sso' | 'automatisations'
+type OngletKey = 'general' | 'detenteurs' | 'securite' | 'partage' | 'automatisations'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconReglages }[] = [
   { key: 'general', label: 'Général', Icone: IconReglages },
   { key: 'detenteurs', label: 'Détenteurs', Icone: IconPersonne },
   { key: 'securite', label: 'Comptes & sécurité', Icone: IconBouclier },
   { key: 'partage', label: 'Partage', Icone: IconPartage },
-  { key: 'sso', label: 'SSO / OIDC', Icone: IconCle },
   { key: 'automatisations', label: 'Automatisations', Icone: IconHorloge },
 ]
 
@@ -195,12 +193,6 @@ export default function ReglagesPage() {
       {onglet === 'partage' && (
         <div className="space-y-4">
           <PartageCard />
-        </div>
-      )}
-
-      {onglet === 'sso' && (
-        <div className="space-y-4">
-          <SsoCard />
         </div>
       )}
 

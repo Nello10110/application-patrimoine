@@ -1133,6 +1133,22 @@ resté `true`) ; reconnexion avec un `preferred_username` différent → `userna
 valeurs depuis Réglages, puis définir `PATRIMOINE_SECRET_KEY` sur son serveur — seules étapes non
 simulables ici.
 
+**Revu le 04/09/2026** : retour aux variables d'environnement plutôt qu'à l'administration depuis
+Réglages. Le bouton de connexion avait disparu de l'écran de connexion — en creusant, la configuration
+n'avait en réalité jamais été réellement posée sur la vraie base de production (`parametres` ne contenait
+aucune ligne `oidc_*`), malgré le texte de la livraison précédente qui la présentait comme utilisée.
+Plutôt que de remplir ce formulaire, préférence explicite de l'utilisateur pour l'approche compose/`.env`
+initialement proposée (et écartée à l'époque) : `PATRIMOINE_OIDC_ENABLED` devient l'interrupteur
+principal, avec 5 variables `PATRIMOINE_OIDC_*` obligatoires si activée (issuer, client id, client
+secret, redirect URI, URL du frontend) et 4 facultatives (nom affiché, mapping des 3 claims). Supprimé
+entièrement : les endpoints `GET/PUT/DELETE /oidc/config`, `SsoCard.tsx` et l'onglet « SSO / OIDC » de
+Réglages, ainsi que `PATRIMOINE_SECRET_KEY` et le chiffrement Fernet dédié du `client_secret` — un
+secret qui ne vit plus qu'en variable d'environnement n'a plus besoin d'être chiffré au repos en base.
+La clé HMAC signant le `state` anti-CSRF, qui provenait de `PATRIMOINE_SECRET_KEY`, est désormais dérivée
+du `client_secret` OIDC lui-même (déjà un secret fort, jamais transmis au navigateur). Aucune migration
+de données nécessaire (base réellement vierge de toute config OIDC). Suite backend et frontend mises à
+jour en conséquence, au vert.
+
 ---
 
 ### M. Profondeur du modèle d'actifs (nouveau, 21/08/2026)

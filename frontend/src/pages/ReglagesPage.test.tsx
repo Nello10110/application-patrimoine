@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Detenteur, OidcConfig, Session } from '../api/types'
+import type { Detenteur, Session } from '../api/types'
 import { ETAPES_ONBOARDING } from '../components/onboarding/steps'
 import { AuthContext, type AuthContextValue } from '../contexts/authContextObject'
 import ReglagesPage from './ReglagesPage'
@@ -83,22 +83,6 @@ vi.mock('../api/client', () => ({
     listLiensPartage: vi.fn().mockResolvedValue([]),
     createLienPartage: vi.fn(),
     revokeLienPartage: vi.fn(),
-    // Connexion SSO (backlog 2.L.3) : hors de l'objet des autres blocs de ce
-    // fichier, stub neutre par défaut (aucune configuration existante).
-    getOidcConfig: vi.fn().mockResolvedValue({
-      issuer: null,
-      client_id: null,
-      redirect_uri: null,
-      frontend_url: null,
-      secret_configure: false,
-      cle_chiffrement_definie: true,
-      enabled: true,
-      display_name: 'SSO',
-      claim_username: 'preferred_username',
-      claim_email: 'email',
-      claim_nom: 'name',
-    }),
-    updateOidcConfig: vi.fn(),
   },
 }))
 
@@ -227,138 +211,6 @@ describe('ReglagesPage — Comptes du foyer, affichage nom/email (backlog SSO)',
     ouvrirOnglet('Comptes & sécurité')
 
     await screen.findByText('conjoint')
-  })
-})
-
-function oidcConfig(overrides: Partial<OidcConfig> = {}): OidcConfig {
-  return {
-    issuer: null,
-    client_id: null,
-    redirect_uri: null,
-    frontend_url: null,
-    secret_configure: false,
-    cle_chiffrement_definie: true,
-    enabled: true,
-    display_name: 'SSO',
-    claim_username: 'preferred_username',
-    claim_email: 'email',
-    claim_nom: 'name',
-    ...overrides,
-  }
-}
-
-describe('ReglagesPage — Connexion SSO (backlog 2.L.3)', () => {
-  it('préremplit les champs depuis la configuration existante, jamais le secret', async () => {
-    vi.mocked(api.getOidcConfig).mockResolvedValue(
-      oidcConfig({
-        issuer: 'https://sso.example.com/application/o/patrimoine',
-        client_id: 'client-abc',
-        redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
-        frontend_url: 'https://patrimoine.example.com',
-        secret_configure: true,
-        display_name: 'Authentik',
-      }),
-    )
-    renderReglages()
-    ouvrirOnglet('SSO / OIDC')
-
-    expect(await screen.findByDisplayValue('https://sso.example.com/application/o/patrimoine')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('client-abc')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Authentik')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Laisser vide pour conserver le secret actuel')).toBeInTheDocument()
-  })
-
-  it("soumettre appelle updateOidcConfig avec les champs (dont activation/nom/mapping), le secret omis si le champ est laissé vide", async () => {
-    vi.mocked(api.getOidcConfig).mockResolvedValue(
-      oidcConfig({
-        issuer: 'https://sso.example.com/application/o/patrimoine',
-        client_id: 'client-abc',
-        redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
-        frontend_url: 'https://patrimoine.example.com',
-        secret_configure: true,
-      }),
-    )
-    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ secret_configure: true }))
-    renderReglages()
-    ouvrirOnglet('SSO / OIDC')
-    await screen.findByDisplayValue('client-abc')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
-
-    await vi.waitFor(() =>
-      expect(api.updateOidcConfig).toHaveBeenCalledWith({
-        issuer: 'https://sso.example.com/application/o/patrimoine',
-        client_id: 'client-abc',
-        redirect_uri: 'https://patrimoine.example.com/api/auth/oidc/callback',
-        frontend_url: 'https://patrimoine.example.com',
-        enabled: true,
-        display_name: 'SSO',
-        claim_username: 'preferred_username',
-        claim_email: 'email',
-        claim_nom: 'name',
-      }),
-    )
-  })
-
-  it("décocher Activée puis enregistrer envoie enabled: false", async () => {
-    vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig({ issuer: 'https://sso.example.com', client_id: 'x', redirect_uri: 'y', frontend_url: 'z' }))
-    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ enabled: false }))
-    renderReglages()
-    ouvrirOnglet('SSO / OIDC')
-    await screen.findByDisplayValue('https://sso.example.com')
-
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Activée' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
-
-    await vi.waitFor(() => expect(api.updateOidcConfig).toHaveBeenCalledWith(expect.objectContaining({ enabled: false })))
-  })
-
-  it('un secret saisi est inclus dans updateOidcConfig', async () => {
-    vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig())
-    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig({ secret_configure: true }))
-    renderReglages()
-    ouvrirOnglet('SSO / OIDC')
-    await screen.findByPlaceholderText('Non configuré')
-
-    fireEvent.change(screen.getByLabelText(/Issuer/), {
-      target: { value: 'https://sso.example.com/application/o/patrimoine' },
-    })
-    fireEvent.change(screen.getByLabelText('Client ID'), { target: { value: 'client-abc' } })
-    fireEvent.change(screen.getByLabelText('Client Secret'), { target: { value: 'nouveau-secret' } })
-    fireEvent.change(screen.getByLabelText(/Redirect URI/), {
-      target: { value: 'https://patrimoine.example.com/api/auth/oidc/callback' },
-    })
-    fireEvent.change(screen.getByLabelText(/URL publique du frontend/), { target: { value: 'https://patrimoine.example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
-
-    await vi.waitFor(() =>
-      expect(api.updateOidcConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ client_secret: 'nouveau-secret' }),
-      ),
-    )
-  })
-
-  it('personnaliser un claim mapping est inclus dans updateOidcConfig', async () => {
-    vi.mocked(api.getOidcConfig).mockResolvedValue(
-      oidcConfig({ issuer: 'https://sso.example.com', client_id: 'x', redirect_uri: 'y', frontend_url: 'z' }),
-    )
-    vi.mocked(api.updateOidcConfig).mockResolvedValue(oidcConfig())
-    renderReglages()
-    ouvrirOnglet('SSO / OIDC')
-    await screen.findByDisplayValue('https://sso.example.com')
-
-    fireEvent.change(screen.getByLabelText(/Claim → email/), { target: { value: 'mail' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
-
-    await vi.waitFor(() => expect(api.updateOidcConfig).toHaveBeenCalledWith(expect.objectContaining({ claim_email: 'mail' })))
-  })
-
-  it("affiche un avertissement si PATRIMOINE_SECRET_KEY n'est pas définie côté serveur", async () => {
-    vi.mocked(api.getOidcConfig).mockResolvedValue(oidcConfig({ cle_chiffrement_definie: false }))
-    renderReglages()
-    ouvrirOnglet('SSO / OIDC')
-
-    await screen.findByText(/PATRIMOINE_SECRET_KEY/)
   })
 })
 

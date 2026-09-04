@@ -1,18 +1,17 @@
 """Verrouille `services/oidc_service.py` (connexion SSO Authentik) : configuration
-administrable (chiffrement du secret, jamais relu en clair), signature/fraîcheur du
-`state` anti-CSRF, dérivation PKCE, mise en cache de la découverte OIDC, échange de
-code/récupération d'identité (réseau neutralisé via monkeypatch de `requests`), et
-surtout la résolution/provisioning de compte — le cœur métier du flux, à ne jamais
-laisser un utilisateur Authentik obtenir un rôle plus privilégié que celui prévu par
-design."""
+lue depuis les variables d'environnement (jamais de base de données), signature/
+fraîcheur du `state` anti-CSRF, dérivation PKCE, mise en cache de la découverte
+OIDC, échange de code/récupération d'identité (réseau neutralisé via monkeypatch de
+`requests`), et surtout la résolution/provisioning de compte — le cœur métier du
+flux, à ne jamais laisser un utilisateur Authentik obtenir un rôle plus privilégié
+que celui prévu par design."""
 
 import time
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from cryptography.fernet import Fernet
 
-from app.models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, Parametre, User
+from app.models import ROLE_MEMBRE, ROLE_PROPRIETAIRE, User
 from app.services import oidc_service
 from tests.conftest import ID_UTILISATEUR_TEST
 
@@ -34,23 +33,14 @@ def isoler_cache_decouverte():
 
 
 @pytest.fixture
-def cle_chiffrement(monkeypatch):
-    cle = Fernet.generate_key().decode("utf-8")
-    monkeypatch.setenv(oidc_service.VARIABLE_CLE_CHIFFREMENT, cle)
-    return cle
-
-
-@pytest.fixture
-def config_oidc(db, cle_chiffrement) -> "oidc_service.OidcConfig":
-    oidc_service.enregistrer_config(
-        db,
-        issuer=ISSUER,
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        frontend_url=FRONTEND_URL,
-    )
-    return oidc_service.charger_config(db)
+def config_oidc(monkeypatch) -> "oidc_service.OidcConfig":
+    monkeypatch.setenv(oidc_service.VARIABLE_ENABLED, "true")
+    monkeypatch.setenv(oidc_service.VARIABLE_ISSUER, ISSUER)
+    monkeypatch.setenv(oidc_service.VARIABLE_CLIENT_ID, CLIENT_ID)
+    monkeypatch.setenv(oidc_service.VARIABLE_CLIENT_SECRET, CLIENT_SECRET)
+    monkeypatch.setenv(oidc_service.VARIABLE_REDIRECT_URI, REDIRECT_URI)
+    monkeypatch.setenv(oidc_service.VARIABLE_FRONTEND_URL, FRONTEND_URL)
+    return oidc_service.charger_config()
 
 
 class FausseReponse:
@@ -73,142 +63,51 @@ DECOUVERTE = {
 }
 
 
-# --- Configuration administrable (chiffrement du secret) -------------------------
+# --- Configuration par variables d'environnement -----------------------------------
 
 
-def test_charger_config_none_si_cle_chiffrement_absente(db, monkeypatch):
-    monkeypatch.delenv(oidc_service.VARIABLE_CLE_CHIFFREMENT, raising=False)
-    # Impossible d'enregistrer un secret sans clé : on écrit directement les lignes
-    # texte, comme si le secret avait été enregistré avant que la clé ne disparaisse.
-    for cle, valeur in [
-        (oidc_service.CLE_ISSUER, ISSUER),
-        (oidc_service.CLE_CLIENT_ID, CLIENT_ID),
-        (oidc_service.CLE_REDIRECT_URI, REDIRECT_URI),
-        (oidc_service.CLE_FRONTEND_URL, FRONTEND_URL),
-        (oidc_service.CLE_CLIENT_SECRET_CHIFFRE, "peu-importe-illisible-sans-la-cle"),
-    ]:
-        db.add(Parametre(cle=cle, valeur=valeur))
-    db.commit()
+def test_charger_config_none_si_desactivee(monkeypatch):
+    monkeypatch.setenv(oidc_service.VARIABLE_ENABLED, "false")
+    monkeypatch.setenv(oidc_service.VARIABLE_ISSUER, ISSUER)
+    monkeypatch.setenv(oidc_service.VARIABLE_CLIENT_ID, CLIENT_ID)
+    monkeypatch.setenv(oidc_service.VARIABLE_CLIENT_SECRET, CLIENT_SECRET)
+    monkeypatch.setenv(oidc_service.VARIABLE_REDIRECT_URI, REDIRECT_URI)
+    monkeypatch.setenv(oidc_service.VARIABLE_FRONTEND_URL, FRONTEND_URL)
 
-    assert oidc_service.charger_config(db) is None
-    assert oidc_service.enabled(db) is False
+    assert oidc_service.charger_config() is None
+    assert oidc_service.enabled() is False
 
 
-def test_charger_config_none_si_un_champ_texte_manque(db, cle_chiffrement):
-    oidc_service.enregistrer_config(
-        db, issuer=ISSUER, client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI, frontend_url=FRONTEND_URL
-    )
-    db.query(Parametre).filter(Parametre.cle == oidc_service.CLE_FRONTEND_URL).delete()
-    db.commit()
+def test_charger_config_none_si_non_activee_du_tout(monkeypatch):
+    # Aucune variable posée (déploiement par défaut) : jamais d'exception, juste
+    # désactivé — chemin critique de `GET /oidc/status`, public.
+    for var in (oidc_service.VARIABLE_ENABLED, *oidc_service.VARIABLES_OBLIGATOIRES):
+        monkeypatch.delenv(var, raising=False)
 
-    assert oidc_service.charger_config(db) is None
-
-
-def test_charger_config_none_si_secret_indechiffrable_apres_rotation_de_cle(db, config_oidc, monkeypatch):
-    # `config_oidc` a déjà enregistré un secret chiffré avec la clé courante — on la
-    # fait "tourner" (nouvelle clé), le secret déjà en base devient illisible.
-    monkeypatch.setenv(oidc_service.VARIABLE_CLE_CHIFFREMENT, Fernet.generate_key().decode("utf-8"))
-
-    assert oidc_service.charger_config(db) is None
+    assert oidc_service.charger_config() is None
+    assert oidc_service.enabled() is False
 
 
-def test_enregistrer_config_sans_secret_conserve_le_secret_existant(db, config_oidc):
-    oidc_service.enregistrer_config(
-        db, issuer=ISSUER, client_id=CLIENT_ID, client_secret=None, redirect_uri=REDIRECT_URI, frontend_url="https://autre.example.com"
-    )
+def test_charger_config_none_si_une_variable_obligatoire_manque(config_oidc, monkeypatch):
+    monkeypatch.delenv(oidc_service.VARIABLE_FRONTEND_URL, raising=False)
 
-    config = oidc_service.charger_config(db)
-    assert config is not None
-    assert config.client_secret == CLIENT_SECRET
-    assert config.frontend_url == "https://autre.example.com"
+    assert oidc_service.charger_config() is None
 
 
-def test_config_admin_ne_contient_jamais_le_secret(db, config_oidc):
-    admin = oidc_service.config_admin(db)
-
-    assert admin["secret_configure"] is True
-    assert admin["cle_chiffrement_definie"] is True
-    assert "client_secret" not in admin
-    assert CLIENT_SECRET not in str(admin.values())
+def test_charger_config_valeurs_par_defaut_si_facultatives_absentes(config_oidc):
+    assert config_oidc.display_name == oidc_service.DISPLAY_NAME_PAR_DEFAUT
+    assert config_oidc.claim_username == oidc_service.CLAIM_USERNAME_PAR_DEFAUT
+    assert config_oidc.claim_email == oidc_service.CLAIM_EMAIL_PAR_DEFAUT
+    assert config_oidc.claim_nom == oidc_service.CLAIM_NOM_PAR_DEFAUT
 
 
-def test_config_admin_secret_configure_faux_sans_configuration(db):
-    admin = oidc_service.config_admin(db)
+def test_charger_config_personnalise_display_name_et_claims(config_oidc, monkeypatch):
+    monkeypatch.setenv(oidc_service.VARIABLE_DISPLAY_NAME, "Authentik")
+    monkeypatch.setenv(oidc_service.VARIABLE_CLAIM_USERNAME, "upn")
+    monkeypatch.setenv(oidc_service.VARIABLE_CLAIM_EMAIL, "mail")
+    monkeypatch.setenv(oidc_service.VARIABLE_CLAIM_NOM, "display_name")
 
-    assert admin["secret_configure"] is False
-    assert admin["issuer"] is None
-
-
-def test_enregistrer_config_sans_cle_chiffrement_leve_pour_un_secret(db, monkeypatch):
-    monkeypatch.delenv(oidc_service.VARIABLE_CLE_CHIFFREMENT, raising=False)
-
-    with pytest.raises(oidc_service.CleChiffrementAbsenteError):
-        oidc_service.enregistrer_config(
-            db, issuer=ISSUER, client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI, frontend_url=FRONTEND_URL
-        )
-
-
-def test_effacer_config_supprime_tout(db, config_oidc):
-    oidc_service.effacer_config(db)
-
-    assert oidc_service.charger_config(db) is None
-    assert oidc_service.config_admin(db)["secret_configure"] is False
-
-
-# --- Coche d'activation ------------------------------------------------------------
-
-
-def test_charger_config_none_si_desactivee(db, cle_chiffrement):
-    oidc_service.enregistrer_config(
-        db, issuer=ISSUER, client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI, frontend_url=FRONTEND_URL, enabled=False
-    )
-
-    assert oidc_service.charger_config(db) is None
-    assert oidc_service.enabled(db) is False
-
-
-def test_config_admin_reflete_enabled_meme_desactivee(db, cle_chiffrement):
-    oidc_service.enregistrer_config(
-        db, issuer=ISSUER, client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI, frontend_url=FRONTEND_URL, enabled=False
-    )
-
-    admin = oidc_service.config_admin(db)
-
-    assert admin["enabled"] is False
-    assert admin["issuer"] == ISSUER  # les autres champs restent visibles/éditables
-
-
-def test_enregistrer_config_active_par_defaut(db, config_oidc):
-    assert oidc_service.config_admin(db)["enabled"] is True
-
-
-# --- Générisation : display_name + valeurs par défaut du mapping des claims --------
-
-
-def test_config_admin_valeurs_par_defaut_si_non_personnalisees(db, config_oidc):
-    admin = oidc_service.config_admin(db)
-
-    assert admin["display_name"] == oidc_service.DISPLAY_NAME_PAR_DEFAUT
-    assert admin["claim_username"] == oidc_service.CLAIM_USERNAME_PAR_DEFAUT
-    assert admin["claim_email"] == oidc_service.CLAIM_EMAIL_PAR_DEFAUT
-    assert admin["claim_nom"] == oidc_service.CLAIM_NOM_PAR_DEFAUT
-
-
-def test_enregistrer_config_personnalise_display_name_et_claims(db, cle_chiffrement):
-    oidc_service.enregistrer_config(
-        db,
-        issuer=ISSUER,
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        frontend_url=FRONTEND_URL,
-        display_name="Authentik",
-        claim_username="upn",
-        claim_email="mail",
-        claim_nom="display_name",
-    )
-
-    config = oidc_service.charger_config(db)
+    config = oidc_service.charger_config()
     assert config.display_name == "Authentik"
     assert config.claim_username == "upn"
     assert config.claim_email == "mail"
@@ -229,39 +128,47 @@ def test_code_verifier_et_challenge_sont_coherents():
     assert "=" not in challenge  # PKCE S256 : jamais de padding dans le challenge
 
 
-# --- State anti-CSRF -------------------------------------------------------------
+# --- State anti-CSRF (signé avec le `client_secret` OIDC) -------------------------
 
 
-def test_state_valide_fait_laller_retour(cle_chiffrement):
+def test_state_valide_fait_laller_retour():
     verifier, _ = oidc_service.code_verifier_et_challenge()
-    state = oidc_service.construire_state(verifier)
+    state = oidc_service.construire_state(verifier, CLIENT_SECRET)
 
-    assert oidc_service.verifier_state(state) == verifier
+    assert oidc_service.verifier_state(state, CLIENT_SECRET) == verifier
 
 
-def test_state_altere_est_rejete(cle_chiffrement):
+def test_state_altere_est_rejete():
     verifier, _ = oidc_service.code_verifier_et_challenge()
-    state = oidc_service.construire_state(verifier)
+    state = oidc_service.construire_state(verifier, CLIENT_SECRET)
     altere = state[:-1] + ("0" if state[-1] != "0" else "1")
 
     with pytest.raises(oidc_service.OidcError):
-        oidc_service.verifier_state(altere)
+        oidc_service.verifier_state(altere, CLIENT_SECRET)
 
 
-def test_state_malforme_est_rejete(cle_chiffrement):
-    with pytest.raises(oidc_service.OidcError):
-        oidc_service.verifier_state("nimportequoi")
-
-
-def test_state_expire_est_rejete(cle_chiffrement, monkeypatch):
+def test_state_signe_avec_un_autre_secret_est_rejete():
     verifier, _ = oidc_service.code_verifier_et_challenge()
-    state = oidc_service.construire_state(verifier)
+    state = oidc_service.construire_state(verifier, CLIENT_SECRET)
+
+    with pytest.raises(oidc_service.OidcError):
+        oidc_service.verifier_state(state, "un-autre-secret")
+
+
+def test_state_malforme_est_rejete():
+    with pytest.raises(oidc_service.OidcError):
+        oidc_service.verifier_state("nimportequoi", CLIENT_SECRET)
+
+
+def test_state_expire_est_rejete(monkeypatch):
+    verifier, _ = oidc_service.code_verifier_et_challenge()
+    state = oidc_service.construire_state(verifier, CLIENT_SECRET)
 
     plus_tard = time.time() + oidc_service.STATE_TTL_SECONDES + 60
     monkeypatch.setattr(oidc_service.time, "time", lambda: plus_tard)
 
     with pytest.raises(oidc_service.OidcError):
-        oidc_service.verifier_state(state)
+        oidc_service.verifier_state(state, CLIENT_SECRET)
 
 
 # --- Découverte OIDC (mise en cache) ----------------------------------------------
@@ -283,7 +190,7 @@ def test_decouverte_mise_en_cache(monkeypatch):
     assert appels[0] == "https://authentik.example.com/application/o/patrimoine/.well-known/openid-configuration"
 
 
-def test_decouverte_invalidee_apres_changement_dissuer(db, config_oidc, monkeypatch):
+def test_decouverte_invalidee_apres_changement_dissuer(config_oidc, monkeypatch):
     appels = []
 
     def faux_get(url, timeout=None):
@@ -294,15 +201,8 @@ def test_decouverte_invalidee_apres_changement_dissuer(db, config_oidc, monkeypa
     oidc_service._discovery(ISSUER)
     assert len(appels) == 1
 
-    oidc_service.enregistrer_config(
-        db,
-        issuer="https://autre-authentik.example.com/application/o/patrimoine",
-        client_id=CLIENT_ID,
-        client_secret=None,
-        redirect_uri=REDIRECT_URI,
-        frontend_url=FRONTEND_URL,
-    )
-    nouvelle_config = oidc_service.charger_config(db)
+    monkeypatch.setenv(oidc_service.VARIABLE_ISSUER, "https://autre-authentik.example.com/application/o/patrimoine")
+    nouvelle_config = oidc_service.charger_config()
     oidc_service._discovery(nouvelle_config.issuer)
 
     assert len(appels) == 2  # pas de réutilisation d'un cache périmé pour un autre issuer

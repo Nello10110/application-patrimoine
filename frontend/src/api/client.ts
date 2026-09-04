@@ -44,8 +44,6 @@ import type {
   MouvementBancaire,
   ObjectifDetail,
   ObjectifInput,
-  OidcConfig,
-  OidcConfigInput,
   OidcStatus,
   DeclarationPatrimoineInput,
   ExpositionConsolidee,
@@ -160,9 +158,6 @@ export const api = {
   getMe: () => request<AuthUser>('/auth/me'),
   completeOnboarding: () => request<AuthUser>('/auth/onboarding/terminer', { method: 'POST' }),
   getOidcStatus: () => request<OidcStatus>('/auth/oidc/status'),
-  getOidcConfig: () => request<OidcConfig>('/auth/oidc/config'),
-  updateOidcConfig: (input: OidcConfigInput) => request<OidcConfig>('/auth/oidc/config', { method: 'PUT', body: JSON.stringify(input) }),
-  deleteOidcConfig: () => request<void>('/auth/oidc/config', { method: 'DELETE' }),
 
   // Sessions et journal d'accès (backlog 2.L.2).
   listSessions: () => request<Session[]>('/auth/sessions'),

@@ -16,12 +16,6 @@ const DB_PATH = path.join(DATA_DIR, 'e2e.db')
 export const SEED_OUTPUT_PATH = path.join(DATA_DIR, 'seed-output.json')
 const BACKEND_LOG_PATH = path.join(DATA_DIR, 'backend.log')
 
-// Clé Fernet valide (`Fernet.generate_key()`) mais purement jetable : sert
-// uniquement à faire fonctionner les fonctionnalités qui exigent
-// `PATRIMOINE_SECRET_KEY` (SSO, sauvegarde chiffrée) sur la base E2E jetable — jamais
-// un secret réel, jamais réutilisée ailleurs.
-const CLE_CHIFFREMENT_E2E = 'OfybzhNjyez8CvQDuhU2wWq8GCVRHvtqNEhKiqnhy7E='
-
 async function attendrePret(url: string, timeoutMs: number): Promise<void> {
   const debut = Date.now()
   while (Date.now() - debut < timeoutMs) {
@@ -55,7 +49,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       env: {
         ...process.env,
         PATRIMOINE_DB: DB_PATH,
-        PATRIMOINE_SECRET_KEY: CLE_CHIFFREMENT_E2E,
         PATRIMOINE_TESTING: '1',
       },
       stdio: ['ignore', logFd, logFd],

@@ -4,7 +4,7 @@
 // n'ait à changer.
 
 export type { AnalysisResponse, BenchmarkOption, CategoryCompositionItem, CategoryCompositionResponse, ComparaisonBenchmark, ComparaisonBenchmarkPoint, CoutGestionConsolide, DividendeLigne, DividendeMois, HoldingPriceHistoryResponse, HoldingPricePoint, MetriquesAvancees, PerformanceSummary, PortfolioHistoryPoint, PortfolioHistoryResponse, QualiteDonnees, RevenusPassifsProjetes, RiskIndicators } from './types/analyse'
-export type { AccessLogEntry, AuthResponse, AuthUser, HouseholdMember, HouseholdMemberInput, OidcConfig, OidcConfigInput, OidcStatus, Role, Session } from './types/authentification'
+export type { AccessLogEntry, AuthResponse, AuthUser, HouseholdMember, HouseholdMemberInput, OidcStatus, Role, Session } from './types/authentification'
 export type { BudgetCible, BudgetColumnMapping, BudgetImportResult, BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation, RegleReapplicationResult, RepartitionSortieItem } from './types/budget'
 export type { Detenteur, QuotiteDetenteurItem, QuotiteEntree, TypeDetenteur } from './types/detenteurs'
 export type { ApercuImportDonnees, CleCompte, ColumnMapping, ImportPreview, ImportResult, TransactionImportApercu, TransactionImportConfirmInput, TransactionImportResult } from './types/import_donnees'

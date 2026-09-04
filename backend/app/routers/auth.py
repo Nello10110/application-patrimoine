@@ -16,8 +16,6 @@ from ..schemas import (
     HouseholdMemberCreate,
     HouseholdMemberOut,
     LoginRequest,
-    OidcConfigOut,
-    OidcConfigUpdate,
     OidcStatus,
     RegisterRequest,
     SessionOut,
@@ -100,32 +98,32 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 # dans `services/oidc_service.py` (docstring de module à lire avant toute
 # modification ici). Ces routes ne sont que la tuyauterie HTTP autour de ce service.
 # La configuration elle-même (issuer/client id/redirect uri/frontend url/secret/
-# activation/mapping des claims) est administrée depuis Réglages, réservée au
-# propriétaire (get/put/delete oidc/config ci-dessous) — jamais en variable
-# d'environnement, hormis la clé de chiffrement du secret (`PATRIMOINE_SECRET_KEY`).
+# activation/mapping des claims) est entièrement portée par des variables
+# d'environnement (`PATRIMOINE_OIDC_*`) — aucune administration à chaud possible,
+# un redémarrage du backend est nécessaire pour toute modification.
 
 
 @router.get("/oidc/status", response_model=OidcStatus)
-def oidc_status(db: Session = Depends(get_db)):
-    config = oidc_service.charger_config(db)
+def oidc_status():
+    config = oidc_service.charger_config()
     if config is None:
         return OidcStatus(enabled=False)
     return OidcStatus(enabled=True, display_name=config.display_name)
 
 
 @router.get("/oidc/login")
-def oidc_login(db: Session = Depends(get_db)):
-    config = oidc_service.charger_config(db)
+def oidc_login():
+    config = oidc_service.charger_config()
     if config is None:
         raise HTTPException(status_code=404, detail="Connexion SSO non configurée sur ce déploiement.")
     code_verifier, code_challenge = oidc_service.code_verifier_et_challenge()
-    state = oidc_service.construire_state(code_verifier)
+    state = oidc_service.construire_state(code_verifier, config.client_secret)
     return RedirectResponse(oidc_service.url_autorisation(config, state, code_challenge))
 
 
 @router.get("/oidc/callback")
 def oidc_callback(request: Request, db: Session = Depends(get_db)):
-    config = oidc_service.charger_config(db)
+    config = oidc_service.charger_config()
     if config is None:
         raise HTTPException(status_code=404, detail="Connexion SSO non configurée sur ce déploiement.")
 
@@ -145,7 +143,7 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
 
     ip = _adresse_client(request)
     try:
-        code_verifier = oidc_service.verifier_state(state_recu)
+        code_verifier = oidc_service.verifier_state(state_recu, config.client_secret)
         jeton_fournisseur = oidc_service.echanger_code(config, code, code_verifier)
         claims = oidc_service.recuperer_identite(config, jeton_fournisseur["access_token"])
         user = oidc_service.resoudre_ou_provisionner_utilisateur(db, config, claims)
@@ -161,42 +159,6 @@ def oidc_callback(request: Request, db: Session = Depends(get_db)):
     token = auth_service.creer_token(db, user, ip=ip, user_agent=request.headers.get("User-Agent"))
     auth_service.journaliser_acces(db, user.username, user.id, ip, "succes", "oidc")
     return RedirectResponse(f"{config.frontend_url}/#token={token.token}")
-
-
-@router.get("/oidc/config", response_model=OidcConfigOut)
-def get_oidc_config(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
-    return OidcConfigOut(**oidc_service.config_admin(db))
-
-
-@router.put("/oidc/config", response_model=OidcConfigOut)
-def update_oidc_config(
-    payload: OidcConfigUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))
-):
-    try:
-        oidc_service.enregistrer_config(
-            db,
-            issuer=payload.issuer,
-            client_id=payload.client_id,
-            redirect_uri=payload.redirect_uri,
-            frontend_url=payload.frontend_url,
-            client_secret=payload.client_secret,
-            enabled=payload.enabled,
-            display_name=payload.display_name,
-            claim_username=payload.claim_username,
-            claim_email=payload.claim_email,
-            claim_nom=payload.claim_nom,
-        )
-    except oidc_service.CleChiffrementAbsenteError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Définis {oidc_service.VARIABLE_CLE_CHIFFREMENT} sur le serveur avant d'enregistrer un secret SSO.",
-        ) from exc
-    return OidcConfigOut(**oidc_service.config_admin(db))
-
-
-@router.delete("/oidc/config", status_code=204)
-def delete_oidc_config(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
-    oidc_service.effacer_config(db)
 
 
 @router.post("/logout", status_code=204)

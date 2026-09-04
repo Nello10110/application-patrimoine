@@ -249,15 +249,6 @@ export function IconBouclier({ className }: IconProps) {
   )
 }
 
-export function IconCle({ className }: IconProps) {
-  return (
-    <svg {...base} className={className}>
-      <circle cx="6.2" cy="13.8" r="2.8" />
-      <path d="M8.2 11.8 L15.5 4.5 M13 7 L15 9 M15.3 4.7 L17.2 6.6" />
-    </svg>
-  )
-}
-
 export function IconHorloge({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

@@ -2,8 +2,8 @@
 # docs/MANUEL_EXPLOITATION.md § « Déploiement Docker (homelab) » pour le mode d'emploi
 # complet (génération des clés, ce que couvrent les volumes...).
 #
-# Copier ce fichier en `compose.yaml` (ou le référencer avec `-f`), remplacer les deux
-# clés ci-dessous par de vraies clés générées, puis :
+# Copier ce fichier en `compose.yaml` (ou le référencer avec `-f`), poser un `.env` à
+# côté (cf. `.env.exemple`) avec une vraie clé PATRIMOINE_BACKUP_KEY générée, puis :
 #   docker compose -f compose-exemple.yaml up --build
 #
 # IMPORTANT — pas exposé au public pour l'instant : les deux ports publiés sont liés à
@@ -20,10 +20,21 @@ services:
       # Lues depuis un fichier `.env` place a cote de ce compose (ignore par git),
       # JAMAIS ecrites ici : ce fichier est versionne et pousse sur le depot
       # distant. Voir `.env.exemple` pour le gabarit et les commandes de
-      # generation. Perdre ces cles rend les sauvegardes chiffrees et le secret
-      # SSO irrecuperables.
-      PATRIMOINE_SECRET_KEY: ${PATRIMOINE_SECRET_KEY:?definir PATRIMOINE_SECRET_KEY dans .env}
+      # generation. Perdre cette cle rend les sauvegardes chiffrees irrecuperables.
       PATRIMOINE_BACKUP_KEY: ${PATRIMOINE_BACKUP_KEY:?definir PATRIMOINE_BACKUP_KEY dans .env}
+      # Connexion SSO/OIDC (facultative) -- laisser PATRIMOINE_OIDC_ENABLED a
+      # "false" (ou absente de .env) desactive le bouton de connexion sans erreur.
+      # Voir docs/MANUEL_EXPLOITATION.md section 12.1.
+      PATRIMOINE_OIDC_ENABLED: ${PATRIMOINE_OIDC_ENABLED:-false}
+      PATRIMOINE_OIDC_ISSUER: ${PATRIMOINE_OIDC_ISSUER:-}
+      PATRIMOINE_OIDC_CLIENT_ID: ${PATRIMOINE_OIDC_CLIENT_ID:-}
+      PATRIMOINE_OIDC_CLIENT_SECRET: ${PATRIMOINE_OIDC_CLIENT_SECRET:-}
+      PATRIMOINE_OIDC_REDIRECT_URI: ${PATRIMOINE_OIDC_REDIRECT_URI:-}
+      PATRIMOINE_OIDC_FRONTEND_URL: ${PATRIMOINE_OIDC_FRONTEND_URL:-}
+      PATRIMOINE_OIDC_DISPLAY_NAME: ${PATRIMOINE_OIDC_DISPLAY_NAME:-}
+      PATRIMOINE_OIDC_CLAIM_USERNAME: ${PATRIMOINE_OIDC_CLAIM_USERNAME:-}
+      PATRIMOINE_OIDC_CLAIM_EMAIL: ${PATRIMOINE_OIDC_CLAIM_EMAIL:-}
+      PATRIMOINE_OIDC_CLAIM_NOM: ${PATRIMOINE_OIDC_CLAIM_NOM:-}
     volumes:
       - patrimoine_data:/app/data
       - patrimoine_sauvegardes:/app/sauvegardes
