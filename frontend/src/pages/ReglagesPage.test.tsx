@@ -303,6 +303,41 @@ describe('ReglagesPage — écran d’administration des comptes du foyer (revue
     await vi.waitFor(() => expect(api.updateHouseholdMemberRole).toHaveBeenCalledWith(9, 'invite'))
     expect(await screen.findByLabelText('Rôle de conjoint')).toHaveValue('invite')
   })
+
+  it('le propriétaire connecté apparaît dans sa propre liste, en lecture seule', async () => {
+    // Régression signalée par un utilisateur réel : avec un seul compte connecté
+    // (aucun membre/invité créé), la liste paraissait vide alors que le propriétaire
+    // doit s'y voir lui-même — le backend le renvoie désormais toujours en premier
+    // (`list_household_members`, `routers/auth.py`).
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 1, username: 'testeur', role: 'proprietaire', created_at: '2026-01-01T00:00:00', detenteur_ids: [] },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    await screen.findByText('testeur')
+    expect(screen.getByText('(vous)')).toBeInTheDocument()
+    expect(screen.getByText('Propriétaire')).toBeInTheDocument()
+    // Ni rôle éditable ni suppression pour sa propre ligne (le backend les refuse
+    // aussi, 404 — cf. `test_modifier_le_role_dun_membre_dun_autre_foyer_renvoie_404`
+    // côté backend, même check IDOR appliqué à `current_user.id`).
+    expect(screen.queryByLabelText('Rôle de testeur')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Supprimer le compte testeur' })).not.toBeInTheDocument()
+  })
+
+  it('le propriétaire et un membre coexistent, seul le membre reste éditable/supprimable', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 1, username: 'testeur', role: 'proprietaire', created_at: '2026-01-01T00:00:00', detenteur_ids: [] },
+      { id: 10, username: 'conjoint', role: 'membre', created_at: '2026-01-02T00:00:00', detenteur_ids: [] },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    await screen.findByText('conjoint')
+    expect(screen.queryByLabelText('Rôle de testeur')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Rôle de conjoint')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Supprimer le compte conjoint' })).toBeInTheDocument()
+  })
 })
 
 function lienPartage(overrides: Partial<import('../api/types').LienPartage> = {}): import('../api/types').LienPartage {

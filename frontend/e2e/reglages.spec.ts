@@ -25,11 +25,14 @@ test.describe('Réglages', () => {
     await page.getByLabel("Nom d'utilisateur").fill(nomMembre)
     await page.getByLabel('Mot de passe', { exact: true }).fill('MembreE2eTest1!')
     await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
-    await expect(page.getByText(nomMembre)).toBeVisible()
+    // Scopé à sa propre ligne : le propriétaire connecté apparaît aussi dans cette
+    // liste (revue du 04/09/2026) et affiche lui aussi "Connexion locale" en pratique.
+    const ligneMembre = page.locator('li').filter({ hasText: nomMembre })
+    await expect(ligneMembre).toBeVisible()
 
     // Créé au mot de passe (pas via SSO) : jamais encore connecté.
-    await expect(page.getByText('Connexion locale')).toBeVisible()
-    await expect(page.getByText('Jamais connecté')).toBeVisible()
+    await expect(ligneMembre.getByText('Connexion locale')).toBeVisible()
+    await expect(ligneMembre.getByText('Jamais connecté')).toBeVisible()
 
     const selecteurRole = page.getByLabel(`Rôle de ${nomMembre}`)
     await expect(selecteurRole).toHaveValue('membre')

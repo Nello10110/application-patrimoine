@@ -15,7 +15,12 @@ const ROLE_LABELS: Record<Role, string> = { proprietaire: 'Propriétaire', membr
  * moins un détenteur pour voir quoi que ce soit (périmètre vide par défaut, jamais
  * "tout le foyer" implicitement). Origine locale/SSO, dernière connexion, sessions
  * actives, verrouillage en cours et rôle éditable calculés côté serveur
- * (`_household_member_out`, `routers/auth.py`) — jamais recalculés ici. */
+ * (`_household_member_out`, `routers/auth.py`) — jamais recalculés ici.
+ *
+ * Liste TOUJOURS non vide : le propriétaire connecté apparaît lui-même en premier
+ * (repéré via `role === 'proprietaire'`, unique par foyer), en lecture seule — sans
+ * lui, un foyer avec un seul compte (le cas le plus courant) n'affichait jamais rien
+ * ici, ce qui a été signalé comme un bug par un utilisateur réel. */
 export default function GestionFoyerCard() {
   const [membres, setMembres] = useState<HouseholdMember[]>([])
   const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
@@ -102,16 +107,21 @@ export default function GestionFoyerCard() {
       {loading ? (
         <SkeletonTexte />
       ) : membres.length === 0 ? (
-        <EtatVide titre="Aucun autre compte dans ce foyer." description="Ajoute un membre ou un invité avec le formulaire ci-dessous." />
+        // En pratique jamais atteint (le propriétaire lui-même fait toujours partie
+        // de la liste, cf. `routers/auth.py::list_household_members`) — gardé en
+        // repli défensif si l'API venait à ne rien renvoyer.
+        <EtatVide titre="Aucun compte à afficher." description="Ajoute un membre ou un invité avec le formulaire ci-dessous." />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
           {membres.map((m) => {
+            const cestMoi = m.role === 'proprietaire'
             const verrouille = m.verrouille_jusqua && new Date(m.verrouille_jusqua) > new Date()
             return (
               <li key={m.id} className="flex flex-col gap-1.5 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-texte">
                     <span className="font-medium">{m.nom || m.username}</span>
+                    {cestMoi && <span className="text-xs text-texte-attenue">(vous)</span>}
                     {m.email && <span className="text-xs text-texte-attenue">· {m.email}</span>}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-texte-attenue">
@@ -138,26 +148,36 @@ export default function GestionFoyerCard() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-xs text-texte-attenue">
-                    Rôle
-                    <select
-                      aria-label={`Rôle de ${m.username}`}
-                      value={m.role}
-                      disabled={changingRoleId === m.id}
-                      onChange={(e) => handleRoleChange(m.id, e.target.value as 'membre' | 'invite')}
-                      className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
-                    >
-                      <option value="membre">{ROLE_LABELS.membre}</option>
-                      <option value="invite">{ROLE_LABELS.invite}</option>
-                    </select>
-                  </label>
-                  <button
-                    onClick={() => handleDelete(m.id)}
-                    aria-label={`Supprimer le compte ${m.username}`}
-                    className="text-xs text-negatif hover:underline"
-                  >
-                    Supprimer
-                  </button>
+                  {cestMoi ? (
+                    // Le propriétaire ne peut ni changer son propre rôle (il n'y en a
+                    // qu'un par foyer) ni se supprimer lui-même — lecture seule, pas
+                    // seulement par prudence côté IHM : le backend refuse aussi ces
+                    // deux actions sur son propre compte (404, cf. docstring de la route).
+                    <span className="text-xs text-texte-attenue">{ROLE_LABELS.proprietaire}</span>
+                  ) : (
+                    <>
+                      <label className="flex items-center gap-1.5 text-xs text-texte-attenue">
+                        Rôle
+                        <select
+                          aria-label={`Rôle de ${m.username}`}
+                          value={m.role}
+                          disabled={changingRoleId === m.id}
+                          onChange={(e) => handleRoleChange(m.id, e.target.value as 'membre' | 'invite')}
+                          className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
+                        >
+                          <option value="membre">{ROLE_LABELS.membre}</option>
+                          <option value="invite">{ROLE_LABELS.invite}</option>
+                        </select>
+                      </label>
+                      <button
+                        onClick={() => handleDelete(m.id)}
+                        aria-label={`Supprimer le compte ${m.username}`}
+                        className="text-xs text-negatif hover:underline"
+                      >
+                        Supprimer
+                      </button>
+                    </>
+                  )}
                 </div>
               </li>
             )

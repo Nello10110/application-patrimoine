@@ -489,10 +489,12 @@ def test_oidc_callback_expose_email_et_nom_sur_me_et_household_members(client_re
     membres = client_reel.get(
         "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
     ).json()
-    assert len(membres) == 1
-    assert membres[0]["username"] == "dave"
-    assert membres[0]["email"] == "dave@example.com"
-    assert membres[0]["nom"] == "Dave Dupont"
+    # Le propriétaire (paul) apparaît aussi désormais, en première position (revue du
+    # 04/09/2026) — on cible dave explicitement plutôt qu'un index fixe.
+    assert len(membres) == 2
+    dave = next(m for m in membres if m["username"] == "dave")
+    assert dave["email"] == "dave@example.com"
+    assert dave["nom"] == "Dave Dupont"
 
 
 def test_creer_un_membre_du_foyer_refuse_a_un_non_proprietaire(client_reel):
@@ -561,11 +563,12 @@ def test_liste_des_membres_signale_un_compte_local(client_reel):
     )
 
     membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {token_paul}"}).json()
+    conjoint = next(m for m in membres if m["username"] == "conjoint")
 
-    assert membres[0]["oidc_display_name"] is None
-    assert membres[0]["derniere_connexion"] is None
-    assert membres[0]["sessions_actives"] == 0
-    assert membres[0]["verrouille_jusqua"] is None
+    assert conjoint["oidc_display_name"] is None
+    assert conjoint["derniere_connexion"] is None
+    assert conjoint["sessions_actives"] == 0
+    assert conjoint["verrouille_jusqua"] is None
 
 
 def test_liste_des_membres_signale_un_compte_provisionne_par_oidc(client_reel, db_vide, monkeypatch):
@@ -584,10 +587,13 @@ def test_liste_des_membres_signale_un_compte_provisionne_par_oidc(client_reel, d
         "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
     ).json()
 
-    # Premier compte OIDC : devient propriétaire (bootstrap), donc jamais listé par
-    # `/household-members` (qui ne liste que SES membres, pas lui-même) — on crée un
-    # second compte OIDC pour vérifier le signalement dans la liste.
-    assert membres == []
+    # Premier compte OIDC : devient propriétaire (bootstrap) — il apparaît lui-même
+    # dans sa propre liste (revue du 04/09/2026, écran d'administration des comptes),
+    # provisionné via SSO comme n'importe quel autre. Aucun autre membre pour l'instant.
+    assert len(membres) == 1
+    assert membres[0]["username"] == "alice"
+    assert membres[0]["role"] == "proprietaire"
+    assert membres[0]["oidc_display_name"] == "Authentik"
 
     monkeypatch.setattr(oidc_service, "recuperer_identite", lambda config, access_token: {"sub": "sub-2", "preferred_username": "bob"})
     verifier2, _ = oidc_service.code_verifier_et_challenge()
@@ -598,9 +604,9 @@ def test_liste_des_membres_signale_un_compte_provisionne_par_oidc(client_reel, d
         "/api/auth/household-members", headers={"Authorization": f"Bearer {jeton_proprietaire}"}
     ).json()
 
-    assert len(membres) == 1
-    assert membres[0]["username"] == "bob"
-    assert membres[0]["oidc_display_name"] == "Authentik"
+    assert len(membres) == 2
+    bob = next(m for m in membres if m["username"] == "bob")
+    assert bob["oidc_display_name"] == "Authentik"
 
 
 def test_liste_des_membres_reflete_la_derniere_connexion_reussie(client_reel):
@@ -614,9 +620,10 @@ def test_liste_des_membres_reflete_la_derniere_connexion_reussie(client_reel):
     client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mot-de-passe-solide"})
 
     membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {token_paul}"}).json()
+    conjoint = next(m for m in membres if m["username"] == "conjoint")
 
-    assert membres[0]["derniere_connexion"] is not None
-    assert membres[0]["sessions_actives"] == 1
+    assert conjoint["derniere_connexion"] is not None
+    assert conjoint["sessions_actives"] == 1
 
 
 def test_liste_des_membres_reflete_un_verrouillage_en_cours(client_reel):
@@ -632,8 +639,9 @@ def test_liste_des_membres_reflete_un_verrouillage_en_cours(client_reel):
         client_reel.post("/api/auth/login", json={"username": "conjoint", "password": "mauvais-mot-de-passe"})
 
     membres = client_reel.get("/api/auth/household-members", headers={"Authorization": f"Bearer {token_paul}"}).json()
+    conjoint = next(m for m in membres if m["username"] == "conjoint")
 
-    assert membres[0]["verrouille_jusqua"] is not None
+    assert conjoint["verrouille_jusqua"] is not None
 
 
 def test_modifier_le_role_dun_membre_fonctionne(client_reel):
@@ -651,7 +659,8 @@ def test_modifier_le_role_dun_membre_fonctionne(client_reel):
     assert reponse.status_code == 200
     assert reponse.json()["role"] == "invite"
     membres = client_reel.get("/api/auth/household-members", headers=entete).json()
-    assert membres[0]["role"] == "invite"
+    conjoint = next(m for m in membres if m["username"] == "conjoint")
+    assert conjoint["role"] == "invite"
 
 
 def test_modifier_le_role_avec_une_valeur_invalide_est_refuse(client_reel):

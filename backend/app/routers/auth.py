@@ -272,15 +272,24 @@ def create_household_member(
 
 @router.get("/household-members", response_model=list[HouseholdMemberOut])
 def list_household_members(db: Session = Depends(get_db), current_user: User = Depends(require_role(ROLE_PROPRIETAIRE))):
+    """Écran d'administration des comptes (revue du 04/09/2026) : inclut désormais le
+    propriétaire lui-même en première position — avec un seul compte connecté (le cas
+    le plus courant sur un premier déploiement), la liste ne montrait jusque-là RIEN,
+    ce qui laissait croire que l'écran ne fonctionnait pas. Le propriétaire reste en
+    lecture seule ici (rôle non éditable, pas de suppression) : `update_household_member_role`/
+    `delete_household_member` continuent de 404 sur son propre id (`owner_user_id`
+    vaut `None`, jamais égal à `current_user.id`), c'est le frontend qui n'affiche
+    tout simplement pas ces contrôles sur sa ligne."""
     membres = db.query(User).filter(User.owner_user_id == current_user.id).order_by(User.created_at).all()
-    ids = [m.id for m in membres]
+    tous = [current_user, *membres]
+    ids = [u.id for u in tous]
     detenteur_ids_par_membre: dict[int, list[int]] = {}
     for p in db.query(PerimetreInvite).filter(PerimetreInvite.user_id.in_(ids)).all():
         detenteur_ids_par_membre.setdefault(p.user_id, []).append(p.detenteur_id)
     dernieres = auth_service.dernieres_connexions_reussies(db, ids)
     sessions = auth_service.nombre_sessions_actives(db, ids)
     resultats = []
-    for membre in membres:
+    for membre in tous:
         sortie = HouseholdMemberOut.model_validate(membre)
         sortie.detenteur_ids = detenteur_ids_par_membre.get(membre.id, [])
         sortie.oidc_display_name = _nom_affiche_oidc(membre)
