@@ -43,11 +43,23 @@ test.describe('Réglages', () => {
     await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
     await expect(page.getByLabel(`Rôle de ${nomMembre}`)).toHaveValue('invite')
 
+    // Renommage (nom d'utilisateur/login, revue du 04/09/2026) : édition en place,
+    // même patron que le renommage d'un établissement.
+    const nomRenomme = `${nomMembre}_renomme`
+    await page.getByRole('button', { name: `Modifier le nom d'utilisateur de ${nomMembre}` }).click()
+    await page.getByLabel(`Nom d'utilisateur de ${nomMembre} (édition)`).fill(nomRenomme)
+    await page.getByRole('button', { name: 'Enregistrer' }).click()
+    await expect(page.getByText(nomRenomme)).toBeVisible()
+    // Connectable sous son nouveau nom, avec le même mot de passe qu'à la création.
+    await page.reload()
+    await page.getByRole('tab', { name: 'Comptes & sécurité' }).click()
+    await expect(page.getByLabel(`Rôle de ${nomRenomme}`)).toHaveValue('invite')
+
     // Nettoyage : ce compte n'existe que pour ce test. Nom du bouton précisé
     // (`aria-label`, `GestionFoyerCard.tsx`) : "Supprimer" seul serait ambigu si un
     // autre membre du foyer existait déjà sur cette instance.
-    await page.getByRole('button', { name: `Supprimer le compte ${nomMembre}` }).click()
-    await expect(page.getByText(nomMembre)).not.toBeVisible()
+    await page.getByRole('button', { name: `Supprimer le compte ${nomRenomme}` }).click()
+    await expect(page.getByText(nomRenomme)).not.toBeVisible()
   })
 
   test('onglet Général : préférences de calcul du coût de revient', async ({ page }) => {

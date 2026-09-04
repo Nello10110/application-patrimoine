@@ -32,6 +32,9 @@ export default function GestionFoyerCard() {
   const [detenteurIds, setDetenteurIds] = useState<number[]>([])
   const [saving, setSaving] = useState(false)
   const [changingRoleId, setChangingRoleId] = useState<number | null>(null)
+  // Renommage inline (édition en place) : même patron que `EtablissementsCard.tsx`.
+  const [idUsernameEnEdition, setIdUsernameEnEdition] = useState<number | null>(null)
+  const [usernameEdition, setUsernameEdition] = useState('')
 
   function load() {
     setLoading(true)
@@ -83,12 +86,34 @@ export default function GestionFoyerCard() {
     setError(null)
     setChangingRoleId(id)
     try {
-      await api.updateHouseholdMemberRole(id, nouveauRole)
+      await api.updateHouseholdMember(id, { role: nouveauRole })
       load()
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setChangingRoleId(null)
+    }
+  }
+
+  function commencerEditionUsername(m: HouseholdMember) {
+    setIdUsernameEnEdition(m.id)
+    setUsernameEdition(m.username)
+    setError(null)
+  }
+
+  async function handleRenommer(e: React.FormEvent, id: number) {
+    e.preventDefault()
+    if (!usernameEdition.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      await api.updateHouseholdMember(id, { username: usernameEdition.trim() })
+      setIdUsernameEnEdition(null)
+      load()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -120,8 +145,43 @@ export default function GestionFoyerCard() {
               <li key={m.id} className="flex flex-col gap-1.5 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-texte">
-                    <span className="font-medium">{m.nom || m.username}</span>
+                    {idUsernameEnEdition === m.id ? (
+                      <form onSubmit={(e) => handleRenommer(e, m.id)} className="flex items-center gap-1.5">
+                        <input
+                          value={usernameEdition}
+                          onChange={(e) => setUsernameEdition(e.target.value)}
+                          aria-label={`Nom d'utilisateur de ${m.username} (édition)`}
+                          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                        />
+                        <button
+                          type="submit"
+                          disabled={saving || !usernameEdition.trim()}
+                          className="text-xs text-accent hover:underline disabled:opacity-40"
+                        >
+                          Enregistrer
+                        </button>
+                        <button type="button" onClick={() => setIdUsernameEnEdition(null)} className="text-xs text-texte-attenue hover:underline">
+                          Annuler
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        {/* Login (utilisé pour se connecter et dans le journal d'accès ci-dessous) —
+                            toujours affiché en priorité, jamais remplacé par le nom d'affichage SSO. */}
+                        <span className="font-medium">{m.username}</span>
+                        {!cestMoi && (
+                          <button
+                            onClick={() => commencerEditionUsername(m)}
+                            aria-label={`Modifier le nom d'utilisateur de ${m.username}`}
+                            className="text-xs text-accent hover:underline"
+                          >
+                            Modifier
+                          </button>
+                        )}
+                      </>
+                    )}
                     {cestMoi && <span className="text-xs text-texte-attenue">(vous)</span>}
+                    {m.nom && <span className="text-xs text-texte-attenue">{m.nom}</span>}
                     {m.email && <span className="text-xs text-texte-attenue">· {m.email}</span>}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-texte-attenue">

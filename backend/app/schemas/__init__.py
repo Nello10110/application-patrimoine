@@ -27,7 +27,7 @@ from .authentification import (  # noqa: F401
     AuthResponse,
     HouseholdMemberCreate,
     HouseholdMemberOut,
-    HouseholdMemberRoleUpdate,
+    HouseholdMemberUpdate,
     LoginRequest,
     OidcStatus,
     RegisterRequest,

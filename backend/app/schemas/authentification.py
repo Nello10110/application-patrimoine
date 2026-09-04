@@ -152,12 +152,29 @@ class HouseholdMemberOut(BaseModel):
     verrouille_jusqua: datetime | None = None
 
 
-class HouseholdMemberRoleUpdate(BaseModel):
-    role: str
+class HouseholdMemberUpdate(BaseModel):
+    """Modification d'un compte du foyer (revue du 04/09/2026) — rôle et/ou nom
+    d'utilisateur, chacun facultatif (mise à jour partielle). Jamais utilisé sur le
+    propriétaire lui-même : `update_household_member` (routers/auth.py) refuse toute
+    modification sur son propre compte, via le même garde IDOR que la suppression
+    (`owner_user_id != current_user.id`)."""
+
+    role: str | None = None
+    username: str | None = None
 
     @field_validator("role")
     @classmethod
-    def _valider_role(cls, v: str) -> str:
-        if v not in ROLES_ASSIGNABLES:
+    def _valider_role(cls, v: str | None) -> str | None:
+        if v is not None and v not in ROLES_ASSIGNABLES:
             raise ValueError("Le rôle doit être 'membre' ou 'invite'")
+        return v
+
+    @field_validator("username")
+    @classmethod
+    def _valider_username(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not (2 <= len(v) <= 32):
+            raise ValueError(MESSAGE_NOM_UTILISATEUR_INVALIDE)
         return v

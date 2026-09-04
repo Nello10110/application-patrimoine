@@ -77,7 +77,7 @@ vi.mock('../api/client', () => ({
     getAccessLog: vi.fn().mockResolvedValue([]),
     listHouseholdMembers: vi.fn().mockResolvedValue([]),
     createHouseholdMember: vi.fn(),
-    updateHouseholdMemberRole: vi.fn(),
+    updateHouseholdMember: vi.fn(),
     deleteHouseholdMember: vi.fn(),
     // Liens de partage (backlog 2.Q.1) : hors de l'objet des autres blocs de ce
     // fichier, stub neutre par défaut (aucun lien existant).
@@ -192,16 +192,19 @@ describe('ReglagesPage — Sessions actives, erreur avec action de reprise (back
 })
 
 describe('ReglagesPage — Comptes du foyer, affichage nom/email (backlog SSO)', () => {
-  it('affiche le nom (si renseigné) et l’email à côté du rôle', async () => {
+  it('affiche le nom d’utilisateur (login) EN PLUS du nom et de l’email, jamais à sa place', async () => {
+    // Revue du 04/09/2026 (retour utilisateur) : le nom d'utilisateur (login) est
+    // celui utilisé par le journal d'accès en dessous — le masquer derrière le nom
+    // d'affichage SSO rendait impossible de recouper les deux écrans.
     vi.mocked(api.listHouseholdMembers).mockResolvedValue([
       { id: 2, username: 'paul.oidc', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [], nom: 'Paul Cartieri', email: 'paul@example.com' },
     ])
     renderReglages()
     ouvrirOnglet('Comptes & sécurité')
 
-    await screen.findByText('Paul Cartieri')
+    await screen.findByText('paul.oidc')
+    expect(screen.getByText('Paul Cartieri')).toBeInTheDocument()
     expect(screen.getByText('· paul@example.com', { exact: false })).toBeInTheDocument()
-    expect(screen.queryByText('paul.oidc')).not.toBeInTheDocument()
   })
 
   it('sans nom, affiche le username (comportement inchangé pour un compte mot de passe)', async () => {
@@ -283,11 +286,11 @@ describe('ReglagesPage — écran d’administration des comptes du foyer (revue
     expect(screen.queryByText(/Verrouillé jusqu'à/)).not.toBeInTheDocument()
   })
 
-  it('changer le rôle dans le sélecteur appelle updateHouseholdMemberRole puis recharge la liste', async () => {
+  it('changer le rôle dans le sélecteur appelle updateHouseholdMember puis recharge la liste', async () => {
     vi.mocked(api.listHouseholdMembers)
       .mockResolvedValueOnce([{ id: 9, username: 'conjoint', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [] }])
       .mockResolvedValue([{ id: 9, username: 'conjoint', role: 'invite', created_at: '2026-01-01T00:00:00', detenteur_ids: [] }])
-    vi.mocked(api.updateHouseholdMemberRole).mockResolvedValue({
+    vi.mocked(api.updateHouseholdMember).mockResolvedValue({
       id: 9,
       username: 'conjoint',
       role: 'invite',
@@ -300,8 +303,61 @@ describe('ReglagesPage — écran d’administration des comptes du foyer (revue
 
     fireEvent.change(screen.getByLabelText('Rôle de conjoint'), { target: { value: 'invite' } })
 
-    await vi.waitFor(() => expect(api.updateHouseholdMemberRole).toHaveBeenCalledWith(9, 'invite'))
+    await vi.waitFor(() => expect(api.updateHouseholdMember).toHaveBeenCalledWith(9, { role: 'invite' }))
     expect(await screen.findByLabelText('Rôle de conjoint')).toHaveValue('invite')
+  })
+
+  it('renommer un membre : Modifier ouvre l’édition, Enregistrer appelle updateHouseholdMember puis recharge', async () => {
+    vi.mocked(api.listHouseholdMembers)
+      .mockResolvedValueOnce([{ id: 11, username: 'ancien-nom', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [] }])
+      .mockResolvedValue([{ id: 11, username: 'nouveau-nom', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [] }])
+    vi.mocked(api.updateHouseholdMember).mockResolvedValue({
+      id: 11,
+      username: 'nouveau-nom',
+      role: 'membre',
+      created_at: '2026-01-01T00:00:00',
+      detenteur_ids: [],
+    })
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+    await screen.findByText('ancien-nom')
+
+    fireEvent.click(screen.getByRole('button', { name: "Modifier le nom d'utilisateur de ancien-nom" }))
+    const champ = screen.getByLabelText("Nom d'utilisateur de ancien-nom (édition)")
+    fireEvent.change(champ, { target: { value: 'nouveau-nom' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await vi.waitFor(() => expect(api.updateHouseholdMember).toHaveBeenCalledWith(11, { username: 'nouveau-nom' }))
+    await screen.findByText('nouveau-nom')
+  })
+
+  it('renommer un membre : Annuler referme l’édition sans appeler l’API', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 12, username: 'inchange', role: 'membre', created_at: '2026-01-01T00:00:00', detenteur_ids: [] },
+    ])
+    // Réinitialisé : les tests précédents de ce fichier ont déjà appelé ce mock, or
+    // seule l'absence d'appel DEPUIS cette action précise nous intéresse ici.
+    vi.mocked(api.updateHouseholdMember).mockClear()
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+    await screen.findByText('inchange')
+
+    fireEvent.click(screen.getByRole('button', { name: "Modifier le nom d'utilisateur de inchange" }))
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+
+    expect(api.updateHouseholdMember).not.toHaveBeenCalled()
+    expect(screen.getByText('inchange')).toBeInTheDocument()
+  })
+
+  it('le propriétaire n’a ni bouton Modifier (nom) ni sélecteur de rôle sur sa propre ligne', async () => {
+    vi.mocked(api.listHouseholdMembers).mockResolvedValue([
+      { id: 1, username: 'testeur', role: 'proprietaire', created_at: '2026-01-01T00:00:00', detenteur_ids: [] },
+    ])
+    renderReglages()
+    ouvrirOnglet('Comptes & sécurité')
+
+    await screen.findByText('testeur')
+    expect(screen.queryByRole('button', { name: "Modifier le nom d'utilisateur de testeur" })).not.toBeInTheDocument()
   })
 
   it('le propriétaire connecté apparaît dans sa propre liste, en lecture seule', async () => {

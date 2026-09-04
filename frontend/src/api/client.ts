@@ -168,8 +168,8 @@ export const api = {
   listHouseholdMembers: () => request<HouseholdMember[]>('/auth/household-members'),
   createHouseholdMember: (payload: HouseholdMemberInput) =>
     request<HouseholdMember>('/auth/household-members', { method: 'POST', body: JSON.stringify(payload) }),
-  updateHouseholdMemberRole: (id: number, role: 'membre' | 'invite') =>
-    request<HouseholdMember>(`/auth/household-members/${id}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  updateHouseholdMember: (id: number, payload: { role?: 'membre' | 'invite'; username?: string }) =>
+    request<HouseholdMember>(`/auth/household-members/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteHouseholdMember: (id: number) => request<void>(`/auth/household-members/${id}`, { method: 'DELETE' }),
 
   // Portfolio

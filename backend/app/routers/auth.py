@@ -15,7 +15,7 @@ from ..schemas import (
     AuthResponse,
     HouseholdMemberCreate,
     HouseholdMemberOut,
-    HouseholdMemberRoleUpdate,
+    HouseholdMemberUpdate,
     LoginRequest,
     OidcStatus,
     RegisterRequest,
@@ -303,16 +303,21 @@ def list_household_members(db: Session = Depends(get_db), current_user: User = D
 
 
 @router.patch("/household-members/{id}", response_model=HouseholdMemberOut)
-def update_household_member_role(
+def update_household_member(
     id: int,
-    payload: HouseholdMemberRoleUpdate,
+    payload: HouseholdMemberUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(ROLE_PROPRIETAIRE)),
 ):
     membre = db.get(User, id)
     if membre is None or membre.owner_user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Compte introuvable")
-    membre.role = payload.role
+    if payload.username is not None and payload.username != membre.username:
+        if auth_service.utilisateur_par_username(db, payload.username) is not None:
+            raise HTTPException(status_code=400, detail=MESSAGE_NOM_UTILISATEUR_DEJA_UTILISE)
+        membre.username = payload.username
+    if payload.role is not None:
+        membre.role = payload.role
     db.commit()
     db.refresh(membre)
     return _household_member_out(db, membre)

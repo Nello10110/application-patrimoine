@@ -1077,6 +1077,27 @@ requête pour tout le foyer) plutôt qu'un aller-retour par membre. Vérifié en
 (Playwright, backend isolé) : création → badge « Connexion locale » → changement de rôle persisté après
 rechargement → suppression.
 
+**Complété le 05/09/2026** (retours utilisateur sur la livraison précédente) : (1) le propriétaire
+connecté apparaît désormais dans sa propre liste (en premier, lecture seule, badge « (vous) ») — avec un
+seul compte, la liste ne montrait jusque-là rien, ce qui a été signalé comme un bug ; (2) le nom
+d'utilisateur (login, celui du journal d'accès) est maintenant TOUJOURS affiché — il n'était plus visible
+dès qu'un nom d'affichage SSO était renseigné, rendant impossible le recoupement avec le journal en
+dessous ; (3) le nom d'utilisateur des autres comptes (membre/invité, jamais le sien) devient éditable
+depuis cet écran (`PATCH .../household-members/{id}`, schéma renommé `HouseholdMemberUpdate`, `role` et
+`username` désormais tous deux facultatifs et combinables en une requête), même patron d'édition en place
+que le renommage d'un établissement (`EtablissementsCard.tsx`).
+
+Écarté après investigation, à la demande initiale de l'utilisateur — **transfert de propriété** (choisir
+un nouveau propriétaire depuis le sélecteur de rôle de sa propre ligne) : rôle et `owner_user_id` ne sont
+pas les seules choses à basculer. **16 tables** portent un `user_id` qui ancre les données au foyer
+(`Holding`, `Compte`, `Detenteur`, `Objectif`, `Salaire`, `Etablissement`, `LienPartage`,
+`CategorieBudget`, `BudgetCible`, `MouvementBancaire`, `RegleCategorisation`...) — toutes pointent
+directement vers l'id du propriétaire d'ORIGINE, jamais recalculées dynamiquement. Un simple échange de
+rôles casserait le foyer : les nouvelles données du nouveau "propriétaire" partiraient sous un autre id
+que les 51+ positions déjà existantes. Un vrai transfert exigerait de ré-ancrer ces 16 tables en une
+seule transaction atomique — un projet à part entière, pas un effet de bord d'un sélecteur de rôle.
+Reporté, à cadrer séparément si le besoin se confirme.
+
 **Reste hors périmètre, explicitement reporté** :
 - **TOTP (second facteur)** et **migration du jeton vers un cookie `Secure`/`SameSite=Strict`** — un
   incrément ultérieur.

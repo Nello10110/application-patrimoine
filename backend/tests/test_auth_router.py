@@ -550,7 +550,7 @@ def test_supprimer_un_membre_conserve_son_journal_sans_reference_pendante(client
 #
 # Origine locale/SSO + nom du fournisseur, dernière connexion réussie, nombre de
 # sessions actives, verrouillage en cours, et rôle éditable — cf.
-# `HouseholdMemberOut`/`HouseholdMemberRoleUpdate` (schemas/authentification.py) et
+# `HouseholdMemberOut`/`HouseholdMemberUpdate` (schemas/authentification.py) et
 # `_household_member_out` (routers/auth.py).
 
 
@@ -721,6 +721,109 @@ def test_modifier_le_role_dun_membre_dun_autre_foyer_renvoie_404(client_reel, db
         f"/api/auth/household-members/{membre_paul['id']}",
         json={"role": "invite"},
         headers={"Authorization": f"Bearer {token_alice}"},
+    )
+
+    assert reponse.status_code == 404
+
+
+# --- Renommage (nom d'utilisateur/login) d'un compte du foyer, revue du 04/09/2026 -
+#
+# Le nom affiché (badge « (vous) », nom OIDC) ne remplace plus le nom d'utilisateur
+# dans la liste (il reste l'identifiant utilisé par le journal d'accès) — signalé
+# par l'utilisateur. Éditable pour tout membre/invité, jamais pour le propriétaire
+# lui-même (même garde IDOR que le rôle et la suppression).
+
+
+def test_renommer_un_membre_fonctionne(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+
+    reponse = client_reel.patch(f"/api/auth/household-members/{membre['id']}", json={"username": "nouveau-nom"}, headers=entete)
+
+    assert reponse.status_code == 200
+    assert reponse.json()["username"] == "nouveau-nom"
+    # Le compte reste connectable sous son nouveau nom, avec le même mot de passe.
+    connexion = client_reel.post("/api/auth/login", json={"username": "nouveau-nom", "password": "mot-de-passe-solide"})
+    assert connexion.status_code == 200
+
+
+def test_renommer_un_membre_avec_un_nom_deja_pris_est_refuse(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "existant", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    )
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+
+    reponse = client_reel.patch(f"/api/auth/household-members/{membre['id']}", json={"username": "existant"}, headers=entete)
+
+    assert reponse.status_code == 400
+
+
+def test_renommer_un_membre_avec_son_propre_nom_ne_leve_pas(client_reel):
+    # Cas limite : renommer un compte avec le nom qu'il porte déjà ne doit pas être
+    # traité comme une collision (comparé à lui-même dans `update_household_member`).
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+
+    reponse = client_reel.patch(f"/api/auth/household-members/{membre['id']}", json={"username": "conjoint"}, headers=entete)
+
+    assert reponse.status_code == 200
+
+
+def test_renommer_un_membre_nom_trop_court_est_refuse(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+
+    reponse = client_reel.patch(f"/api/auth/household-members/{membre['id']}", json={"username": "a"}, headers=entete)
+
+    assert reponse.status_code == 400
+
+
+def test_renommer_et_changer_le_role_en_une_seule_requete(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+    entete = {"Authorization": f"Bearer {token_paul}"}
+    membre = client_reel.post(
+        "/api/auth/household-members",
+        json={"username": "conjoint", "password": "mot-de-passe-solide", "role": "membre"},
+        headers=entete,
+    ).json()
+
+    reponse = client_reel.patch(
+        f"/api/auth/household-members/{membre['id']}", json={"username": "nouveau-nom", "role": "invite"}, headers=entete
+    )
+
+    assert reponse.status_code == 200
+    assert reponse.json()["username"] == "nouveau-nom"
+    assert reponse.json()["role"] == "invite"
+
+
+def test_renommer_le_proprietaire_lui_meme_renvoie_404(client_reel):
+    token_paul = _inscrire(client_reel).json()["token"]
+
+    reponse = client_reel.patch(
+        "/api/auth/household-members/1", json={"username": "autre-nom"}, headers={"Authorization": f"Bearer {token_paul}"}
     )
 
     assert reponse.status_code == 404
