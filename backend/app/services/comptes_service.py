@@ -40,26 +40,31 @@ def list_etablissements(db: Session, user_id: int) -> list[Etablissement]:
     return db.query(Etablissement).filter(Etablissement.user_id == user_id).order_by(Etablissement.nom).all()
 
 
-def create_etablissement(db: Session, user_id: int, nom: str) -> Etablissement:
+def create_etablissement(db: Session, user_id: int, nom: str, logo_key: str | None = None) -> Etablissement:
     _verifier_nom_etablissement_libre(db, user_id, nom)
-    etablissement = Etablissement(user_id=user_id, nom=nom)
+    etablissement = Etablissement(user_id=user_id, nom=nom, logo_key=logo_key)
     db.add(etablissement)
     db.commit()
     db.refresh(etablissement)
     return etablissement
 
 
-def get_or_create_etablissement(db: Session, user_id: int, nom: str) -> Etablissement:
+def get_or_create_etablissement(db: Session, user_id: int, nom: str, logo_key: str | None = None) -> Etablissement:
     """Résolution d'un nom saisi vers un établissement existant, ou création à la
     volée (revue du 03/09/2026) — même patron que `get_or_create_compte`, pour les
     formulaires qui créent un compte ET son établissement en une seule saisie
     (« + Nouvel établissement... » depuis un sélecteur de compte). Contrairement à
     `create_etablissement`, ne lève JAMAIS sur un nom déjà pris : retrouver
-    l'établissement existant est le comportement attendu ici, pas une erreur."""
+    l'établissement existant est le comportement attendu ici, pas une erreur.
+
+    `logo_key` (refonte import, 05/09/2026) : posé UNIQUEMENT à la création — un
+    établissement déjà existant sous ce nom garde son logo actuel, jamais écrasé
+    silencieusement par un appelant qui en fournirait un différent (même doctrine
+    que `etablissement_id` dans `get_or_create_compte_sans_commit`)."""
     etablissement = db.query(Etablissement).filter(Etablissement.user_id == user_id, Etablissement.nom == nom).first()
     if etablissement is not None:
         return etablissement
-    return create_etablissement(db, user_id, nom)
+    return create_etablissement(db, user_id, nom, logo_key)
 
 
 def update_etablissement(db: Session, etablissement: Etablissement, **champs) -> Etablissement:

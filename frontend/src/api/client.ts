@@ -233,7 +233,8 @@ export const api = {
 
   // Établissements et comptes structurels (écran Comptes, backlog X.1).
   listEtablissements: () => request<Etablissement[]>('/comptes/etablissements'),
-  createEtablissement: (nom: string) => request<Etablissement>('/comptes/etablissements', { method: 'POST', body: JSON.stringify({ nom }) }),
+  createEtablissement: (nom: string, logoKey?: string | null) =>
+    request<Etablissement>('/comptes/etablissements', { method: 'POST', body: JSON.stringify({ nom, logo_key: logoKey ?? null }) }),
   updateEtablissement: (id: number, nom: string) =>
     request<Etablissement>(`/comptes/etablissements/${id}`, { method: 'PATCH', body: JSON.stringify({ nom }) }),
   deleteEtablissement: (id: number) => request<{ ok: boolean }>(`/comptes/etablissements/${id}`, { method: 'DELETE' }),

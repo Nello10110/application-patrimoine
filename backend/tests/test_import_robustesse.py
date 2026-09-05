@@ -8,8 +8,8 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
-from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Holding
-from app.services import csv_import, upload_limits
+from app.models import ORIGINE_MANUEL, ORIGINE_RECONSTRUIT, Compte, Etablissement, Holding
+from app.services import comptes_service, csv_import, transaction_import, upload_limits
 
 from .conftest import ID_UTILISATEUR_TEST, make_holding
 
@@ -152,6 +152,100 @@ def test_import_confirm_colonnes_valides_acceptees(client):
         },
     )
     assert reponse.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Refonte import (05/09/2026) — établissement obligatoire pour un compte CRÉÉ à la
+# volée depuis la colonne Compte, alignement sur la même règle déjà appliquée à
+# l'import du grand livre de transactions et à `CompteCreate`.
+# ---------------------------------------------------------------------------
+
+CSV_AVEC_COMPTE = (
+    "ticker,quantite,compte\n"
+    "AAA,10,PEA Boursorama\n"
+).encode("utf-8")
+
+
+def test_import_confirm_nouveau_compte_sans_etablissement_refuse_en_400(client):
+    preview = _uploader_preview(client, CSV_AVEC_COMPTE)
+
+    reponse = client.post(
+        "/api/portfolio/import/confirm",
+        json={
+            "file_token": preview["file_token"],
+            "ticker_col": "ticker",
+            "quantite_col": "quantite",
+            "compte_col": "compte",
+            "replace_existing": False,
+        },
+    )
+
+    assert reponse.status_code == 400
+    assert "Établissement requis" in reponse.json()["detail"]
+    assert "PEA Boursorama" in reponse.json()["detail"]
+
+
+def test_import_confirm_nouveau_compte_avec_etablissement_cree_le_compte_rattache(client, db):
+    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama")
+    preview = _uploader_preview(client, CSV_AVEC_COMPTE)
+
+    reponse = client.post(
+        "/api/portfolio/import/confirm",
+        json={
+            "file_token": preview["file_token"],
+            "ticker_col": "ticker",
+            "quantite_col": "quantite",
+            "compte_col": "compte",
+            "etablissement_id": etablissement.id,
+            "replace_existing": False,
+        },
+    )
+
+    assert reponse.status_code == 200, reponse.text
+    compte = db.query(Compte).filter(Compte.user_id == ID_UTILISATEUR_TEST, Compte.nom == "PEA Boursorama").first()
+    assert compte is not None
+    assert compte.etablissement_id == etablissement.id
+
+
+def test_import_transactions_nouvel_etablissement_avec_logo_key(client, db):
+    """Refonte import (05/09/2026) : `etablissement_logo_key` transmis à la création
+    d'un nouvel établissement pendant l'import du grand livre (catalogue
+    d'établissements connus, badge affiché côté frontend)."""
+    from datetime import UTC, datetime
+
+    token = "token-grand-livre-logo"
+    transaction_import._PENDING_TRANSACTIONS[token] = (transaction_import.ParsedTransactions(), datetime.now(UTC))
+
+    reponse = client.post(
+        "/api/transactions/import",
+        json={"file_token": token, "etablissement_nom": "Trade Republic", "etablissement_logo_key": "trade_republic"},
+    )
+
+    assert reponse.status_code == 200, reponse.text
+    etablissement = db.query(Etablissement).filter(Etablissement.user_id == ID_UTILISATEUR_TEST, Etablissement.nom == "Trade Republic").first()
+    assert etablissement is not None
+    assert etablissement.logo_key == "trade_republic"
+
+
+def test_import_confirm_compte_deja_existant_sans_etablissement_fourni_fonctionne(client, db):
+    """Pas de régression : un compte déjà existant sous ce nom continue de
+    fonctionner sans qu'un établissement soit fourni à cet import (son
+    établissement actuel, s'il en a un, ne change pas ici)."""
+    comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA Boursorama", None)
+    preview = _uploader_preview(client, CSV_AVEC_COMPTE)
+
+    reponse = client.post(
+        "/api/portfolio/import/confirm",
+        json={
+            "file_token": preview["file_token"],
+            "ticker_col": "ticker",
+            "quantite_col": "quantite",
+            "compte_col": "compte",
+            "replace_existing": False,
+        },
+    )
+
+    assert reponse.status_code == 200, reponse.text
 
 
 # ---------------------------------------------------------------------------

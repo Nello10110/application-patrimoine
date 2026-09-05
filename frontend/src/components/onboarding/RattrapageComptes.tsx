@@ -16,10 +16,11 @@ interface LigneForm {
   compte_nom: string
   etablissement_id: string
   etablissement_nom: string
+  etablissement_logo_key: string | null
 }
 
 function ligneVierge(): LigneForm {
-  return { compte_id: '', compte_nom: '', etablissement_id: '', etablissement_nom: '' }
+  return { compte_id: '', compte_nom: '', etablissement_id: '', etablissement_nom: '', etablissement_logo_key: null }
 }
 
 /** Écran de rattrapage bloquant (revue du 03/09/2026, compte obligatoire sur une
@@ -83,6 +84,7 @@ export default function RattrapageComptes() {
         compte_nom: nouveauCompte ? form.compte_nom.trim() || null : null,
         etablissement_id: nouveauCompte && !nouvelEtablissement && form.etablissement_id ? Number(form.etablissement_id) : null,
         etablissement_nom: nouveauCompte && nouvelEtablissement ? form.etablissement_nom.trim() || null : null,
+        etablissement_logo_key: nouveauCompte && nouvelEtablissement ? form.etablissement_logo_key : null,
       })
       setHoldings((prev) => (prev ?? []).filter((x) => x.id !== h.id))
       // Un compte (et son établissement) a pu être créé à la volée : recharge les
@@ -183,6 +185,8 @@ export default function RattrapageComptes() {
                             nomNouveau={form.etablissement_nom}
                             onValueChange={(v) => majForm(h.id, { etablissement_id: v })}
                             onNomNouveauChange={(v) => majForm(h.id, { etablissement_nom: v })}
+                            logoKeyNouveau={form.etablissement_logo_key}
+                            onLogoKeyNouveauChange={(v) => majForm(h.id, { etablissement_logo_key: v })}
                             ariaLabel={`Établissement pour ${h.ticker}`}
                             className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                           />

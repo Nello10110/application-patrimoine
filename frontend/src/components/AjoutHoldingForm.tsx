@@ -33,6 +33,7 @@ const FORM_VIDE = {
   // objet si `compte_id` n'est pas `NOUVEAU_COMPTE`.
   etablissement_id: '',
   etablissement_nom: '',
+  etablissement_logo_key: null as string | null,
   type_actif: '',
   valeur_estimee: '',
   taux_pct: '',
@@ -102,6 +103,7 @@ export default function AjoutHoldingForm({
         compte_nom: nouveauCompte ? form.compte_nom.trim() || null : null,
         etablissement_id: nouveauCompte && !nouvelEtablissement && form.etablissement_id ? Number(form.etablissement_id) : null,
         etablissement_nom: nouveauCompte && nouvelEtablissement ? form.etablissement_nom.trim() || null : null,
+        etablissement_logo_key: nouveauCompte && nouvelEtablissement ? form.etablissement_logo_key : null,
         type_actif: form.type_actif || null,
         valeur_estimee: form.valeur_estimee ? Number(form.valeur_estimee) : null,
         taux_pct: form.taux_pct ? Number(form.taux_pct) : null,
@@ -208,6 +210,8 @@ export default function AjoutHoldingForm({
                 nomNouveau={form.etablissement_nom}
                 onValueChange={(v) => setForm({ ...form, etablissement_id: v })}
                 onNomNouveauChange={(v) => setForm({ ...form, etablissement_nom: v })}
+                logoKeyNouveau={form.etablissement_logo_key}
+                onLogoKeyNouveauChange={(v) => setForm({ ...form, etablissement_logo_key: v })}
                 ariaLabel="Établissement du nouveau compte"
                 className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               />

@@ -120,6 +120,23 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
     skipped = 0
     errors: list[str] = []
     user_id = auth_service.id_foyer(current_user)
+
+    # Établissement des comptes créés à la volée (refonte import, 05/09/2026,
+    # alignement sur l'import du grand livre de transactions) — résolu UNE fois,
+    # jamais par ligne. `None` si le fichier n'a mappé aucune colonne Compte, ou si
+    # tous les comptes qu'elle désigne existent déjà (cf. `_resoudre_compte_import`
+    # ci-dessous, qui n'exige un établissement QUE pour un compte réellement créé).
+    etablissement_id: int | None = None
+    if mapping.etablissement_id is not None:
+        etablissement = db.get(Etablissement, mapping.etablissement_id)
+        if etablissement is None or etablissement.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Établissement introuvable")
+        etablissement_id = mapping.etablissement_id
+    elif mapping.etablissement_nom:
+        etablissement_id = comptes_service.get_or_create_etablissement(
+            db, user_id, mapping.etablissement_nom, mapping.etablissement_logo_key
+        ).id
+
     # Cache local nom -> id (pas d'appel service par ligne) : un même compte peut
     # apparaître sur des dizaines de lignes du fichier importé, et `get_or_create_compte`
     # ne verrait pas encore le compte créé à la ligne précédente avant le premier
@@ -130,9 +147,16 @@ def import_confirm(mapping: ColumnMapping, db: Session = Depends(get_db), curren
         if not nom:
             return None
         if nom not in comptes_cache:
+            existant = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == nom).first()
+            if existant is None and etablissement_id is None:
+                # Même règle que `CompteCreate.etablissement_id` (obligatoire à la
+                # création) — un compte déjà existant, lui, garde son établissement
+                # actuel sans qu'on l'exige ici (pas de régression sur les imports
+                # qui ne mappaient pas de colonne Établissement avant ce lot).
+                raise ValueError(f"Établissement requis pour créer le compte « {nom} ».")
             # `_sans_commit` : cette boucle est dans la transaction « tout ou rien »
             # de l'import (rollback possible plus bas) — jamais de commit intermédiaire.
-            comptes_cache[nom] = comptes_service.get_or_create_compte_sans_commit(db, user_id, nom).id
+            comptes_cache[nom] = comptes_service.get_or_create_compte_sans_commit(db, user_id, nom, etablissement_id).id
         return comptes_cache[nom]
 
     # Tout ou rien (LOT 3.3) : un import (potentiellement précédé d'un vidage du
@@ -192,6 +216,7 @@ def _resoudre_compte_id(
     compte_nom: str | None,
     etablissement_id: int | None = None,
     etablissement_nom: str | None = None,
+    etablissement_logo_key: str | None = None,
 ) -> int | None:
     """`compte_id` référence un compte déjà existant (vérifié appartenir à
     l'utilisateur — IDOR) ; `compte_nom` crée un compte à la volée s'il n'existe pas
@@ -201,31 +226,38 @@ def _resoudre_compte_id(
     `etablissement_id`/`etablissement_nom` (revue du 03/09/2026) : sans effet quand
     `compte_id` référence un compte EXISTANT — son établissement ne change pas ici,
     ce n'est pas le rôle de ce helper (cf. `routers/comptes.py::update_compte` pour
-    éditer un compte). Même priorité id > nom, même IDOR."""
+    éditer un compte). Même priorité id > nom, même IDOR. `etablissement_logo_key`
+    (refonte import, 05/09/2026) : cf. `_resoudre_etablissement_id`."""
     if compte_id is not None:
         compte = db.get(Compte, compte_id)
         if compte is None or compte.user_id != user_id:
             raise HTTPException(status_code=404, detail="Compte introuvable")
         return compte_id
     if compte_nom:
-        etablissement_resolu = _resoudre_etablissement_id(db, user_id, etablissement_id, etablissement_nom)
+        etablissement_resolu = _resoudre_etablissement_id(db, user_id, etablissement_id, etablissement_nom, etablissement_logo_key)
         return comptes_service.get_or_create_compte(db, user_id, compte_nom, etablissement_resolu).id
     return None
 
 
 def _resoudre_etablissement_id(
-    db: Session, user_id: int, etablissement_id: int | None, etablissement_nom: str | None
+    db: Session,
+    user_id: int,
+    etablissement_id: int | None,
+    etablissement_nom: str | None,
+    etablissement_logo_key: str | None = None,
 ) -> int | None:
     """Même patron que `_resoudre_compte_id`, un cran plus simple : un établissement
     n'a pas de sous-champ à propager (pas d'« établissement de l'établissement »),
-    donc pas de récursion à prévoir ici."""
+    donc pas de récursion à prévoir ici. `etablissement_logo_key` (refonte import,
+    05/09/2026) : sans objet si `etablissement_id` est fourni, posé uniquement à la
+    création d'un nouvel établissement (cf. `comptes_service.get_or_create_etablissement`)."""
     if etablissement_id is not None:
         etablissement = db.get(Etablissement, etablissement_id)
         if etablissement is None or etablissement.user_id != user_id:
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         return etablissement_id
     if etablissement_nom:
-        return comptes_service.get_or_create_etablissement(db, user_id, etablissement_nom).id
+        return comptes_service.get_or_create_etablissement(db, user_id, etablissement_nom, etablissement_logo_key).id
     return None
 
 
@@ -483,7 +515,10 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db), curren
     compte_nom = donnees.pop("compte_nom")
     etablissement_id = donnees.pop("etablissement_id")
     etablissement_nom = donnees.pop("etablissement_nom")
-    donnees["compte_id"] = _resoudre_compte_id(db, user_id, compte_id, compte_nom, etablissement_id, etablissement_nom)
+    etablissement_logo_key = donnees.pop("etablissement_logo_key")
+    donnees["compte_id"] = _resoudre_compte_id(
+        db, user_id, compte_id, compte_nom, etablissement_id, etablissement_nom, etablissement_logo_key
+    )
     # `date_valeur_estimee` (immobilier/SCPI/assurance-vie/PER, Phase 1 de
     # `docs/ROADMAP.md`) n'est jamais saisie par le client (cf. `HoldingBase`) : posée
     # ici dès qu'une valeur estimée est fournie à la création.
@@ -527,14 +562,16 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
             updates.pop("compte_nom", None),
             updates.pop("etablissement_id", None),
             updates.pop("etablissement_nom", None),
+            updates.pop("etablissement_logo_key", None),
         )
     else:
-        # Ces deux champs n'ont de sens qu'accompagnés de compte_id/compte_nom (cf.
+        # Ces champs n'ont de sens qu'accompagnés de compte_id/compte_nom (cf.
         # HoldingUpdate) : s'ils sont fournis seuls, ce n'est jamais volontaire, mais
         # `exclude_unset` les laisserait sinon dans `updates` et `setattr` échouerait
         # (`Holding` n'a pas ces attributs).
         updates.pop("etablissement_id", None)
         updates.pop("etablissement_nom", None)
+        updates.pop("etablissement_logo_key", None)
     # Compte obligatoire sauf type exempté (revue du 03/09/2026) : vérifié ICI, sur
     # l'état FINAL fusionné (existant + patch), jamais dans le schéma — `HoldingUpdate`
     # est un PATCH partiel, il ne connaît pas seul l'état après application. Même

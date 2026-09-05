@@ -58,6 +58,14 @@
       "rules": { "jsx-a11y/no-autofocus": "off" }
     },
     {
+      // Zone de dépôt de fichier (refonte import, 05/09/2026) : `role="button"` sur
+      // le conteneur qui enveloppe un `<input type="file">` réel — un vrai
+      // `<button>` ne peut pas contenir d'élément interactif imbriqué (spec HTML),
+      // même limite que `PositionsTable.tsx` ci-dessus pour cette règle.
+      "files": ["src/components/Dropzone.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    },
+    {
       // Même limite d'analyse statique que `PositionsTable.tsx` ci-dessus, pour le
       // sélecteur d'établissement partagé (`SelecteurEtablissement.tsx`, revue du
       // 03/09/2026, compte/établissement obligatoires) : le `<select>` réel est
@@ -68,7 +76,8 @@
         "src/components/AjoutHoldingForm.tsx",
         "src/components/AjoutCompteForm.tsx",
         "src/components/ImportTransactionsSection.tsx",
-        "src/pages/EpargnePage.tsx"
+        "src/pages/EpargnePage.tsx",
+        "src/pages/ImportPage.tsx"
       ],
       "rules": { "jsx-a11y/label-has-associated-control": "off" }
     }

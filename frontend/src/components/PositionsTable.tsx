@@ -89,6 +89,7 @@ interface EditForm {
   // objet si `compte_id` n'est pas `NOUVEAU_COMPTE`.
   etablissement_id: string
   etablissement_nom: string
+  etablissement_logo_key: string | null
   type_actif: string
   valeur_estimee: string
   taux_pct: string
@@ -145,6 +146,8 @@ function CompteEditSelect({
             nomNouveau={editForm.etablissement_nom}
             onValueChange={(v) => setEditForm({ ...editForm, etablissement_id: v })}
             onNomNouveauChange={(v) => setEditForm({ ...editForm, etablissement_nom: v })}
+            logoKeyNouveau={editForm.etablissement_logo_key}
+            onLogoKeyNouveauChange={(v) => setEditForm({ ...editForm, etablissement_logo_key: v })}
             ariaLabel={`Établissement du nouveau compte (${ariaLabel})`}
             className="mt-1 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
           />
@@ -475,6 +478,7 @@ export default function PositionsTable({
     compte_nom: '',
     etablissement_id: '',
     etablissement_nom: '',
+    etablissement_logo_key: null,
     type_actif: '',
     valeur_estimee: '',
     taux_pct: '',
@@ -504,6 +508,7 @@ export default function PositionsTable({
       compte_nom: '',
       etablissement_id: '',
       etablissement_nom: '',
+      etablissement_logo_key: null,
       type_actif: h.type_actif ?? '',
       valeur_estimee: h.valeur_estimee !== null && h.valeur_estimee !== undefined ? String(h.valeur_estimee) : '',
       taux_pct: h.taux_pct !== null && h.taux_pct !== undefined ? String(h.taux_pct) : '',
@@ -533,6 +538,7 @@ export default function PositionsTable({
         compte_nom: nouveauCompte ? editForm.compte_nom.trim() || null : null,
         etablissement_id: nouveauCompte && !nouvelEtablissement && editForm.etablissement_id ? Number(editForm.etablissement_id) : null,
         etablissement_nom: nouveauCompte && nouvelEtablissement ? editForm.etablissement_nom.trim() || null : null,
+        etablissement_logo_key: nouveauCompte && nouvelEtablissement ? editForm.etablissement_logo_key : null,
         type_actif: editForm.type_actif || null,
         valeur_estimee: editForm.valeur_estimee ? Number(editForm.valeur_estimee) : null,
         taux_pct: editForm.taux_pct ? Number(editForm.taux_pct) : null,

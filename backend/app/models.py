@@ -317,6 +317,13 @@ class Etablissement(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     nom: Mapped[str] = mapped_column(String)
+    # Clé du catalogue d'établissements connus choisie à la création (revue import,
+    # 05/09/2026 — ex. "trade_republic", "boursorama"), affichée comme un badge coloré
+    # côté frontend (`frontend/src/utils/etablissementsConnus.ts`). `None` : établissement
+    # personnalisé, badge neutre. Jamais réécrite après coup par un import qui retrouve
+    # un établissement déjà existant (même doctrine que `Compte.etablissement_id`,
+    # cf. `services/comptes_service.get_or_create_compte_sans_commit`).
+    logo_key: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

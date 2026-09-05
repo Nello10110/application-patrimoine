@@ -4,6 +4,7 @@ import type { CompteAvecSolde, Etablissement, Holding } from '../api/types'
 import AjoutCompteForm from '../components/AjoutCompteForm'
 import Card from '../components/Card'
 import CompteDetailModal from '../components/CompteDetailModal'
+import EtablissementLogo from '../components/EtablissementLogo'
 import EtablissementsCard from '../components/EtablissementsCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
@@ -176,7 +177,14 @@ export default function ComptesPage() {
                       }}
                       className={`flex items-center justify-between py-2.5 text-sm ${estCliquable ? 'cursor-pointer hover:text-texte' : ''}`}
                     >
-                      <span className="text-texte">
+                      <span className="flex items-center text-texte">
+                        {ligne.compte?.etablissement && (
+                          <EtablissementLogo
+                            logoKey={ligne.compte.etablissement.logo_key}
+                            nom={ligne.compte.etablissement.nom}
+                            className="mr-2"
+                          />
+                        )}
                         {ligne.compte?.nom ?? (
                           // Le bucket « Sans compte » n'est pas un compte : c'est le
                           // reliquat des lignes jamais rattachées. Sans cette

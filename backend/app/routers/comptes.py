@@ -55,7 +55,7 @@ def list_etablissements(db: Session = Depends(get_db), current_user: User = Depe
 @router.post("/etablissements", response_model=EtablissementOut)
 def create_etablissement(payload: EtablissementCreate, db: Session = Depends(get_db), current_user: User = Depends(_peut_ecrire)):
     try:
-        return comptes_service.create_etablissement(db, auth_service.id_foyer(current_user), payload.nom)
+        return comptes_service.create_etablissement(db, auth_service.id_foyer(current_user), payload.nom, payload.logo_key)
     except ValueError as exc:
         # Doublon de nom : message exploitable plutôt qu'une `IntegrityError` brute
         # en 500 (recette du 02/09/2026), même contrat que `set_compte_quotites`.

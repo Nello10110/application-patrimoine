@@ -5,6 +5,16 @@ import { cardByTitle, positionsTable } from './helpers'
 
 const DIRNAME = path.dirname(fileURLToPath(import.meta.url))
 
+test('Import : les zones de dépôt affichent un repère visuel explicite (refonte import, 05/09/2026)', async ({ page }) => {
+  await page.goto('/import')
+  await expect(page.getByRole('heading', { name: 'Importer le portefeuille' })).toBeVisible()
+
+  // Retour utilisateur : « pas assez d'information, on a l'impression que ça ne
+  // marche pas » — chaque zone d'upload affiche désormais un texte explicite au
+  // repos (`Dropzone.tsx`), plus plusieurs zones sur cette seule page.
+  await expect(page.getByText(/Glissez un fichier ici ou cliquez pour parcourir/).first()).toBeVisible()
+})
+
 test('Import : relevé de positions (CSV, mapping des colonnes)', async ({ page }) => {
   await page.goto('/import')
   await expect(page.getByRole('heading', { name: 'Importer le portefeuille' })).toBeVisible()
@@ -23,6 +33,11 @@ test('Import : relevé de positions (CSV, mapping des colonnes)', async ({ page 
   // suivante — plus représentatif de l'usage réel qu'un import volontairement
   // laissé sans compte.
   await page.getByLabel('Compte (optionnel)').selectOption('Compte')
+  // Établissement obligatoire dès qu'une colonne Compte est mappée (refonte
+  // import, 05/09/2026, alignement sur l'import du grand livre ci-dessous) —
+  // réutilise l'établissement déjà semé (`seed_e2e.py::_creer_etablissement`),
+  // aucun nettoyage supplémentaire nécessaire.
+  await page.getByLabel('Établissement des comptes créés').selectOption({ label: 'Banque E2E' })
   await page.getByRole('button', { name: "Confirmer l'import" }).click()
 
   await expect(page.getByText(/1 ligne\(s\) importée/)).toBeVisible()

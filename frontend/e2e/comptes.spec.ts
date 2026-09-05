@@ -191,4 +191,22 @@ test.describe('Comptes (backlog X.1)', () => {
     await ligneRenommee.getByRole('button', { name: 'Supprimer' }).click()
     await expect(carteEtablissements.getByText(nomRenomme)).not.toBeVisible()
   })
+
+  test('choisir un établissement connu dans le catalogue préremplit son nom (refonte import, 05/09/2026)', async ({ page }) => {
+    const carteEtablissements = cardByTitle(page, 'Établissements')
+
+    await carteEtablissements.getByRole('button', { name: /Fortuneo/ }).click()
+    await expect(carteEtablissements.getByPlaceholder("Caisse d'Épargne")).toHaveValue('Fortuneo')
+
+    await carteEtablissements.getByRole('button', { name: 'Ajouter' }).click()
+    const ligne = carteEtablissements.locator('li').filter({ hasText: 'Fortuneo' })
+    await expect(ligne).toBeVisible()
+
+    // Nettoyage : ne pas laisser cet établissement polluer les specs qui
+    // parcourent la liste complète (ex. le rejeu de l'assistant de bienvenue).
+    // Scope à la ligne (pas à toute la carte) : le bouton du catalogue "Fortuneo"
+    // du formulaire d'ajout, lui, reste affiché après la suppression.
+    await ligne.getByRole('button', { name: 'Supprimer' }).click()
+    await expect(ligne).not.toBeVisible()
+  })
 })

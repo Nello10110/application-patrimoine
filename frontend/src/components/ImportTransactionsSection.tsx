@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { CleCompte, TransactionImportApercu, TransactionImportResult } from '../api/types'
 import Card from './Card'
+import Dropzone from './Dropzone'
 import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
@@ -39,11 +40,10 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
   const [apercu, setApercu] = useState<TransactionImportApercu | null>(null)
   const [etablissementId, setEtablissementId] = useState('')
   const [etablissementNom, setEtablissementNom] = useState('')
+  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>(null)
   const [nomsComptes, setNomsComptes] = useState<Partial<Record<CleCompte, string>>>({})
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  async function handleFileChange(file: File) {
     setError(null)
     setResult(null)
     setUploading(true)
@@ -52,6 +52,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
       setApercu(a)
       setEtablissementId('')
       setEtablissementNom('')
+      setEtablissementLogoKey(null)
       setNomsComptes({})
     } catch (err) {
       setError((err as Error).message)
@@ -74,6 +75,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
         file_token: apercu.file_token,
         etablissement_id: !nouvelEtablissement ? Number(etablissementId) : null,
         etablissement_nom: nouvelEtablissement ? etablissementNom.trim() || null : null,
+        etablissement_logo_key: nouvelEtablissement ? etablissementLogoKey : null,
         noms_comptes: nomsComptes,
       })
       setResult(res)
@@ -101,8 +103,14 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
         Chaque ligne est rattachée au compte adapté (PEA, Compte-titres, Cryptomonnaie, Obligations) sous
         l'établissement que vous choisissez à l'étape suivante.
       </p>
-      <input ref={txInputRef} type="file" accept=".csv" onChange={handleFileChange} className="text-sm text-texte" />
-      {uploading && <p className="mt-2 text-sm text-texte-attenue">Lecture du fichier...</p>}
+      <Dropzone
+        ref={txInputRef}
+        accept=".csv"
+        hint="Fichier CSV, format Trade Republic"
+        uploading={uploading}
+        onFileSelected={handleFileChange}
+        ariaLabel="Historique de transactions"
+      />
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {apercu && (
@@ -120,6 +128,8 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
               nomNouveau={etablissementNom}
               onValueChange={setEtablissementId}
               onNomNouveauChange={setEtablissementNom}
+              logoKeyNouveau={etablissementLogoKey}
+              onLogoKeyNouveauChange={setEtablissementLogoKey}
               required
               ariaLabel="Établissement"
               className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"

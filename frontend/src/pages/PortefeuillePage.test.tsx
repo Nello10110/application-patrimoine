@@ -705,6 +705,7 @@ describe('PortefeuillePage', () => {
           compte_nom: null,
           etablissement_id: null,
           etablissement_nom: null,
+          etablissement_logo_key: null,
           type_actif: 'STOCK',
           valeur_estimee: null,
           taux_pct: null,

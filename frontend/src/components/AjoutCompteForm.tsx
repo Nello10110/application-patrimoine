@@ -34,6 +34,7 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
   const [versementMensuel, setVersementMensuel] = useState('')
   const [etablissementId, setEtablissementId] = useState('')
   const [etablissementNom, setEtablissementNom] = useState('')
+  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,6 +48,7 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
     setVersementMensuel('')
     setEtablissementId('')
     setEtablissementNom('')
+    setEtablissementLogoKey(null)
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -66,11 +68,12 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
           compte_nom: nom.trim(),
           etablissement_id: !nouvelEtablissement ? Number(etablissementId) : null,
           etablissement_nom: nouvelEtablissement ? etablissementNom.trim() || null : null,
+          etablissement_logo_key: nouvelEtablissement ? etablissementLogoKey : null,
         })
       } else {
         let idCible = Number(etablissementId)
         if (nouvelEtablissement) {
-          const cree = await api.createEtablissement(etablissementNom.trim())
+          const cree = await api.createEtablissement(etablissementNom.trim(), etablissementLogoKey)
           idCible = cree.id
         }
         await api.createCompte(nom.trim(), idCible)
@@ -147,6 +150,8 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
           nomNouveau={etablissementNom}
           onValueChange={setEtablissementId}
           onNomNouveauChange={setEtablissementNom}
+          logoKeyNouveau={etablissementLogoKey}
+          onLogoKeyNouveauChange={setEtablissementLogoKey}
           required
           ariaLabel="Établissement"
           className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"

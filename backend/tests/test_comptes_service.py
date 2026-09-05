@@ -21,6 +21,28 @@ def test_create_et_list_etablissements(db):
     assert noms == {"Caisse d'Épargne", "Boursorama"}
 
 
+def test_create_etablissement_avec_logo_key(db):
+    """Refonte import (05/09/2026) : `logo_key` référence une entrée du catalogue
+    d'établissements connus côté frontend — purement décoratif côté serveur."""
+    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Trade Republic", "trade_republic")
+
+    assert etablissement.logo_key == "trade_republic"
+
+
+def test_get_or_create_etablissement_pose_logo_key_a_la_creation_jamais_ensuite(db):
+    """Même doctrine que `etablissement_id` sur `get_or_create_compte_sans_commit` :
+    un établissement déjà existant garde son logo actuel, jamais écrasé par un
+    second appel qui en fournirait un différent (ex. deux imports successifs qui ne
+    s'accordent pas)."""
+    premier = comptes_service.get_or_create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "boursorama")
+    assert premier.logo_key == "boursorama"
+
+    second = comptes_service.get_or_create_etablissement(db, ID_UTILISATEUR_TEST, "Boursorama", "autre_logo")
+
+    assert second.id == premier.id
+    assert second.logo_key == "boursorama"
+
+
 def test_delete_etablissement_ne_supprime_pas_les_comptes_rattaches(db):
     etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Caisse d'Épargne")
     compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Livret A", etablissement.id)

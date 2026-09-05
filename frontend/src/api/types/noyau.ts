@@ -15,6 +15,9 @@ export interface MarketData {
 export interface Etablissement {
   id: number
   nom: string
+  // Clé du catalogue d'établissements connus (refonte import, 05/09/2026) — `null`
+  // pour un établissement personnalisé, cf. `utils/etablissementsConnus.ts`.
+  logo_key: string | null
   created_at: string
   updated_at: string
 }
@@ -101,6 +104,9 @@ export interface HoldingInput {
   // Même priorité id > nom que le compte lui-même.
   etablissement_id?: number | null
   etablissement_nom?: string | null
+  // Clé du catalogue d'établissements connus (refonte import, 05/09/2026) — sans
+  // objet si `etablissement_id` est fourni ou si `etablissement_nom` est absent.
+  etablissement_logo_key?: string | null
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null
@@ -123,6 +129,7 @@ export interface HoldingUpdateInput {
   compte_nom?: string | null
   etablissement_id?: number | null
   etablissement_nom?: string | null
+  etablissement_logo_key?: string | null
   devise?: string | null
   type_actif?: string | null
   valeur_estimee?: number | null

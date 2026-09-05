@@ -62,7 +62,9 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
             raise HTTPException(status_code=404, detail="Établissement introuvable")
         etablissement_id = payload.etablissement_id
     else:
-        etablissement_id = comptes_service.get_or_create_etablissement(db, user_id, payload.etablissement_nom).id
+        etablissement_id = comptes_service.get_or_create_etablissement(
+            db, user_id, payload.etablissement_nom, payload.etablissement_logo_key
+        ).id
 
     # Un seul `Compte` créé par clé EFFECTIVEMENT présente dans le fichier (jamais les
     # 4 par défaut) — `get_or_create_compte_sans_commit` ne recrée jamais un compte

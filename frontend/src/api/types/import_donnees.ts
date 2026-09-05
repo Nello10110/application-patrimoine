@@ -31,6 +31,12 @@ export interface ColumnMapping {
   compte_col?: string | null
   devise_col?: string | null
   replace_existing: boolean
+  // Établissement des comptes créés à la volée depuis `compte_col` (refonte
+  // import, 05/09/2026, alignement sur l'import du grand livre de transactions) —
+  // même priorité id > nom, sans objet si `compte_col` est absent.
+  etablissement_id?: number | null
+  etablissement_nom?: string | null
+  etablissement_logo_key?: string | null
 }
 
 export interface ImportResult {
@@ -75,6 +81,7 @@ export interface TransactionImportConfirmInput {
   // Même priorité id > nom que `HoldingInput.etablissement_id`/`etablissement_nom`.
   etablissement_id?: number | null
   etablissement_nom?: string | null
+  etablissement_logo_key?: string | null
   // Une entrée par clé que l'utilisateur a renommée — absente = garde le nom par
   // défaut (`TransactionImportApercu.noms_par_defaut`).
   noms_comptes?: Partial<Record<CleCompte, string>>

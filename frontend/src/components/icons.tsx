@@ -279,3 +279,18 @@ export function IconRecherche({ className }: IconProps) {
     </svg>
   )
 }
+
+// Établissement financier générique (fronton + colonnes) — badge neutre d'un
+// établissement personnalisé sans logo connu, cf. `EtablissementLogo.tsx`.
+export function IconEtablissement({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3 8 L10 3.5 L17 8" />
+      <path d="M3 8.8 H17" />
+      <path d="M5.5 10.5 V15" />
+      <path d="M10 10.5 V15" />
+      <path d="M14.5 10.5 V15" />
+      <path d="M3 15.8 H17" />
+    </svg>
+  )
+}

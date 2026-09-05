@@ -18,11 +18,16 @@ class EtablissementBase(BaseModel):
 
 
 class EtablissementCreate(EtablissementBase):
-    pass
+    # Clé du catalogue d'établissements connus (revue import, 05/09/2026) — `None`
+    # pour un établissement personnalisé. Purement décorative côté serveur (aucune
+    # validation contre le catalogue, qui vit côté frontend et peut évoluer sans
+    # migration) : une clé inconnue retombe simplement sur le badge neutre à l'écran.
+    logo_key: str | None = None
 
 
 class EtablissementUpdate(BaseModel):
     nom: str | None = None
+    logo_key: str | None = None
 
     @field_validator("nom")
     @classmethod
@@ -39,6 +44,7 @@ class EtablissementOut(EtablissementBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    logo_key: str | None = None
     created_at: datetime
     updated_at: datetime
 

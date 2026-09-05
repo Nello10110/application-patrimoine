@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { BudgetImportResult, ImportPreview, ImportResult } from '../api/types'
+import type { BudgetImportResult, Etablissement, ImportPreview, ImportResult } from '../api/types'
 import Card from '../components/Card'
 import CsvPreviewTable from '../components/CsvPreviewTable'
+import Dropzone from '../components/Dropzone'
 import { IconFlecheDroite } from '../components/icons'
 import ImportTransactionsSection from '../components/ImportTransactionsSection'
+import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from '../components/SelecteurEtablissement'
 
 /** Import de mouvements bancaires (backlog 2.N.1) : OFX/QIF n'ont pas besoin de
  * mapping (structure fixe, cf. `budget_import_service.py`) — upload direct. Un CSV
@@ -36,9 +38,7 @@ function BankImportSection() {
     setError(null)
   }
 
-  async function handleFichierStructure(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  async function handleFichierStructure(file: File) {
     setError(null)
     setResult(null)
     setUploading(true)
@@ -54,9 +54,7 @@ function BankImportSection() {
     }
   }
 
-  async function handleCsvChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  async function handleCsvChange(file: File) {
     setError(null)
     setResult(null)
     setUploading(true)
@@ -110,24 +108,27 @@ function BankImportSection() {
         Relevé de ton compte courant, pour l'écran Budget — indépendant du portefeuille boursier ci-dessus.
       </p>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          OFX ou QIF (aucun mapping nécessaire)
-          <input
-            ref={structFileInputRef}
-            type="file"
-            accept=".ofx,.qif"
-            onChange={handleFichierStructure}
-            className="text-sm text-texte"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          CSV (mapping des colonnes)
-          <input ref={csvFileInputRef} type="file" accept=".csv" onChange={handleCsvChange} className="text-sm text-texte" />
-        </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Dropzone
+          ref={structFileInputRef}
+          accept=".ofx,.qif"
+          label="OFX ou QIF"
+          hint="Aucun mapping nécessaire"
+          uploading={uploading}
+          onFileSelected={handleFichierStructure}
+          ariaLabel="Mouvements bancaires (OFX ou QIF)"
+        />
+        <Dropzone
+          ref={csvFileInputRef}
+          accept=".csv"
+          label="CSV"
+          hint="Mapping des colonnes à l'étape suivante"
+          uploading={uploading}
+          onFileSelected={handleCsvChange}
+          ariaLabel="Mouvements bancaires (CSV)"
+        />
       </div>
 
-      {uploading && <p className="mt-2 text-sm text-texte-attenue">Lecture du fichier...</p>}
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
 
       {preview && (
@@ -299,9 +300,20 @@ export default function ImportPage() {
   const [optionalCols, setOptionalCols] = useState<Record<string, string>>({})
   const [replaceExisting, setReplaceExisting] = useState(false)
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // Établissement des comptes créés à la volée depuis la colonne Compte (refonte
+  // import, 05/09/2026, alignement sur l'import du grand livre de transactions
+  // ci-dessus) — chargé une fois, indépendamment de l'aperçu (contrairement à
+  // `ImportTransactionsSection`, dont l'aperçu embarque déjà la liste).
+  const [etablissements, setEtablissements] = useState<Etablissement[]>([])
+  const [etablissementId, setEtablissementId] = useState('')
+  const [etablissementNom, setEtablissementNom] = useState('')
+  const [etablissementLogoKey, setEtablissementLogoKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.listEtablissements().then(setEtablissements).catch(() => setEtablissements([]))
+  }, [])
+
+  async function handleFileChange(file: File) {
     setError(null)
     setResult(null)
     setUploading(true)
@@ -312,6 +324,9 @@ export default function ImportPage() {
       setQuantiteCol('')
       setPrixRevientCol('')
       setOptionalCols({})
+      setEtablissementId('')
+      setEtablissementNom('')
+      setEtablissementLogoKey(null)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -319,8 +334,15 @@ export default function ImportPage() {
     }
   }
 
+  // Établissement affiché/obligatoire dès qu'une colonne Compte est mappée — sans
+  // objet sinon, aucun compte ne sera créé par cet import (cf. `routers/portfolio.py::
+  // import_confirm`, qui n'exige un établissement QUE pour un compte réellement créé).
+  const compteMappe = Boolean(optionalCols.compte_col)
+  const nouvelEtablissementPositions = etablissementId === NOUVEAU_ETABLISSEMENT
+  const etablissementValidePositions = !compteMappe || (nouvelEtablissementPositions ? etablissementNom.trim() !== '' : etablissementId !== '')
+
   async function handleConfirm() {
-    if (!preview || !tickerCol || !quantiteCol) return
+    if (!preview || !tickerCol || !quantiteCol || !etablissementValidePositions) return
     setConfirming(true)
     setError(null)
     try {
@@ -333,6 +355,9 @@ export default function ImportPage() {
         compte_col: optionalCols.compte_col || null,
         devise_col: optionalCols.devise_col || null,
         replace_existing: replaceExisting,
+        etablissement_id: compteMappe && !nouvelEtablissementPositions && etablissementId ? Number(etablissementId) : null,
+        etablissement_nom: compteMappe && nouvelEtablissementPositions ? etablissementNom.trim() || null : null,
+        etablissement_logo_key: compteMappe && nouvelEtablissementPositions ? etablissementLogoKey : null,
       })
       setResult(res)
       setPreview(null)
@@ -344,7 +369,7 @@ export default function ImportPage() {
     }
   }
 
-  const canConfirm = Boolean(preview && tickerCol && quantiteCol)
+  const canConfirm = Boolean(preview && tickerCol && quantiteCol && etablissementValidePositions)
 
   return (
     <div className="space-y-6">
@@ -371,14 +396,14 @@ export default function ImportPage() {
           Exporte ton portefeuille depuis ton courtier au format CSV ou Excel, puis importe-le ici. Tu associeras ensuite les
           colonnes du fichier aux champs attendus.
         </p>
-        <input
+        <Dropzone
           ref={fileInputRef}
-          type="file"
           accept=".csv,.xlsx,.xls"
-          onChange={handleFileChange}
-          className="text-sm text-texte"
+          hint="CSV ou Excel"
+          uploading={uploading}
+          onFileSelected={handleFileChange}
+          ariaLabel="Relevé de positions"
         />
-        {uploading && <p className="mt-2 text-sm text-texte-attenue">Lecture du fichier...</p>}
       </Card>
 
       {error && <p className="text-sm text-negatif">{error}</p>}
@@ -483,6 +508,24 @@ export default function ImportPage() {
               </label>
             ))}
           </div>
+
+          {compteMappe && (
+            <label className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue sm:w-64">
+              Établissement des comptes créés *
+              <SelecteurEtablissement
+                etablissements={etablissements}
+                value={etablissementId}
+                nomNouveau={etablissementNom}
+                onValueChange={setEtablissementId}
+                onNomNouveauChange={setEtablissementNom}
+                logoKeyNouveau={etablissementLogoKey}
+                onLogoKeyNouveauChange={setEtablissementLogoKey}
+                required
+                ariaLabel="Établissement des comptes créés"
+                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              />
+            </label>
+          )}
 
           <label className="mt-4 flex items-center gap-2 text-sm text-texte">
             <input type="checkbox" checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} />

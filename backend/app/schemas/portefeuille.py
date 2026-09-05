@@ -104,6 +104,9 @@ class HoldingCreate(HoldingBase):
     # compte lui-même. Vérifiés côté routeur (IDOR), comme `compte_id`.
     etablissement_id: int | None = None
     etablissement_nom: str | None = None
+    # Clé du catalogue d'établissements connus (refonte import, 05/09/2026) — sans
+    # objet si `etablissement_id` est fourni ou si `etablissement_nom` est absent.
+    etablissement_logo_key: str | None = None
 
     @field_validator("compte_nom", "etablissement_nom")
     @classmethod
@@ -142,6 +145,7 @@ class HoldingUpdate(BaseModel):
     # `compte_id`/`compte_nom` est absent de cette requête.
     etablissement_id: int | None = None
     etablissement_nom: str | None = None
+    etablissement_logo_key: str | None = None
     devise: str | None = None
     type_actif: str | None = None
     valeur_estimee: float | None = None
@@ -270,6 +274,13 @@ class ColumnMapping(BaseModel):
     compte_col: str | None = None
     devise_col: str | None = None
     replace_existing: bool = False
+    # Établissement des comptes créés à la volée depuis `compte_col` (refonte import,
+    # 05/09/2026, alignement sur l'import du grand livre de transactions) — même
+    # priorité id > nom, sans objet si `compte_col` est absent ou si tous les comptes
+    # qu'il désigne existent déjà (cf. `routers/portfolio.py::import_confirm`).
+    etablissement_id: int | None = None
+    etablissement_nom: str | None = None
+    etablissement_logo_key: str | None = None
 
     @field_validator("ticker_col", "quantite_col")
     @classmethod
@@ -277,6 +288,14 @@ class ColumnMapping(BaseModel):
         if not v or not v.strip():
             raise ValueError("La colonne est obligatoire")
         return v
+
+    @field_validator("etablissement_nom")
+    @classmethod
+    def _valider_etablissement_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
 
 
 class ImportResult(BaseModel):
@@ -331,6 +350,10 @@ class TransactionImportConfirm(BaseModel):
     file_token: str
     etablissement_id: int | None = None
     etablissement_nom: str | None = None
+    # Clé du catalogue d'établissements connus (refonte import, 05/09/2026) — sans
+    # objet si `etablissement_id` référence un établissement déjà existant (son logo
+    # ne change pas ici) ou si `etablissement_nom` est absent.
+    etablissement_logo_key: str | None = None
     noms_comptes: dict[str, str] = {}
 
     @field_validator("etablissement_nom")

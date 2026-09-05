@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import Card from './Card'
+import CatalogueEtablissementPicker from './CatalogueEtablissementPicker'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import EtablissementLogo from './EtablissementLogo'
 import { SkeletonTexte } from './Skeleton'
 
 /** Établissements financiers (écran Comptes, backlog X.1) : déclarés une fois
@@ -29,6 +31,7 @@ export default function EtablissementsCard({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [nom, setNom] = useState('')
+  const [nomLogoKey, setNomLogoKey] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   // Renommage inline (édition en place, pas de modale) : `idEnEdition` porte
   // l'établissement actuellement ouvert en édition, `null` sinon — un seul à la fois.
@@ -65,8 +68,9 @@ export default function EtablissementsCard({
     setSaving(true)
     setError(null)
     try {
-      await api.createEtablissement(nom.trim())
+      await api.createEtablissement(nom.trim(), nomLogoKey)
       setNom('')
+      setNomLogoKey(null)
       load()
     } catch (err) {
       setError((err as Error).message)
@@ -142,7 +146,10 @@ export default function EtablissementsCard({
               </li>
             ) : (
               <li key={e.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-texte">{e.nom}</span>
+                <span className="flex items-center gap-2 text-texte">
+                  <EtablissementLogo logoKey={e.logo_key} nom={e.nom} />
+                  {e.nom}
+                </span>
                 <span className="flex items-center gap-3">
                   <button onClick={() => commencerEdition(e)} className="text-xs text-accent hover:underline">
                     Modifier
@@ -157,23 +164,35 @@ export default function EtablissementsCard({
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Nom
-          <input
-            value={nom}
-            onChange={(e) => setNom(e.target.value)}
-            placeholder="Caisse d'Épargne"
-            className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
-        >
-          Ajouter
-        </button>
+      <form onSubmit={handleAdd} className="flex flex-col gap-3 border-t border-bordure pt-4">
+        <CatalogueEtablissementPicker
+          selection={nomLogoKey}
+          onSelect={(cle, nomConnu) => {
+            setNomLogoKey(cle)
+            setNom(nomConnu)
+          }}
+        />
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+            Nom
+            <input
+              value={nom}
+              onChange={(e) => {
+                setNom(e.target.value)
+                setNomLogoKey(null)
+              }}
+              placeholder="Caisse d'Épargne"
+              className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          >
+            Ajouter
+          </button>
+        </div>
       </form>
       {error && <EtatErreur message={error} onReessayer={load} />}
     </Card>

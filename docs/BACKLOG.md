@@ -2752,6 +2752,48 @@ Comptes :
   Suite complète au vert (567 frontend), vérifié en conditions réelles sur la vraie base de
   l'utilisateur (51 positions).
 
+**Complété le 05/09/2026** (demande directe de l'utilisateur : revoir toute la partie import, en
+anticipation de l'ajout d'autres banques que Trade Republic — établissements pré-connus avec logo,
+liste + ajout personnalisé, et retour visuel insuffisant du glisser-déposer, « on a l'impression que
+ça ne marche pas ») :
+- **Zone de dépôt réutilisable** (`frontend/src/components/Dropzone.tsx`) : remplace les 4
+  `<input type="file">` nus de l'écran Import (grand livre, OFX/QIF, CSV budget, relevé de
+  positions) — curseur en main sur toute la zone, état visuel « glisser actif » distinct du survol,
+  texte explicite au repos/en lecture, activable au clavier. L'`<input>` réel reste dans le DOM (juste
+  masqué visuellement) : les sélecteurs Playwright existants (`input[type="file"]`) et
+  `setInputFiles` continuent de fonctionner sans changement.
+- **Catalogue d'établissements connus** (`utils/etablissementsConnus.ts`, ~12 entrées : Trade
+  Republic, Boursorama, Bourse Direct, Degiro, Fortuneo, BforBank, Interactive Brokers, Saxo, Crédit
+  Agricole, Société Générale, BNP Paribas, Caisse d'Épargne) : badges GÉNÉRÉS (initiales + couleur de
+  marque approximative), jamais des logos réels — reproduire des logos officiels aurait exigé de
+  télécharger des images tierces (risque de droits, dépendance réseau pour une appli auto-hébergée).
+  Nouveau champ `Etablissement.logo_key` (nullable, migration additive), affiché via
+  `EtablissementLogo.tsx` partout où un établissement apparaît déjà (écran Comptes, carte
+  Établissements). `CatalogueEtablissementPicker.tsx` (grille de badges + « Personnalisé... ») greffé
+  dans `SelecteurEtablissement`/`EtablissementsCard` : choisir un établissement connu préremplit le
+  nom ET le logo, sans toucher au `<select>` compact existant pour choisir un établissement déjà créé
+  (limitation HTML native : une `<option>` ne peut pas afficher un badge coloré).
+- **Incohérence corrigée** : l'import de relevé de positions (`portfolio.py::import_confirm`) créait
+  jusqu'ici des comptes SANS établissement quand une colonne Compte était mappée
+  (`get_or_create_compte_sans_commit` appelé sans `etablissement_id`), contrairement à la règle déjà
+  appliquée partout ailleurs (`CompteCreate.etablissement_id` obligatoire, import du grand livre déjà
+  aligné depuis X.1). Désormais requis dès qu'une colonne Compte est mappée ET qu'un compte serait
+  réellement créé (un nom de compte déjà existant continue de fonctionner sans établissement fourni —
+  aucune régression sur les imports déjà en place).
+- **Hors périmètre, délibérément** : la détection automatique multi-courtiers (parseurs par banque)
+  n'est pas construite dans ce lot — seul Trade Republic est aujourd'hui reconnu automatiquement
+  (`transaction_import.REQUIRED_COLUMNS`), et rien dans la demande n'exigeait de généraliser ce
+  parsing immédiatement ; le catalogue d'établissements, lui, est indépendant du format de fichier et
+  vaut dès aujourd'hui. Cf. **E.1** (§ 4, toujours ouvert, bloqué faute d'un export réel d'un autre
+  courtier). L'import de mouvements bancaires (budget) garde son `compte` en texte libre (domaine
+  différent, pas un `Compte`/`Etablissement`) — profite quand même de la nouvelle zone de dépôt.
+- **Tests** : backend (`test_comptes_service.py` — `logo_key` posé à la création, jamais écrasé ;
+  `test_import_robustesse.py` — établissement requis/optionnel selon les cas, `logo_key` transmis à
+  l'import du grand livre), frontend (`Dropzone.test.tsx`, `EtablissementLogo.test.tsx`,
+  `CatalogueEtablissementPicker.test.tsx`, `SelecteurEtablissement.test.tsx` nouveaux ; `ImportPage.test.tsx`
+  étendu pour l'obligation d'établissement conditionnelle), E2E (`import.spec.ts`, `comptes.spec.ts`
+  étendus). Suite complète vérifiée au vert.
+
 #### X.2 — `mineur` · `S` · `P1` · `traité` (01/09/2026) — Vérification manuelle demandée par l'utilisateur : renommage d'un établissement manquant à l'IHM
 
 Demande directe de l'utilisateur en suite de X.1 : « vérifie que la création, modification,

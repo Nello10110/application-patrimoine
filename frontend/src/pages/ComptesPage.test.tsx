@@ -39,7 +39,7 @@ vi.mock('../components/CompteDetailModal', () => ({
 }))
 
 function etablissement(overrides: Partial<Etablissement> = {}): Etablissement {
-  return { id: 1, nom: 'Banque Test', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+  return { id: 1, nom: 'Banque Test', logo_key: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
 function compte(overrides: Partial<Compte> = {}): Compte {
@@ -123,7 +123,7 @@ describe('ComptesPage', () => {
   })
 
   it('créer un compte appelle createCompte puis recharge la liste', async () => {
-    const etablissement: Etablissement = { id: 7, nom: 'Boursorama', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' }
+    const etablissement: Etablissement = { id: 7, nom: 'Boursorama', logo_key: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00' }
     vi.mocked(api.listComptesAvecSolde).mockResolvedValueOnce([]).mockResolvedValue([ligne({ compte: compte({ nom: 'Nouveau CTO' }) })])
     // Établissement obligatoire à la création (revue du 03/09/2026) — existant ici
     // (contrairement à `EpargnePage.test.tsx`), choisi directement dans la liste.
