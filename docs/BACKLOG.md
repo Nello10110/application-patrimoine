@@ -2713,6 +2713,45 @@ Frontend : nouveaux tests (`ComptesPage`, `EtablissementsCard`), adaptation de t
 `Holding.compte` existantes vers le nouveau type objet, suite complète au vert (486 frontend),
 `oxlint`/`tsc -b`/`vite build` propres.
 
+**Complété le 05/09/2026** (demande directe de l'utilisateur, formulée en dictée vocale : revoir
+l'écran Comptes ou Rapport pour « voir où j'ai de la plus-value, où j'en ai moins », par compte plutôt
+que le seul total foyer déjà affiché en Synthèse — placement, nombre de graphiques et forme du
+résultat laissés à l'appréciation de l'agent) — **carte « Plus-value par compte »**, en tête de l'écran
+Comptes :
+- **Placement retenu** : Comptes plutôt que Rapport. Rapport est structuré autour d'un sélecteur de
+  période et d'une logique de flux (investi vs généré), sans découpage par compte nulle part ; Comptes
+  a déjà toute la structure « un compte, une ligne » que cette comparaison exploite directement.
+- **Un seul graphique** (demande explicite de l'utilisateur, « plusieurs ça charge ») : un diagramme à
+  barres horizontales, une barre par compte, plus-value en euros, couleur diverging
+  positif/négatif (`--color-positif`/`--color-negatif`, déjà la convention de l'appli — cf.
+  `PerformanceCard.tsx`) plutôt qu'une palette catégorielle. Table de données toujours visible en
+  dessous (valeur, plus-value €/%, rendement annualisé) — jamais seulement le graphique, conforme à la
+  demande « pas forcément que sous forme de graphique ».
+- **Aucun nouvel endpoint backend** : `Holding.valeur`/`prix_revient_moyen`/`rendement_annualise_pct`
+  sont déjà calculés par ligne côté serveur (`performance_service.compute_holding_returns`) et déjà
+  chargés par `ComptesPage` (`listHoldings()`) — le calcul par compte (`calculerGainsParCompte`,
+  `frontend/src/utils/gainsParCompte.ts`) est entièrement dérivé côté client, sans appel réseau
+  supplémentaire.
+- **Périmètre délibérément limité à la plus-value LATENTE (snapshot), jamais réalisée ni un XIRR par
+  compte** : investigué avant de coder — le grand livre de transactions (`Transaction`) ne porte
+  aucune colonne `compte_id` (seul `Holding.compte_id`, le rattachement ACTUEL, existe), et
+  `PositionState` (`portfolio_reconstruction.py`) est tenu par ticker, foyer entier, indépendamment de
+  tout compte. Un vrai gain réalisé ou XIRR par compte serait donc calculé sur une hypothèse fictive
+  (attribuer rétroactivement tout l'historique d'un ticker à son compte ACTUEL), risquant d'afficher
+  une évolution par compte qui n'a jamais existé si une ligne a changé de compte entre-temps — écarté
+  pour cette raison. Le "rendement annualisé" affiché par compte est donc une **moyenne pondérée par
+  la valeur** des rendements annualisés déjà connus par ligne (XIRR individuel, lui bien réel), pas un
+  XIRR flux par flux au niveau du compte — méthodologie explicitée par une infobulle sur l'écran plutôt
+  que laissée implicite. Une ligne sans prix de revient connu (compte courant, livret) n'entre dans
+  aucune somme : un compte n'apparaissant pas dans la carte n'a simplement rien de comparable, jamais
+  un gain nul silencieusement inventé.
+- **Tests** : `gainsParCompte.test.ts` (9 tests — agrégation, exclusion des lignes sans prix de
+  revient, moyenne pondérée, tri, division par zéro), `PlusValueParCompteCard.test.tsx` (5 tests —
+  état vide, tableau, masquage, tri), `comptes.spec.ts` (2 locators E2E resserrés sur le rôle `button`
+  de la ligne cliquable, le nom du compte apparaissant désormais aussi dans le graphique/tableau).
+  Suite complète au vert (567 frontend), vérifié en conditions réelles sur la vraie base de
+  l'utilisateur (51 positions).
+
 #### X.2 — `mineur` · `S` · `P1` · `traité` (01/09/2026) — Vérification manuelle demandée par l'utilisateur : renommage d'un établissement manquant à l'IHM
 
 Demande directe de l'utilisateur en suite de X.1 : « vérifie que la création, modification,

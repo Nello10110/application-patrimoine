@@ -48,7 +48,10 @@ test.describe('Comptes (backlog X.1)', () => {
   test('cliquer un compte multi-lignes ouvre le détail avec ses lignes et la répartition entre détenteurs', async ({ page }) => {
     const { comptes, holdings } = seedData()
 
-    await page.getByText(comptes.pea.nom).click()
+    // `getByRole('button', ...)` plutôt que `getByText` : le nom du compte apparaît
+    // désormais aussi dans le graphique/tableau "Plus-value par compte" (revue du
+    // 05/09/2026) — seule la ligne cliquable de la liste porte le rôle `button`.
+    await page.getByRole('button', { name: new RegExp(`^${comptes.pea.nom}`) }).click()
 
     const modale = page.getByRole('dialog')
     // `.first()` : le nom du compte apparaît deux fois dans la modale — le titre
@@ -78,7 +81,10 @@ test.describe('Comptes (backlog X.1)', () => {
   test('cliquer un compte mono-ligne (immobilier) ouvre le détail avec un renvoi vers sa fiche, et l\'emprunt rattaché', async ({ page }) => {
     const { comptes, holdings, attendu } = seedData()
 
-    await page.getByText(comptes.immobilier.nom).click()
+    // `getByRole('button', ...)` plutôt que `getByText` : le nom du compte apparaît
+    // désormais aussi dans le graphique/tableau "Plus-value par compte" (revue du
+    // 05/09/2026) — seule la ligne cliquable de la liste porte le rôle `button`.
+    await page.getByRole('button', { name: new RegExp(`^${comptes.immobilier.nom}`) }).click()
 
     const modale = page.getByRole('dialog')
     await expect(modale.getByRole('heading', { name: comptes.immobilier.nom }).first()).toBeVisible()

@@ -8,6 +8,7 @@ import EtablissementsCard from '../components/EtablissementsCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import Modale from '../components/Modale'
+import PlusValueParCompteCard from '../components/PlusValueParCompteCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPES_EPARGNE } from '../utils/holdingCategories'
@@ -122,6 +123,8 @@ export default function ComptesPage() {
           Qu'est-ce qu'un compte ?
         </span>
       </p>
+
+      <PlusValueParCompteCard holdings={holdings} montantsMasques={montantsMasques} />
 
       {lignesEpargne.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
