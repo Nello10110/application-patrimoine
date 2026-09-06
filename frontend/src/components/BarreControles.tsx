@@ -3,8 +3,6 @@ import { api } from '../api/client'
 import type { Detenteur } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { Lentille } from '../contexts/preferencesAffichageContextObject'
-import { dateVersISO } from '../utils/format'
-import { PERIODES_RELATIVES, type PeriodeRelative } from '../utils/periode'
 import { useLocation } from 'react-router-dom'
 import { GlassPanel } from './GlassPanel'
 import { Pill, SegmentedControl } from './Controls'
@@ -39,8 +37,6 @@ const AIDE_DETENTEUR =
 const AIDE_MONTANTS_MASQUES =
   'Remplace tous les montants par des points — pratique pour une démonstration, une capture d\'écran ou une consultation en public. Les pourcentages restent visibles.'
 
-const VALEUR_PERSONNALISEE = 'personnalisee'
-
 // Icônes seules : trois positions doivent tenir dans une barre qui reste sur une
 // seule ligne. Le libellé complet reste accessible par l'infobulle et le nom ARIA.
 const OPTIONS_THEME: { valeur: Theme; libelle: React.ReactNode; aide: string }[] = [
@@ -52,10 +48,14 @@ const OPTIONS_THEME: { valeur: Theme; libelle: React.ReactNode; aide: string }[]
 /** Barre de contrôles transverses (backlog 2.K.3/2.L.1), persistante et visible sur
  * tous les écrans (montée une seule fois dans `App.tsx`, en tête de `<main>`) —
  * lentille patrimoine net/brut/financier, filtre Détenteur (foyer ou une personne/
- * société précise), Période (graphique d'évolution + Rapport uniquement, cf.
- * `title` ci-dessous) et bascule "masquer les montants". */
+ * société précise), bascule "masquer les montants" et thème.
+ *
+ * La Période N'EST PLUS ici (refonte « liquid glass », étape 4) : elle vit désormais
+ * à côté de la courbe qu'elle change (`PortfolioHistoryChart`), et le Rapport a ses
+ * propres contrôles de période. Un sélecteur global qui pilotait certains écrans et
+ * pas d'autres était exactement l'incohérence que la refonte devait supprimer. */
 export default function BarreControles() {
-  const { lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId, periode, setPeriode } =
+  const { lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId } =
     usePreferencesAffichage()
   const { theme, setTheme } = useTheme()
   const { pathname } = useLocation()
@@ -93,46 +93,6 @@ export default function BarreControles() {
             ))}
           </select>
         </>
-      )}
-
-      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink3">Période</span>
-      <select
-        value={periode.type === 'personnalisee' ? VALEUR_PERSONNALISEE : periode.valeur}
-        onChange={(e) => {
-          const valeur = e.target.value
-          if (valeur === VALEUR_PERSONNALISEE) {
-            const aujourdhui = dateVersISO(new Date())
-            setPeriode({ type: 'personnalisee', dateDebut: aujourdhui, dateFin: aujourdhui })
-          } else {
-            setPeriode({ type: 'relative', valeur: valeur as PeriodeRelative })
-          }
-        }}
-        title="S'applique au Rapport et à l'évolution du patrimoine"
-        className="shrink-0 rounded-control border border-hairline bg-chip px-2 py-1 text-[13px] text-ink2"
-      >
-        {PERIODES_RELATIVES.map((p) => (
-          <option key={p.valeur} value={p.valeur}>
-            {p.label}
-          </option>
-        ))}
-        <option value={VALEUR_PERSONNALISEE}>Personnalisée…</option>
-      </select>
-      {periode.type === 'personnalisee' && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="date"
-            value={periode.dateDebut}
-            onChange={(e) => setPeriode({ type: 'personnalisee', dateDebut: e.target.value, dateFin: periode.dateFin })}
-            className="rounded-control border border-hairline bg-chip px-2 py-1 text-[13px] text-ink2"
-          />
-          <span className="text-xs text-ink3">au</span>
-          <input
-            type="date"
-            value={periode.dateFin}
-            onChange={(e) => setPeriode({ type: 'personnalisee', dateDebut: periode.dateDebut, dateFin: e.target.value })}
-            className="rounded-control border border-hairline bg-chip px-2 py-1 text-[13px] text-ink2"
-          />
-        </div>
       )}
 
       {/* Pilule de contexte : rappelle l'écran courant, à la place du fil d'Ariane

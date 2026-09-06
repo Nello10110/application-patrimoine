@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
@@ -37,7 +38,10 @@ function renderCard(
   periode: Periode = PERIODE_DEFAUT,
   historiquePatrimoine?: { points: PatrimoineHistoryPoint[] | null; loading: boolean },
 ) {
+  // `MemoryRouter` depuis la refonte (étape 4) : les trois poches sous le chiffre
+  // héros sont des liens vers l'écran où leur part se détaille.
   return render(
+    <MemoryRouter>
     <PreferencesAffichageContext.Provider
       value={{
         lentille,
@@ -51,7 +55,8 @@ function renderCard(
       }}
     >
       <PatrimoineNetCard historiquePortefeuille={historiquePortefeuille} historiquePatrimoine={historiquePatrimoine} />
-    </PreferencesAffichageContext.Provider>,
+    </PreferencesAffichageContext.Provider>
+    </MemoryRouter>,
   )
 }
 
@@ -136,7 +141,7 @@ describe('PatrimoineNetCard', () => {
     expect(screen.getByText('180 000 €')).toBeInTheDocument()
   })
 
-  it('affiche un camembert ET la liste détaillée (montants exacts) de la répartition par type d\'investissement (retour utilisateur : garder les deux)', async () => {
+  it("affiche la barre empilée et les montants exacts de la répartition par type d'investissement", async () => {
     const repartition = [
       { categorie: 'Immobilier', valeur: 250000 },
       { categorie: 'Actions', valeur: 50000 },
@@ -159,7 +164,7 @@ describe('PatrimoineNetCard', () => {
     // signal fiable disponible ici, le contenu du camembert lui-même est couvert par
     // un test manuel en conditions réelles (cf. vérification de cette fonctionnalité).
     await screen.findByText('Par type d\'investissement')
-    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+    expect(screen.getByTitle('Immobilier : 250 000 €')).toBeInTheDocument()
 
     // La liste détaillée d'origine reste affichée en plus du camembert, pas remplacée.
     expect(screen.getByText('250 000 €')).toBeInTheDocument()
@@ -170,10 +175,17 @@ describe('PatrimoineNetCard', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 300000, patrimoine_net: 300000, repartition_par_classe: [] }))
     renderCard()
 
-    await screen.findByText('Actifs totaux')
+    await screen.findByText('Financier')
     expect(screen.queryByText('Par type d\'investissement')).not.toBeInTheDocument()
   })
 })
+
+/** Zone « Par type d'investissement » : depuis la refonte, ce n'est plus une `<ul>`
+ * mais une grille de légende sous la barre empilée. */
+async function zoneRepartition() {
+  const titre = await screen.findByText("Par type d'investissement")
+  return titre.parentElement as HTMLElement
+}
 
 describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
   const donnees = patrimoine({ actifs_totaux: 300000, passifs_totaux: 120000, patrimoine_net: 180000, patrimoine_financier: 90000 })
@@ -182,9 +194,10 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(donnees)
     renderCard('net')
 
-    // "Patrimoine net" apparaît deux fois : le titre de la carte (toujours affiché)
-    // et le libellé de la tuile principale, identique dans cette lentille.
-    await vi.waitFor(() => expect(screen.getAllByText('Patrimoine net')).toHaveLength(2))
+    // Sur-titre unique depuis la refonte (« Patrimoine net · Foyer ») : le titre de
+    // carte qui répétait le même libellé a disparu — un seul chiffre héros, annoncé
+    // une seule fois.
+    await screen.findByText('Patrimoine net · Foyer')
     expect(screen.getAllByText('180 000 €')).toHaveLength(1)
   })
 
@@ -192,18 +205,20 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(donnees)
     renderCard('brut')
 
-    await screen.findByText('Patrimoine brut')
-    // "300 000 €" apparaît deux fois : la tuile "Actifs totaux" (toujours affichée)
-    // et la tuile principale, désormais identique en lentille brut.
-    expect(screen.getAllByText('300 000 €')).toHaveLength(2)
+    await screen.findByText('Patrimoine brut · Foyer')
+    // Le chiffre héros seul : les poches sous lui montrent la ventilation
+    // (financier / immobilier & épargne / emprunts), pas le total répété.
+    expect(screen.getAllByText('300 000 €')).toHaveLength(1)
   })
 
   it('lentille "financier" : la tuile principale affiche le seul portefeuille financier', async () => {
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(donnees)
     renderCard('financier')
 
-    await screen.findByText('Patrimoine financier')
-    expect(screen.getByText('90 000 €')).toBeInTheDocument()
+    await screen.findByText('Patrimoine financier · Foyer')
+    // Le même montant apparaît deux fois en lentille financière : le chiffre héros
+    // et la poche « Financier », qui vaut par construction le même total.
+    expect(screen.getAllByText('90 000 €')).toHaveLength(2)
   })
 
   it('lentille "financier" : le camembert/liste utilise `repartition_par_classe_financiere`, pas la répartition tous-actifs', async () => {
@@ -238,7 +253,7 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     renderCard('brut')
 
     await screen.findByText('Par type d\'investissement')
-    const liste = screen.getByRole('list')
+    const liste = await zoneRepartition()
     expect(within(liste).getByText('300 000 €')).toBeInTheDocument()
   })
 
@@ -255,7 +270,7 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     renderCard('net')
 
     await screen.findByText('Par type d\'investissement')
-    const liste = screen.getByRole('list')
+    const liste = await zoneRepartition()
     expect(within(liste).getByText('180 000 €')).toBeInTheDocument()
   })
 
@@ -271,12 +286,12 @@ describe('PatrimoineNetCard — lentille (backlog 2.K.3)', () => {
     renderCard('net')
 
     await screen.findByText('Par type d\'investissement')
-    const liste = screen.getByRole('list')
+    const liste = await zoneRepartition()
     const montant = within(liste).getByText('-50 000 €')
-    expect(montant).toHaveClass('text-negatif')
-    // Recharts ne rend pas de secteur pour une donnée filtrée : pas de conteneur de
-    // camembert du tout ici (seule catégorie disponible, négative).
-    expect(document.querySelector('.recharts-responsive-container')).not.toBeInTheDocument()
+    expect(montant).toHaveClass('text-neg')
+    // Une part négative n'a aucune largeur dans une barre empilée : aucun segment
+    // n'est dessiné pour elle (seule catégorie disponible ici, donc aucune barre).
+    expect(screen.queryByTitle(/-50 000 €/)).not.toBeInTheDocument()
   })
 })
 
@@ -328,7 +343,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    await screen.findByText('+10.0%')
+    await screen.findByText('↑ 10.0 %')
     expect(screen.getByText(/depuis le début du suivi/)).toBeInTheDocument()
   })
 
@@ -339,8 +354,8 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    const variation = await screen.findByText('-10.0%')
-    expect(variation).toHaveClass('text-negatif')
+    const variation = await screen.findByText('↓ 10.0 %')
+    expect(variation).toHaveClass('text-neg')
   })
 
   it('lentille "financier" : filtre la série sur la Période transverse active avant de calculer la variation', async () => {
@@ -364,7 +379,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       { type: 'relative', valeur: 'YTD' },
     )
 
-    await screen.findByText('+20.0%')
+    await screen.findByText('↑ 20.0 %')
     expect(screen.getByText(/depuis janvier/)).toBeInTheDocument()
   })
 
@@ -375,7 +390,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    await screen.findByText('+10.0%')
+    await screen.findByText('↑ 10.0 %')
     expect(screen.getByText(/depuis le début du suivi/)).toBeInTheDocument()
   })
 
@@ -386,7 +401,7 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
       loading: false,
     })
 
-    const variation = await screen.findByText('-10.0%')
-    expect(variation).toHaveClass('text-negatif')
+    const variation = await screen.findByText('↓ 10.0 %')
+    expect(variation).toHaveClass('text-neg')
   })
 })

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { PatrimoineHistoryPoint, PortfolioHistoryPoint } from '../api/types'
 import { PreferencesAffichageContext, type Lentille } from '../contexts/preferencesAffichageContextObject'
-import { PERIODE_DEFAUT } from '../utils/periode'
+import { PERIODE_DEFAUT, type Periode } from '../utils/periode'
 import PortfolioHistoryChart from './PortfolioHistoryChart'
 
 // Backlog 2.K.6 : `points`/`loading`/`error`/`onRetry` sont désormais remontés par
@@ -12,7 +12,11 @@ import PortfolioHistoryChart from './PortfolioHistoryChart'
 // de ces props, pas un appel API. `lentille` par défaut à "financier" (comportement
 // historique de ce composant, avant la feature Net/Brut/Financier sur toute la page
 // Synthèse) pour que les tests ci-dessous n'en dépendant pas restent inchangés.
-function renderChart(lentille: Lentille = 'financier', props: Partial<ComponentProps<typeof PortfolioHistoryChart>> = {}) {
+function renderChart(
+  lentille: Lentille = 'financier',
+  props: Partial<ComponentProps<typeof PortfolioHistoryChart>> = {},
+  contexte: { periode?: Periode; setPeriode?: (p: Periode) => void } = {},
+) {
   return render(
     <PreferencesAffichageContext.Provider
       value={{
@@ -22,8 +26,8 @@ function renderChart(lentille: Lentille = 'financier', props: Partial<ComponentP
         toggleMontantsMasques: vi.fn(),
         detenteurId: null,
         setDetenteurId: vi.fn(),
-        periode: PERIODE_DEFAUT,
-        setPeriode: vi.fn(),
+        periode: contexte.periode ?? PERIODE_DEFAUT,
+        setPeriode: contexte.setPeriode ?? vi.fn(),
       }}
     >
       <PortfolioHistoryChart points={null} loading={false} error={null} onRetry={vi.fn()} {...props} />
@@ -77,39 +81,39 @@ describe('PortfolioHistoryChart', () => {
     renderChart('financier', { loading: false, points: [point({ date: '2026-01-01' }), point({ date: '2026-02-01', valeur_portefeuille: 1100 })] })
 
     expect(screen.queryByText("Pas encore d'historique disponible.")).not.toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /Mode étagé/ })).not.toBeChecked()
+    expect(screen.getByRole('button', { name: /Mode étagé/ })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('la case "Mode étagé" bascule le graphique en aires empilées', () => {
+  it('la pilule "Mode étagé" bascule le graphique en aires empilées', () => {
     renderChart('financier', { loading: false, points: [point()] })
 
-    const case_ = screen.getByRole('checkbox', { name: /Mode étagé/ })
+    const case_ = screen.getByRole('button', { name: /Mode étagé/ })
     fireEvent.click(case_)
 
-    expect(case_).toBeChecked()
+    expect(case_).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText(/« Gains » inclut les ventes réalisées/)).toBeInTheDocument()
   })
 })
 
 describe('PortfolioHistoryChart — lentille (feature Net/Brut/Financier sur toute la page Synthèse)', () => {
-  it('lentille "financier" : la case "Mode étagé" reste active, comportement inchangé', () => {
+  it('lentille "financier" : la pilule "Mode étagé" reste active, comportement inchangé', () => {
     renderChart('financier', { points: [point({ valeur_portefeuille: 1000 })] })
 
-    const case_ = screen.getByRole('checkbox', { name: /Mode étagé/ })
+    const case_ = screen.getByRole('button', { name: /Mode étagé/ })
     expect(case_).not.toBeDisabled()
   })
 
-  it('lentille "brut" : la case "Mode étagé" est désormais disponible (backlog § U.4)', () => {
+  it('lentille "brut" : la pilule "Mode étagé" est désormais disponible (backlog § U.4)', () => {
     renderChart('brut', { pointsPatrimoine: [pointPatrimoine({ actifs_totaux: 1000 })], loadingPatrimoine: false })
 
-    const case_ = screen.getByRole('checkbox', { name: /Mode étagé/ })
+    const case_ = screen.getByRole('button', { name: /Mode étagé/ })
     expect(case_).not.toBeDisabled()
   })
 
   it('lentille "brut" activée : affiche l\'explication propre à l\'immobilier/l\'épargne, pas celle de la carte Rentabilité', () => {
     renderChart('brut', { pointsPatrimoine: [pointPatrimoine({ actifs_totaux: 1000, valeur_investie: 800 })], loadingPatrimoine: false })
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Mode étagé/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mode étagé/ }))
 
     expect(screen.getByText(/seul un versement explicitement déclaré/)).toBeInTheDocument()
     expect(screen.queryByText(/« Gains » inclut les ventes réalisées/)).not.toBeInTheDocument()
@@ -146,7 +150,7 @@ describe('PortfolioHistoryChart — lentille (feature Net/Brut/Financier sur tou
       loadingPatrimoine: false,
     })
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Mode étagé/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mode étagé/ }))
 
     expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
   })
@@ -155,5 +159,39 @@ describe('PortfolioHistoryChart — lentille (feature Net/Brut/Financier sur tou
     renderChart('brut', { loading: false, error: null, loadingPatrimoine: true, pointsPatrimoine: null })
 
     expect(screen.getByText(/Calcul de l'historique en cours/)).toBeInTheDocument()
+  })
+})
+
+describe('PortfolioHistoryChart — période (refonte « liquid glass », étape 4)', () => {
+  // Deuxième des trois décisions structurelles du paquet de design : la période est
+  // pilotée SUR le graphique, plus dans la barre du haut. Elle reste la préférence
+  // transverse et non un état local — le chiffre héros juste au-dessus affiche sa
+  // variation sur la même période, les deux doivent raconter la même histoire.
+  it('affiche le sélecteur de période, sur la valeur courante', () => {
+    renderChart('financier', { points: [point()] })
+
+    const groupe = screen.getByRole('group', { name: 'Période du graphique' })
+    expect(within(groupe).getByRole('button', { name: 'Tout' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(groupe).getByRole('button', { name: '1 mois' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('choisir une période écrit la préférence transverse', () => {
+    const setPeriode = vi.fn()
+    renderChart('financier', { points: [point()] }, { setPeriode })
+
+    fireEvent.click(screen.getByRole('button', { name: '3 mois' }))
+
+    expect(setPeriode).toHaveBeenCalledWith({ type: 'relative', valeur: '3M' })
+  })
+
+  it("remet à « Tout » une période personnalisée héritée, dont l'interface n'existe plus", () => {
+    const setPeriode = vi.fn()
+    renderChart(
+      'financier',
+      { points: [point()] },
+      { periode: { type: 'personnalisee', dateDebut: '2026-01-01', dateFin: '2026-02-01' }, setPeriode },
+    )
+
+    expect(setPeriode).toHaveBeenCalledWith({ type: 'relative', valeur: 'TOUT' })
   })
 })

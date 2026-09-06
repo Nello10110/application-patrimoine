@@ -78,14 +78,17 @@ export function Pill({
   onClick,
   icone,
   ariaLabel,
-  actif = false,
+  actif,
   title,
 }: {
   children: ReactNode
   onClick?: () => void
   icone?: ReactNode
   ariaLabel?: string
-  /** Pilule à deux états (ex. « Mode étagé ») : pose `aria-pressed` et le fond d'accent. */
+  /** Pilule à deux états (ex. « Mode étagé ») : pose le fond d'accent et `aria-pressed`
+   * — y compris `false`, qui est l'information utile pour un lecteur d'écran (« bouton
+   * à bascule, non activé »). Omis pour une pilule de simple contexte, qui n'est pas
+   * une bascule. */
   actif?: boolean
   title?: string
 }) {
@@ -105,7 +108,7 @@ export function Pill({
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      aria-pressed={actif || undefined}
+      aria-pressed={actif}
       title={title}
       className={classes}
     >

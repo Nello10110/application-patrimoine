@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { PatrimoineHistoryPoint, PortfolioHistoryPoint } from '../api/types'
 import Card from './Card'
+import { Pill, SegmentedControl } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { SkeletonGraphique } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
-import { bornesPeriode } from '../utils/periode'
+import { PERIODES_RELATIVES, bornesPeriode } from '../utils/periode'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
 interface PortfolioHistoryChartProps {
@@ -39,8 +40,19 @@ export default function PortfolioHistoryChart({
   errorPatrimoine,
   onRetryPatrimoine,
 }: PortfolioHistoryChartProps) {
-  const { lentille, montantsMasques, periode } = usePreferencesAffichage()
+  const { lentille, montantsMasques, periode, setPeriode } = usePreferencesAffichage()
   const [stacked, setStacked] = useState(false)
+
+  // Migration d'une préférence dont l'interface a disparu : le sélecteur de période
+  // de la barre du haut proposait « Personnalisée… » avec deux champs de date, que la
+  // refonte ne reprend pas ici (1 mois → Tout, cf. maquette ; le Rapport, lui, garde
+  // ses propres bornes personnalisées). Sans cette remise à zéro, un foyer qui avait
+  // enregistré une plage personnalisée verrait le graphique filtré dessus alors que la
+  // pilule affichée annoncerait « Tout » — exactement le genre d'incohérence que cette
+  // refonte doit supprimer.
+  useEffect(() => {
+    if (periode.type === 'personnalisee') setPeriode({ type: 'relative', valeur: 'TOUT' })
+  }, [periode, setPeriode])
   const enFinancier = lentille === 'financier'
 
   // Hors lentille "financier" : la courbe vient de l'historique combiné, projeté sur
@@ -96,12 +108,30 @@ export default function PortfolioHistoryChart({
 
   return (
     <Card>
+      {/* Refonte « liquid glass » (étape 4) : la période vit à CÔTÉ de la courbe
+          qu'elle change, plus dans la barre du haut — c'était la deuxième des trois
+          décisions structurelles du paquet de design. Elle reste la préférence
+          transverse (`usePreferencesAffichage`) et non un état local : le chiffre
+          héros juste au-dessus (`PatrimoineNetCard`) affiche la variation SUR CETTE
+          MÊME PÉRIODE, et les deux doivent toujours raconter la même histoire. */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Évolution du portefeuille</h2>
-        <label className="flex items-center gap-1.5 text-xs text-texte">
-          <input type="checkbox" checked={stackedEffectif} onChange={(e) => setStacked(e.target.checked)} />
-          Mode étagé (investi + gains)
-        </label>
+        <h2 className="text-[15px] font-semibold -tracking-[0.01em] text-ink">Évolution du portefeuille</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <Pill
+            actif={stackedEffectif}
+            onClick={() => setStacked(!stackedEffectif)}
+            title="Superpose l'investi sous le total : la tranche visible entre les deux courbes, ce sont les gains."
+          >
+            Mode étagé
+          </Pill>
+          <SegmentedControl
+            options={PERIODES_RELATIVES.map((p) => ({ valeur: p.valeur, libelle: p.label }))}
+            valeur={periode.type === 'relative' ? periode.valeur : 'TOUT'}
+            onChange={(valeur) => setPeriode({ type: 'relative', valeur })}
+            taille="sm"
+            ariaLabel="Période du graphique"
+          />
+        </div>
       </div>
 
       {stackedEffectif && (

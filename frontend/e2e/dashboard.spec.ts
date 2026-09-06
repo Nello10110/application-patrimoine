@@ -11,11 +11,11 @@ test.describe('Tableau de bord', () => {
 
   test('affiche le patrimoine net attendu et bascule Net/Brut/Financier', async ({ page }) => {
     const { attendu } = seedData()
-    // `.text-display` : classe d'échelle typographique réservée au gros chiffre de
-    // `PatrimoineNetCard` (backlog 2.K.6) — la même valeur peut coïncidemment
-    // apparaître ailleurs sur l'écran (ex. "Valeur des positions"), d'où ce ciblage
-    // précis plutôt qu'un `getByText` pleine page.
-    const chiffre = page.locator('.text-display')
+    // `.text-heros` : marche de l'échelle typographique réservée au chiffre héros,
+    // un seul par écran depuis la refonte (`PatrimoineNetCard`) — la même valeur peut
+    // coïncidemment apparaître ailleurs sur l'écran, d'où ce ciblage précis plutôt
+    // qu'un `getByText` pleine page.
+    const chiffre = page.locator('.text-heros')
 
     // Lentille "Net" (défaut) : patrimoine net = actifs - passifs (79 000 €, cf.
     // seed_e2e.py — vérifié à la main contre /api/patrimoine/net).
@@ -31,7 +31,7 @@ test.describe('Tableau de bord', () => {
 
   test('bascule "masquer les montants" remplace les chiffres', async ({ page }) => {
     const { attendu } = seedData()
-    const chiffre = page.locator('.text-display')
+    const chiffre = page.locator('.text-heros')
     await expect(chiffre).toHaveText(montantRegex(attendu.patrimoine_net))
 
     await page.getByRole('button', { name: /masquer les montants/i }).click()

@@ -171,6 +171,15 @@ body {
   --tracking-hero: -0.035em;
   --tracking-title: -0.025em;
 
+  /* Chiffre héros d'un écran — un seul par écran (première décision structurelle de
+     la refonte). Jeton plutôt qu'une taille en dur dans le composant : c'est une
+     marche de l'échelle typographique, au même titre que `text-display` ci-dessus,
+     et l'échelle est ce qui tient la hiérarchie d'un écran à l'autre. */
+  --text-heros: 54px;
+  --text-heros--line-height: 1.05;
+  --text-heros--font-weight: 600;
+  --text-heros--letter-spacing: -0.035em;
+
   /* Pile système Apple d'abord (SF Pro sur macOS/iOS), mais `system-ui` AVANT
      Helvetica : sur Windows, la pile du paquet retombait sur Helvetica/Arial alors
      que la police système correcte y est Segoe UI. Seul écart assumé au paquet. */

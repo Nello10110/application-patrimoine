@@ -93,32 +93,14 @@ describe('BarreControles — filtre détenteur (backlog 2.L.1)', () => {
   })
 })
 
-describe('BarreControles — Période (backlog 2.K.3)', () => {
-  it('"Tout" est la valeur par défaut', () => {
+describe('BarreControles — Période retirée (refonte « liquid glass », étape 4)', () => {
+  // La période vit désormais à côté de la courbe qu'elle change
+  // (`PortfolioHistoryChart`), plus dans cette barre : un sélecteur global qui
+  // pilotait certains écrans et pas d'autres était l'incohérence à supprimer.
+  it("n'affiche plus de sélecteur de période", () => {
     renderBarre()
-    const selects = screen.getAllByRole('combobox')
-    const selectPeriode = selects[selects.length - 1]
-    expect(selectPeriode).toHaveValue('TOUT')
-  })
 
-  it('choisir "3 mois" persiste la préférence', () => {
-    renderBarre()
-    const selects = screen.getAllByRole('combobox')
-    const selectPeriode = selects[selects.length - 1]
-
-    fireEvent.change(selectPeriode, { target: { value: '3M' } })
-
-    expect(localStorage.getItem('patrimoine:periode')).toBe(JSON.stringify({ type: 'relative', valeur: '3M' }))
-  })
-
-  it('choisir "Personnalisée" affiche deux champs de date', () => {
-    renderBarre()
-    const selects = screen.getAllByRole('combobox')
-    const selectPeriode = selects[selects.length - 1]
-
-    fireEvent.change(selectPeriode, { target: { value: 'personnalisee' } })
-
-    const champsDate = document.querySelectorAll('input[type="date"]')
-    expect(champsDate).toHaveLength(2)
+    expect(screen.queryByText('Période')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Personnalisée…' })).not.toBeInTheDocument()
   })
 })
