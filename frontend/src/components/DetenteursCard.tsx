@@ -73,7 +73,7 @@ export default function DetenteursCard() {
               <span className="text-texte">
                 {d.nom} <span className="text-xs text-texte-attenue">({d.type === 'personne' ? 'Personne' : 'Société'})</span>
               </span>
-              <button onClick={() => handleDelete(d.id)} className="text-xs text-negatif hover:underline">
+              <button onClick={() => handleDelete(d.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
                 Supprimer
               </button>
             </li>

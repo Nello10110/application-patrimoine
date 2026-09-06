@@ -156,11 +156,11 @@ export default function GestionFoyerCard() {
                         <button
                           type="submit"
                           disabled={saving || !usernameEdition.trim()}
-                          className="text-xs text-accent hover:underline disabled:opacity-40"
+                          className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-accent hover:underline disabled:opacity-40"
                         >
                           Enregistrer
                         </button>
-                        <button type="button" onClick={() => setIdUsernameEnEdition(null)} className="text-xs text-texte-attenue hover:underline">
+                        <button type="button" onClick={() => setIdUsernameEnEdition(null)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
                           Annuler
                         </button>
                       </form>
@@ -173,7 +173,7 @@ export default function GestionFoyerCard() {
                           <button
                             onClick={() => commencerEditionUsername(m)}
                             aria-label={`Modifier le nom d'utilisateur de ${m.username}`}
-                            className="text-xs text-accent hover:underline"
+                            className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-accent hover:underline"
                           >
                             Modifier
                           </button>
@@ -232,7 +232,7 @@ export default function GestionFoyerCard() {
                       <button
                         onClick={() => handleDelete(m.id)}
                         aria-label={`Supprimer le compte ${m.username}`}
-                        className="text-xs text-negatif hover:underline"
+                        className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline"
                       >
                         Supprimer
                       </button>

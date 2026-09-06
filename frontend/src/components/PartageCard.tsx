@@ -114,7 +114,7 @@ export default function PartageCard() {
                     {lien.code_requis && !revoque && !expire && <span className="text-xs text-texte-attenue">code requis</span>}
                   </div>
                   {!revoque && (
-                    <button onClick={() => handleRevoke(lien.id)} className="text-xs text-negatif hover:underline">
+                    <button onClick={() => handleRevoke(lien.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
                       Révoquer
                     </button>
                   )}

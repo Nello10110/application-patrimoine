@@ -73,7 +73,7 @@ function ModifierLigneEpargneForm({ holding, onSaved, onCancel }: { holding: Hol
       >
         {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>
-      <button type="button" onClick={onCancel} className="text-sm font-medium text-texte-attenue hover:text-texte">
+      <button type="button" onClick={onCancel} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-texte-attenue hover:text-texte">
         Annuler
       </button>
       {error && <span className="text-sm text-negatif">{error}</span>}
@@ -160,13 +160,13 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
           <p className="text-xs text-texte-attenue">{libelleTypeEpargne(holding.type_actif)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <button type="button" onClick={() => setEdition((v) => !v)} className="text-xs font-medium text-accent hover:underline">
+          <button type="button" onClick={() => setEdition((v) => !v)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-accent hover:underline">
             {edition ? 'Fermer' : 'Modifier'}
           </button>
-          <button type="button" onClick={() => setOuvert((v) => !v)} className="text-xs font-medium text-accent hover:underline">
+          <button type="button" onClick={() => setOuvert((v) => !v)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-accent hover:underline">
             {ouvert ? 'Fermer' : 'Ajouter une valorisation'}
           </button>
-          <button type="button" onClick={() => setConfirmSuppression(true)} className="text-xs font-medium text-negatif hover:underline">
+          <button type="button" onClick={() => setConfirmSuppression(true)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-negatif hover:underline">
             Supprimer
           </button>
         </div>

@@ -101,7 +101,7 @@ export default function CategoriesEtReglesSection({
                     <span>
                       « {r.motif} » → {cat?.nom ?? '?'}
                     </span>
-                    <button onClick={() => supprimerRegle(r.id)} className="text-xs text-texte-attenue hover:text-negatif">
+                    <button onClick={() => supprimerRegle(r.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:text-negatif">
                       Supprimer
                     </button>
                   </li>

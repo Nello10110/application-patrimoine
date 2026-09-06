@@ -5,6 +5,7 @@ import Card from './Card'
 import EtatErreur from './EtatErreur'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import { formatDateHeure } from '../utils/format'
+import { SecondaryButton } from './Controls'
 
 const JOB_LABELS: Record<string, string> = {
   market_data_refresh: 'Rafraîchissement des données de marché',
@@ -113,13 +114,9 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
           </select>
         </label>
 
-        <button
-          onClick={handleRunNow}
-          disabled={running}
-          className="ml-auto rounded-md bg-texte px-3 py-1.5 text-xs font-medium text-surface disabled:opacity-40"
-        >
+        <SecondaryButton onClick={handleRunNow} disabled={running} className="ml-auto">
           {running ? libelleRunNow : 'Lancer maintenant'}
-        </button>
+        </SecondaryButton>
       </div>
 
       <div className="mt-4 border-t border-bordure pt-3 text-xs text-texte-attenue">

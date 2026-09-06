@@ -85,7 +85,7 @@ function ObjectifCard({ objectif, onDeleted }: { objectif: ObjectifDetail; onDel
         <button
           onClick={handleDelete}
           disabled={suppression}
-          className="text-xs text-texte-attenue hover:text-negatif disabled:opacity-40"
+          className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:text-negatif disabled:opacity-40"
         >
           Supprimer
         </button>
@@ -239,8 +239,11 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
                 key={h.id}
                 type="button"
                 onClick={() => toggleSelection(h.id, holdingIds, setHoldingIds)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  holdingIds.includes(h.id) ? 'bg-texte text-surface' : 'bg-surface-elevee text-texte-attenue hover:text-texte'
+                aria-pressed={holdingIds.includes(h.id)}
+                className={`inline-flex min-h-11 items-center rounded-chip border px-3 text-xs font-medium transition-colors md:min-h-0 md:py-1.5 ${
+                  holdingIds.includes(h.id)
+                    ? 'border-transparent bg-accent-soft text-accent'
+                    : 'border-hairline bg-chip text-ink3 hover:bg-hover'
                 }`}
               >
                 {h.ticker}
@@ -259,8 +262,11 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
                 key={d.id}
                 type="button"
                 onClick={() => toggleSelection(d.id, detenteurIds, setDetenteurIds)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  detenteurIds.includes(d.id) ? 'bg-texte text-surface' : 'bg-surface-elevee text-texte-attenue hover:text-texte'
+                aria-pressed={detenteurIds.includes(d.id)}
+                className={`inline-flex min-h-11 items-center rounded-chip border px-3 text-xs font-medium transition-colors md:min-h-0 md:py-1.5 ${
+                  detenteurIds.includes(d.id)
+                    ? 'border-transparent bg-accent-soft text-accent'
+                    : 'border-hairline bg-chip text-ink3 hover:bg-hover'
                 }`}
               >
                 {d.nom}

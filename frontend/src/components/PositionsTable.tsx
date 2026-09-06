@@ -760,20 +760,20 @@ export default function PositionsTable({
                       <button
                         onClick={(e) => saveEdit(e, h.id)}
                         disabled={editSaving}
-                        className="text-xs font-medium text-positif hover:underline disabled:opacity-40"
+                        className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-positif hover:underline disabled:opacity-40"
                       >
                         Enregistrer
                       </button>
-                      <button onClick={(e) => cancelEdit(e)} className="text-xs text-texte-attenue hover:underline">
+                      <button onClick={(e) => cancelEdit(e)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
                         Annuler
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={(e) => startEdit(e, h)} className="text-xs text-texte-attenue hover:underline">
+                      <button onClick={(e) => startEdit(e, h)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
                         Modifier
                       </button>
-                      <button onClick={(e) => handleDelete(e, h)} className="text-xs text-negatif hover:underline">
+                      <button onClick={(e) => handleDelete(e, h)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
                         Supprimer
                       </button>
                     </div>

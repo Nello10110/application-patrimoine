@@ -70,7 +70,7 @@ export default function EtapeComptes() {
                 <span className="text-texte">
                   {c.nom} <span className="text-xs text-texte-attenue">({c.etablissement?.nom ?? 'Sans établissement'})</span>
                 </span>
-                <button onClick={() => handleDelete(c.id)} className="text-xs text-negatif hover:underline">
+                <button onClick={() => handleDelete(c.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
                   Supprimer
                 </button>
               </li>

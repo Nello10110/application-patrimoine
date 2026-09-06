@@ -10,6 +10,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 import { dateVersISO, formatEuro } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel } from '../utils/interetsComposes'
+import { SegmentedControl } from '../components/Controls'
 
 const DUREES = [5, 10, 20, 30] as const
 type Vue = 'annuelle' | 'mensuelle'
@@ -284,21 +285,13 @@ export default function SimulateurPage() {
 
         <div className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Durée
-          <div className="flex gap-1">
-            {DUREES.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDuree(d)}
-                className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                  duree === d
-                    ? 'bg-texte text-surface'
-                    : 'bg-surface-elevee text-texte-attenue hover:text-texte'
-                }`}
-              >
-                {d} ans
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={DUREES.map((d) => ({ valeur: String(d), libelle: `${d} ans` }))}
+            valeur={String(duree)}
+            onChange={(v) => setDuree(Number(v))}
+            ariaLabel="Durée de la projection"
+            className="w-fit"
+          />
         </div>
 
         <p className="mt-3 text-xs text-texte-attenue">
@@ -356,21 +349,16 @@ export default function SimulateurPage() {
 
             <div className="mt-6 flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Détail par période</h3>
-              <div className="flex gap-1">
-                {(['annuelle', 'mensuelle'] as Vue[]).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setVue(v)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                      vue === v
-                        ? 'bg-texte text-surface'
-                        : 'bg-surface-elevee text-texte-attenue hover:text-texte'
-                    }`}
-                  >
-                    {v === 'annuelle' ? 'Annuelle' : 'Mensuelle'}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                options={[
+                  { valeur: 'annuelle', libelle: 'Annuelle' },
+                  { valeur: 'mensuelle', libelle: 'Mensuelle' },
+                ]}
+                valeur={vue}
+                onChange={setVue}
+                taille="sm"
+                ariaLabel="Granularité du détail"
+              />
             </div>
 
             <div className="mt-3 max-h-96 overflow-y-auto overflow-x-auto rounded-md border border-bordure">

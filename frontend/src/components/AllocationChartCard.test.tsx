@@ -9,14 +9,11 @@ vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn() }),
 }))
 
-// Graphiques recharts mis de côté (LOT 6.10) : ce fichier ne verrouille que la
-// bascule barres/camembert, le plein écran et le tableau détaillé — pas le rendu
-// recharts lui-même (déjà couvert ailleurs, cf. `AllocationBarChart`/`AllocationPieChart`).
+// Graphique recharts mis de côté (LOT 6.10) : ce fichier ne verrouille que le plein
+// écran et le tableau détaillé — pas le rendu recharts lui-même (déjà couvert
+// ailleurs, cf. `AllocationBarChart`).
 vi.mock('./AllocationBarChart', () => ({
   default: ({ items }: { items: AllocationBreakdownItem[] }) => <div data-testid="bar-chart">{items.length}</div>,
-}))
-vi.mock('./AllocationPieChart', () => ({
-  default: ({ items }: { items: AllocationBreakdownItem[] }) => <div data-testid="pie-chart">{items.length}</div>,
 }))
 
 const ITEMS: AllocationBreakdownItem[] = [
@@ -25,16 +22,14 @@ const ITEMS: AllocationBreakdownItem[] = [
 ]
 
 describe('AllocationChartCard', () => {
-  it('affiche les barres par défaut, bascule vers le camembert au clic', () => {
+  // Refonte « liquid glass » : la bascule barres/camembert est retirée — choisir la
+  // forme d'un graphique est une décision de design, pas un réglage d'utilisateur.
+  it('affiche des barres, sans bascule de type de graphique', () => {
     render(<AllocationChartCard title="Répartition géographique" items={ITEMS} onCategoryClick={vi.fn()} />)
 
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
-    expect(screen.queryByTestId('pie-chart')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByTitle('Camembert'))
-
-    expect(screen.getByTestId('pie-chart')).toBeInTheDocument()
-    expect(screen.queryByTestId('bar-chart')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Camembert')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Barres')).not.toBeInTheDocument()
   })
 
   it("le plein écran affiche un tableau détaillé avec valeur totale et valeurs par catégorie", () => {

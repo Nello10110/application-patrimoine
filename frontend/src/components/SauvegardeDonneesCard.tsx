@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import Modale from './Modale'
+import { SecondaryButton } from './Controls'
 
 /** Libellés lisibles des tables du fichier d'export — le décompte brut
  * (`holding_valuation_history: 12`) ne dit rien à un utilisateur. Une table absente
@@ -160,13 +161,7 @@ export default function SauvegardeDonneesCard() {
         conservez-le comme un document confidentiel.
       </p>
 
-      <button
-        type="button"
-        onClick={handleExport}
-        className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
-      >
-        Exporter mes données (JSON)
-      </button>
+      <SecondaryButton onClick={handleExport}>Exporter mes données (JSON)</SecondaryButton>
 
       <div className="mt-6 border-t border-bordure pt-4">
         <p className="mb-1 text-sm font-medium text-texte">Restaurer depuis un fichier</p>

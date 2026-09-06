@@ -64,7 +64,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                 <button
                   type="button"
                   onClick={terminer}
-                  className="text-xs text-texte-attenue hover:text-texte hover:underline"
+                  className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:text-texte hover:underline"
                 >
                   Passer l'assistant
                 </button>

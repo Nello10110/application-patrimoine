@@ -1,5 +1,6 @@
 import type { ModeDecomposition } from '../utils/valorisationDecomposition'
 import { formatEuro } from '../utils/format'
+import { SegmentedControl } from './Controls'
 
 /** Bascule versement/plus-value (retour utilisateur 30/08/2026, suite § U.2) :
  * selon ce que l'utilisateur connaît réellement (un versement précis relevé sur son
@@ -41,33 +42,25 @@ export default function ChampDecomposition({
       {/* Bascule hors du `<label>` ci-dessous : son texte doit rester exactement le
           libellé du champ (nom accessible de l'input), pas concaténé à "Versement
           Plus-value". */}
-      <span className="inline-flex w-fit overflow-hidden rounded border border-bordure text-[11px] normal-case">
-        <button
-          type="button"
-          onClick={() => {
-            onModeChange('versement')
+      <span className="w-fit normal-case">
+        <SegmentedControl
+          options={[
+            { valeur: 'versement', libelle: 'Versement' },
+            {
+              valeur: 'plus_value',
+              libelle: 'Plus-value',
+              aide: valeurPrecedente === null ? 'Nécessite un point antérieur connu' : undefined,
+              desactive: valeurPrecedente === null,
+            },
+          ]}
+          valeur={mode}
+          onChange={(v) => {
+            onModeChange(v)
             onMontantChange('')
           }}
-          aria-pressed={mode === 'versement'}
-          className={`px-1.5 py-0.5 ${mode === 'versement' ? 'bg-texte text-surface' : 'text-texte-attenue hover:bg-surface-elevee'}`}
-        >
-          Versement
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onModeChange('plus_value')
-            onMontantChange('')
-          }}
-          disabled={valeurPrecedente === null}
-          aria-pressed={mode === 'plus_value'}
-          title={valeurPrecedente === null ? 'Nécessite un point antérieur connu' : undefined}
-          className={`border-l border-bordure px-1.5 py-0.5 disabled:cursor-not-allowed disabled:opacity-40 ${
-            mode === 'plus_value' ? 'bg-texte text-surface' : 'text-texte-attenue hover:bg-surface-elevee'
-          }`}
-        >
-          Plus-value
-        </button>
+          taille="sm"
+          ariaLabel="Nature du montant saisi"
+        />
       </span>
       <label className="flex flex-col gap-1">
         {mode === 'versement' ? libelleVersement : libellePlusValue}

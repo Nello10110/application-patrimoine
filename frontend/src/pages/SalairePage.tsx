@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { SalaireDonnees, SalaireIn, SalaireResume } from '../api/types'
 import Card from '../components/Card'
+import { SegmentedControl } from '../components/Controls'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { SkeletonTexte } from '../components/Skeleton'
@@ -185,10 +186,10 @@ export default function SalairePage() {
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <button type="button" onClick={() => ouvrirEdition(entree)} className="text-sm font-medium text-accent hover:underline">
+                    <button type="button" onClick={() => ouvrirEdition(entree)} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-accent hover:underline">
                       Modifier
                     </button>
-                    <button type="button" onClick={() => supprimer(entree)} className="text-sm font-medium text-negatif hover:underline">
+                    <button type="button" onClick={() => supprimer(entree)} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-negatif hover:underline">
                       Supprimer
                     </button>
                   </div>
@@ -285,54 +286,39 @@ export default function SalairePage() {
               </label>
             </div>
 
+            {/* Trois bascules au contrôle segmenté commun (refonte « liquid glass ») :
+                c'étaient les dernières rangées de boutons `bg-texte text-surface` que
+                `SegmentedControl` avait justement été introduit pour remplacer. */}
             <div className="mt-4 flex flex-wrap gap-4">
-              <div className="flex gap-0.5 rounded-md bg-surface-elevee p-0.5">
-                {(['brut', 'net'] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setFormulaire({ ...formulaire, typeMontant: v })}
-                    aria-pressed={formulaire.typeMontant === v}
-                    className={`rounded px-2.5 py-1 text-sm font-medium capitalize transition-colors ${
-                      formulaire.typeMontant === v ? 'bg-texte text-surface' : 'text-texte-attenue hover:text-texte'
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                options={[
+                  { valeur: 'brut', libelle: 'Brut' },
+                  { valeur: 'net', libelle: 'Net' },
+                ]}
+                valeur={formulaire.typeMontant}
+                onChange={(v) => setFormulaire({ ...formulaire, typeMontant: v })}
+                ariaLabel="Type de montant"
+              />
 
-              <div className="flex gap-0.5 rounded-md bg-surface-elevee p-0.5">
-                {(['mensuel', 'annuel'] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setFormulaire({ ...formulaire, periodicite: v })}
-                    aria-pressed={formulaire.periodicite === v}
-                    className={`rounded px-2.5 py-1 text-sm font-medium capitalize transition-colors ${
-                      formulaire.periodicite === v ? 'bg-texte text-surface' : 'text-texte-attenue hover:text-texte'
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                options={[
+                  { valeur: 'mensuel', libelle: 'Mensuel' },
+                  { valeur: 'annuel', libelle: 'Annuel' },
+                ]}
+                valeur={formulaire.periodicite}
+                onChange={(v) => setFormulaire({ ...formulaire, periodicite: v })}
+                ariaLabel="Périodicité"
+              />
 
-              <div className="flex gap-0.5 rounded-md bg-surface-elevee p-0.5">
-                {(['cadre', 'non_cadre'] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setFormulaire({ ...formulaire, statut: v })}
-                    aria-pressed={formulaire.statut === v}
-                    className={`rounded px-2.5 py-1 text-sm font-medium transition-colors ${
-                      formulaire.statut === v ? 'bg-texte text-surface' : 'text-texte-attenue hover:text-texte'
-                    }`}
-                  >
-                    {v === 'cadre' ? 'Cadre' : 'Non-cadre'}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                options={[
+                  { valeur: 'cadre', libelle: 'Cadre' },
+                  { valeur: 'non_cadre', libelle: 'Non-cadre' },
+                ]}
+                valeur={formulaire.statut}
+                onChange={(v) => setFormulaire({ ...formulaire, statut: v })}
+                ariaLabel="Statut"
+              />
             </div>
 
             {apercu && (

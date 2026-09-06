@@ -25,7 +25,11 @@ export function SegmentedControl<T extends string>({
 }: {
   /** `libelle` accepte un nœud React : les onglets des Réglages portent une icône
    * devant leur texte, et la refonte ne demandait pas de la leur retirer. */
-  options: { valeur: T; libelle: ReactNode; aide?: string }[]
+  /** `desactive` : option visible mais inopérante (ex. « Plus-value » sans point
+   * antérieur connu pour la déduire). Rendue `disabled` et non masquée — une option
+   * qui disparaît laisse croire qu'elle n'existe pas, là où `disabled` + `aide`
+   * explique POURQUOI elle est hors d'atteinte. */
+  options: { valeur: T; libelle: ReactNode; aide?: string; desactive?: boolean }[]
   valeur: T
   onChange: (v: T) => void
   taille?: 'sm' | 'md'
@@ -63,9 +67,10 @@ export function SegmentedControl<T extends string>({
             aria-selected={onglets ? actif : undefined}
             aria-controls={onglets ? idPanneau?.(o.valeur) : undefined}
             aria-pressed={onglets ? undefined : actif}
+            disabled={o.desactive}
             title={o.aide}
             onClick={() => onChange(o.valeur)}
-            className={`rounded-chip whitespace-nowrap ${pad} transition-colors ${
+            className={`rounded-chip whitespace-nowrap ${pad} transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               actif
                 ? 'bg-[var(--on-bg)] font-semibold text-[var(--on-ink)] shadow-[0_1px_3px_rgba(20,26,40,0.14)]'
                 : 'font-medium text-ink3 hover:text-ink'
@@ -125,6 +130,17 @@ export function Pill({
     </button>
   )
 }
+
+/** Classes des deux boutons, exportées séparément parce qu'un TÉLÉCHARGEMENT doit
+ * rester une balise `<a href download>` — c'est le navigateur qui le déclenche, pas
+ * du JavaScript — et ne peut donc pas passer par les composants ci-dessous. Une
+ * constante partagée plutôt qu'une copie des classes chez chaque appelant : sinon la
+ * prochaine retouche du bouton oublie les liens. */
+export const CLASSES_BOUTON_PRIMAIRE =
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-control bg-[image:var(--accent-grad)] px-4 text-sm font-semibold text-white shadow-accent transition-colors md:min-h-0 md:py-2'
+
+export const CLASSES_BOUTON_SECONDAIRE =
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-control border border-hairline bg-chip px-3.5 text-sm font-medium text-ink2 transition-colors hover:bg-hover md:min-h-0 md:py-2'
 
 /** Bouton primaire — dégradé d'accent + halo. Un seul par écran. */
 export function PrimaryButton({

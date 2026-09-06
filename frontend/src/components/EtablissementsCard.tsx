@@ -128,10 +128,10 @@ export default function EtablissementsCard({
                 {e.nom}
               </span>
               <span className="flex items-center gap-3">
-                <button onClick={() => setEnEdition(e)} className="text-xs text-accent hover:underline">
+                <button onClick={() => setEnEdition(e)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-accent hover:underline">
                   Modifier
                 </button>
-                <button onClick={() => handleDelete(e.id)} className="text-xs text-negatif hover:underline">
+                <button onClick={() => handleDelete(e.id)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
                   Supprimer
                 </button>
               </span>

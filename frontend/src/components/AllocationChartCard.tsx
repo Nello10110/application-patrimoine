@@ -3,31 +3,11 @@ import type { AllocationBreakdownItem } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 import AllocationBarChart from './AllocationBarChart'
-import AllocationPieChart from './AllocationPieChart'
 import Card from './Card'
 import EtatVide from './EtatVide'
 import { IconFermer } from './icons'
 import Modale from './Modale'
 import StatTile from './StatTile'
-
-type Mode = 'bar' | 'pie'
-
-function IconBarChart({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className={className} aria-hidden="true">
-      <path d="M4 20V10M12 20V4M20 20v-7" />
-    </svg>
-  )
-}
-
-function IconPieChart({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-      <path d="M22 12A10 10 0 0 0 12 2v10z" />
-    </svg>
-  )
-}
 
 function IconExpand({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -37,37 +17,16 @@ function IconExpand({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
-function BoutonMode({
-  actif,
-  onClick,
-  titre,
-  children,
-}: {
-  actif: boolean
-  onClick: () => void
-  titre: string
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={actif}
-      title={titre}
-      onClick={onClick}
-      className={`flex h-11 w-11 items-center justify-center md:h-7 md:w-7 transition-colors ${
-        actif
-          ? 'bg-texte text-surface'
-          : 'bg-surface text-texte-attenue hover:bg-surface-elevee'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
-
-/** Répartition géo/sectorielle du tableau de bord (LOT 6.10) : un graphique qui bascule
- * entre barres et camembert, plus une vue plein écran avec le détail chiffré par
- * catégorie que le graphique seul ne montre pas. */
+/** Répartition géo/sectorielle du tableau de bord (LOT 6.10) : des barres horizontales,
+ * plus une vue plein écran avec le détail chiffré par catégorie que le graphique seul
+ * ne montre pas.
+ *
+ * La bascule barres/camembert a été retirée à la refonte « liquid glass » : demander à
+ * l'utilisateur de CHOISIR la forme de son graphique lui fait porter une décision de
+ * design. Les barres gagnent ici sans discussion — elles se lisent triées, portent leur
+ * libellé en clair, et restent lisibles au-delà de cinq catégories là où le camembert
+ * devient un anneau de miettes. Le camembert reste employé ailleurs (`PieChartCard`),
+ * pour des compositions à peu de parts. */
 export default function AllocationChartCard({
   title,
   items,
@@ -80,29 +39,16 @@ export default function AllocationChartCard({
   footnote?: ReactNode
 }) {
   const { montantsMasques } = usePreferencesAffichage()
-  const [mode, setMode] = useState<Mode>('bar')
   const [pleinEcran, setPleinEcran] = useState(false)
-
-  const modeToggle = items.length > 0 && (
-    <div className="flex overflow-hidden rounded-md border border-bordure">
-      <BoutonMode actif={mode === 'bar'} onClick={() => setMode('bar')} titre="Barres">
-        <IconBarChart />
-      </BoutonMode>
-      <BoutonMode actif={mode === 'pie'} onClick={() => setMode('pie')} titre="Camembert">
-        <IconPieChart />
-      </BoutonMode>
-    </div>
-  )
 
   const controlesCarte = items.length > 0 && (
     <div className="flex items-center gap-1.5">
-      {modeToggle}
       <button
         type="button"
         aria-label="Agrandir le graphique"
         title="Agrandir"
         onClick={() => setPleinEcran(true)}
-        className="flex h-11 w-11 items-center justify-center md:h-7 md:w-7 rounded-md border border-bordure text-texte-attenue hover:bg-surface-elevee"
+        className="flex h-11 w-11 items-center justify-center rounded-control border border-hairline bg-chip text-ink3 transition-colors hover:bg-hover md:h-8 md:w-8"
       >
         <IconExpand />
       </button>
@@ -115,11 +61,7 @@ export default function AllocationChartCard({
     <>
       <Card title={title} headerActions={controlesCarte}>
         {items.length > 0 ? (
-          mode === 'bar' ? (
-            <AllocationBarChart items={items} onCategoryClick={onCategoryClick} />
-          ) : (
-            <AllocationPieChart items={items} onCategoryClick={onCategoryClick} />
-          )
+          <AllocationBarChart items={items} onCategoryClick={onCategoryClick} />
         ) : (
           <EtatVide
             titre="Aucune donnée de répartition disponible."
@@ -130,26 +72,19 @@ export default function AllocationChartCard({
       </Card>
 
       {pleinEcran && items.length > 0 && (
-        <Modale onClose={() => setPleinEcran(false)} panelClassName="w-full max-w-4xl rounded-xl bg-surface p-6 shadow-xl">
+        <Modale onClose={() => setPleinEcran(false)} panelClassName="w-full max-w-4xl rounded-panel border border-stroke bg-panel-hi p-6 shadow-lg backdrop-blur-glass">
           {({ titleId }) => (
             <>
               <div className="mb-4 flex items-start justify-between gap-4">
-                <h3 id={titleId} className="text-lg font-semibold text-texte">
+                <h3 id={titleId} className="text-[19px] font-semibold tracking-title text-ink">
                   {title}
                 </h3>
-                <div className="flex items-center gap-3">
-                  {modeToggle}
-                  <button onClick={() => setPleinEcran(false)} aria-label="Fermer" className="text-texte-attenue hover:text-texte">
-                    <IconFermer className="h-4 w-4" />
-                  </button>
-                </div>
+                <button onClick={() => setPleinEcran(false)} aria-label="Fermer" className="text-ink3 hover:text-ink">
+                  <IconFermer className="h-4 w-4" />
+                </button>
               </div>
 
-              {mode === 'bar' ? (
-                <AllocationBarChart items={items} onCategoryClick={onCategoryClick} />
-              ) : (
-                <AllocationPieChart items={items} onCategoryClick={onCategoryClick} height={420} />
-              )}
+              <AllocationBarChart items={items} onCategoryClick={onCategoryClick} />
 
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <StatTile label="Valeur totale" value={formatEuro(totalValeur, 0, montantsMasques)} />
@@ -157,24 +92,24 @@ export default function AllocationChartCard({
 
               <table className="mt-6 w-full text-sm">
                 <thead>
-                  <tr className="border-b border-bordure text-left text-xs uppercase tracking-wide text-texte-attenue">
+                  <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-ink3">
                     <th className="py-2 font-medium">Catégorie</th>
                     <th className="py-2 text-right font-medium">Valeur</th>
                     <th className="py-2 text-right font-medium">Réel</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-bordure">
+                <tbody className="divide-y divide-hairline">
                   {[...items]
                     .sort((a, b) => b.pourcentage_reel - a.pourcentage_reel)
                     .map((item) => (
                       <tr
                         key={item.categorie}
-                        className="cursor-pointer hover:bg-surface-elevee"
+                        className="cursor-pointer hover:bg-hover"
                         onClick={() => onCategoryClick(item.categorie)}
                       >
-                        <td className="py-2 text-texte">{item.categorie}</td>
-                        <td className="py-2 text-right text-texte">{formatEuro(item.valeur, 0, montantsMasques)}</td>
-                        <td className="py-2 text-right text-texte">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
+                        <td className="py-2 text-ink">{item.categorie}</td>
+                        <td className="py-2 text-right text-ink2">{formatEuro(item.valeur, 0, montantsMasques)}</td>
+                        <td className="py-2 text-right text-ink2">{`${item.pourcentage_reel.toFixed(1)}%`}</td>
                       </tr>
                     ))}
                 </tbody>

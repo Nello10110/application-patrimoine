@@ -602,11 +602,11 @@ export default function LoansCard({
                         <button
                           onClick={() => saveRecalage(loan.id)}
                           disabled={recalageSaving}
-                          className="text-xs font-medium text-positif hover:underline disabled:opacity-40"
+                          className="inline-flex min-h-11 items-center md:min-h-0 text-xs font-medium text-positif hover:underline disabled:opacity-40"
                         >
                           Enregistrer
                         </button>
-                        <button onClick={() => setRecalageId(null)} className="text-xs text-texte-attenue hover:underline">
+                        <button onClick={() => setRecalageId(null)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
                           Annuler
                         </button>
                       </div>
@@ -660,21 +660,21 @@ export default function LoansCard({
                   <td className="py-2 pr-4 text-right">
                     {recalageId !== loan.id && editionId !== loan.id && (
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => startEdition(loan)} className="text-xs text-texte-attenue hover:underline">
+                        <button onClick={() => startEdition(loan)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
                           Modifier
                         </button>
-                        <button onClick={() => startRecalage(loan)} className="text-xs text-texte-attenue hover:underline">
+                        <button onClick={() => startRecalage(loan)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
                           Recaler
                         </button>
                         <button
                           onClick={() => setDetenteursOuvertId((id) => (id === loan.id ? null : loan.id))}
-                          className="text-xs text-texte-attenue hover:underline"
+                          className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline"
                         >
                           {detenteursOuvertId === loan.id ? 'Fermer' : 'Détenteurs'}
                         </button>
                         <button
                           onClick={() => setConfirmSuppression({ id: loan.id, libelle: loan.libelle })}
-                          className="text-xs text-negatif hover:underline"
+                          className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline"
                         >
                           Supprimer
                         </button>

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ScheduledJob } from '../api/types'
 import Card from '../components/Card'
-import { SegmentedControl } from '../components/Controls'
+import { CLASSES_BOUTON_PRIMAIRE, CLASSES_BOUTON_SECONDAIRE, SecondaryButton, SegmentedControl } from '../components/Controls'
 import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal'
 import DetenteursCard from '../components/DetenteursCard'
 import EtatErreur from '../components/EtatErreur'
@@ -83,8 +83,17 @@ export default function ReglagesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-texte">Réglages</h2>
+    // Colonne unique de 760 px (maquette de la refonte) : des réglages se lisent en
+    // liste, jamais en grille — au-delà de cette largeur, l'œil perd le début de la
+    // ligne suivante.
+    // Les ONGLETS RESTENT, contrairement à la maquette qui les remplaçait par des
+    // panneaux empilés au motif qu'« il y a peu de réglages ». C'est vrai du
+    // prototype (3 panneaux), pas de cette application (une douzaine, dont le
+    // journal d'accès et les tâches planifiées) : ils avaient justement été
+    // introduits en réponse au retour « une dizaine de cartes empilées, difficile à
+    // parcourir ». Les empiler à nouveau ramènerait le défaut signalé.
+    <div className="mx-auto max-w-[760px] space-y-[14px]">
+      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Réglages</h1>
 
       <SegmentedControl
         options={ONGLETS.map(({ key, label, Icone }) => ({
@@ -104,20 +113,16 @@ export default function ReglagesPage() {
       />
 
       {onglet === 'general' && (
-        <div className="space-y-4">
+        <div className="space-y-[14px]">
           {user?.role === 'proprietaire' && (
             <Card title="Assistant de bienvenue">
               <p className="mb-4 text-sm text-texte">
                 Le parcours guidé affiché à la création de ce compte — utile pour redécouvrir les réglages de départ, ou
                 revoir ceux qui n'auraient pas été renseignés au premier passage.
               </p>
-              <button
-                type="button"
-                onClick={() => setAssistantOuvert(true)}
-                className="rounded-md border border-texte px-4 py-2 text-sm font-medium text-texte"
-              >
+              <SecondaryButton onClick={() => setAssistantOuvert(true)}>
                 Revoir l'assistant de bienvenue
-              </button>
+              </SecondaryButton>
             </Card>
           )}
           <FoyerCard />
@@ -130,19 +135,19 @@ export default function ReglagesPage() {
             <div className="flex flex-wrap gap-3">
               <a
                 href="/api/export/positions"
-                className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
+                className={CLASSES_BOUTON_SECONDAIRE}
               >
                 Positions
               </a>
               <a
                 href="/api/export/transactions"
-                className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
+                className={CLASSES_BOUTON_SECONDAIRE}
               >
                 Transactions
               </a>
               <a
                 href="/api/export/performance"
-                className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface"
+                className={CLASSES_BOUTON_SECONDAIRE}
               >
                 Rentabilité
               </a>
@@ -154,7 +159,7 @@ export default function ReglagesPage() {
             </p>
             <a
               href="/api/export/patrimoine.pdf"
-              className="inline-block rounded-md border border-texte px-4 py-2 text-sm font-medium text-texte"
+              className={CLASSES_BOUTON_PRIMAIRE}
             >
               Relevé de patrimoine (PDF)
             </a>
@@ -163,13 +168,9 @@ export default function ReglagesPage() {
               Déclaration de patrimoine (backlog 2.Q.2) : un document paramétrable pour un tiers concret (banque pour un prêt,
               notaire pour une donation) — sélection actif par actif, filtrage par détenteur, profil emprunteur optionnel.
             </p>
-            <button
-              type="button"
-              onClick={() => setDeclarationOuverte(true)}
-              className="inline-block rounded-md border border-texte px-4 py-2 text-sm font-medium text-texte"
-            >
+            <SecondaryButton onClick={() => setDeclarationOuverte(true)}>
               Déclaration de patrimoine (PDF)
-            </button>
+            </SecondaryButton>
           </Card>
           {/* Sauvegarde complète (backlog Y.1) : carte distincte de « Exporter »
               ci-dessus — celle-ci ne produit pas un document à lire mais un
@@ -179,13 +180,13 @@ export default function ReglagesPage() {
       )}
 
       {onglet === 'detenteurs' && (
-        <div className="space-y-4">
+        <div className="space-y-[14px]">
           <DetenteursCard />
         </div>
       )}
 
       {onglet === 'securite' && (
-        <div className="space-y-4">
+        <div className="space-y-[14px]">
           <GestionFoyerCard />
           <SessionsCard />
           <JournalAccesCard />
@@ -193,13 +194,13 @@ export default function ReglagesPage() {
       )}
 
       {onglet === 'partage' && (
-        <div className="space-y-4">
+        <div className="space-y-[14px]">
           <PartageCard />
         </div>
       )}
 
       {onglet === 'automatisations' && (
-        <div className="space-y-4">
+        <div className="space-y-[14px]">
           {loading && <SkeletonTexte />}
           {error && <EtatErreur message={error} onReessayer={chargerJobs} />}
           {!loading && !error && jobs.length === 0 && <EtatVide titre="Aucune tâche planifiée." />}

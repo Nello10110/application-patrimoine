@@ -213,10 +213,10 @@ export function ValorisationHistoriqueCard({
                 </td>
                 <td className="py-2 pr-4 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => startEdition(p)} className="text-xs text-texte-attenue hover:underline">
+                    <button onClick={() => startEdition(p)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-texte-attenue hover:underline">
                       Modifier
                     </button>
-                    <button onClick={() => setConfirmSuppression(p)} className="text-xs text-negatif hover:underline">
+                    <button onClick={() => setConfirmSuppression(p)} className="inline-flex min-h-11 items-center md:min-h-0 text-xs text-negatif hover:underline">
                       Supprimer
                     </button>
                   </div>
