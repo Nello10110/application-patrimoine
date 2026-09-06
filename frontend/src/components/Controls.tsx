@@ -37,7 +37,14 @@ export function SegmentedControl<T extends string>({
   idPanneau?: (valeur: T) => string
   className?: string
 }) {
-  const pad = taille === 'sm' ? 'px-3 py-[5px] text-xs' : 'px-3.5 py-[5px] text-[13px]'
+  // Cible tactile de 44 px sur mobile, 26 px à partir de `md` (refonte, étape 5) :
+  // « 44 px minimum pour toute cible tactile, sans exception » — c'est le point le
+  // plus facile à casser au portage, et une pilule de 26 px de haut est confortable
+  // à la souris mais ratée au pouce.
+  const pad =
+    taille === 'sm'
+      ? 'min-h-11 px-3 text-xs md:min-h-0 md:py-[5px]'
+      : 'min-h-11 px-3.5 text-[13px] md:min-h-0 md:py-[5px]'
   const onglets = semantique === 'onglets'
   return (
     <div
@@ -92,7 +99,8 @@ export function Pill({
   actif?: boolean
   title?: string
 }) {
-  const classes = `flex items-center gap-[7px] rounded-chip border px-3 py-[5px] text-[13px] transition-colors ${
+  // Même règle des 44 px que le contrôle segmenté (refonte, étape 5).
+  const classes = `flex min-h-11 items-center gap-[7px] rounded-chip border px-3 text-[13px] transition-colors md:min-h-0 md:py-[5px] ${
     actif ? 'border-transparent bg-accent-soft text-accent' : 'border-hairline bg-chip text-ink2 hover:bg-hover'
   }`
   if (!onClick) {
@@ -139,7 +147,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center gap-1.5 rounded-control px-4 py-2 text-sm font-semibold transition-colors ${
+      className={`flex min-h-11 items-center justify-center gap-1.5 rounded-control px-4 text-sm font-semibold transition-colors md:min-h-0 md:py-2 ${
         disabled
           ? 'cursor-not-allowed bg-track text-ink4'
           : 'bg-[image:var(--accent-grad)] text-white shadow-accent'
@@ -172,7 +180,7 @@ export function SecondaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center justify-center gap-1.5 rounded-control border border-hairline bg-chip px-3.5 py-2 text-sm font-medium text-ink2 transition-colors hover:bg-hover disabled:opacity-40 ${className}`}
+      className={`flex min-h-11 items-center justify-center gap-1.5 rounded-control border border-hairline bg-chip px-3.5 text-sm font-medium text-ink2 transition-colors hover:bg-hover disabled:opacity-40 md:min-h-0 md:py-2 ${className}`}
     >
       {icone}
       {children}

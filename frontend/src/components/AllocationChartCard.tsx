@@ -54,7 +54,7 @@ function BoutonMode({
       aria-pressed={actif}
       title={titre}
       onClick={onClick}
-      className={`flex h-7 w-7 items-center justify-center transition-colors ${
+      className={`flex h-11 w-11 items-center justify-center md:h-7 md:w-7 transition-colors ${
         actif
           ? 'bg-texte text-surface'
           : 'bg-surface text-texte-attenue hover:bg-surface-elevee'
@@ -102,7 +102,7 @@ export default function AllocationChartCard({
         aria-label="Agrandir le graphique"
         title="Agrandir"
         onClick={() => setPleinEcran(true)}
-        className="flex h-7 w-7 items-center justify-center rounded-md border border-bordure text-texte-attenue hover:bg-surface-elevee"
+        className="flex h-11 w-11 items-center justify-center md:h-7 md:w-7 rounded-md border border-bordure text-texte-attenue hover:bg-surface-elevee"
       >
         <IconExpand />
       </button>

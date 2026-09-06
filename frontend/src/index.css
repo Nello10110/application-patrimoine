@@ -77,6 +77,16 @@ body {
   --color-tooltip-text: #e2e8f0; /* slate-200 */
 }
 
+/* Chiffre héros en mobile (refonte, étape 5) : 40 px au lieu de 54 — la maquette
+   mobile le réduit pour que le montant tienne sur une ligne dans 390 px de large.
+   Redéfinir la variable du jeton plutôt que d'ajouter une variante utilitaire :
+   `.text-heros` la lit à l'exécution, tous ses usages suivent donc d'eux-mêmes. */
+@media (max-width: 767px) {
+  :root {
+    --text-heros: 40px;
+  }
+}
+
 /* Filet de sécurité pour les éléments Recharts non couverts par les props passées
    composant par composant (props `tick`/`stroke` de chaque axe, `contentStyle` de
    l'infobulle) : la légende et les étiquettes internes des camemberts (`Pie`, prop

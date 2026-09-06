@@ -112,7 +112,7 @@ export default function BarreControles() {
         // quoi il parle à un lecteur d'écran.
         aria-label={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants`}
         title={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants (Ctrl/⌘ + Maj + M). ${AIDE_MONTANTS_MASQUES}`}
-        className={`flex shrink-0 items-center gap-1.5 rounded-control px-2.5 py-1.5 text-[13px] transition-colors hover:bg-hover ${
+        className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-2.5 text-[13px] transition-colors hover:bg-hover md:min-h-0 md:py-1.5 ${
           titreEcran ? '' : 'ml-auto'
         } text-ink2`}
       >

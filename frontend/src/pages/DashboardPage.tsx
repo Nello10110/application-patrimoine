@@ -10,6 +10,7 @@ import type {
 } from '../api/types'
 import AllocationChartCard from '../components/AllocationChartCard'
 import Card from '../components/Card'
+import { SecondaryButton } from '../components/Controls'
 import CompositionModal from '../components/CompositionModal'
 import CoutGestionCard from '../components/CoutGestionCard'
 import Disclosure from '../components/Disclosure'
@@ -130,14 +131,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-texte">Tableau de bord</h2>
-        <button
-          onClick={chargerDonnees}
-          disabled={loading}
-          className="rounded-md bg-texte px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
-        >
+        <h1 className="text-[28px] font-semibold tracking-title text-ink">Tableau de bord</h1>
+        <SecondaryButton onClick={chargerDonnees} disabled={loading} className="min-h-11 md:min-h-0">
           {loading ? 'Actualisation...' : 'Actualiser'}
-        </button>
+        </SecondaryButton>
       </div>
 
       {/* Hiérarchie de lecture en trois temps (backlog 2.K.6) : (1) le chiffre —
