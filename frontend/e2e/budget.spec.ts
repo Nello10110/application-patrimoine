@@ -12,7 +12,10 @@ test.describe('Budget', () => {
   })
 
   test('affiche les indicateurs et la répartition des sorties', async ({ page }) => {
-    await expect(page.getByText('Entrées', { exact: true })).toBeVisible()
+    // Depuis la refonte (étape 4), les entrées/sorties ne sont plus des tuiles mais
+    // le sous-titre du bloc héros « Disponible sur la période ».
+    await expect(page.getByText('Disponible sur la période')).toBeVisible()
+    await expect(page.getByText(/d'entrées/)).toBeVisible()
 
     // "Logement" apparaît aussi comme <option> de chaque menu de catégorisation ET
     // comme catégorie de la charge récurrente détectée plus bas — scope à la carte

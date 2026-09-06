@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { BudgetSummary, CategorieBudget, JonctionPatrimoine, MouvementBancaire, RecurrenceDetectee, RegleCategorisation } from '../api/types'
 import CategoriesEtReglesSection from '../components/CategoriesEtReglesSection'
 import Card from '../components/Card'
+import { GlassPanel } from '../components/GlassPanel'
 import { SegmentedControl } from '../components/Controls'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
@@ -108,10 +109,25 @@ export default function BudgetPage() {
         ? String(anneeSelectionnee)
         : `${formatDate(dateDebutPerso)} au ${formatDate(dateFinPerso)}`
 
+  // Décomposition de la période pour la barre empilée du bloc héros : les plus gros
+  // postes de sortie, puis le non dépensé — jamais une part négative (un « disponible »
+  // négatif signifie qu'on a dépensé plus qu'encaissé : il n'y a alors rien à montrer
+  // comme reste, et la barre ne représente que les sorties).
+  const COULEURS_POSTE = ['bg-s1', 'bg-s2', 'bg-s3', 'bg-s4', 'bg-s5']
+  const postesSortie = (summary?.repartition_sorties ?? [])
+    .filter((r) => r.montant > 0)
+    .slice(0, 5)
+    .map((r, i) => ({ libelle: r.categorie_nom, montant: r.montant, classe: COULEURS_POSTE[i] }))
+  const nonDepense = summary && summary.disponible > 0 ? summary.disponible : 0
+  const decompositionMois = nonDepense > 0
+    ? [...postesSortie, { libelle: 'Non dépensé', montant: nonDepense, classe: 'bg-track' }]
+    : postesSortie
+  const totalDecomposition = decompositionMois.reduce((somme, p) => somme + p.montant, 0) || 1
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-texte">Budget</h2>
+        <h1 className="text-[28px] font-semibold tracking-title text-ink">Budget</h1>
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedControl
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
@@ -178,14 +194,54 @@ export default function BudgetPage() {
             </Card>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatTile label="Entrées" value={formatEuro(summary.entrees, 0, montantsMasques)} tone="good" />
-                <StatTile label="Sorties" value={formatEuro(summary.sorties, 0, montantsMasques)} />
-                <StatTile
-                  label="Disponible"
-                  value={formatEuro(summary.disponible, 0, montantsMasques)}
-                  tone={summary.disponible >= 0 ? 'good' : 'warning'}
-                />
+              {/* Bloc héros (maquette de la refonte) : « Disponible », le chiffre qui
+                  répond à la question qu'on se pose en ouvrant cet écran, puis UNE
+                  barre empilée qui décompose le mois — elle remplace la liste de
+                  barres de progression par catégorie, qui donnait le même poids à
+                  chaque poste. Le « non dépensé » y figure en `--track` : sans lui,
+                  la barre ne montrerait que la façon de dépenser, jamais ce qui reste. */}
+              <GlassPanel niveau="hero" className="px-6 py-5">
+                <p className="text-[13px] font-medium text-ink3">Disponible sur la période</p>
+                <p
+                  className={`text-[48px] font-semibold leading-none tracking-hero ${
+                    summary.disponible >= 0 ? 'text-pos' : 'text-neg'
+                  }`}
+                >
+                  {formatEuro(summary.disponible, 0, montantsMasques)}
+                </p>
+                <p className="mt-1.5 text-[13px] text-ink3">
+                  {formatEuro(summary.entrees, 0, montantsMasques)} d'entrées −{' '}
+                  {formatEuro(summary.sorties, 0, montantsMasques)} de sorties
+                </p>
+
+                {decompositionMois.length > 0 && (
+                  <>
+                    <div className="mt-4 flex h-3 gap-0.5 overflow-hidden rounded-chip">
+                      {decompositionMois.map((part) => (
+                        <div
+                          key={part.libelle}
+                          className={part.classe}
+                          style={{ width: `${(part.montant / totalDecomposition) * 100}%` }}
+                          title={`${part.libelle} : ${formatEuro(part.montant, 0, montantsMasques)}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[13px]">
+                      {decompositionMois.map((part) => (
+                        <span key={part.libelle} className="flex items-center gap-1.5">
+                          <span aria-hidden className={`h-2 w-2 rounded-[3px] ${part.classe}`} />
+                          <span className="text-ink3">{part.libelle}</span>
+                          <span className="font-semibold text-ink">
+                            {formatEuro(part.montant, 0, montantsMasques)}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </GlassPanel>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <StatTile
                   label="Dépenses récurrentes / mois"
                   value={formatEuro(summary.depenses_recurrentes_mensuelles, 0, montantsMasques)}

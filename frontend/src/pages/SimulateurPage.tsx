@@ -462,6 +462,31 @@ export default function SimulateurPage() {
 
         {!depenseCible && <p className="mt-4 text-sm text-texte-attenue">Renseigne une dépense annuelle cible pour voir le résultat.</p>}
 
+        {/* Chiffre héros de l'écran Objectifs (maquette de la refonte) : l'ANNÉE
+            d'indépendance, pas le nombre d'années — « 2048 » se situe dans une vie,
+            « dans 22 ans » se compte. Les deux sont donnés, l'année en tête.
+            Affiché seulement quand une dépense cible est renseignée : sans elle, il
+            n'y a pas d'objectif, donc pas de date à annoncer. */}
+        {fire && depenseCible && (
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-[13px] font-medium text-ink3">Indépendance financière atteinte en</span>
+            {fire.anneesAvantIndependance === null ? (
+              <span className="text-[48px] font-semibold leading-none tracking-hero text-avertissement">
+                jamais d'ici 60 ans
+              </span>
+            ) : (
+              <>
+                <span className="text-[48px] font-semibold leading-none tracking-hero text-ink">
+                  {new Date().getFullYear() + fire.anneesAvantIndependance}
+                </span>
+                <span className="text-[22px] font-medium text-ink3">
+                  {fire.anneesAvantIndependance === 0 ? '· déjà atteinte' : `· dans ${fire.anneesAvantIndependance} ans`}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
         {fire && depenseCible && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <StatTile label="Patrimoine nécessaire" value={formatEuro(fire.patrimoineNecessaire, 0, montantsMasques)} />

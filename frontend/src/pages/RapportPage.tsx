@@ -94,10 +94,30 @@ export default function RapportPage() {
         ? String(anneeSelectionnee)
         : `${formatDate(dateDebutPerso)} au ${formatDate(dateFinPerso)}`
 
+  // Colonnes du bloc « D'où vient l'évolution ? ». `hauteurPct` est proportionnelle
+  // au plus grand montant de la série : sans ce dénominateur commun, quatre colonnes
+  // mises chacune à 100 % de leur propre valeur ne compareraient plus rien.
+  const montantsColonnes = rapport
+    ? [
+        { libelle: 'Début de période', montant: rapport.valeur_debut_periode, classe: 'bg-s3' },
+        { libelle: 'Investi par vous', montant: rapport.montant_investi_periode, classe: 'bg-s2' },
+        { libelle: 'Généré seul', montant: rapport.gain_genere_periode, classe: 'bg-pos' },
+        { libelle: 'Fin de période', montant: rapport.valeur_fin_periode, classe: 'bg-s1' },
+      ]
+    : []
+  const plusGrandMontant = Math.max(1, ...montantsColonnes.map((c) => Math.max(0, c.montant ?? 0)))
+  const HAUTEUR_MAX_PX = 150
+  const colonnesEvolution = montantsColonnes.map((c) => ({
+    ...c,
+    // Minimum de 6 px : une colonne à zéro (rien investi sur la période) doit rester
+    // visible comme une colonne vide, pas disparaître de l'escalier.
+    hauteurPx: Math.max(6, (Math.max(0, c.montant ?? 0) / plusGrandMontant) * HAUTEUR_MAX_PX),
+  }))
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-texte">Rapport</h2>
+        <h1 className="text-[28px] font-semibold tracking-title text-ink">Rapport</h1>
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedControl
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
@@ -182,13 +202,38 @@ export default function RapportPage() {
               </div>
 
               <Card title="D'où vient l'évolution ?">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <StatTile label="Investi sur la période" value={formatEuro(rapport.montant_investi_periode, 0, montantsMasques)} />
-                  <StatTile
-                    label="Généré sur la période"
-                    value={rapport.gain_genere_periode !== null ? formatEuro(rapport.gain_genere_periode, 0, montantsMasques) : '—'}
-                    tone={rapport.gain_genere_periode === null ? 'neutral' : rapport.gain_genere_periode >= 0 ? 'good' : 'warning'}
-                  />
+                {/* Quatre colonnes en escalier (maquette de la refonte) : début de
+                    période, ce que VOUS avez ajouté, ce que le portefeuille a généré
+                    seul, valeur finale. Les hauteurs sont proportionnelles aux
+                    montants — c'est ce qui rend l'écart lisible d'un coup d'œil, là
+                    où deux tuiles côte à côte demandaient de comparer deux nombres.
+                    Un montant négatif (période de baisse) ne peut pas avoir de
+                    hauteur : sa colonne prend la hauteur minimale et sa valeur
+                    s'affiche en rouge, jamais une barre inversée qui laisserait
+                    croire à un gain. */}
+                <div className="flex items-end gap-3">
+                  {colonnesEvolution.map((c) => (
+                    <div key={c.libelle} className="flex flex-1 flex-col items-center justify-end gap-1.5">
+                      <span className={`text-[13px] font-semibold ${(c.montant ?? 0) < 0 ? 'text-neg' : 'text-ink'}`}>
+                        {c.montant !== null ? formatEuro(c.montant, 0, montantsMasques) : '—'}
+                      </span>
+                      <div
+                        className={`w-full rounded-t-[6px] ${c.classe}`}
+                        // Hauteur en PIXELS, pas en pourcentage : un `%` se résout
+                        // contre la hauteur du parent, qui est ici déterminée par son
+                        // contenu — la barre valait donc 0 et n'apparaissait pas.
+                        style={{ height: `${c.hauteurPx}px` }}
+                        title={`${c.libelle} : ${c.montant !== null ? formatEuro(c.montant, 0, montantsMasques) : 'inconnu'}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex gap-3">
+                  {colonnesEvolution.map((c) => (
+                    <span key={c.libelle} className="flex-1 text-center text-xs text-ink3">
+                      {c.libelle}
+                    </span>
+                  ))}
                 </div>
                 <p className="mt-3 text-sm text-texte-attenue">
                   « Investi » : ce que vous avez vous-même ajouté (achats réels) sur la période. « Généré » : plus-value,

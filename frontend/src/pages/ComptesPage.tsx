@@ -107,8 +107,10 @@ export default function ComptesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold text-texte">Comptes</h2>
-        <span className="text-lg font-semibold text-texte">{formatEuro(soldeTotal, 0, montantsMasques)}</span>
+        <h1 className="text-[28px] font-semibold tracking-title text-ink">Comptes</h1>
+        {/* Le total du foyer à droite du titre, en 26 px (maquette de la refonte) :
+            c'est le chiffre héros de cet écran, il n'a pas besoin d'une carte à lui. */}
+        <span className="text-[26px] font-semibold text-ink">{formatEuro(soldeTotal, 0, montantsMasques)}</span>
       </div>
       <p className="text-sm text-texte-attenue">
         Tous les comptes du foyer — compte courant, PEA, compte-titres, assurance-vie, immobilier, épargne — groupés par

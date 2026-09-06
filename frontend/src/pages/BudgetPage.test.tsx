@@ -104,13 +104,19 @@ function mockChargement(overrides: {
 }
 
 describe('BudgetPage — indicateurs et répartition (backlog 2.N.2)', () => {
-  it('affiche les quatre indicateurs de la période', async () => {
+  // Refonte « liquid glass » (étape 4) : les quatre tuiles de même poids laissent la
+  // place à un bloc héros — « Disponible », le chiffre qui répond à la question qu'on
+  // se pose en ouvrant cet écran — avec entrées et sorties en sous-titre.
+  it('affiche le disponible en chiffre héros, avec entrées et sorties en dessous', async () => {
     mockChargement()
     render(<BudgetPage />)
 
-    expect(await screen.findByText('2 000 €')).toBeInTheDocument()
-    expect(screen.getByText('950 €')).toBeInTheDocument()
-    expect(screen.getByText('1 050 €')).toBeInTheDocument()
+    // Scopé au bloc héros : « 1 050 € » y apparaît deux fois — comme chiffre
+    // principal, et comme légende du segment « Non dépensé » de la barre, qui vaut
+    // par construction le même montant.
+    const heros = (await screen.findByText('Disponible sur la période')).parentElement as HTMLElement
+    expect(heros).toHaveTextContent('1 050 €')
+    expect(heros).toHaveTextContent("2 000 € d'entrées − 950 € de sorties")
     expect(screen.getByText('15 €')).toBeInTheDocument()
   })
 
