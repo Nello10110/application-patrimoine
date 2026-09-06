@@ -179,7 +179,10 @@ describe('App — menu du compte (backlog 2.K.2 / 2.K.7)', () => {
     await waitFor(() => expect(screen.queryByRole('menu', { name: 'Menu du compte' })).not.toBeInTheDocument())
   })
 
-  it('contient le bouton de bascule du thème, qui fait cycler le thème au clic (LOT 5.12)', async () => {
+  // Refonte « liquid glass » (étape 3) : le thème quitte ce menu — il est désormais
+  // réglable en permanence depuis la barre de contrôles, plutôt que caché derrière
+  // l'ouverture du menu du compte. Les trois états (dont « système ») sont conservés.
+  it('ne contient plus la bascule de thème, passée dans la barre de contrôles', async () => {
     render(
       <MemoryRouter>
         <App />
@@ -189,14 +192,13 @@ describe('App — menu du compte (backlog 2.K.2 / 2.K.7)', () => {
     const avatar = await screen.findByRole('button', { name: 'testeur' })
     fireEvent.click(avatar)
 
-    const bouton = await screen.findByRole('button', { name: /Thème/ })
-    expect(bouton).toHaveAccessibleName(/Système/)
+    const menu = await screen.findByRole('menu', { name: 'Menu du compte' })
+    expect(within(menu).queryByRole('button', { name: /Thème/ })).not.toBeInTheDocument()
 
-    fireEvent.click(bouton)
-    expect(bouton).toHaveAccessibleName(/Clair/)
-
-    fireEvent.click(bouton)
-    expect(bouton).toHaveAccessibleName(/Sombre/)
+    const barre = screen.getByRole('group', { name: 'Thème' })
+    expect(within(barre).getByRole('button', { name: 'Thème sombre' })).toBeInTheDocument()
+    fireEvent.click(within(barre).getByRole('button', { name: 'Thème sombre' }))
+    expect(within(barre).getByRole('button', { name: 'Thème sombre' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 

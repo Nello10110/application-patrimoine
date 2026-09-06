@@ -31,7 +31,9 @@ describe('MenuCompte (backlog 2.K.2 / 2.K.7)', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it("s'ouvre au clic sur l'avatar et propose Import, Réglages, Aide, le thème et la déconnexion", () => {
+  // Le thème a quitté ce menu à l'étape 3 de la refonte : il vit dans la barre de
+  // contrôles, visible en permanence.
+  it("s'ouvre au clic sur l'avatar et propose Import, Réglages, Aide et la déconnexion", () => {
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'testeur' }))
 
@@ -39,7 +41,7 @@ describe('MenuCompte (backlog 2.K.2 / 2.K.7)', () => {
     expect(screen.getByRole('menuitem', { name: 'Import' })).toHaveAttribute('href', '/import')
     expect(screen.getByRole('menuitem', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
     expect(screen.getByRole('menuitem', { name: 'Aide' })).toHaveAttribute('href', '/aide')
-    expect(screen.getByRole('button', { name: /Thème/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Thème/ })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /Se déconnecter/ })).toBeInTheDocument()
   })
 

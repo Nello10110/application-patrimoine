@@ -39,7 +39,10 @@ test.describe('Tableau de bord', () => {
 
     // Remet l'état par défaut pour ne pas affecter les specs suivantes (préférence
     // persistée en `localStorage`, partagée entre tous les tests de ce worker).
-    await page.getByRole('button', { name: /montants masqués/i }).click()
+    // Le nom accessible est désormais porté par `aria-label` (« Afficher les
+    // montants ») : depuis la refonte, le libellé VISIBLE est court (« Masqués »)
+    // pour que la barre tienne sur une ligne, cf. `BarreControles.tsx`.
+    await page.getByRole('button', { name: /afficher les montants/i }).click()
     await expect(chiffre).toHaveText(montantRegex(attendu.patrimoine_net))
   })
 

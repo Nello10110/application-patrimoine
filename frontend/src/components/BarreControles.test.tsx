@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Detenteur } from '../api/types'
@@ -17,11 +18,15 @@ function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
   return { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
+// `MemoryRouter` depuis la refonte (étape 3) : la barre lit la route courante pour
+// afficher la pilule de contexte, qui remplace le fil d'Ariane retiré.
 function renderBarre() {
   return render(
-    <PreferencesAffichageProvider>
-      <BarreControles />
-    </PreferencesAffichageProvider>,
+    <MemoryRouter>
+      <PreferencesAffichageProvider>
+        <BarreControles />
+      </PreferencesAffichageProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -54,7 +59,7 @@ describe('BarreControles (backlog 2.K.3)', () => {
 
     fireEvent.click(bouton)
 
-    expect(screen.getByRole('button', { name: /Montants masqués/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Afficher les montants/ })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 

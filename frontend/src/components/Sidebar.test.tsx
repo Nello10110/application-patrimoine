@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../contexts/authContextObject'
@@ -46,23 +46,19 @@ describe('Sidebar (backlog 2.K.2)', () => {
     expect(screen.queryByRole('link', { name: /^Aide$/ })).not.toBeInTheDocument()
   })
 
+  // Refonte « liquid glass » (étape 3) : l'item actif porte le dégradé d'accent
+  // (`bg-[image:var(--accent-grad)]`), les inactifs n'ont plus de fond du tout.
   it('marque comme actif le lien correspondant à la route courante', () => {
     renderSidebar('/patrimoine')
-    expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveClass('bg-texte')
-    expect(screen.getByRole('link', { name: /Synthèse/ })).not.toHaveClass('bg-texte')
+    expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveClass('bg-[image:var(--accent-grad)]')
+    expect(screen.getByRole('link', { name: /Synthèse/ })).not.toHaveClass('bg-[image:var(--accent-grad)]')
   })
 
-  it("replie et déplie la barre latérale, et retient l'état après remontage (localStorage)", () => {
-    const { unmount } = renderSidebar()
-    expect(screen.getByRole('button', { name: 'Replier la barre latérale' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Replier la barre latérale' }))
-
-    expect(screen.getByRole('button', { name: 'Déplier la barre latérale' })).toBeInTheDocument()
-    expect(localStorage.getItem('patrimoine:sidebar-repliee')).toBe('1')
-
-    unmount()
+  // Le repliage a été retiré à l'étape 3 de la refonte (largeur fixe de 222 px) :
+  // il coûtait un bouton permanent, un hook persisté et une variante `compact` sur
+  // trois composants pour gagner 96 px.
+  it("n'a plus de bouton de repliage", () => {
     renderSidebar()
-    expect(screen.getByRole('button', { name: 'Déplier la barre latérale' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /barre latérale/ })).not.toBeInTheDocument()
   })
 })

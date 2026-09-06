@@ -2,7 +2,6 @@ import { Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'react-router-dom'
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
-import FilDAriane from './components/FilDAriane'
 import { SkeletonTexte } from './components/Skeleton'
 import { useAppliquerTheme } from './hooks/useTheme'
 import Sidebar from './components/Sidebar'
@@ -70,17 +69,25 @@ function AppAuthentifiee() {
 
   return (
     <PreferencesAffichageProvider>
-      <div className="flex h-screen overflow-hidden bg-surface-elevee">
+      {/* Coque de la refonte « liquid glass » (étape 3) : la racine ne défile jamais
+          et laisse voir le fond à halos porté par `<body>` (plus de `bg-surface-elevee`
+          opaque par-dessus). Les panneaux flottent dessus, séparés de 14 px. */}
+      <div className="flex h-screen gap-[14px] overflow-hidden p-[14px]">
         <Sidebar />
 
-        <main className="flex-1 overflow-y-auto">
+        {/* `min-w-0` : sans lui, un tableau large (Patrimoine) force la colonne à
+            s'élargir au lieu de défiler à l'intérieur — le défaut `min-width:auto`
+            d'un enfant flex. */}
+        <main className="flex min-w-0 flex-1 flex-col gap-[14px]">
           <BarreControles />
-          <FilDAriane />
-          {/* `pb-24` (backlog 2.K.4, < 768 px) : marge sous le contenu pour ne jamais
-              le laisser passer sous `BottomNav`, fixe en bas de l'écran sur mobile
-              (`h-16` + zone de sécurité iOS) — inutile dès 768 px, `BottomNav` est
-              alors `md:hidden`. */}
-          <div className="mx-auto max-w-6xl px-6 py-8 pb-24 md:pb-8">
+          {/* Seule cette zone défile (`min-h-0` : sans lui, un enfant flex refuse de
+              devenir plus petit que son contenu, et c'est la page entière qui
+              défilerait — ce que la coque interdit). La barre de contrôles reste donc
+              visible sans `position: sticky`.
+              `pb-24` (backlog 2.K.4, < 768 px) : marge sous le contenu pour ne jamais
+              le laisser passer sous `BottomNav`, fixe en bas de l'écran sur mobile. */}
+          <div className="min-h-0 flex-1 overflow-y-auto pb-24 md:pb-0">
+            <div className="mx-auto max-w-6xl">
             <Suspense fallback={<SkeletonTexte />}>
               <Routes>
                 {ROUTES.map((r) => {
@@ -98,6 +105,7 @@ function AppAuthentifiee() {
                 <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
               </Routes>
             </Suspense>
+            </div>
           </div>
         </main>
 

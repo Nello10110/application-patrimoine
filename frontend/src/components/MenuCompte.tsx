@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { routesDuRang } from '../layout/routes'
-import BasculeTheme from './BasculeTheme'
 import { IconDeconnexion } from './icons'
 
 // Avatar généré (initiale + couleur dérivée du nom d'utilisateur — déterministe,
@@ -89,8 +88,9 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
             )
           })}
 
-          <div className="my-1 border-t border-bordure" />
-          <BasculeTheme />
+          {/* Bascule de thème retirée d'ici à l'étape 3 de la refonte : elle vit
+              désormais dans la barre de contrôles, visible en permanence, plutôt
+              que cachée derrière l'ouverture de ce menu. */}
           <div className="my-1 border-t border-bordure" />
 
           <button
