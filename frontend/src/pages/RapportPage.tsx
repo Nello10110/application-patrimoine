@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { RapportPeriode } from '../api/types'
 import Card from '../components/Card'
+import { SegmentedControl } from '../components/Controls'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import PieChartCard from '../components/PieChartCard'
@@ -98,19 +99,12 @@ export default function RapportPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-texte">Rapport</h2>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1">
-            {MODES.map((m) => (
-              <button
-                key={m.value}
-                onClick={() => setMode(m.value)}
-                className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                  mode === m.value ? 'bg-texte text-surface' : 'bg-surface-elevee text-texte-attenue hover:text-texte'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
+            valeur={mode}
+            onChange={setMode}
+            ariaLabel="Période"
+          />
 
           {mode === 'mensuel' && (
             <input

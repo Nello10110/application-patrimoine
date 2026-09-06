@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ScheduledJob } from '../api/types'
 import Card from '../components/Card'
+import { SegmentedControl } from '../components/Controls'
 import DeclarationPatrimoineModal from '../components/DeclarationPatrimoineModal'
 import DetenteursCard from '../components/DetenteursCard'
 import EtatErreur from '../components/EtatErreur'
@@ -85,23 +86,22 @@ export default function ReglagesPage() {
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-texte">Réglages</h2>
 
-      <div role="tablist" aria-label="Catégories de réglages" className="flex flex-wrap gap-1 rounded-lg bg-surface-elevee p-1">
-        {ONGLETS.map(({ key, label, Icone }) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={onglet === key}
-            onClick={() => setOnglet(key)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              onglet === key ? 'bg-surface text-texte shadow-sm' : 'text-texte-attenue hover:text-texte'
-            }`}
-          >
-            <Icone className="h-4 w-4" />
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={ONGLETS.map(({ key, label, Icone }) => ({
+          valeur: key,
+          libelle: (
+            <span className="flex items-center gap-1.5">
+              <Icone className="h-4 w-4" />
+              {label}
+            </span>
+          ),
+        }))}
+        valeur={onglet}
+        onChange={setOnglet}
+        ariaLabel="Catégories de réglages"
+        semantique="onglets"
+        className="w-fit flex-wrap"
+      />
 
       {onglet === 'general' && (
         <div className="space-y-4">

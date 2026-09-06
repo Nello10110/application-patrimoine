@@ -17,15 +17,17 @@ describe('StatTile', () => {
     expect(screen.queryByText('au 07/03/2024')).not.toBeInTheDocument()
   })
 
+  // Jetons de la refonte « liquid glass » (étape 2, 05/09/2026) : `text-pos`/`text-ink`
+  // remplacent `text-positif`/`text-texte`.
   it('applique la classe de ton correspondante', () => {
     render(<StatTile label="Rendement" value="+12,3%" tone="good" />)
 
-    expect(screen.getByText('+12,3%')).toHaveClass('text-positif')
+    expect(screen.getByText('+12,3%')).toHaveClass('text-pos')
   })
 
   it('utilise le ton neutre par défaut', () => {
     render(<StatTile label="Rendement" value="+12,3%" />)
 
-    expect(screen.getByText('+12,3%')).toHaveClass('text-texte')
+    expect(screen.getByText('+12,3%')).toHaveClass('text-ink')
   })
 })

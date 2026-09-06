@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import type { Compte, Etablissement, Holding } from '../api/types'
 import AjoutHoldingForm from '../components/AjoutHoldingForm'
 import Card from '../components/Card'
+import { SegmentedControl } from '../components/Controls'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import HoldingDetailModal from '../components/HoldingDetailModal'
@@ -35,19 +36,12 @@ const CLE_DEFILEMENT = 'patrimoine:portefeuille-defilement'
  * (`categorie`, porté par l'URL, cf. composant parent). */
 function CategorieTabs({ categorie, setCategorie }: { categorie: Categorie; setCategorie: (c: Categorie) => void }) {
   return (
-    <>
-      {CATEGORY_TABS.map((tab) => (
-        <button
-          key={tab.key}
-          onClick={() => setCategorie(tab.key)}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            categorie === tab.key ? 'bg-texte text-surface' : 'bg-surface text-texte-attenue hover:bg-surface-elevee'
-          }`}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </>
+    <SegmentedControl
+      options={CATEGORY_TABS.map((tab) => ({ valeur: tab.key, libelle: tab.label }))}
+      valeur={categorie}
+      onChange={setCategorie}
+      ariaLabel="Filtrer par catégorie"
+    />
   )
 }
 

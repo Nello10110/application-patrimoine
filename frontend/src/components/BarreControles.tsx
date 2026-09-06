@@ -5,6 +5,7 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { Lentille } from '../contexts/preferencesAffichageContextObject'
 import { dateVersISO } from '../utils/format'
 import { PERIODES_RELATIVES, type PeriodeRelative } from '../utils/periode'
+import { SegmentedControl } from './Controls'
 import { IconOeil, IconOeilBarre } from './icons'
 
 // `aide` : infobulle par option plutôt qu'une seule sur le groupe — c'est la
@@ -53,22 +54,12 @@ export default function BarreControles() {
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-bordure bg-surface px-3 py-2.5 md:px-6">
       <span className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Vue</span>
-      <div className="flex gap-0.5 rounded-md bg-surface-elevee p-0.5">
-        {OPTIONS_LENTILLE.map((option) => (
-          <button
-            key={option.valeur}
-            type="button"
-            onClick={() => setLentille(option.valeur)}
-            aria-pressed={lentille === option.valeur}
-            title={option.aide}
-            className={`rounded px-2.5 py-1 text-sm font-medium transition-colors ${
-              lentille === option.valeur ? 'bg-texte text-surface' : 'text-texte-attenue hover:text-texte'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={OPTIONS_LENTILLE.map((o) => ({ valeur: o.valeur, libelle: o.label, aide: o.aide }))}
+        valeur={lentille}
+        onChange={setLentille}
+        ariaLabel="Vue"
+      />
 
       {detenteurs.length > 0 && (
         <>

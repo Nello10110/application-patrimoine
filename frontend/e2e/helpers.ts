@@ -9,8 +9,12 @@ import type { Locator, Page } from '@playwright/test'
  * proche) — scoper via cette fonction avant d'asserter sur le contenu évite
  * systématiquement ces faux positifs. */
 export function cardByTitle(page: Page, title: string): Locator {
+  // `rounded-panel` depuis la refonte « liquid glass » (étape 2, 05/09/2026) :
+  // `Card` est devenue une enveloppe de `GlassPanel`, ses classes de fond ont donc
+  // changé (`bg-panel` au lieu de `bg-surface`). Le titre reste un `<h2>`,
+  // délibérément — cf. `GlassPanel.PanelHeader`.
   return page
-    .locator('div.rounded-xl.border.bg-surface')
+    .locator('div.rounded-panel')
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) })
 }
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { HoldingDetail } from '../api/types'
 import Card from './Card'
+import { SegmentedControl } from './Controls'
 import DetenteursSection from './DetenteursSection'
 import EpargneApercu from './EpargneApercu'
 import EtatVide from './EtatVide'
@@ -70,26 +71,16 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
         )}
       </div>
 
-      <div role="tablist" aria-label="Sections de la fiche" className="flex gap-1 border-b border-bordure">
-        {ONGLETS.map((o) => (
-          <button
-            key={o.key}
-            type="button"
-            role="tab"
-            id={`fiche-onglet-${o.key}`}
-            aria-selected={onglet === o.key}
-            aria-controls={`fiche-panneau-${o.key}`}
-            onClick={() => setOnglet(o.key)}
-            className={`-mb-px rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-              onglet === o.key
-                ? 'border-texte text-texte'
-                : 'border-transparent text-texte-attenue hover:text-texte'
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={ONGLETS.map((o) => ({ valeur: o.key, libelle: o.label }))}
+        valeur={onglet}
+        onChange={setOnglet}
+        ariaLabel="Sections de la fiche"
+        semantique="onglets"
+        idOnglet={(cle) => `fiche-onglet-${cle}`}
+        idPanneau={(cle) => `fiche-panneau-${cle}`}
+        className="w-fit"
+      />
 
       {onglet === 'apercu' && (
         <div id="fiche-panneau-apercu" role="tabpanel" aria-labelledby="fiche-onglet-apercu" className="space-y-6">
