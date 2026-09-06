@@ -127,7 +127,7 @@ export default function BudgetPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[28px] font-semibold tracking-title text-ink">Budget</h1>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Budget</h1>
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedControl
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}

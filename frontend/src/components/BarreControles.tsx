@@ -53,7 +53,11 @@ const OPTIONS_THEME: { valeur: Theme; libelle: React.ReactNode; aide: string }[]
  * La Période N'EST PLUS ici (refonte « liquid glass », étape 4) : elle vit désormais
  * à côté de la courbe qu'elle change (`PortfolioHistoryChart`), et le Rapport a ses
  * propres contrôles de période. Un sélecteur global qui pilotait certains écrans et
- * pas d'autres était exactement l'incohérence que la refonte devait supprimer. */
+ * pas d'autres était exactement l'incohérence que la refonte devait supprimer.
+ *
+ * DESKTOP UNIQUEMENT depuis l'étape 6 : sous 768 px, `EnTeteMobile` la remplace (les
+ * sept commandes de cette barre y défilaient horizontalement dans une bande de 40 px,
+ * hors d'atteinte du pouce). Même partage que `Sidebar`/`BottomNav`. */
 export default function BarreControles() {
   const { lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId } =
     usePreferencesAffichage()
@@ -67,7 +71,7 @@ export default function BarreControles() {
   }, [])
 
   return (
-    <GlassPanel className="flex shrink-0 items-center gap-3 overflow-x-auto px-4 py-2.5">
+    <GlassPanel className="hidden shrink-0 items-center gap-3 overflow-x-auto px-4 py-2.5 md:flex">
       <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink3">Vue</span>
       <SegmentedControl
         options={OPTIONS_LENTILLE.map((o) => ({ valeur: o.valeur, libelle: o.label, aide: o.aide }))}

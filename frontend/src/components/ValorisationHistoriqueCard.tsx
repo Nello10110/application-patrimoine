@@ -127,7 +127,7 @@ export function ValorisationHistoriqueCard({
               stroke={COULEUR_AXE}
             />
             <Tooltip formatter={(v) => formatEuro(Number(v), 2, montantsMasques)} labelFormatter={(v) => formatDate(String(v))} {...STYLE_INFOBULLE} />
-            <Line type="monotone" dataKey="Valeur" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="Valeur" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       )}

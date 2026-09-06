@@ -9,8 +9,10 @@ import { SkeletonTexte } from './Skeleton'
 import { formatPct } from '../utils/format'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
-const COULEUR_PORTEFEUILLE = '#2563eb'
-const COULEUR_BENCHMARK = '#ca8a04'
+const COULEUR_PORTEFEUILLE = 'var(--accent)'
+// Le comparatif reste distinct de la série principale, mais dans la même famille :
+// c'est un repère, pas une seconde catégorie.
+const COULEUR_BENCHMARK = 'var(--s4)'
 
 /** Métriques de performance de niveau professionnel (backlog 2.P.2) : TWR à côté du
  * MWR (rendement money-weighted, déjà affiché dans `PerformanceCard` sous le nom

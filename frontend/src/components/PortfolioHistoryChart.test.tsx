@@ -179,7 +179,11 @@ describe('PortfolioHistoryChart — période (refonte « liquid glass », étape
     const setPeriode = vi.fn()
     renderChart('financier', { points: [point()] }, { setPeriode })
 
-    fireEvent.click(screen.getByRole('button', { name: '3 mois' }))
+    // Deux sélecteurs coexistent dans le DOM depuis que la période passe SOUS la
+    // courbe en mobile (l'un `md:hidden`, l'autre `hidden md:flex`) : jsdom
+    // n'applique pas les media queries, on cible donc explicitement celui du desktop.
+    const desktop = screen.getByRole('group', { name: 'Période du graphique' })
+    fireEvent.click(within(desktop).getByRole('button', { name: '3 mois' }))
 
     expect(setPeriode).toHaveBeenCalledWith({ type: 'relative', valeur: '3M' })
   })

@@ -131,7 +131,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[28px] font-semibold tracking-title text-ink">Tableau de bord</h1>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Tableau de bord</h1>
         <SecondaryButton onClick={chargerDonnees} disabled={loading} className="min-h-11 md:min-h-0">
           {loading ? 'Actualisation...' : 'Actualiser'}
         </SecondaryButton>
@@ -147,17 +147,18 @@ export default function DashboardPage() {
       <PatrimoineNetCard
         historiquePortefeuille={{ points: historique, loading: chargementHistorique }}
         historiquePatrimoine={{ points: patrimoineHistorique, loading: chargementPatrimoineHistorique }}
-      />
-
-      <PortfolioHistoryChart
-        points={historique}
-        loading={chargementHistorique}
-        error={erreurHistorique}
-        onRetry={chargerHistorique}
-        pointsPatrimoine={patrimoineHistorique}
-        loadingPatrimoine={chargementPatrimoineHistorique}
-        errorPatrimoine={erreurPatrimoineHistorique}
-        onRetryPatrimoine={chargerPatrimoineHistorique}
+        courbe={
+          <PortfolioHistoryChart
+            points={historique}
+            loading={chargementHistorique}
+            error={erreurHistorique}
+            onRetry={chargerHistorique}
+            pointsPatrimoine={patrimoineHistorique}
+            loadingPatrimoine={chargementPatrimoineHistorique}
+            errorPatrimoine={erreurPatrimoineHistorique}
+            onRetryPatrimoine={chargerPatrimoineHistorique}
+          />
+        }
       />
 
       {loading && <SkeletonTexte lignes={4} />}

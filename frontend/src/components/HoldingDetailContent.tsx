@@ -269,7 +269,7 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
                     labelFormatter={(_, p) => p?.[0]?.payload?.nom ?? ''}
                     {...STYLE_INFOBULLE}
                   />
-                  <Bar dataKey="poids" fill="#2563eb" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="poids" fill="var(--s1)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
 

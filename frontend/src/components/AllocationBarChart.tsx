@@ -25,7 +25,7 @@ export default function AllocationBarChart({
         <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} {...STYLE_INFOBULLE} />
         <Bar
           dataKey="Réel"
-          fill="#2563eb"
+          fill="var(--s1)"
           radius={[0, 4, 4, 0]}
           cursor={onCategoryClick ? 'pointer' : undefined}
           onClick={(d) => onCategoryClick?.((d as unknown as { payload: { categorie: string } }).payload.categorie)}

@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'react-router-dom'
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
+import EnTeteMobile from './components/EnTeteMobile'
 import { SkeletonTexte } from './components/Skeleton'
 import { useAppliquerTheme } from './hooks/useTheme'
 import Sidebar from './components/Sidebar'
@@ -79,7 +80,12 @@ function AppAuthentifiee() {
             s'élargir au lieu de défiler à l'intérieur — le défaut `min-width:auto`
             d'un enfant flex. */}
         <main className="flex min-w-0 flex-1 flex-col gap-[14px]">
+          {/* Deux en-têtes exclusifs, jamais montés en même temps : la barre de
+              contrôles desktop est `hidden md:flex`, `EnTeteMobile` est `md:hidden`.
+              Même partage que `Sidebar`/`BottomNav` — la maquette mobile ne réduit pas
+              la barre desktop, elle la remplace. */}
           <BarreControles />
+          <EnTeteMobile />
           {/* Seule cette zone défile (`min-h-0` : sans lui, un enfant flex refuse de
               devenir plus petit que son contenu, et c'est la page entière qui
               défilerait — ce que la coque interdit). La barre de contrôles reste donc

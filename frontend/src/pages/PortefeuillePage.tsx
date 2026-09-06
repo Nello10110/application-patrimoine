@@ -259,7 +259,7 @@ export default function PortefeuillePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-[28px] font-semibold tracking-title text-ink">Portefeuille</h1>
+          <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Portefeuille</h1>
           {/* Sous-titre CALCULÉ (refonte, étape 4) : il décrit ce que le tableau
               montre RÉELLEMENT — il ne doit jamais annoncer « 7 lignes » quand un
               filtre n'en affiche que 2. */}

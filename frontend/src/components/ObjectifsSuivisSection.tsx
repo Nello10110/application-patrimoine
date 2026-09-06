@@ -140,8 +140,8 @@ function ObjectifCard({ objectif, onDeleted }: { objectif: ObjectifDetail; onDel
           <YAxis tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)} width={80} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
           <Tooltip formatter={(v) => formatEuro(Number(v), 0, montantsMasques)} labelFormatter={(v) => formatDate(String(v))} {...STYLE_INFOBULLE} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Line type="monotone" dataKey="Cible" stroke="#94a3b8" strokeDasharray="4 4" dot={false} />
-          <Line type="monotone" dataKey="Réel" stroke="#2563eb" strokeWidth={2} />
+          <Line type="monotone" dataKey="Cible" stroke="var(--ink4)" strokeDasharray="4 4" dot={false} />
+          <Line type="monotone" dataKey="Réel" stroke="var(--accent)" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
       <p className="mt-1 text-xs text-texte-attenue">

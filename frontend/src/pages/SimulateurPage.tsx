@@ -349,8 +349,8 @@ export default function SimulateurPage() {
                   labelFormatter={(v) => `Dans ${v} an${Number(v) > 1 ? 's' : ''}`}
                   {...STYLE_INFOBULLE}
                 />
-                <Area type="monotone" dataKey="Investi" stackId="1" stroke="#94a3b8" fill="#cbd5e1" />
-                <Area type="monotone" dataKey="Gains" stackId="1" stroke="#16a34a" fill="#86efac" />
+                <Area type="monotone" dataKey="Investi" stackId="1" stroke="var(--s3)" fill="var(--s4)" />
+                <Area type="monotone" dataKey="Gains" stackId="1" stroke="var(--accent)" fill="var(--s2)" />
               </AreaChart>
             </ResponsiveContainer>
 

@@ -1,8 +1,12 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { AllocationBreakdownItem } from '../api/types'
-import { STYLE_INFOBULLE } from '../utils/chartTheme'
+import { SERIE, STYLE_INFOBULLE } from '../utils/chartTheme'
 
-const COLORS = ['#2563eb', '#7c3aed', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#db2777', '#4b5563', '#0d9488', '#9333ea', '#ea580c']
+// Une seule famille de bleus, du plus au moins important (refonte « liquid glass ») :
+// la palette arc-en-ciel d'avant faisait croire à des catégories de natures
+// différentes là où il n'y a qu'un ordre de grandeur. Au-delà de la cinquième, la
+// teinte ne distingue plus rien — c'est le libellé qui le fait.
+const COLORS = SERIE
 
 /** Variante camembert d'`AllocationBarChart` (LOT 6.10) : répartition réelle
  * (`pourcentage_reel`) du portefeuille financier. */

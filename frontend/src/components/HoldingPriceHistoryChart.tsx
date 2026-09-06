@@ -69,7 +69,7 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
             stroke={COULEUR_AXE}
           />
           <Tooltip formatter={(value) => formatEuro(Number(value), 2, montantsMasques)} {...STYLE_INFOBULLE} />
-          <Line type="monotone" dataKey="prix" stroke="#2563eb" dot={false} strokeWidth={2} />
+          <Line type="monotone" dataKey="prix" stroke="var(--accent)" dot={false} strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
 

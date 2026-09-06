@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
@@ -49,6 +49,11 @@ interface PatrimoineNetCardProps {
    * manuelles clairsemées, ratio flou pour le scoping détenteur de la poche
    * financière). */
   historiquePatrimoine?: { points: PatrimoineHistoryPoint[] | null; loading: boolean }
+  /** La courbe d'évolution, rendue DANS le bloc héros (maquette de la refonte) et
+   * non dans une carte séparée : le chiffre, sa variation et la forme qui l'explique
+   * appartiennent au même bloc — les séparer obligeait à lire deux panneaux pour une
+   * seule idée. */
+  courbe?: ReactNode
 }
 
 /** Une des trois poches sous le chiffre héros : un panneau de verre cliquable qui
@@ -88,7 +93,7 @@ function Poche({
  * indépendante de l'année sélectionnée et du reste du tableau de bord (comme
  * `PerformanceCard`) : chargée et affichée même si l'analyse géo/sectorielle
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
-export default function PatrimoineNetCard({ historiquePortefeuille, historiquePatrimoine }: PatrimoineNetCardProps = {}) {
+export default function PatrimoineNetCard({ historiquePortefeuille, historiquePatrimoine, courbe }: PatrimoineNetCardProps = {}) {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -221,6 +226,8 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
           ton={patrimoine.passifs_totaux > 0 ? 'negatif' : 'neutre'}
         />
       </div>
+
+      {courbe && <div className="mt-4">{courbe}</div>}
 
       {repartitionAffichee.length > 0 && (
         <div className="mt-5 border-t border-hairline pt-4">

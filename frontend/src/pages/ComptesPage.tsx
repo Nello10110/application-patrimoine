@@ -107,7 +107,7 @@ export default function ComptesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-[28px] font-semibold tracking-title text-ink">Comptes</h1>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Comptes</h1>
         {/* Le total du foyer à droite du titre, en 26 px (maquette de la refonte) :
             c'est le chiffre héros de cet écran, il n'a pas besoin d'une carte à lui. */}
         <span className="text-[26px] font-semibold text-ink">{formatEuro(soldeTotal, 0, montantsMasques)}</span>

@@ -100,7 +100,7 @@ export default function DividendesPage() {
                 <XAxis type="number" stroke={COULEUR_AXE} tick={STYLE_TICK_AXE} tickFormatter={(v) => formatEuro(v, 0, montantsMasques)} />
                 <YAxis type="category" dataKey="mois" width={130} tick={{ fontSize: 12, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
                 <Tooltip formatter={(value) => formatEuro(Number(value), 2, montantsMasques)} {...STYLE_INFOBULLE} />
-                <Bar dataKey="montant" fill="#10b981" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="montant" fill="var(--s1)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
