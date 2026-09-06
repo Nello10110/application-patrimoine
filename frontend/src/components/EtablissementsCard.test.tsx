@@ -10,6 +10,14 @@ vi.mock('../api/client', () => ({
     createEtablissement: vi.fn(),
     updateEtablissement: vi.fn(),
     deleteEtablissement: vi.fn(),
+    // Logos réels (retour utilisateur, 05/09/2026) : chargés une fois par
+    // `utils/logosEtablissements.ts` dès qu'un badge est monté, et sollicités par la
+    // vue d'édition dédiée.
+    getLogosEtablissements: vi.fn().mockResolvedValue({}),
+    recupererLogoCatalogue: vi.fn(),
+    setEtablissementLogoUrl: vi.fn(),
+    uploadEtablissementLogo: vi.fn(),
+    deleteEtablissementLogo: vi.fn(),
   },
 }))
 
@@ -18,6 +26,9 @@ function etablissement(overrides: Partial<Etablissement> = {}): Etablissement {
     id: 1,
     nom: 'Caisse d\'Épargne',
     logo_key: null,
+    a_un_logo: false,
+    logo_source: null,
+    logo_maj_le: null,
     created_at: '2026-01-01T00:00:00',
     updated_at: '2026-01-01T00:00:00',
     ...overrides,
@@ -59,9 +70,11 @@ describe('EtablissementsCard', () => {
     expect(api.createEtablissement).toHaveBeenCalledWith('Ma banque perso', null)
   })
 
-  it('choisir un établissement connu dans le catalogue préremplit le nom et transmet sa clé de logo', async () => {
-    vi.mocked(api.listEtablissements).mockResolvedValueOnce([]).mockResolvedValue([etablissement({ nom: 'Boursorama Banque', logo_key: 'boursorama' })])
-    vi.mocked(api.createEtablissement).mockResolvedValue(etablissement({ nom: 'Boursorama Banque', logo_key: 'boursorama' }))
+  it('choisir un établissement connu dans le catalogue préremplit le nom, transmet sa clé et récupère aussitôt son logo officiel', async () => {
+    const cree = etablissement({ nom: 'Boursorama Banque', logo_key: 'boursorama' })
+    vi.mocked(api.listEtablissements).mockResolvedValueOnce([]).mockResolvedValue([cree])
+    vi.mocked(api.createEtablissement).mockResolvedValue(cree)
+    vi.mocked(api.recupererLogoCatalogue).mockResolvedValue({ ...cree, a_un_logo: true, logo_source: 'catalogue' })
     render(<EtablissementsCard />)
     await screen.findByText('Aucun établissement déclaré.')
 
@@ -71,9 +84,32 @@ describe('EtablissementsCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
 
     expect(api.createEtablissement).toHaveBeenCalledWith('Boursorama Banque', 'boursorama')
+    // Le logo officiel est récupéré dans la foulée (retour utilisateur du
+    // 05/09/2026 : « cherché et mis en cache automatiquement »), sans attendre le
+    // job hebdomadaire.
+    await vi.waitFor(() => expect(api.recupererLogoCatalogue).toHaveBeenCalledWith(cree.id))
   })
 
-  it('Modifier bascule en édition inline, Enregistrer appelle updateEtablissement puis recharge la liste', async () => {
+  it("l'échec de la récupération du logo à la création ne fait pas échouer la création", async () => {
+    const cree = etablissement({ nom: 'Boursorama Banque', logo_key: 'boursorama' })
+    vi.mocked(api.listEtablissements).mockResolvedValueOnce([]).mockResolvedValue([cree])
+    vi.mocked(api.createEtablissement).mockResolvedValue(cree)
+    vi.mocked(api.recupererLogoCatalogue).mockRejectedValue(new Error('site injoignable'))
+    render(<EtablissementsCard />)
+    await screen.findByText('Aucun établissement déclaré.')
+
+    fireEvent.click(screen.getByRole('button', { name: /Boursorama Banque/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+    const liste = await screen.findByRole('list')
+    expect(within(liste).getByText('Boursorama Banque')).toBeInTheDocument()
+    expect(screen.queryByText('site injoignable')).not.toBeInTheDocument()
+  })
+
+  it("Modifier ouvre la vue d'édition dédiée, où Renommer appelle updateEtablissement", async () => {
+    // Édition en modale depuis le 05/09/2026 (retour utilisateur : « une vue dédiée
+    // où on pourrait aller mettre l'image ou l'URL ») — le renommage en ligne
+    // d'avant ne pouvait pas accueillir la gestion du logo.
     vi.mocked(api.listEtablissements).mockResolvedValueOnce([etablissement()]).mockResolvedValue([etablissement({ nom: 'Caisse Nouveau Nom' })])
     vi.mocked(api.updateEtablissement).mockResolvedValue(etablissement({ nom: 'Caisse Nouveau Nom' }))
     render(<EtablissementsCard />)
@@ -81,28 +117,27 @@ describe('EtablissementsCard', () => {
     expect(within(liste).getByText("Caisse d'Épargne")).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
-    const champEdition = screen.getByLabelText('Nom (édition)')
-    expect(champEdition).toHaveValue("Caisse d'Épargne")
+    const modale = await screen.findByRole('dialog')
+    const champNom = within(modale).getByLabelText('Nom')
+    expect(champNom).toHaveValue("Caisse d'Épargne")
 
-    fireEvent.change(champEdition, { target: { value: 'Caisse Nouveau Nom' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    fireEvent.change(champNom, { target: { value: 'Caisse Nouveau Nom' } })
+    fireEvent.click(within(modale).getByRole('button', { name: 'Renommer' }))
 
-    await within(await screen.findByRole('list')).findByText('Caisse Nouveau Nom')
-    expect(api.updateEtablissement).toHaveBeenCalledWith(1, 'Caisse Nouveau Nom')
-    expect(screen.queryByLabelText('Nom (édition)')).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(api.updateEtablissement).toHaveBeenCalledWith(1, 'Caisse Nouveau Nom'))
   })
 
-  it("Annuler ferme l'édition sans appeler updateEtablissement", async () => {
+  it("fermer la vue d'édition sans rien changer n'appelle pas updateEtablissement", async () => {
     vi.mocked(api.listEtablissements).mockResolvedValue([etablissement()])
     render(<EtablissementsCard />)
     const liste = await screen.findByRole('list')
     await within(liste).findByText("Caisse d'Épargne")
 
     fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
-    fireEvent.change(screen.getByLabelText('Nom (édition)'), { target: { value: 'Autre chose' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    const modale = await screen.findByRole('dialog')
+    fireEvent.click(within(modale).getByRole('button', { name: 'Fermer' }))
 
-    expect(screen.queryByLabelText('Nom (édition)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(within(liste).getByText("Caisse d'Épargne")).toBeInTheDocument()
     expect(api.updateEtablissement).not.toHaveBeenCalled()
   })

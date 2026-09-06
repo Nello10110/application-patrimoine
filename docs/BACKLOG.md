@@ -2794,6 +2794,55 @@ liste + ajout personnalisé, et retour visuel insuffisant du glisser-déposer, �
   étendu pour l'obligation d'établissement conditionnelle), E2E (`import.spec.ts`, `comptes.spec.ts`
   étendus). Suite complète vérifiée au vert.
 
+**Complété le 05/09/2026 (suite)** — retour utilisateur sur la livraison précédente : « j'aimerais bien
+avoir les logos à jour (ça peut très bien être cherché et mis en cache automatiquement) », « pouvoir
+éditer l'établissement avec une vue dédiée où on pourrait aller mettre l'image ou l'URL », « ça
+mettrait une fois par semaine à jour la banque d'image avec un CRON ».
+
+- **Source des logos : le site officiel de chaque établissement, PAS dashboardicons.com.** La piste
+  proposée a été vérifiée avant d'être écartée : l'index complet du dépôt ne contient, sur les 14
+  établissements envisagés, que **Revolut et N26** — et aucune entrée `bank`/`banque`/`bourse`/
+  `broker`/`agricole`/`paribas`/`epargne`/`saxo`/`degiro`/`fortuneo` (les deux seules autres icônes
+  finance du set sont Fidelity et TradingView). C'est un catalogue pour applications auto-hébergées,
+  pas pour les banques européennes : le brancher aurait donné 2 logos sur 12. À la place,
+  `services/logo_service.recuperer_pour_domaine` va chercher l'`apple-touch-icon` (puis les icônes
+  déclarées dans le `<head>`, puis `favicon.ico` en dernier recours, avec un réessai en `www.`) sur le
+  domaine officiel porté par `services/etablissements_connus.DOMAINES`. **Vérifié en conditions
+  réelles : 11 établissements sur 12** rendent une icône exploitable ; seul BNP Paribas répond 403 à
+  tout (protection anti-robot) et garde son badge généré — sans conséquence, le repli existe pour ça.
+- **Toujours re-servi par notre backend, jamais une CDN tierce.** L'image est téléchargée une fois
+  côté serveur puis stockée en base (`Etablissement.logo_png`, PNG en base64 — pas de `LargeBinary` :
+  l'export du foyer sérialise en JSON, qui ne sait pas encoder des `bytes`). Une application de
+  patrimoine exposée sur un serveur personnel n'a pas à signaler à un tiers, à chaque affichage,
+  quelles banques le foyer utilise ; et l'image survit ainsi à la sauvegarde chiffrée comme à
+  l'export/import. Elle n'est **jamais** renvoyée par `EtablissementOut` (imbriqué dans chaque
+  `CompteOut`, donc dupliqué des dizaines de fois par réponse) : une route dédiée
+  (`GET /api/comptes/etablissements/logos`) la renvoie en data URI, chargée une seule fois par page
+  et mise en cache côté client (`utils/logosEtablissements.ts`). Data URI et non `<img src="/api/…">`
+  parce que l'authentification passe par un en-tête `Authorization: Bearer`, qu'une balise `<img>`
+  n'envoie pas.
+- **Tout est reconverti en PNG (128 px) côté serveur**, y compris une image téléversée. Un SVG peut
+  embarquer du script : servi depuis notre propre origine, il deviendrait un vecteur XSS. Passer par
+  Pillow garantit que ce qui est stocké est une image matricielle inerte — le contenu d'origine n'est
+  jamais restitué octet pour octet. Le SVG est donc refusé avec un message explicite.
+- **Garde anti-SSRF sur l'adresse saisie** (`_verifier_url_publique`) : c'est le serveur qui
+  télécharge l'URL fournie par l'utilisateur. Sans contrôle, `http://127.0.0.1:8000/…` ou
+  `http://169.254.169.254/` transformerait ce champ en sonde du réseau interne du homelab. Schéma
+  http(s) obligatoire, résolution DNS explicite, refus de toute adresse privée/loopback/lien-local/
+  réservée, revalidation à **chaque saut de redirection**, taille bornée (2 Mo) et délai borné.
+- **Vue d'édition dédiée** (`EtablissementEditModal.tsx`) : remplace le renommage en ligne, devenu
+  trop étroit. Nom + quatre façons de poser un logo (récupérer sur le site officiel, téléverser,
+  saisir une adresse, retirer), avec l'origine et la date de dernière mise à jour affichées.
+- **Job hebdomadaire** `logos_refresh` ajouté au scheduler existant (`scheduler_service`, 168 h par
+  défaut comme justETF) : re-télécharge les logos issus du catalogue et ceux issus d'une adresse
+  saisie ; **ne touche jamais un logo téléversé** (choix explicite de l'utilisateur), n'écrit rien
+  quand l'empreinte SHA-256 est inchangée, et un établissement en échec n'empêche jamais les suivants.
+- **Tests** : `test_logo_service.py` (19 tests — garde SSRF sur 5 familles d'adresses internes,
+  refus du SVG et des non-images, non-réécriture d'une image identique, respect d'un logo téléversé,
+  échec isolé), extension de `test_comptes_router.py` (téléversement, adresse refusée, catalogue,
+  IDOR), `EtablissementEditModal.test.tsx`, `logosEtablissements.test.ts`, et un E2E qui téléverse
+  réellement une image et vérifie l'aperçu servi par le backend. Aucun test ne touche le réseau.
+
 #### X.2 — `mineur` · `S` · `P1` · `traité` (01/09/2026) — Vérification manuelle demandée par l'utilisateur : renommage d'un établissement manquant à l'IHM
 
 Demande directe de l'utilisateur en suite de X.1 : « vérifie que la création, modification,

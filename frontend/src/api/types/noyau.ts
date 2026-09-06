@@ -18,6 +18,15 @@ export interface Etablissement {
   // Clé du catalogue d'établissements connus (refonte import, 05/09/2026) — `null`
   // pour un établissement personnalisé, cf. `utils/etablissementsConnus.ts`.
   logo_key: string | null
+  // Logo RÉEL : jamais l'image elle-même ici (ce type est imbriqué dans chaque
+  // `Compte`, donc dans chaque ligne de portefeuille) — seulement de quoi savoir
+  // qu'il existe et d'où il vient. L'image vient de `api.getLogosEtablissements()`,
+  // mise en cache par `utils/logosEtablissements.ts`.
+  a_un_logo: boolean
+  // "catalogue" (site officiel), "url" (adresse saisie) ou "upload" (image
+  // téléversée — jamais écrasée par le job hebdomadaire).
+  logo_source: string | null
+  logo_maj_le: string | null
   created_at: string
   updated_at: string
 }

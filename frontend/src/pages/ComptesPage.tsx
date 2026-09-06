@@ -180,6 +180,7 @@ export default function ComptesPage() {
                       <span className="flex items-center text-texte">
                         {ligne.compte?.etablissement && (
                           <EtablissementLogo
+                            etablissementId={ligne.compte.etablissement.id}
                             logoKey={ligne.compte.etablissement.logo_key}
                             nom={ligne.compte.etablissement.nom}
                             className="mr-2"

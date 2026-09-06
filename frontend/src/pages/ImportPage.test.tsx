@@ -23,11 +23,12 @@ vi.mock('../api/client', () => ({
     // chargé une fois au montage, y compris quand ce fichier n'exerce que la
     // section budget ci-dessous.
     listEtablissements: vi.fn().mockResolvedValue([]),
+    getLogosEtablissements: vi.fn().mockResolvedValue({}),
   },
 }))
 
 function etablissement(overrides: Partial<Etablissement> = {}): Etablissement {
-  return { id: 1, nom: 'Boursorama', logo_key: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+  return { id: 1, nom: 'Boursorama', logo_key: null, a_un_logo: false, logo_source: null, logo_maj_le: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
 function previewPositions(overrides: Partial<ImportPreview> = {}): ImportPreview {

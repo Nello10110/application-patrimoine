@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
+import { invaliderLogos } from '../utils/logosEtablissements'
 import EtatErreur from './EtatErreur'
 import InfoBulle from './InfoBulle'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
@@ -75,6 +76,15 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
         if (nouvelEtablissement) {
           const cree = await api.createEtablissement(etablissementNom.trim(), etablissementLogoKey)
           idCible = cree.id
+          // Même récupération que dans `EtablissementsCard`, en tâche de fond : la
+          // création du compte n'attend jamais le site de la banque, et un échec est
+          // toléré en silence (le badge généré prend le relais).
+          if (etablissementLogoKey) {
+            void api
+              .recupererLogoCatalogue(cree.id)
+              .then(() => invaliderLogos())
+              .catch(() => undefined)
+          }
         }
         await api.createCompte(nom.trim(), idCible)
       }

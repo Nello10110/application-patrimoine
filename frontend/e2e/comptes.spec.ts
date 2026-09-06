@@ -1,7 +1,11 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import { montantRegex } from './format'
 import { cardByTitle } from './helpers'
 import { seedData } from './seed-data'
+
+const DIRNAME = path.dirname(fileURLToPath(import.meta.url))
 
 test.describe('Comptes (backlog X.1)', () => {
   test.beforeEach(async ({ page }) => {
@@ -181,15 +185,45 @@ test.describe('Comptes (backlog X.1)', () => {
     const ligne = carteEtablissements.locator('li').filter({ hasText: nomEtablissement })
     await expect(ligne).toBeVisible()
 
+    // Édition en modale depuis le 05/09/2026 (vue dédiée qui porte aussi la gestion
+    // du logo) — le renommage en ligne d'avant n'existe plus.
     await ligne.getByRole('button', { name: 'Modifier' }).click()
-    const champEdition = carteEtablissements.getByLabel('Nom (édition)')
-    await champEdition.fill(nomRenomme)
-    await carteEtablissements.getByRole('button', { name: 'Enregistrer' }).click()
+    const modaleEdition = page.getByRole('dialog')
+    await modaleEdition.getByLabel('Nom').fill(nomRenomme)
+    await modaleEdition.getByRole('button', { name: 'Renommer' }).click()
+    await modaleEdition.getByRole('button', { name: 'Fermer' }).click()
     const ligneRenommee = carteEtablissements.locator('li').filter({ hasText: nomRenomme })
     await expect(ligneRenommee).toBeVisible()
 
     await ligneRenommee.getByRole('button', { name: 'Supprimer' }).click()
     await expect(carteEtablissements.getByText(nomRenomme)).not.toBeVisible()
+  })
+
+  test("téléverser un logo depuis la vue d'édition l'affiche partout (refonte import, 05/09/2026)", async ({ page }) => {
+    const carteEtablissements = cardByTitle(page, 'Établissements')
+    const nomEtablissement = `E2E Logo ${Date.now().toString().slice(-6)}`
+    await carteEtablissements.getByPlaceholder("Caisse d'Épargne").fill(nomEtablissement)
+    await carteEtablissements.getByRole('button', { name: 'Ajouter' }).click()
+    const ligne = carteEtablissements.locator('li').filter({ hasText: nomEtablissement })
+    await expect(ligne).toBeVisible()
+
+    await ligne.getByRole('button', { name: 'Modifier' }).click()
+    const modale = page.getByRole('dialog')
+    await expect(modale.getByText(/Aucun logo/)).toBeVisible()
+
+    // L'image traverse réellement le serveur : elle est validée, reconvertie en PNG
+    // (128 px) puis stockée en base — l'aperçu qui suit vient donc du backend, pas
+    // du fichier local.
+    await modale.getByLabel('Image du logo').setInputFiles(path.join(DIRNAME, 'fixtures', 'logo.png'))
+    await expect(modale.getByText(/image téléversée/)).toBeVisible()
+    await expect(modale.locator('img')).toBeVisible()
+
+    await modale.getByRole('button', { name: 'Retirer le logo' }).click()
+    await expect(modale.getByText(/Aucun logo/)).toBeVisible()
+
+    await modale.getByRole('button', { name: 'Fermer' }).click()
+    await ligne.getByRole('button', { name: 'Supprimer' }).click()
+    await expect(ligne).not.toBeVisible()
   })
 
   test('choisir un établissement connu dans le catalogue préremplit son nom (refonte import, 05/09/2026)', async ({ page }) => {

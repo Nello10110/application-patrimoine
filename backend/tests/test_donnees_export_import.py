@@ -132,6 +132,29 @@ def test_aller_retour_complet_restitue_le_meme_patrimoine(client, db):
     assert client.get("/api/patrimoine/net").json()["patrimoine_net"] == net_avant["patrimoine_net"]
 
 
+def test_aller_retour_preserve_le_logo_dun_etablissement(client, db):
+    """Le logo est stocké en base64 (texte) et non en binaire précisément pour
+    traverser l'export JSON (`_serialiser` ne sait pas encoder des `bytes`) — ce
+    test verrouille ce choix : une image téléversée doit survivre à un
+    export/restauration, elle n'est re-téléchargeable par personne."""
+    from app.models import Etablissement
+    from app.services import comptes_service, logo_service
+
+    from .test_logo_service import png_factice
+
+    etablissement = comptes_service.create_etablissement(db, ID_UTILISATEUR_TEST, "Ma banque", None)
+    logo_service.appliquer_logo(db, etablissement, png_factice(), logo_service.SOURCE_UPLOAD)
+    empreinte_avant = etablissement.logo_empreinte
+    document = donnees_service.exporter_foyer(db, ID_UTILISATEUR_TEST)
+
+    donnees_service.importer_foyer(db, ID_UTILISATEUR_TEST, document)
+
+    restaure = db.query(Etablissement).filter(Etablissement.nom == "Ma banque").one()
+    assert restaure.logo_empreinte == empreinte_avant
+    assert restaure.logo_source == logo_service.SOURCE_UPLOAD
+    assert logo_service.data_uri(restaure) is not None
+
+
 def test_aller_retour_preserve_les_relations_entre_tables(client, db):
     """Les identifiants sont réécrits à l'import : ce test vérifie que les liens
     pointent toujours vers la BONNE entité après réécriture, pas seulement qu'ils

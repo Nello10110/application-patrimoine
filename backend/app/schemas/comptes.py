@@ -40,11 +40,34 @@ class EtablissementUpdate(BaseModel):
         return v
 
 
+class EtablissementLogoUrlInput(BaseModel):
+    """URL d'une image à récupérer côté serveur (retour utilisateur, 05/09/2026).
+    Validée pour de bon dans `services/logo_service._verifier_url_publique` (schéma,
+    résolution DNS, plages privées) : ici, seul le nettoyage de surface."""
+
+    url: str
+
+    @field_validator("url")
+    @classmethod
+    def _valider_url(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("L'adresse ne peut pas être vide")
+        return v
+
+
 class EtablissementOut(EtablissementBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     logo_key: str | None = None
+    # Logo réel : jamais l'image elle-même ici (ce schéma est imbriqué dans chaque
+    # `CompteOut`, donc dupliqué des dizaines de fois par réponse) — seulement de quoi
+    # savoir qu'il existe et d'où il vient. L'image est servie par
+    # `GET /api/comptes/etablissements/logos`.
+    a_un_logo: bool = False
+    logo_source: str | None = None
+    logo_maj_le: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

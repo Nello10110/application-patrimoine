@@ -8,6 +8,7 @@ import CompteDetailContent from './CompteDetailContent'
 vi.mock('../api/client', () => ({
   api: {
     listEtablissements: vi.fn().mockResolvedValue([]),
+    getLogosEtablissements: vi.fn().mockResolvedValue({}),
     updateCompte: vi.fn(),
     listLoans: vi.fn().mockResolvedValue([]),
     listDetenteurs: vi.fn().mockResolvedValue([]),
@@ -30,7 +31,7 @@ function compte(overrides: Partial<Compte> = {}): Compte {
 }
 
 function etablissement(overrides: Partial<Etablissement> = {}): Etablissement {
-  return { id: 1, nom: 'Banque Test', logo_key: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
+  return { id: 1, nom: 'Banque Test', logo_key: null, a_un_logo: false, logo_source: null, logo_maj_le: null, created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
 function holding(overrides: Partial<Holding> = {}): Holding {

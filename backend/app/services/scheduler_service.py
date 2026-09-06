@@ -20,13 +20,14 @@ from scripts import sauvegarde as sauvegarde_module
 from .. import database
 from ..database import SessionLocal
 from ..models import Holding, ScheduledJobConfig
-from . import backup_service, justetf_service, market_data_refresh, market_data_service
+from . import backup_service, justetf_service, logo_service, market_data_refresh, market_data_service
 
 logger = logging.getLogger("patrimoine.scheduler")
 
 MARKET_DATA_REFRESH = "market_data_refresh"
 JUSTETF_REFRESH = "justetf_refresh"
 BACKUP_ENCRYPTED = "sauvegarde_chiffree"
+LOGOS_REFRESH = "logos_refresh"
 
 # Intervalle par défaut (heures) appliqué à la création de la config d'un job, à la
 # place du `24.0` du modèle `ScheduledJobConfig` (correct pour MARKET_DATA_REFRESH,
@@ -34,7 +35,7 @@ BACKUP_ENCRYPTED = "sauvegarde_chiffree"
 # ETF qui change lentement, et politesse envers une ressource sans SLA ni support
 # recommandent d'y aller doucement (hebdomadaire par défaut, ajustable ensuite
 # depuis Réglages comme n'importe quel job).
-DEFAULTS: dict[str, float] = {JUSTETF_REFRESH: 168.0, BACKUP_ENCRYPTED: 24.0}
+DEFAULTS: dict[str, float] = {JUSTETF_REFRESH: 168.0, BACKUP_ENCRYPTED: 24.0, LOGOS_REFRESH: 168.0}
 
 
 def _run_market_data_refresh() -> None:
@@ -131,10 +132,38 @@ def _run_sauvegarde_chiffree() -> None:
         db.close()
 
 
+def _run_logos_refresh() -> None:
+    """Rafraîchit les logos d'établissement (retour utilisateur du 05/09/2026 :
+    « ça mettrait une fois par semaine à jour la banque d'image »). Hebdomadaire par
+    défaut, comme justETF : un logo de banque ne bouge quasiment jamais, et
+    `logo_service.rafraichir_logos` ne réécrit rien quand l'image téléchargée est
+    identique. Même structure défensive que les jobs ci-dessus."""
+    db = SessionLocal()
+    try:
+        resume = logo_service.rafraichir_logos(db)
+        _record_result(
+            db,
+            LOGOS_REFRESH,
+            "ok",
+            f"{resume.mis_a_jour} mis à jour, {resume.inchanges} inchangé(s), {resume.echecs} échec(s) sur {resume.traites}",
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("échec du rafraîchissement des logos planifié")
+        db_statut = SessionLocal()
+        try:
+            _record_result(db_statut, LOGOS_REFRESH, "erreur", str(exc))
+        finally:
+            db_statut.close()
+    finally:
+        db.close()
+
+
 JOBS: dict[str, Callable[[], None]] = {
     MARKET_DATA_REFRESH: _run_market_data_refresh,
     JUSTETF_REFRESH: _run_justetf_refresh,
     BACKUP_ENCRYPTED: _run_sauvegarde_chiffree,
+    LOGOS_REFRESH: _run_logos_refresh,
 }
 
 _scheduler: BackgroundScheduler | None = None

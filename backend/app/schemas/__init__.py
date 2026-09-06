@@ -70,6 +70,7 @@ from .comptes import (  # noqa: F401
     CompteUpdate,
     EtablissementBase,
     EtablissementCreate,
+    EtablissementLogoUrlInput,
     EtablissementOut,
     EtablissementUpdate,
 )

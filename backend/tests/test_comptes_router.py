@@ -1,5 +1,13 @@
-"""Verrouille `GET/POST/PATCH/DELETE /api/comptes` (établissements + comptes) et
-`GET /api/comptes/solde` (écran Comptes, backlog X.1)."""
+"""Verrouille `GET/POST/PATCH/DELETE /api/comptes` (établissements + comptes),
+`GET /api/comptes/solde` (écran Comptes, backlog X.1) et les routes de gestion des
+logos d'établissement (retour utilisateur du 05/09/2026). Aucun test ne touche le
+réseau : `logo_service.recuperer_*` est remplacé quand il est sollicité."""
+
+import socket
+
+from app.services import logo_service
+
+from .test_logo_service import png_factice
 
 from .conftest import (
     ID_UTILISATEUR_B,
@@ -63,6 +71,122 @@ def test_acceder_a_letablissement_dun_autre_foyer_renvoie_404(client, db):
 
     assert client.patch(f"/api/comptes/etablissements/{autre['id']}", json={"nom": "X"}).status_code == 404
     assert client.delete(f"/api/comptes/etablissements/{autre['id']}").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Logos d'établissement (retour utilisateur, 05/09/2026)
+# ---------------------------------------------------------------------------
+
+
+def test_televerser_un_logo_puis_le_recuperer_et_le_supprimer(client):
+    """L'image n'est jamais renvoyée par les routes CRUD (`EtablissementOut` est
+    imbriqué dans chaque `CompteOut`) : seulement le drapeau `a_un_logo`, l'image
+    elle-même étant servie par la route dédiée."""
+    etablissement = client.post("/api/comptes/etablissements", json={"nom": "Ma banque"}).json()
+    assert etablissement["a_un_logo"] is False
+
+    reponse = client.post(
+        f"/api/comptes/etablissements/{etablissement['id']}/logo/fichier",
+        files={"file": ("logo.png", png_factice(), "image/png")},
+    )
+
+    assert reponse.status_code == 200, reponse.text
+    corps = reponse.json()
+    assert corps["a_un_logo"] is True
+    assert corps["logo_source"] == "upload"
+    assert "logo_png" not in corps
+
+    logos = client.get("/api/comptes/etablissements/logos").json()
+    assert logos[str(etablissement["id"])].startswith("data:image/png;base64,")
+
+    assert client.delete(f"/api/comptes/etablissements/{etablissement['id']}/logo").json()["a_un_logo"] is False
+    assert client.get("/api/comptes/etablissements/logos").json() == {}
+
+
+def test_televerser_un_fichier_qui_nest_pas_une_image_refuse_en_400(client):
+    etablissement = client.post("/api/comptes/etablissements", json={"nom": "Ma banque"}).json()
+
+    reponse = client.post(
+        f"/api/comptes/etablissements/{etablissement['id']}/logo/fichier",
+        files={"file": ("virus.png", b"ceci n'est pas une image", "image/png")},
+    )
+
+    assert reponse.status_code == 400
+
+
+def test_logo_depuis_une_url_interne_refuse_en_400(client, monkeypatch):
+    """SSRF : c'est le serveur qui télécharge l'URL saisie — une adresse qui résout
+    vers le réseau local doit être refusée avant toute requête."""
+    monkeypatch.setattr(
+        socket, "getaddrinfo", lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443))]
+    )
+    etablissement = client.post("/api/comptes/etablissements", json={"nom": "Ma banque"}).json()
+
+    reponse = client.put(
+        f"/api/comptes/etablissements/{etablissement['id']}/logo/url",
+        json={"url": "https://exemple-anodin.fr/logo.png"},
+    )
+
+    assert reponse.status_code == 400
+    assert "réseau local" in reponse.json()["detail"]
+
+
+def test_logo_depuis_une_url_publique_est_enregistre(client, monkeypatch):
+    monkeypatch.setattr(logo_service, "recuperer_depuis_url", lambda url: png_factice())
+    etablissement = client.post("/api/comptes/etablissements", json={"nom": "Ma banque"}).json()
+
+    reponse = client.put(
+        f"/api/comptes/etablissements/{etablissement['id']}/logo/url",
+        json={"url": "https://exemple.fr/logo.png"},
+    )
+
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["logo_source"] == "url"
+
+
+def test_logo_catalogue_refuse_pour_un_etablissement_personnalise(client):
+    """Sans clé de catalogue (établissement saisi à la main), il n'y a pas de site
+    officiel connu : le message doit orienter vers le téléversement ou l'URL."""
+    etablissement = client.post("/api/comptes/etablissements", json={"nom": "Ma banque perso"}).json()
+
+    reponse = client.post(f"/api/comptes/etablissements/{etablissement['id']}/logo/catalogue")
+
+    assert reponse.status_code == 400
+    assert "catalogue" in reponse.json()["detail"]
+
+
+def test_logo_catalogue_recupere_le_site_officiel(client, monkeypatch):
+    domaines_appeles: list[str] = []
+
+    def _recuperer(domaine: str) -> bytes:
+        domaines_appeles.append(domaine)
+        return png_factice()
+
+    monkeypatch.setattr(logo_service, "recuperer_pour_domaine", _recuperer)
+    etablissement = client.post(
+        "/api/comptes/etablissements", json={"nom": "Boursorama", "logo_key": "boursorama"}
+    ).json()
+
+    reponse = client.post(f"/api/comptes/etablissements/{etablissement['id']}/logo/catalogue")
+
+    assert reponse.status_code == 200, reponse.text
+    assert domaines_appeles == ["boursobank.com"]
+    assert reponse.json()["logo_source"] == "catalogue"
+
+
+def test_les_logos_dun_autre_foyer_ne_sont_ni_visibles_ni_modifiables(client, db):
+    """IDOR, même garde que les routes CRUD ci-dessus."""
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+    autre = client.post("/api/comptes/etablissements", json={"nom": "Établissement B"}).json()
+    client.post(
+        f"/api/comptes/etablissements/{autre['id']}/logo/fichier",
+        files={"file": ("logo.png", png_factice(), "image/png")},
+    )
+    basculer_utilisateur(db, ID_UTILISATEUR_TEST, NOM_UTILISATEUR_TEST)
+
+    assert client.get("/api/comptes/etablissements/logos").json() == {}
+    assert client.post(f"/api/comptes/etablissements/{autre['id']}/logo/catalogue").status_code == 404
+    assert client.delete(f"/api/comptes/etablissements/{autre['id']}/logo").status_code == 404
 
 
 # ---------------------------------------------------------------------------

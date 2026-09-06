@@ -9,7 +9,7 @@ pour l'historique des révisions.
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -324,8 +324,33 @@ class Etablissement(Base):
     # un établissement déjà existant (même doctrine que `Compte.etablissement_id`,
     # cf. `services/comptes_service.get_or_create_compte_sans_commit`).
     logo_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Logo RÉEL de l'établissement (retour utilisateur, 05/09/2026 : « avoir les logos
+    # à jour ») — PNG normalisé (128 px max) stocké en base64 plutôt qu'en `LargeBinary` :
+    # l'export/import du foyer sérialise les colonnes en JSON (`donnees_service._serialiser`),
+    # qui ne sait pas encoder des `bytes` — du texte traverse l'export, la sauvegarde
+    # chiffrée et la restauration sans traitement particulier. Quelques Ko par
+    # établissement, jamais renvoyé dans `EtablissementOut` (qui est imbriqué dans
+    # chaque `CompteOut`, donc dupliqué des dizaines de fois par réponse) : servi à part
+    # par `GET /api/comptes/etablissements/logos`.
+    logo_png: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # "catalogue" (récupéré depuis le site officiel de l'établissement), "url" (URL
+    # saisie par l'utilisateur, re-téléchargée par le job hebdomadaire) ou "upload"
+    # (image téléversée — JAMAIS écrasée par le job, cf. `logo_service.rafraichir_logos`).
+    logo_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    logo_source_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Empreinte SHA-256 du PNG : le job hebdomadaire ne réécrit rien quand l'image
+    # téléchargée est identique à celle déjà en base (cas normal, un logo bouge rarement).
+    logo_empreinte: Mapped[str | None] = mapped_column(String, nullable=True)
+    logo_maj_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    @property
+    def a_un_logo(self) -> bool:
+        """Exposé tel quel par `EtablissementOut` (`from_attributes`) : l'écran doit
+        savoir qu'un logo existe sans que l'image elle-même traverse chaque réponse
+        (elle est servie à part, cf. `logo_png`)."""
+        return self.logo_png is not None
 
 
 class Compte(Base):

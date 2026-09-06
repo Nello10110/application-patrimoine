@@ -238,6 +238,24 @@ export const api = {
   updateEtablissement: (id: number, nom: string) =>
     request<Etablissement>(`/comptes/etablissements/${id}`, { method: 'PATCH', body: JSON.stringify({ nom }) }),
   deleteEtablissement: (id: number) => request<{ ok: boolean }>(`/comptes/etablissements/${id}`, { method: 'DELETE' }),
+
+  // Logos d'établissement (retour utilisateur, 05/09/2026) — l'image ne transite
+  // JAMAIS par `Etablissement` (imbriqué dans chaque compte, donc dupliqué des
+  // dizaines de fois par réponse) : une seule route la renvoie, en data URI, car
+  // l'authentification passe par un en-tête `Authorization` qu'une balise
+  // `<img src="/api/...">` ne peut pas porter. Cf. `utils/logosEtablissements.ts`.
+  getLogosEtablissements: () => request<Record<string, string>>('/comptes/etablissements/logos'),
+  recupererLogoCatalogue: (id: number) =>
+    request<Etablissement>(`/comptes/etablissements/${id}/logo/catalogue`, { method: 'POST' }),
+  setEtablissementLogoUrl: (id: number, url: string) =>
+    request<Etablissement>(`/comptes/etablissements/${id}/logo/url`, { method: 'PUT', body: JSON.stringify({ url }) }),
+  uploadEtablissementLogo: (id: number, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<Etablissement>(`/comptes/etablissements/${id}/logo/fichier`, { method: 'POST', body: form })
+  },
+  deleteEtablissementLogo: (id: number) =>
+    request<Etablissement>(`/comptes/etablissements/${id}/logo`, { method: 'DELETE' }),
   listComptes: () => request<Compte[]>('/comptes'),
   listComptesAvecSolde: () => request<CompteAvecSolde[]>('/comptes/solde'),
   // Établissement OBLIGATOIRE à la création (revue du 03/09/2026, demande directe

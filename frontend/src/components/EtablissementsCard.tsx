@@ -3,10 +3,12 @@ import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import Card from './Card'
 import CatalogueEtablissementPicker from './CatalogueEtablissementPicker'
+import EtablissementEditModal from './EtablissementEditModal'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import EtablissementLogo from './EtablissementLogo'
 import { SkeletonTexte } from './Skeleton'
+import { invaliderLogos } from '../utils/logosEtablissements'
 
 /** Établissements financiers (écran Comptes, backlog X.1) : déclarés une fois
  * ici, réutilisés ensuite pour regrouper les comptes à l'écran (ex. « Caisse
@@ -33,10 +35,11 @@ export default function EtablissementsCard({
   const [nom, setNom] = useState('')
   const [nomLogoKey, setNomLogoKey] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  // Renommage inline (édition en place, pas de modale) : `idEnEdition` porte
-  // l'établissement actuellement ouvert en édition, `null` sinon — un seul à la fois.
-  const [idEnEdition, setIdEnEdition] = useState<number | null>(null)
-  const [nomEdition, setNomEdition] = useState('')
+  // Édition en modale depuis le 05/09/2026 (retour utilisateur : « pouvoir éditer
+  // l'établissement avec une vue dédiée ») — le renommage en ligne d'avant ne
+  // pouvait pas accueillir la gestion du logo (récupération, téléversement,
+  // adresse, suppression) sans rendre la ligne illisible.
+  const [enEdition, setEnEdition] = useState<Etablissement | null>(null)
 
   function load() {
     // En mode piloté, c'est l'appelant qui détient la liste : on le prévient
@@ -68,7 +71,21 @@ export default function EtablissementsCard({
     setSaving(true)
     setError(null)
     try {
-      await api.createEtablissement(nom.trim(), nomLogoKey)
+      const cree = await api.createEtablissement(nom.trim(), nomLogoKey)
+      // Établissement choisi dans le catalogue : son logo officiel est récupéré
+      // dans la foulée (retour utilisateur du 05/09/2026, « cherché et mis en cache
+      // automatiquement ») plutôt qu'à la prochaine exécution hebdomadaire.
+      // Volontairement SANS `await` : la création ne doit pas attendre le site de la
+      // banque (plusieurs secondes, parfois injoignable). Le badge apparaît dès que
+      // l'image arrive, et un échec est toléré en silence — le badge généré reste
+      // affiché, et l'utilisateur peut toujours fournir une image depuis la vue
+      // d'édition.
+      if (nomLogoKey) {
+        void api
+          .recupererLogoCatalogue(cree.id)
+          .then(() => invaliderLogos())
+          .catch(() => undefined)
+      }
       setNom('')
       setNomLogoKey(null)
       load()
@@ -89,28 +106,6 @@ export default function EtablissementsCard({
     }
   }
 
-  function commencerEdition(e: Etablissement) {
-    setIdEnEdition(e.id)
-    setNomEdition(e.nom)
-    setError(null)
-  }
-
-  async function handleRenommer(e: React.FormEvent, id: number) {
-    e.preventDefault()
-    if (!nomEdition.trim()) return
-    setSaving(true)
-    setError(null)
-    try {
-      await api.updateEtablissement(id, nomEdition.trim())
-      setIdEnEdition(null)
-      load()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <Card title="Établissements">
       <p className="mb-4 text-sm text-texte">
@@ -126,42 +121,31 @@ export default function EtablissementsCard({
         <EtatVide titre="Aucun établissement déclaré." />
       ) : (
         <ul className="mb-4 divide-y divide-bordure">
-          {etablissements.map((e) =>
-            idEnEdition === e.id ? (
-              <li key={e.id} className="py-2">
-                <form onSubmit={(ev) => handleRenommer(ev, e.id)} className="flex items-center gap-2">
-                  <input
-                    value={nomEdition}
-                    onChange={(ev) => setNomEdition(ev.target.value)}
-                    aria-label="Nom (édition)"
-                    className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                  />
-                  <button type="submit" disabled={saving || !nomEdition.trim()} className="text-xs text-accent hover:underline disabled:opacity-40">
-                    Enregistrer
-                  </button>
-                  <button type="button" onClick={() => setIdEnEdition(null)} className="text-xs text-texte-attenue hover:underline">
-                    Annuler
-                  </button>
-                </form>
-              </li>
-            ) : (
-              <li key={e.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="flex items-center gap-2 text-texte">
-                  <EtablissementLogo logoKey={e.logo_key} nom={e.nom} />
-                  {e.nom}
-                </span>
-                <span className="flex items-center gap-3">
-                  <button onClick={() => commencerEdition(e)} className="text-xs text-accent hover:underline">
-                    Modifier
-                  </button>
-                  <button onClick={() => handleDelete(e.id)} className="text-xs text-negatif hover:underline">
-                    Supprimer
-                  </button>
-                </span>
-              </li>
-            ),
-          )}
+          {etablissements.map((e) => (
+            <li key={e.id} className="flex items-center justify-between py-2 text-sm">
+              <span className="flex items-center gap-2 text-texte">
+                <EtablissementLogo etablissementId={e.id} logoKey={e.logo_key} nom={e.nom} />
+                {e.nom}
+              </span>
+              <span className="flex items-center gap-3">
+                <button onClick={() => setEnEdition(e)} className="text-xs text-accent hover:underline">
+                  Modifier
+                </button>
+                <button onClick={() => handleDelete(e.id)} className="text-xs text-negatif hover:underline">
+                  Supprimer
+                </button>
+              </span>
+            </li>
+          ))}
         </ul>
+      )}
+
+      {enEdition && (
+        <EtablissementEditModal
+          etablissement={enEdition}
+          onClose={() => setEnEdition(null)}
+          onEnregistre={load}
+        />
       )}
 
       <form onSubmit={handleAdd} className="flex flex-col gap-3 border-t border-bordure pt-4">

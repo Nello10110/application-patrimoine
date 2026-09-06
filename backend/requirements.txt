@@ -10,6 +10,11 @@ apscheduler>=3.10
 requests>=2.32
 beautifulsoup4>=4.12
 reportlab>=4.2
+# Normalisation des logos d'établissement en PNG (`services/logo_service.py`) —
+# déclarée explicitement bien qu'elle arrive déjà comme dépendance de reportlab :
+# ce module l'importe directement, il ne doit pas dépendre d'un hasard d'arbre de
+# dépendances.
+pillow>=10
 alembic>=1.13
 cryptography>=42
 # Lecture du `.env` du dépôt au démarrage (cf. `app/config_env.py`) : sans elle, les
