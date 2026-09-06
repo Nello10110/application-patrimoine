@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin:0; background:#f8fafc; color:#0f172a; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color:#4f46e5; text-decoration:none; }
+  a:hover { color:#4338ca; text-decoration:underline; }
+  *, *::before, *::after { box-sizing:border-box; }
+  :focus-visible { outline:2px solid #4f46e5; outline-offset:2px; border-radius:2px; }
+</style>
+</helmet>
+
+<div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:#0f172a; color:#f1f5f9; font-size:12px; flex-wrap:wrap">
+  <span style="font-weight:600; letter-spacing:0.03em; text-transform:uppercase; opacity:0.7">Recréation de l'existant</span>
+  <span style="opacity:0.5">·</span>
+  <span style="opacity:0.7">React + Tailwind, jetons de <code style="font-family:ui-monospace,monospace">index.css</code></span>
+  <div style="margin-left:auto; display:flex; gap:6px">
+    <button type="button" onClick="{{ voirApp }}" style="border:1px solid #334155; background:#1e293b; color:#f1f5f9; padding:4px 10px; border-radius:6px; font-size:12px; cursor:pointer" style-hover="background:#334155">Application</button>
+    <button type="button" onClick="{{ voirLogin }}" style="border:1px solid #334155; background:#1e293b; color:#f1f5f9; padding:4px 10px; border-radius:6px; font-size:12px; cursor:pointer" style-hover="background:#334155">Connexion</button>
+  </div>
+</div>
+
+<sc-if value="{{ estLogin }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex; min-height:calc(100vh - 37px); align-items:center; justify-content:center; background:#f8fafc; padding:0 24px">
+    <div style="width:100%; max-width:384px">
+      <h1 style="margin:0 0 24px; text-align:center; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Application Patrimoine</h1>
+      <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+        <div style="display:flex; gap:4px; margin-bottom:16px">
+          <button type="button" style="flex:1; border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#0f172a; color:#fff; cursor:pointer">Se connecter</button>
+          <button type="button" style="flex:1; border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#f8fafc; color:#64748b; cursor:pointer" style-hover="color:#0f172a">Créer un compte</button>
+        </div>
+        <form style="display:flex; flex-direction:column; gap:12px">
+          <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Nom d'utilisateur
+            <input type="text" style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:8px 12px; font-size:14px; color:#0f172a; font-family:inherit" />
+          </label>
+          <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Mot de passe
+            <input type="password" style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:8px 12px; font-size:14px; color:#0f172a; font-family:inherit" />
+          </label>
+          <button type="button" style="margin-top:4px; border:0; border-radius:6px; background:#4f46e5; padding:8px 16px; font-size:14px; font-weight:500; color:#fff; cursor:pointer">Se connecter</button>
+        </form>
+        <div style="display:flex; align-items:center; gap:12px; margin:16px 0; font-size:12px; color:#64748b">
+          <span style="height:1px; flex:1; background:#e2e8f0"></span>ou<span style="height:1px; flex:1; background:#e2e8f0"></span>
+        </div>
+        <a href="#" style="display:block; border-radius:6px; border:1px solid #e2e8f0; padding:8px 16px; text-align:center; font-size:14px; font-weight:500; color:#0f172a; text-decoration:none" style-hover="background:#f8fafc; text-decoration:none">Se connecter avec SSO</a>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ estApp }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex; height:calc(100vh - 37px); overflow:hidden; background:#f8fafc">
+
+  <aside style="display:flex; height:100%; width:240px; flex-shrink:0; flex-direction:column; border-right:1px solid #e2e8f0; background:#fff">
+    <div style="display:flex; align-items:center; padding:16px 12px">
+      <a href="#" style="display:flex; min-width:0; align-items:center; gap:10px; font-size:14px; font-weight:600; color:#0f172a; text-decoration:none">
+        <span style="display:flex; height:28px; width:28px; flex-shrink:0; align-items:center; justify-content:center; border-radius:6px; background:#4f46e5; font-size:14px; font-weight:700; color:#fff">P</span>
+        <span>Patrimoine</span>
+      </a>
+    </div>
+
+    <div style="padding:0 8px 8px">
+      <button type="button" style="display:flex; width:100%; align-items:center; gap:8px; border:0; background:transparent; border-radius:6px; padding:8px 10px; font-size:14px; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="M16.5 16.5 L12.7 12.7"></path></svg>
+        <span>Rechercher…</span>
+      </button>
+    </div>
+
+    <nav aria-label="Navigation principale" style="display:flex; flex:1; flex-direction:column; gap:2px; overflow-y:auto; padding:0 8px">
+      <button type="button" onClick="{{ allerSynthese }}" style="{{ styleNavSynthese }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M3 10 L10 3.5 L17 10"></path><path d="M5 8.5 V16 H15 V8.5"></path><path d="M8 16 V11.5 H12 V16"></path></svg>
+        <span>Synthèse</span>
+      </button>
+      <button type="button" onClick="{{ allerPatrimoine }}" style="{{ styleNavPatrimoine }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><rect x="3" y="5.5" width="14" height="10" rx="1.6"></rect><path d="M3 8.5 H17"></path><path d="M13 12 H14.4"></path></svg>
+        <span>Patrimoine</span>
+      </button>
+      <button type="button" onClick="{{ allerObjectifs }}" style="{{ styleNavObjectifs }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="10" cy="10" r="6.5"></circle><circle cx="10" cy="10" r="3.4"></circle><circle cx="10" cy="10" r="0.6" fill="currentColor"></circle></svg>
+        <span>Objectifs</span>
+      </button>
+      <button type="button" onClick="{{ allerComptes }}" style="{{ styleNavComptes }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><rect x="2.5" y="5" width="15" height="11" rx="1.6"></rect><path d="M2.5 8.5 H17.5"></path><circle cx="13.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"></circle></svg>
+        <span>Comptes</span>
+      </button>
+      <button type="button" onClick="{{ allerDividendes }}" style="{{ styleNavDividendes }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="8" cy="8" r="4.7"></circle><path d="M9.8 12.3 A4.7 4.7 0 1 0 9.8 3.7"></path></svg>
+        <span>Dividendes</span>
+      </button>
+      <button type="button" onClick="{{ allerBudget }}" style="{{ styleNavBudget }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M3.5 6.5 A2 2 0 0 1 5.5 4.5 H14.5 A2 2 0 0 1 16.5 6.5 V14.5 A2 2 0 0 1 14.5 16.5 H5.5 A2 2 0 0 1 3.5 14.5 Z"></path><path d="M12.5 9.5 H16.5 V12.5 H12.5 A1.5 1.5 0 0 1 12.5 9.5 Z"></path></svg>
+        <span>Budget</span>
+      </button>
+      <button type="button" onClick="{{ allerRapport }}" style="{{ styleNavRapport }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M6 3 H12 L15 6 V17 H6 Z"></path><path d="M12 3 V6 H15"></path><path d="M8.2 10 H12.8 M8.2 12.6 H12.8"></path></svg>
+        <span>Rapport</span>
+      </button>
+      <button type="button" onClick="{{ allerSalaire }}" style="{{ styleNavSalaire }}" style-hover="background:#f8fafc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><rect x="2.5" y="6" width="15" height="9" rx="1.4"></rect><circle cx="10" cy="10.5" r="2.3"></circle><path d="M5 6 V4.5 H15 V6"></path></svg>
+        <span>Salaire</span>
+      </button>
+    </nav>
+
+    <div style="border-top:1px solid #e2e8f0; padding:8px">
+      <button type="button" onClick="{{ allerReglages }}" style="display:flex; width:100%; align-items:center; gap:10px; border:0; background:transparent; border-radius:6px; padding:8px; font-size:14px; color:#0f172a; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">
+        <span aria-hidden="true" style="display:flex; height:28px; width:28px; flex-shrink:0; align-items:center; justify-content:center; border-radius:9999px; font-size:12px; font-weight:600; color:#fff; background:hsl(214, 55%, 42%)">N</span>
+        <span>Nello</span>
+      </button>
+    </div>
+
+    <button type="button" style="display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-top:1px solid #e2e8f0; background:transparent; padding:8px 10px; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4.5 L7 10 L12.5 15.5"></path></svg>
+      <span style="font-size:12px">Replier</span>
+    </button>
+  </aside>
+
+  <main style="flex:1; overflow-y:auto">
+    <div style="position:sticky; top:0; z-index:10; display:flex; flex-wrap:wrap; align-items:center; column-gap:12px; row-gap:8px; border-bottom:1px solid #e2e8f0; background:#fff; padding:10px 24px">
+      <span style="font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Vue</span>
+      <div style="display:flex; gap:2px; border-radius:6px; background:#f8fafc; padding:2px">
+        <button type="button" onClick="{{ vueNet }}" style="{{ styleVueNet }}">Net</button>
+        <button type="button" onClick="{{ vueBrut }}" style="{{ styleVueBrut }}">Brut</button>
+        <button type="button" onClick="{{ vueFinancier }}" style="{{ styleVueFinancier }}">Financier</button>
+      </div>
+      <span style="font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Détenteur</span>
+      <select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:4px 8px; font-size:14px; color:#0f172a; font-family:inherit">
+        <option>Foyer</option>
+        <option>Nello</option>
+        <option>Floriane</option>
+      </select>
+      <span style="font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Période</span>
+      <select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:4px 8px; font-size:14px; color:#0f172a; font-family:inherit">
+        <option>Tout</option>
+        <option>1 mois</option>
+        <option>3 mois</option>
+        <option>1 an</option>
+        <option>Personnalisée…</option>
+      </select>
+      <button type="button" style="margin-left:auto; display:flex; align-items:center; gap:6px; border:0; background:transparent; border-radius:6px; padding:6px 10px; font-size:14px; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10 C4.5 5.5 7 3.5 10 3.5 C13 3.5 15.5 5.5 17.5 10 C15.5 14.5 13 16.5 10 16.5 C7 16.5 4.5 14.5 2.5 10 Z"></path><circle cx="10" cy="10" r="2.8"></circle></svg>
+        <span>Masquer les montants</span>
+      </button>
+    </div>
+
+    <sc-if value="{{ ariane }}" hint-placeholder-val="{{ false }}">
+      <nav aria-label="Fil d'Ariane" style="display:flex; align-items:center; gap:6px; padding:16px 24px 0; font-size:14px; color:#64748b">
+        <a href="#" style="color:#64748b; text-decoration:none" style-hover="color:#0f172a; text-decoration:underline">Synthèse</a>
+        <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg)"><path d="M12.5 4.5 L7 10 L12.5 15.5"></path></svg>
+        <span style="font-weight:500; color:#0f172a" aria-current="page">{{ ariane }}</span>
+      </nav>
+    </sc-if>
+
+    <div style="margin:0 auto; max-width:1152px; padding:32px 24px">
+
+      <sc-if value="{{ estSynthese }}" hint-placeholder-val="{{ true }}">
+      <div data-screen-label="Synthèse (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <div style="display:flex; align-items:center; justify-content:space-between">
+          <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Tableau de bord</h2>
+          <button type="button" style="border:0; border-radius:6px; background:#0f172a; padding:8px 16px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; font-family:inherit">Actualiser</button>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:16px">
+            <h2 style="margin:0; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Patrimoine net</h2>
+          </div>
+          <div style="margin-bottom:16px">
+            <p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Patrimoine net</p>
+            <p style="margin:0; font-size:32px; line-height:1.2; font-weight:700; color:#047857">487 320 €</p>
+            <p style="margin:4px 0 0; font-size:14px">
+              <span style="color:#047857">+6,4%</span>
+              <span style="color:#64748b"> depuis le début — patrimoine net suivi — immobilier/épargne valorisés à leurs derniers points connus, parfois espacés</span>
+            </p>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px">
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px">
+              <p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Actifs totaux</p>
+              <p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">731 450 €</p>
+            </div>
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px">
+              <p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Passifs (emprunts)</p>
+              <p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#b45309">244 130 €</p>
+            </div>
+          </div>
+
+          <div style="margin-top:16px; border-top:1px solid #e2e8f0; padding-top:8px">
+            <p style="margin:8px 0 0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Par type d'investissement</p>
+            <div style="display:flex; align-items:center; justify-content:center; height:240px">
+              <div style="width:160px; height:160px; border-radius:9999px; background:conic-gradient(#2563eb 0 43.6%, #7c3aed 43.6% 74.2%, #0891b2 74.2% 86.7%, #16a34a 86.7% 93.9%, #ca8a04 93.9% 97.6%, #dc2626 97.6% 99.6%, #db2777 99.6% 100%)"></div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:12px; font-size:11px; color:#64748b">
+              <span style="display:flex; align-items:center; gap:4px"><span style="width:8px; height:8px; background:#2563eb"></span>Immobilier</span>
+              <span style="display:flex; align-items:center; gap:4px"><span style="width:8px; height:8px; background:#7c3aed"></span>Actions &amp; ETF</span>
+              <span style="display:flex; align-items:center; gap:4px"><span style="width:8px; height:8px; background:#0891b2"></span>Assurance-vie</span>
+              <span style="display:flex; align-items:center; gap:4px"><span style="width:8px; height:8px; background:#16a34a"></span>Épargne réglementée</span>
+              <span style="display:flex; align-items:center; gap:4px"><span style="width:8px; height:8px; background:#ca8a04"></span>Crypto</span>
+              <span style="display:flex; align-items:center; gap:4px"><span style="width:8px; height:8px; background:#dc2626"></span>SCPI</span>
+              <span style="display:flex; align-items:center; gap:4px"><span style="width:8px; height:8px; background:#db2777"></span>Véhicule</span>
+            </div>
+            <ul style="margin:8px 0 0; padding:8px 0 0; list-style:none; border-top:1px solid #e2e8f0">
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">Immobilier</span><span style="font-weight:500; color:#0f172a">212 400 €</span></li>
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">Actions &amp; ETF</span><span style="font-weight:500; color:#0f172a">148 900 €</span></li>
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">Assurance-vie</span><span style="font-weight:500; color:#0f172a">61 200 €</span></li>
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">Épargne réglementée</span><span style="font-weight:500; color:#0f172a">34 800 €</span></li>
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">Crypto</span><span style="font-weight:500; color:#0f172a">18 100 €</span></li>
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">SCPI</span><span style="font-weight:500; color:#0f172a">9 600 €</span></li>
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">Véhicule</span><span style="font-weight:500; color:#0f172a">7 300 €</span></li>
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px"><span style="color:#0f172a">Dettes non rattachées</span><span style="font-weight:500; color:#dc2626">−4 980 €</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px">
+            <h2 style="margin:0; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Évolution du portefeuille</h2>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#0f172a"><input type="checkbox" />Mode étagé (investi + gains)</label>
+          </div>
+          <svg viewBox="0 0 900 280" width="100%" height="280" preserveAspectRatio="none" role="img" aria-label="Évolution du portefeuille">
+            <g stroke="#e2e8f0" stroke-dasharray="3 3">
+              <line x1="80" y1="20" x2="890" y2="20"></line><line x1="80" y1="82" x2="890" y2="82"></line><line x1="80" y1="144" x2="890" y2="144"></line><line x1="80" y1="206" x2="890" y2="206"></line><line x1="80" y1="250" x2="890" y2="250"></line>
+              <line x1="240" y1="20" x2="240" y2="250"></line><line x1="400" y1="20" x2="400" y2="250"></line><line x1="560" y1="20" x2="560" y2="250"></line><line x1="720" y1="20" x2="720" y2="250"></line>
+            </g>
+            <g fill="#64748b" font-size="11" font-family="system-ui, sans-serif">
+              <text x="72" y="24" text-anchor="end">140 000 €</text><text x="72" y="86" text-anchor="end">105 000 €</text><text x="72" y="148" text-anchor="end">70 000 €</text><text x="72" y="210" text-anchor="end">35 000 €</text><text x="72" y="254" text-anchor="end">0 €</text>
+              <text x="80" y="270">2023-01</text><text x="240" y="270">2023-07</text><text x="400" y="270">2024-01</text><text x="560" y="270">2024-07</text><text x="720" y="270">2025-01</text><text x="890" y="270" text-anchor="end">2026-09</text>
+            </g>
+            <polyline fill="none" stroke="#2563eb" stroke-width="2" points="80,232 150,222 220,214 290,196 360,201 430,178 500,160 570,151 640,128 710,118 780,96 850,74 890,62"></polyline>
+          </svg>
+        </div>
+
+        <button type="button" style="display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; padding:12px 16px; text-align:left; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">
+          <span style="font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Détail</span>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#64748b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg)"><path d="M12.5 4.5 L7 10 L12.5 15.5"></path></svg>
+        </button>
+
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px">
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px">
+            <p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Valeur des positions</p>
+            <p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">126 119 €</p>
+          </div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px">
+            <p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Score de diversification</p>
+            <p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#047857">68/100</p>
+          </div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px">
+            <p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Plus grosse ligne</p>
+            <p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#b45309">57,7%</p>
+            <p style="margin:2px 0 0; font-size:12px; color:#64748b">Amundi MSCI World UCITS ETF</p>
+          </div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px">
+            <p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Concentration géographique</p>
+            <p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#b45309">64,1%</p>
+            <p style="margin:2px 0 0; font-size:12px; color:#64748b">Amérique du Nord</p>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estPatrimoine }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Patrimoine (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <div style="display:flex; align-items:center; justify-content:space-between">
+          <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Portefeuille</h2>
+          <div style="display:flex; align-items:center; gap:12px">
+            <span style="font-size:12px; color:#64748b">Cours à jour au 05/09/2026 18:42</span>
+            <button type="button" style="border:0; border-radius:6px; background:#0f172a; padding:8px 16px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; font-family:inherit">Rafraîchir les cours</button>
+          </div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:16px">
+            <h2 style="margin:0; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Ajouter une ligne</h2>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px">
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Ticker
+              <input placeholder="CW8.PA" style="width:128px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Quantité
+              <input type="number" style="width:96px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Prix de revient
+              <input type="number" style="width:128px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Type d'actif
+              <select style="width:144px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit"><option>Non précisé</option><option>Action</option><option>ETF / Fonds</option><option>Crypto</option><option>Immobilier</option><option>Assurance-vie</option></select></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Compte
+              <select style="width:128px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit"><option>PEA</option><option>CTO</option><option>+ Nouveau compte...</option></select></label>
+            <button type="button" style="border:0; border-radius:6px; background:#4f46e5; padding:8px 16px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; font-family:inherit">Ajouter</button>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px">
+          <div style="display:flex; flex-wrap:wrap; gap:6px">
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#0f172a; color:#fff; cursor:pointer; font-family:inherit">Tous</button>
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">Actions</button>
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">ETF</button>
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">Obligations</button>
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">Private Equity</button>
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">Crypto</button>
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">Immobilier &amp; Épargne</button>
+            <button type="button" style="border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#64748b; cursor:pointer; font-family:inherit" style-hover="background:#f8fafc">Autres</button>
+          </div>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:#64748b">Filtrer par compte
+            <select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit"><option>Tous les comptes</option><option>PEA</option><option>CTO</option><option>Sans compte</option></select>
+          </label>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); overflow-x:auto">
+          <table style="width:100%; font-size:14px; border-collapse:collapse">
+            <thead>
+              <tr style="border-bottom:1px solid #e2e8f0; text-align:left; font-size:12px; font-weight:500; text-transform:uppercase; color:#64748b">
+                <th style="padding-right:16px"><button type="button" style="width:100%; border:0; background:transparent; cursor:pointer; padding:8px 0; text-align:left; font-weight:500; text-transform:uppercase; color:#64748b; font-family:inherit; font-size:12px">Ticker</button></th>
+                <th style="padding-right:16px"><button type="button" style="width:100%; border:0; background:transparent; cursor:pointer; padding:8px 0; text-align:left; font-weight:500; text-transform:uppercase; color:#64748b; font-family:inherit; font-size:12px">Nom</button></th>
+                <th style="padding-right:16px"><button type="button" style="width:100%; border:0; background:transparent; cursor:pointer; padding:8px 0; text-align:left; font-weight:500; text-transform:uppercase; color:#64748b; font-family:inherit; font-size:12px">Quantité</button></th>
+                <th style="padding-right:16px"><button type="button" style="width:100%; border:0; background:transparent; cursor:pointer; padding:8px 0; text-align:left; font-weight:500; text-transform:uppercase; color:#64748b; font-family:inherit; font-size:12px">Prix actuel</button></th>
+                <th style="padding-right:16px"><button type="button" style="width:100%; border:0; background:transparent; cursor:pointer; padding:8px 0; text-align:left; font-weight:500; text-transform:uppercase; color:#64748b; font-family:inherit; font-size:12px">Valeur ▼</button></th>
+                <th style="padding-right:16px"><button type="button" style="width:100%; border:0; background:transparent; cursor:pointer; padding:8px 0; text-align:left; font-weight:500; text-transform:uppercase; color:#64748b; font-family:inherit; font-size:12px">Depuis achat</button></th>
+                <th style="padding-right:16px"><button type="button" style="width:100%; border:0; background:transparent; cursor:pointer; padding:8px 0; text-align:left; font-weight:500; text-transform:uppercase; color:#64748b; font-family:inherit; font-size:12px">Annualisé</button></th>
+                <th style="padding:8px 16px 8px 0">Secteur</th>
+                <th style="padding:8px 16px 8px 0">Pays</th>
+                <th style="padding:8px 16px 8px 0"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #e2e8f0; cursor:pointer" style-hover="background:#f8fafc">
+                <td style="padding:8px 16px 8px 0; font-weight:500; color:#0f172a">CW8.PA</td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Amundi MSCI World UCITS ETF</td>
+                <td style="padding:8px 16px 8px 0">142</td><td style="padding:8px 16px 8px 0">512,40 €</td><td style="padding:8px 16px 8px 0">72 760,80 €</td>
+                <td style="padding:8px 16px 8px 0"><span style="color:#047857">+18,4%</span></td><td style="padding:8px 16px 8px 0"><span style="color:#047857">+9,2%</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">—</td><td style="padding:8px 16px 8px 0; color:#0f172a">Monde</td>
+                <td style="padding:8px 16px 8px 0; text-align:right"><span style="font-size:12px; color:#64748b; margin-right:8px">Modifier</span><span style="font-size:12px; color:#dc2626">Supprimer</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #e2e8f0; cursor:pointer" style-hover="background:#f8fafc">
+                <td style="padding:8px 16px 8px 0; font-weight:500; color:#0f172a">BTC-EUR</td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Bitcoin</td>
+                <td style="padding:8px 16px 8px 0">0,215</td><td style="padding:8px 16px 8px 0">84 210,00 €</td><td style="padding:8px 16px 8px 0">18 105,15 €</td>
+                <td style="padding:8px 16px 8px 0"><span style="color:#047857">+64,3%</span></td><td style="padding:8px 16px 8px 0"><span style="color:#047857">+28,1%</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">—</td><td style="padding:8px 16px 8px 0; color:#0f172a">—</td>
+                <td style="padding:8px 16px 8px 0; text-align:right"><span style="font-size:12px; color:#64748b; margin-right:8px">Modifier</span><span style="font-size:12px; color:#dc2626">Supprimer</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #e2e8f0; cursor:pointer" style-hover="background:#f8fafc">
+                <td style="padding:8px 16px 8px 0; font-weight:500; color:#0f172a">AI.PA</td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Air Liquide S.A.</td>
+                <td style="padding:8px 16px 8px 0">60</td><td style="padding:8px 16px 8px 0">168,92 €</td><td style="padding:8px 16px 8px 0">10 135,20 €</td>
+                <td style="padding:8px 16px 8px 0"><span style="color:#047857">+12,1%</span></td><td style="padding:8px 16px 8px 0"><span style="color:#047857">+7,4%</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Matériaux de base</td><td style="padding:8px 16px 8px 0; color:#0f172a">France</td>
+                <td style="padding:8px 16px 8px 0; text-align:right"><span style="font-size:12px; color:#64748b; margin-right:8px">Modifier</span><span style="font-size:12px; color:#dc2626">Supprimer</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #e2e8f0; cursor:pointer" style-hover="background:#f8fafc">
+                <td style="padding:8px 16px 8px 0; font-weight:500; color:#0f172a">MC.PA</td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">LVMH Moët Hennessy</td>
+                <td style="padding:8px 16px 8px 0">12</td><td style="padding:8px 16px 8px 0">641,30 €</td><td style="padding:8px 16px 8px 0">7 695,60 €</td>
+                <td style="padding:8px 16px 8px 0"><span style="color:#dc2626">−4,2%</span></td><td style="padding:8px 16px 8px 0"><span style="color:#dc2626">−1,8%</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Consommation cyclique</td><td style="padding:8px 16px 8px 0; color:#0f172a">France</td>
+                <td style="padding:8px 16px 8px 0; text-align:right"><span style="font-size:12px; color:#64748b; margin-right:8px">Modifier</span><span style="font-size:12px; color:#dc2626">Supprimer</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #e2e8f0; cursor:pointer" style-hover="background:#f8fafc">
+                <td style="padding:8px 16px 8px 0; font-weight:500; color:#0f172a">ESE.PA</td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">BNP Paribas Easy S&amp;P 500</td>
+                <td style="padding:8px 16px 8px 0">210</td><td style="padding:8px 16px 8px 0">33,18 €</td><td style="padding:8px 16px 8px 0">6 967,80 €</td>
+                <td style="padding:8px 16px 8px 0"><span style="color:#047857">+21,7%</span></td><td style="padding:8px 16px 8px 0"><span style="color:#047857">+11,3%</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">—</td><td style="padding:8px 16px 8px 0; color:#0f172a">États-Unis</td>
+                <td style="padding:8px 16px 8px 0; text-align:right"><span style="font-size:12px; color:#64748b; margin-right:8px">Modifier</span><span style="font-size:12px; color:#dc2626">Supprimer</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #e2e8f0; cursor:pointer" style-hover="background:#f8fafc">
+                <td style="padding:8px 16px 8px 0; font-weight:500; color:#0f172a">AAPL<span title="Ligne saisie manuellement" style="margin-left:8px; border-radius:9999px; background:#f8fafc; padding:2px 6px; font-size:10px; font-weight:400; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">saisie manuelle</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Apple Inc.</td>
+                <td style="padding:8px 16px 8px 0">25</td><td style="padding:8px 16px 8px 0">218,45 €</td><td style="padding:8px 16px 8px 0">5 461,25 €</td>
+                <td style="padding:8px 16px 8px 0"><span style="color:#047857">+32,6%</span></td><td style="padding:8px 16px 8px 0"><span style="color:#047857">+14,9%</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Technologie</td><td style="padding:8px 16px 8px 0; color:#0f172a">États-Unis</td>
+                <td style="padding:8px 16px 8px 0; text-align:right"><span style="font-size:12px; color:#64748b; margin-right:8px">Modifier</span><span style="font-size:12px; color:#dc2626">Supprimer</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #e2e8f0; cursor:pointer" style-hover="background:#f8fafc">
+                <td style="padding:8px 16px 8px 0; font-weight:500; color:#0f172a">TTE.PA</td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">TotalEnergies SE</td>
+                <td style="padding:8px 16px 8px 0">85</td><td style="padding:8px 16px 8px 0">58,74 €</td><td style="padding:8px 16px 8px 0">4 992,90 €</td>
+                <td style="padding:8px 16px 8px 0"><span style="color:#047857">+6,9%</span></td><td style="padding:8px 16px 8px 0"><span style="color:#047857">+4,1%</span></td>
+                <td style="padding:8px 16px 8px 0; color:#0f172a">Énergie</td><td style="padding:8px 16px 8px 0; color:#0f172a">France</td>
+                <td style="padding:8px 16px 8px 0; text-align:right"><span style="font-size:12px; color:#64748b; margin-right:8px">Modifier</span><span style="font-size:12px; color:#dc2626">Supprimer</span></td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="border-top:1px solid #e2e8f0; font-size:14px; font-weight:600; color:#0f172a">
+                <td colspan="4" style="padding:8px 16px 8px 0">7 positions</td>
+                <td style="padding:8px 16px 8px 0">126 118,70 €</td>
+                <td colspan="5"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estComptes }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Comptes (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px">
+          <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Comptes</h2>
+          <span style="font-size:18px; font-weight:600; color:#0f172a">421 329 €</span>
+        </div>
+        <p style="margin:0; font-size:14px; color:#64748b">Tous les comptes du foyer — compte courant, PEA, compte-titres, assurance-vie, immobilier, épargne — groupés par établissement, avec leur solde. Clique sur un compte pour voir le détail, modifier une ligne d'épargne ou lui ajouter une valorisation, et définir une répartition entre détenteurs pour tout le compte en une fois. <span style="cursor:help; text-decoration:underline; text-decoration-style:dotted">Qu'est-ce qu'un compte ?</span></p>
+
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px">
+          <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Valeur épargne totale</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#0f172a">118 950,00 €</p></div>
+          <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Versement mensuel total</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#0f172a">650,00 €</p><p style="margin:0; font-size:12px; color:#64748b">additionné au préremplissage du Simulateur</p></div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:16px">
+            <h2 style="margin:0; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Boursorama</h2>
+          </div>
+          <ul style="margin:0; padding:0; list-style:none">
+            <li style="border-bottom:1px solid #e2e8f0"><div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; font-size:14px; cursor:pointer"><span style="display:flex; align-items:center; color:#0f172a"><span style="display:flex; height:20px; width:20px; margin-right:8px; align-items:center; justify-content:center; border-radius:4px; background:#f8fafc; font-size:10px; font-weight:600; color:#64748b">B</span>PEA<span style="margin-left:8px; font-size:12px; color:#64748b">3 lignes</span></span><span style="display:flex; align-items:center; gap:12px"><span style="font-weight:500; color:#0f172a">89 723,60 €</span><span style="font-size:12px; color:#dc2626">Supprimer</span></span></div></li>
+            <li><div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; font-size:14px; cursor:pointer"><span style="display:flex; align-items:center; color:#0f172a"><span style="display:flex; height:20px; width:20px; margin-right:8px; align-items:center; justify-content:center; border-radius:4px; background:#f8fafc; font-size:10px; font-weight:600; color:#64748b">B</span>Compte courant<span style="margin-left:8px; font-size:12px; color:#64748b">1 ligne</span></span><span style="display:flex; align-items:center; gap:12px"><span style="font-weight:500; color:#0f172a">4 210,35 €</span><span style="font-size:12px; color:#dc2626">Supprimer</span></span></div></li>
+          </ul>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:16px">
+            <h2 style="margin:0; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Crédit Agricole</h2>
+          </div>
+          <ul style="margin:0; padding:0; list-style:none">
+            <li style="border-bottom:1px solid #e2e8f0"><div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; font-size:14px; cursor:pointer"><span style="display:flex; align-items:center; color:#0f172a"><span style="display:flex; height:20px; width:20px; margin-right:8px; align-items:center; justify-content:center; border-radius:4px; background:#f8fafc; font-size:10px; font-weight:600; color:#64748b">C</span>Assurance-vie Floriane<span style="margin-left:8px; font-size:12px; color:#64748b">1 ligne</span></span><span style="display:flex; align-items:center; gap:12px"><span style="font-weight:500; color:#0f172a">61 200,00 €</span><span style="font-size:12px; color:#dc2626">Supprimer</span></span></div></li>
+            <li><div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; font-size:14px; cursor:pointer"><span style="display:flex; align-items:center; color:#0f172a"><span style="display:flex; height:20px; width:20px; margin-right:8px; align-items:center; justify-content:center; border-radius:4px; background:#f8fafc; font-size:10px; font-weight:600; color:#64748b">C</span>Livret A<span style="margin-left:8px; font-size:12px; color:#64748b">1 ligne</span></span><span style="display:flex; align-items:center; gap:12px"><span style="font-weight:500; color:#0f172a">22 950,00 €</span><span style="font-size:12px; color:#dc2626">Supprimer</span></span></div></li>
+          </ul>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:16px">
+            <h2 style="margin:0; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Sans établissement</h2>
+          </div>
+          <ul style="margin:0; padding:0; list-style:none">
+            <li><div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; font-size:14px"><span style="display:flex; align-items:center; color:#0f172a"><span title="Ce n'est pas un compte, mais le regroupement des lignes de votre patrimoine qui ne sont rattachées à aucun compte.">Sans compte</span><span style="margin-left:8px; font-size:12px; color:#64748b">2 lignes</span></span><span style="font-weight:500; color:#0f172a">219 700,00 €</span></div></li>
+          </ul>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estDetail }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Détail position (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <button type="button" onClick="{{ allerPatrimoine }}" style="display:inline-flex; align-items:center; gap:4px; align-self:flex-start; border:0; background:transparent; font-size:14px; color:#4f46e5; cursor:pointer; font-family:inherit" style-hover="text-decoration:underline">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10 H4.5 M9.5 4.5 L4 10 L9.5 15.5"></path></svg> Retour au patrimoine
+        </button>
+
+        <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap">
+          <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Amundi MSCI World UCITS ETF</h2>
+          <span style="font-size:14px; color:#64748b">CW8.PA</span>
+          <span style="border-radius:9999px; background:#f8fafc; padding:2px 8px; font-size:12px; font-weight:500; color:#64748b">ETF / Fonds</span>
+          <a href="#" style="border-radius:9999px; background:#f8fafc; padding:2px 8px; font-size:12px; font-weight:500; color:#64748b; text-decoration:none">PEA</a>
+        </div>
+
+        <div role="tablist" style="display:flex; gap:4px; border-bottom:1px solid #e2e8f0">
+          <button type="button" role="tab" aria-selected="true" style="margin-bottom:-1px; border:0; border-bottom:2px solid #0f172a; border-radius:6px 6px 0 0; background:transparent; padding:8px 12px; font-size:14px; font-weight:500; color:#0f172a; cursor:pointer; font-family:inherit">Aperçu</button>
+          <button type="button" role="tab" aria-selected="false" style="margin-bottom:-1px; border:0; border-bottom:2px solid transparent; border-radius:6px 6px 0 0; background:transparent; padding:8px 12px; font-size:14px; font-weight:500; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">Analyse</button>
+          <button type="button" role="tab" aria-selected="false" style="margin-bottom:-1px; border:0; border-bottom:2px solid transparent; border-radius:6px 6px 0 0; background:transparent; padding:8px 12px; font-size:14px; font-weight:500; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">Paramètres</button>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px">
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Quantité</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#0f172a">142</p></div>
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Prix de revient</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#0f172a">432,80 €</p></div>
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Prix actuel</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#0f172a">512,40 €</p></div>
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Valeur</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#0f172a">72 760,80 €</p></div>
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Depuis achat</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#047857">+18,4 %</p></div>
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Rendement annualisé</p><p style="margin:4px 0 0; font-size:18px; font-weight:600; color:#0f172a">+9,2 %</p></div>
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Secteur</p><p style="margin:4px 0 0; font-size:14px; color:#0f172a">—</p></div>
+            <div><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Pays</p><p style="margin:4px 0 0; font-size:14px; color:#0f172a">Monde</p></div>
+          </div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Historique du cours</h2>
+          <svg viewBox="0 0 900 240" width="100%" height="240" preserveAspectRatio="none" role="img" aria-label="Historique du cours">
+            <g stroke="#e2e8f0" stroke-dasharray="3 3"><line x1="70" y1="20" x2="890" y2="20"></line><line x1="70" y1="75" x2="890" y2="75"></line><line x1="70" y1="130" x2="890" y2="130"></line><line x1="70" y1="185" x2="890" y2="185"></line><line x1="70" y1="210" x2="890" y2="210"></line></g>
+            <g fill="#64748b" font-size="11" font-family="system-ui, sans-serif"><text x="62" y="24" text-anchor="end">540 €</text><text x="62" y="79" text-anchor="end">490 €</text><text x="62" y="134" text-anchor="end">440 €</text><text x="62" y="189" text-anchor="end">390 €</text></g>
+            <polyline fill="none" stroke="#2563eb" stroke-width="2" points="70,196 140,188 210,170 280,178 350,152 420,144 490,120 560,128 630,104 700,86 770,70 840,52 890,40"></polyline>
+          </svg>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Émetteur, résumé &amp; frais</h2>
+          <div style="display:flex; flex-direction:column; gap:12px; font-size:14px">
+            <p style="margin:0"><span style="font-weight:500; color:#0f172a">Émetteur : </span>Amundi Asset Management</p>
+            <p style="margin:0; color:#0f172a">Le fonds réplique l'indice MSCI World, qui mesure la performance des grandes et moyennes capitalisations de 23 pays développés.</p>
+            <div style="display:flex; gap:24px; border-top:1px solid #e2e8f0; padding-top:12px">
+              <div><p style="margin:0; font-size:12px; color:#64748b">Frais de gestion annuels</p><p style="margin:0; font-weight:500; color:#0f172a">0,38%</p></div>
+              <div><p style="margin:0; font-size:12px; color:#64748b">Frais de transaction payés (cumulés)</p><p style="margin:0; font-weight:500; color:#0f172a">148,20 €</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estBudget }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Budget (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px">
+          <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Budget</h2>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px">
+            <div style="display:flex; gap:4px">
+              <button type="button" style="border:0; border-radius:6px; padding:6px 10px; font-size:14px; font-weight:500; background:#0f172a; color:#fff; cursor:pointer; font-family:inherit">Mensuel</button>
+              <button type="button" style="border:0; border-radius:6px; padding:6px 10px; font-size:14px; font-weight:500; background:#f8fafc; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">Annuel</button>
+              <button type="button" style="border:0; border-radius:6px; padding:6px 10px; font-size:14px; font-weight:500; background:#f8fafc; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">Personnalisé</button>
+            </div>
+            <input type="month" value="2026-09" style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 12px; font-size:14px; color:#0f172a; font-family:inherit" />
+          </div>
+        </div>
+        <h3 style="margin:0; font-size:14px; font-weight:400; color:#64748b">Septembre 2026</h3>
+
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px">
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Entrées</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#047857">5 480 €</p></div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Sorties</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">3 912 €</p></div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Disponible</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#047857">1 568 €</p></div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Dépenses récurrentes / mois</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">2 145 €</p><p style="margin:2px 0 0; font-size:12px; color:#64748b">estimé sur les 3 derniers mois</p></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px">
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Taux d'épargne réel</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">24,3 %</p><p style="margin:2px 0 0; font-size:12px; color:#64748b">sorties catégorie « Épargne » / entrées</p></div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Reste à vivre</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#047857">1 980 €</p><p style="margin:2px 0 0; font-size:12px; color:#64748b">entrées − logement − charges récurrentes</p></div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Répartition par catégorie</h2>
+          <ul style="margin:0; padding:0; list-style:none">
+            <li style="padding:8px 0; border-bottom:1px solid #e2e8f0"><div style="display:flex; justify-content:space-between; font-size:14px"><span style="color:#0f172a">Logement</span><span style="font-weight:500; color:#0f172a">1 240 € <span style="font-weight:400; color:#64748b">/ 1 200 €</span></span></div><div style="margin-top:6px; height:6px; border-radius:9999px; background:#f8fafc"><div style="height:6px; width:100%; border-radius:9999px; background:#b45309"></div></div></li>
+            <li style="padding:8px 0; border-bottom:1px solid #e2e8f0"><div style="display:flex; justify-content:space-between; font-size:14px"><span style="color:#0f172a">Courses</span><span style="font-weight:500; color:#0f172a">612 € <span style="font-weight:400; color:#64748b">/ 700 €</span></span></div><div style="margin-top:6px; height:6px; border-radius:9999px; background:#f8fafc"><div style="height:6px; width:87%; border-radius:9999px; background:#4f46e5"></div></div></li>
+            <li style="padding:8px 0; border-bottom:1px solid #e2e8f0"><div style="display:flex; justify-content:space-between; font-size:14px"><span style="color:#0f172a">Épargne</span><span style="font-weight:500; color:#0f172a">1 330 € <span style="font-weight:400; color:#64748b">/ 1 300 €</span></span></div><div style="margin-top:6px; height:6px; border-radius:9999px; background:#f8fafc"><div style="height:6px; width:100%; border-radius:9999px; background:#047857"></div></div></li>
+            <li style="padding:8px 0"><div style="display:flex; justify-content:space-between; font-size:14px"><span style="color:#0f172a">Loisirs</span><span style="font-weight:500; color:#0f172a">284 € <span style="font-weight:400; color:#64748b">/ 400 €</span></span></div><div style="margin-top:6px; height:6px; border-radius:9999px; background:#f8fafc"><div style="height:6px; width:71%; border-radius:9999px; background:#4f46e5"></div></div></li>
+          </ul>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Mouvements</h2>
+          <table style="width:100%; font-size:14px; border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid #e2e8f0; text-align:left; font-size:12px; font-weight:500; text-transform:uppercase; color:#64748b"><th style="padding:8px 16px 8px 0">Date</th><th style="padding:8px 16px 8px 0">Libellé</th><th style="padding:8px 16px 8px 0">Catégorie</th><th style="padding:8px 0; text-align:right">Montant</th></tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 16px 8px 0; color:#64748b">03/09/2026</td><td style="padding:8px 16px 8px 0; color:#0f172a">VIR SALAIRE SEPT</td><td style="padding:8px 16px 8px 0"><select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:2px 6px; font-size:12px; color:#0f172a; font-family:inherit"><option>Revenus</option></select></td><td style="padding:8px 0; text-align:right; font-weight:500; color:#047857">+3 420,00 €</td></tr>
+              <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 16px 8px 0; color:#64748b">02/09/2026</td><td style="padding:8px 16px 8px 0; color:#0f172a">PRLV CREDIT IMMO</td><td style="padding:8px 16px 8px 0"><select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:2px 6px; font-size:12px; color:#0f172a; font-family:inherit"><option>Logement</option></select></td><td style="padding:8px 0; text-align:right; font-weight:500; color:#0f172a">−1 042,00 €</td></tr>
+              <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 16px 8px 0; color:#64748b">02/09/2026</td><td style="padding:8px 16px 8px 0; color:#0f172a">CB MONOPRIX</td><td style="padding:8px 16px 8px 0"><select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:2px 6px; font-size:12px; color:#0f172a; font-family:inherit"><option>Courses</option></select></td><td style="padding:8px 0; text-align:right; font-weight:500; color:#0f172a">−84,32 €</td></tr>
+              <tr><td style="padding:8px 16px 8px 0; color:#64748b">01/09/2026</td><td style="padding:8px 16px 8px 0; color:#0f172a">VIR PEA BOURSORAMA</td><td style="padding:8px 16px 8px 0"><select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:2px 6px; font-size:12px; color:#0f172a; font-family:inherit"><option>Épargne</option></select></td><td style="padding:8px 0; text-align:right; font-weight:500; color:#0f172a">−800,00 €</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estRapport }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Rapport (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px">
+          <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Rapport</h2>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px">
+            <div style="display:flex; gap:4px">
+              <button type="button" style="border:0; border-radius:6px; padding:6px 10px; font-size:14px; font-weight:500; background:#0f172a; color:#fff; cursor:pointer; font-family:inherit">Mensuel</button>
+              <button type="button" style="border:0; border-radius:6px; padding:6px 10px; font-size:14px; font-weight:500; background:#f8fafc; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">Annuel</button>
+              <button type="button" style="border:0; border-radius:6px; padding:6px 10px; font-size:14px; font-weight:500; background:#f8fafc; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">Personnalisé</button>
+            </div>
+            <input type="month" value="2026-09" style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 12px; font-size:14px; color:#0f172a; font-family:inherit" />
+          </div>
+        </div>
+        <h3 style="margin:0; font-size:14px; font-weight:400; color:#64748b">Septembre 2026</h3>
+
+        <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px">
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)"><h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Valeur en fin de période</h2><p style="margin:0; font-size:24px; font-weight:600; color:#0f172a">126 119 €</p></div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)"><h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Évolution sur la période</h2><p style="margin:0; font-size:24px; font-weight:600; color:#047857">+4,8 %</p></div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)"><h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Dividendes perçus</h2><p style="margin:0; font-size:24px; font-weight:600; color:#047857">412,60 €</p></div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">D'où vient l'évolution ?</h2>
+          <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px">
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Investi sur la période</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">2 400 €</p></div>
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Généré sur la période</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#047857">3 380 €</p></div>
+          </div>
+          <p style="margin:12px 0 0; font-size:14px; color:#64748b">« Investi » : ce que vous avez vous-même ajouté (achats réels) sur la période. « Généré » : plus-value, dividendes et intérêts — ce que le portefeuille a produit de lui-même, distinct de l'argent ajouté.</p>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Plus gros mouvements de la période</h2>
+          <ul style="margin:0; padding:0; list-style:none">
+            <li style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">01/09/2026 · Amundi MSCI World UCITS ETF</span><span style="font-weight:500; color:#0f172a">−1 600,00 €</span></li>
+            <li style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; font-size:14px; border-bottom:1px solid #e2e8f0"><span style="color:#0f172a">15/09/2026 · TotalEnergies SE</span><span style="font-weight:500; color:#047857">+248,30 €</span></li>
+            <li style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; font-size:14px"><span style="color:#0f172a">22/09/2026 · BNP Paribas Easy S&amp;P 500</span><span style="font-weight:500; color:#0f172a">−800,00 €</span></li>
+          </ul>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estReglages }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Réglages (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Réglages</h2>
+        <div role="tablist" style="display:flex; flex-wrap:wrap; gap:4px; border-radius:8px; background:#f8fafc; padding:4px">
+          <button type="button" role="tab" aria-selected="true" style="display:flex; align-items:center; gap:6px; border:0; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; background:#fff; color:#0f172a; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); cursor:pointer; font-family:inherit">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="2.6"></circle><path d="M10 3.4 V5.2 M10 14.8 V16.6 M16.6 10 H14.8 M5.2 10 H3.4 M14.8 5.2 L13.5 6.5 M6.5 13.5 L5.2 14.8 M14.8 14.8 L13.5 13.5 M6.5 6.5 L5.2 5.2"></path></svg>Général</button>
+          <button type="button" role="tab" aria-selected="false" style="display:flex; align-items:center; gap:6px; border:0; background:transparent; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="7" r="3.2"></circle><path d="M4 16.5 C4 12.9 6.7 11 10 11 C13.3 11 16 12.9 16 16.5"></path></svg>Détenteurs</button>
+          <button type="button" role="tab" aria-selected="false" style="display:flex; align-items:center; gap:6px; border:0; background:transparent; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 L16 5.3 V9.5 C16 13.3 13.4 16.2 10 17.3 C6.6 16.2 4 13.3 4 9.5 V5.3 Z"></path><path d="M7.5 10 L9.2 11.7 L12.7 8"></path></svg>Comptes &amp; sécurité</button>
+          <button type="button" role="tab" aria-selected="false" style="display:flex; align-items:center; gap:6px; border:0; background:transparent; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="10" r="2.2"></circle><circle cx="14.5" cy="4.5" r="2.2"></circle><circle cx="14.5" cy="15.5" r="2.2"></circle><path d="M7 9 L12.5 5.5 M7 11 L12.5 14.5"></path></svg>Partage</button>
+          <button type="button" role="tab" aria-selected="false" style="display:flex; align-items:center; gap:6px; border:0; background:transparent; border-radius:6px; padding:6px 12px; font-size:14px; font-weight:500; color:#64748b; cursor:pointer; font-family:inherit" style-hover="color:#0f172a">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.8"></circle><path d="M10 6 V10 L12.8 12"></path></svg>Automatisations</button>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Assistant de bienvenue</h2>
+          <p style="margin:0 0 16px; font-size:14px; color:#0f172a">Le parcours guidé affiché à la création de ce compte — utile pour redécouvrir les réglages de départ, ou revoir ceux qui n'auraient pas été renseignés au premier passage.</p>
+          <button type="button" style="border:1px solid #0f172a; background:transparent; border-radius:6px; padding:8px 16px; font-size:14px; font-weight:500; color:#0f172a; cursor:pointer; font-family:inherit">Revoir l'assistant de bienvenue</button>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Foyer</h2>
+          <div style="display:flex; flex-direction:column; gap:12px; max-width:420px">
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Nom du foyer<input value="Foyer Nello" style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:8px 12px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Devise<select style="border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:8px 12px; font-size:14px; color:#0f172a; font-family:inherit"><option>EUR (€)</option></select></label>
+          </div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Exporter</h2>
+          <p style="margin:0 0 16px; font-size:14px; color:#0f172a">Fichiers CSV compatibles Excel (séparateur point-virgule, décimale virgule), téléchargés directement par le navigateur.</p>
+          <div style="display:flex; flex-wrap:wrap; gap:12px">
+            <a href="#" style="border-radius:6px; background:#0f172a; padding:8px 16px; font-size:14px; font-weight:500; color:#fff; text-decoration:none">Positions</a>
+            <a href="#" style="border-radius:6px; background:#0f172a; padding:8px 16px; font-size:14px; font-weight:500; color:#fff; text-decoration:none">Transactions</a>
+            <a href="#" style="border-radius:6px; background:#0f172a; padding:8px 16px; font-size:14px; font-weight:500; color:#fff; text-decoration:none">Rentabilité</a>
+          </div>
+          <p style="margin:24px 0 16px; font-size:14px; color:#0f172a">Relevé de patrimoine PDF : une photographie mise en forme, prête à imprimer ou archiver — patrimoine net, répartition et rentabilité globale.</p>
+          <a href="#" style="display:inline-block; border-radius:6px; border:1px solid #0f172a; padding:8px 16px; font-size:14px; font-weight:500; color:#0f172a; text-decoration:none">Relevé de patrimoine (PDF)</a>
+          <p style="margin:24px 0 16px; font-size:14px; color:#0f172a">Déclaration de patrimoine : un document paramétrable pour un tiers concret (banque pour un prêt, notaire pour une donation) — sélection actif par actif, filtrage par détenteur, profil emprunteur optionnel.</p>
+          <button type="button" style="border:1px solid #0f172a; background:transparent; border-radius:6px; padding:8px 16px; font-size:14px; font-weight:500; color:#0f172a; cursor:pointer; font-family:inherit">Déclaration de patrimoine (PDF)</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estObjectifs }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Objectifs (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Simulateur</h2>
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Hypothèses</h2>
+          <div style="display:flex; flex-wrap:wrap; gap:12px">
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Capital de départ<input type="number" value="126119" style="width:144px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Versement mensuel<input type="number" value="650" style="width:144px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Rendement annuel (%)<input type="number" value="6" style="width:112px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Durée (années)<input type="number" value="20" style="width:112px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+          </div>
+          <svg viewBox="0 0 900 240" width="100%" height="240" preserveAspectRatio="none" role="img" aria-label="Projection" style="margin-top:16px">
+            <g stroke="#e2e8f0" stroke-dasharray="3 3"><line x1="80" y1="20" x2="890" y2="20"></line><line x1="80" y1="80" x2="890" y2="80"></line><line x1="80" y1="140" x2="890" y2="140"></line><line x1="80" y1="210" x2="890" y2="210"></line></g>
+            <g fill="#64748b" font-size="11" font-family="system-ui, sans-serif"><text x="72" y="24" text-anchor="end">700 k€</text><text x="72" y="84" text-anchor="end">466 k€</text><text x="72" y="144" text-anchor="end">233 k€</text><text x="72" y="214" text-anchor="end">0 €</text></g>
+            <path d="M80 173 L 195 165 L 310 154 L 425 138 L 540 116 L 655 88 L 770 53 L 890 20 L 890 210 L 80 210 Z" fill="#86efac" stroke="none"></path>
+            <path d="M80 173 L 195 168 L 310 163 L 425 158 L 540 153 L 655 148 L 770 143 L 890 138 L 890 210 L 80 210 Z" fill="#cbd5e1" stroke="none"></path>
+            <polyline fill="none" stroke="#16a34a" stroke-width="2" points="80,173 195,165 310,154 425,138 540,116 655,88 770,53 890,20"></polyline>
+          </svg>
+          <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px; margin-top:16px">
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Valeur finale</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">699 840 €</p></div>
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Total versé</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">282 119 €</p></div>
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Dont intérêts gagnés</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#047857">417 721 €</p></div>
+          </div>
+        </div>
+
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Indépendance financière (FIRE)</h2>
+          <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px">
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Dépenses annuelles<input type="number" value="34000" style="width:144px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:#64748b">Taux de retrait (%)<input type="number" value="4" style="width:112px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:6px 8px; font-size:14px; color:#0f172a; font-family:inherit" /></label>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px">
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Patrimoine nécessaire</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">850 000 €</p></div>
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Atteint dans</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">22 ans</p></div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estDividendes }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Dividendes (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Dividendes</h2>
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px">
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)"><h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Total perçu</h2><p style="margin:0; font-size:24px; font-weight:600; color:#047857">1 842,30 €</p></div>
+          <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)"><h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Par mois</h2>
+            <svg viewBox="0 0 400 120" width="100%" height="120" role="img" aria-label="Dividendes par mois"><g fill="#2563eb"><rect x="10" y="80" width="22" height="30"></rect><rect x="42" y="60" width="22" height="50"></rect><rect x="74" y="94" width="22" height="16"></rect><rect x="106" y="40" width="22" height="70"></rect><rect x="138" y="72" width="22" height="38"></rect><rect x="170" y="20" width="22" height="90"></rect><rect x="202" y="86" width="22" height="24"></rect><rect x="234" y="66" width="22" height="44"></rect><rect x="266" y="50" width="22" height="60"></rect><rect x="298" y="90" width="22" height="20"></rect><rect x="330" y="76" width="22" height="34"></rect><rect x="362" y="58" width="22" height="52"></rect></g></svg>
+          </div>
+        </div>
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Détail</h2>
+          <table style="width:100%; font-size:14px; border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid #e2e8f0; text-align:left; font-size:12px; font-weight:500; text-transform:uppercase; color:#64748b"><th style="padding:8px 16px 8px 0">Date</th><th style="padding:8px 16px 8px 0">Position</th><th style="padding:8px 0; text-align:right">Montant</th></tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 16px 8px 0; color:#64748b">15/09/2026</td><td style="padding:8px 16px 8px 0; color:#0f172a">TotalEnergies SE</td><td style="padding:8px 0; text-align:right; font-weight:500; color:#047857">248,30 €</td></tr>
+              <tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 16px 8px 0; color:#64748b">28/06/2026</td><td style="padding:8px 16px 8px 0; color:#0f172a">Air Liquide S.A.</td><td style="padding:8px 0; text-align:right; font-weight:500; color:#047857">192,00 €</td></tr>
+              <tr><td style="padding:8px 16px 8px 0; color:#64748b">12/05/2026</td><td style="padding:8px 16px 8px 0; color:#0f172a">LVMH Moët Hennessy</td><td style="padding:8px 0; text-align:right; font-weight:500; color:#047857">156,00 €</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ estSalaire }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Salaire (actuel)" style="display:flex; flex-direction:column; gap:24px">
+        <h2 style="margin:0; font-size:20px; line-height:28px; font-weight:600; color:#0f172a">Salaire</h2>
+        <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:20px; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)">
+          <h2 style="margin:0 0 16px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Taux d'épargne du foyer</h2>
+          <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px">
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Revenu net total</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">65 760 €</p></div>
+            <div style="border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:16px"><p style="margin:0; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.025em; color:#64748b">Investi cette année</p><p style="margin:4px 0 0; font-size:24px; font-weight:600; color:#0f172a">15 980 €</p></div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </main>
+</div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const NAV_BASE = 'display:flex; align-items:center; gap:10px; width:100%; border:0; border-radius:6px; padding:8px 10px; font-size:14px; font-weight:500; text-align:left; cursor:pointer; font-family:inherit; ';
+const NAV_ON = NAV_BASE + 'background:#0f172a; color:#fff;';
+const NAV_OFF = NAV_BASE + 'background:transparent; color:#64748b;';
+
+const SEG_BASE = 'border:0; border-radius:4px; padding:4px 10px; font-size:14px; font-weight:500; cursor:pointer; font-family:inherit; ';
+const SEG_ON = SEG_BASE + 'background:#0f172a; color:#fff;';
+const SEG_OFF = SEG_BASE + 'background:transparent; color:#64748b;';
+
+const ARIANE = {
+  patrimoine: 'Patrimoine', comptes: 'Comptes', detail: 'CW8.PA', budget: 'Budget',
+  rapport: 'Rapport', reglages: 'Réglages', objectifs: 'Objectifs',
+  dividendes: 'Dividendes', salaire: 'Salaire',
+};
+
+class Component extends DCLogic {
+  state = { screen: 'synthese', vue: 'net' };
+
+  go(screen) { return () => this.setState({ screen }); }
+
+  renderVals() {
+    const s = this.state.screen;
+    const v = this.state.vue;
+    return {
+      estLogin: s === 'login',
+      estApp: s !== 'login',
+      estSynthese: s === 'synthese',
+      estPatrimoine: s === 'patrimoine',
+      estComptes: s === 'comptes',
+      estDetail: s === 'detail',
+      estBudget: s === 'budget',
+      estRapport: s === 'rapport',
+      estReglages: s === 'reglages',
+      estObjectifs: s === 'objectifs',
+      estDividendes: s === 'dividendes',
+      estSalaire: s === 'salaire',
+      ariane: ARIANE[s] || '',
+      voirApp: this.go('synthese'),
+      voirLogin: this.go('login'),
+      allerSynthese: this.go('synthese'),
+      allerPatrimoine: this.go('patrimoine'),
+      allerComptes: this.go('comptes'),
+      allerDetail: this.go('detail'),
+      allerBudget: this.go('budget'),
+      allerRapport: this.go('rapport'),
+      allerReglages: this.go('reglages'),
+      allerObjectifs: this.go('objectifs'),
+      allerDividendes: this.go('dividendes'),
+      allerSalaire: this.go('salaire'),
+      styleNavSynthese: s === 'synthese' ? NAV_ON : NAV_OFF,
+      styleNavPatrimoine: s === 'patrimoine' || s === 'detail' ? NAV_ON : NAV_OFF,
+      styleNavObjectifs: s === 'objectifs' ? NAV_ON : NAV_OFF,
+      styleNavComptes: s === 'comptes' ? NAV_ON : NAV_OFF,
+      styleNavDividendes: s === 'dividendes' ? NAV_ON : NAV_OFF,
+      styleNavBudget: s === 'budget' ? NAV_ON : NAV_OFF,
+      styleNavRapport: s === 'rapport' ? NAV_ON : NAV_OFF,
+      styleNavSalaire: s === 'salaire' ? NAV_ON : NAV_OFF,
+      vueNet: () => this.setState({ vue: 'net' }),
+      vueBrut: () => this.setState({ vue: 'brut' }),
+      vueFinancier: () => this.setState({ vue: 'financier' }),
+      styleVueNet: v === 'net' ? SEG_ON : SEG_OFF,
+      styleVueBrut: v === 'brut' ? SEG_ON : SEG_OFF,
+      styleVueFinancier: v === 'financier' ? SEG_ON : SEG_OFF,
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* Refonte « liquid glass » (05/09/2026), étape 1 — jetons de verre livrés par le
+   paquet de design, copiés tels quels dans `styles/tokens-glass.css` et rattachés à
+   `:root[data-theme='clair'|'sombre']`. Importés AVANT les règles ci-dessous pour
+   que celles déjà en place gardent la main tant que les écrans n'ont pas été repris
+   (le portage se fait écran par écran, cf. `docs/Ressources/…/README.md`).
+   Un seul effet visible à cette étape, vérifié au navigateur : `--accent` existe
+   dans les DEUX systèmes de jetons, et le sélecteur d'attribut l'emportant sur
+   `:root`/`.dark`, l'accent de toute l'application passe de l'indigo au bleu de la
+   refonte (boutons, liens, anneau de focus). Le fond à halos (`--app-bg`) est bien
+   posé sur `<body>` mais reste invisible pour l'instant : chaque écran est recouvert
+   par un conteneur racine opaque (`bg-surface-elevee`), y compris la connexion. Il
+   apparaîtra quand la coque commune sera reprise (étape 3). */
+@import "./styles/tokens-glass.css";
+
 /* Mode sombre (LOT 5.12) : variante `dark:` pilotée par une classe posée sur
    `<html>` (cf. `useTheme.ts`), pas seulement par `prefers-color-scheme` — pour que
    le choix explicite de l'utilisateur prime sur celui du système. Sans cette
@@ -110,6 +124,59 @@ body {
   --text-micro--line-height: 1.4;
   --text-micro--font-weight: 500;
   --text-micro--letter-spacing: 0.03em;
+
+  /* --- Refonte « liquid glass » (05/09/2026), étape 1 ------------------------
+     Équivalent CSS-first du `tailwind.config.additions.js` du paquet de design :
+     ce dépôt est en Tailwind v4 et n'a pas de `tailwind.config.js` à fusionner.
+     Les valeurs restent dans `styles/tokens-glass.css` — ce bloc ne fait que les
+     exposer en utilitaires (`bg-panel`, `text-ink3`, `rounded-card`, `shadow-glass`…).
+     `--color-accent` n'est pas redéclaré : il pointe déjà vers `--accent`, que le
+     fichier de jetons redéfinit. */
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink2);
+  --color-ink3: var(--ink3);
+  --color-ink4: var(--ink4);
+  --color-panel: var(--panel);
+  --color-panel-hi: var(--panel-hi);
+  --color-stroke: var(--stroke);
+  --color-hairline: var(--hairline);
+  --color-chip: var(--chip);
+  --color-track: var(--track);
+  --color-hover: var(--hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-pos: var(--pos);
+  --color-pos-bg: var(--pos-bg);
+  --color-neg: var(--neg);
+  --color-neg-bg: var(--neg-bg);
+  /* Série de graphiques, du plus au moins important — une seule famille. */
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-s3: var(--s3);
+  --color-s4: var(--s4);
+  --color-s5: var(--s5);
+
+  /* Rayons : 11 / 18 / 20 / 22 / 999 px, aucune autre valeur (README § Jetons). */
+  --radius-control: 11px;
+  --radius-card: 18px;
+  --radius-panel: 20px;
+  --radius-hero: 22px;
+  --radius-chip: 999px;
+
+  --shadow-glass: var(--shadow);
+  --shadow-glass-lg: var(--shadow-lg);
+  --shadow-accent: var(--accent-glow);
+  /* Alimente `blur-glass` ET `backdrop-blur-glass` (même échelle en Tailwind v4). */
+  --blur-glass: 28px;
+
+  --tracking-hero: -0.035em;
+  --tracking-title: -0.025em;
+
+  /* Pile système Apple d'abord (SF Pro sur macOS/iOS), mais `system-ui` AVANT
+     Helvetica : sur Windows, la pile du paquet retombait sur Helvetica/Arial alors
+     que la police système correcte y est Segoe UI. Seul écart assumé au paquet. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto,
+    "Helvetica Neue", Helvetica, sans-serif;
 }
 
 :root {

@@ -1,0 +1,135 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Refonte « liquid glass » — jetons de thème
+   À importer une seule fois, au-dessus de Tailwind, dans frontend/src/index.css :
+       @import './styles/tokens-glass.css';
+   Puis poser le thème sur <html> : document.documentElement.dataset.theme = 'clair' | 'sombre'
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme='clair'] {
+  /* fond de l'application (les halos colorés qui donnent sa matière au verre) */
+  --app-bg:
+    radial-gradient(680px 460px at 12% 8%, rgba(120, 160, 255, 0.42), transparent 62%),
+    radial-gradient(560px 420px at 88% 4%, rgba(255, 176, 150, 0.34), transparent 60%),
+    radial-gradient(760px 560px at 72% 92%, rgba(150, 220, 205, 0.36), transparent 62%),
+    linear-gradient(160deg, #f4f6fa, #e7eaf1);
+
+  /* surfaces de verre */
+  --panel: rgba(255, 255, 255, 0.56);
+  --panel-hi: rgba(255, 255, 255, 0.62);
+  --stroke: rgba(255, 255, 255, 0.7);
+  --hairline: rgba(22, 24, 29, 0.09);
+  --chip: rgba(255, 255, 255, 0.55);
+  --hover: rgba(22, 24, 29, 0.04);
+  --track: rgba(22, 24, 29, 0.06);
+  --blur: blur(28px) saturate(180%);
+
+  --shadow: 0 8px 30px rgba(20, 26, 40, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --shadow-lg: 0 14px 40px rgba(20, 26, 40, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* encre — 4 niveaux, jamais plus */
+  --ink: #16181d;
+  --ink2: #4b5262;
+  --ink3: #6b7280;
+  --ink4: #9aa1ad;
+
+  /* accent + états */
+  --accent: #2a6df4;
+  --accent-soft: rgba(42, 109, 244, 0.12);
+  --accent-grad: linear-gradient(150deg, #4f8dff, #2a6df4);
+  --accent-glow: 0 4px 14px rgba(42, 109, 244, 0.3);
+  --pos: #0f7a4f;
+  --pos-bg: rgba(22, 145, 95, 0.12);
+  --neg: #c0392b;
+  --neg-bg: rgba(192, 57, 43, 0.1);
+
+  /* pastille active d'un contrôle segmenté */
+  --on-bg: #ffffff;
+  --on-ink: #16181d;
+
+  /* série de graphiques — une seule famille, du plus au moins important */
+  --s1: #2a6df4;
+  --s2: #5b93f7;
+  --s3: #8fb6fa;
+  --s4: #b9d0fc;
+  --s5: #d9e5fd;
+}
+
+:root[data-theme='sombre'] {
+  --app-bg:
+    radial-gradient(660px 460px at 10% 6%, rgba(70, 110, 240, 0.4), transparent 62%),
+    radial-gradient(520px 400px at 92% 2%, rgba(220, 90, 120, 0.24), transparent 60%),
+    radial-gradient(760px 560px at 76% 96%, rgba(40, 170, 150, 0.26), transparent 62%),
+    linear-gradient(160deg, #12141a, #08090c);
+
+  --panel: rgba(255, 255, 255, 0.07);
+  --panel-hi: rgba(255, 255, 255, 0.08);
+  --stroke: rgba(255, 255, 255, 0.13);
+  --hairline: rgba(255, 255, 255, 0.12);
+  --chip: rgba(255, 255, 255, 0.05);
+  --hover: rgba(255, 255, 255, 0.06);
+  --track: rgba(0, 0, 0, 0.28);
+  --blur: blur(30px) saturate(180%);
+
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+
+  --ink: #ffffff;
+  --ink2: #d5d9e0;
+  --ink3: #9aa1ad;
+  --ink4: #6b7280;
+
+  --accent: #7db0ff;
+  --accent-soft: rgba(125, 176, 255, 0.16);
+  --accent-grad: linear-gradient(150deg, #7db0ff, #3d7bf5);
+  --accent-glow: 0 4px 14px rgba(61, 123, 245, 0.4);
+  --pos: #4ce6a4;
+  --pos-bg: rgba(61, 220, 151, 0.16);
+  --neg: #ff8a7a;
+  --neg-bg: rgba(255, 138, 122, 0.14);
+
+  --on-bg: #f2f3f5;
+  --on-ink: #0a0b0e;
+
+  --s1: #7db0ff;
+  --s2: #5b9cff;
+  --s3: #4177d6;
+  --s4: #2f558f;
+  --s5: #233a5c;
+}
+
+/* Le fond vit sur <body>, fixe, pour que le verre ait toujours quelque chose à filtrer. */
+body {
+  background: var(--app-bg);
+  background-attachment: fixed;
+  color: var(--ink);
+}
+
+/* Focus clavier — jamais l'anneau bleu par défaut du navigateur. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Repli : sans backdrop-filter (vieux Firefox, économiseur de batterie),
+   les panneaux deviennent opaques au lieu de devenir illisibles. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-theme='clair'] {
+    --panel: rgba(255, 255, 255, 0.92);
+    --panel-hi: rgba(255, 255, 255, 0.96);
+  }
+  :root[data-theme='sombre'] {
+    --panel: #191c22;
+    --panel-hi: #1e2229;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme='clair'] {
+    --panel: rgba(255, 255, 255, 0.94);
+    --panel-hi: rgba(255, 255, 255, 0.97);
+  }
+  :root[data-theme='sombre'] {
+    --panel: #191c22;
+    --panel-hi: #1e2229;
+  }
+}

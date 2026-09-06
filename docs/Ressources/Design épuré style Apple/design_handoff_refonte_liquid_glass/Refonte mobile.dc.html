@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin:0; background:#c9ccd4;
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, system-ui, sans-serif; }
+  *, *::before, *::after { box-sizing:border-box; }
+  a { color:#2a6df4; text-decoration:none; }
+  a:hover { color:#1d55c9; text-decoration:underline; }
+  :focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+  [data-theme="clair"] {
+    --bg: radial-gradient(420px 320px at 12% 4%, rgba(120,160,255,0.44), transparent 62%),
+          radial-gradient(380px 300px at 92% 10%, rgba(255,176,150,0.34), transparent 60%),
+          radial-gradient(480px 380px at 70% 96%, rgba(150,220,205,0.36), transparent 62%),
+          linear-gradient(160deg, #f4f6fa, #e7eaf1);
+    --panel: rgba(255,255,255,0.56); --panel-hi: rgba(255,255,255,0.64);
+    --stroke: rgba(255,255,255,0.7); --hairline: rgba(22,24,29,0.09);
+    --shadow: 0 8px 30px rgba(20,26,40,0.10), inset 0 1px 0 rgba(255,255,255,0.85);
+    --shadow-lg: 0 14px 40px rgba(20,26,40,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+    --ink: #16181d; --ink2: #4b5262; --ink3: #6b7280; --ink4: #9aa1ad;
+    --accent: #2a6df4; --accent-soft: rgba(42,109,244,0.12); --accent-grad: linear-gradient(150deg,#4f8dff,#2a6df4);
+    --accent-glow: 0 4px 14px rgba(42,109,244,0.3);
+    --pos: #0f7a4f; --pos-bg: rgba(22,145,95,0.12); --neg: #c0392b;
+    --track: rgba(22,24,29,0.06); --on-bg: #ffffff; --on-ink: #16181d;
+    --chip: rgba(255,255,255,0.55); --hover: rgba(22,24,29,0.04);
+    --s1:#2a6df4; --s2:#5b93f7; --s3:#8fb6fa; --s4:#b9d0fc; --s5:#d9e5fd;
+    --blur: blur(28px) saturate(180%);
+    --bezel: #d7dae2;
+  }
+  [data-theme="sombre"] {
+    --bg: radial-gradient(420px 320px at 10% 4%, rgba(70,110,240,0.42), transparent 62%),
+          radial-gradient(360px 300px at 94% 8%, rgba(220,90,120,0.24), transparent 60%),
+          radial-gradient(480px 380px at 74% 96%, rgba(40,170,150,0.26), transparent 62%),
+          linear-gradient(160deg, #12141a, #08090c);
+    --panel: rgba(255,255,255,0.07); --panel-hi: rgba(255,255,255,0.09);
+    --stroke: rgba(255,255,255,0.13); --hairline: rgba(255,255,255,0.12);
+    --shadow: 0 10px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14);
+    --shadow-lg: 0 16px 44px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.16);
+    --ink: #ffffff; --ink2: #d5d9e0; --ink3: #9aa1ad; --ink4: #6b7280;
+    --accent: #7db0ff; --accent-soft: rgba(125,176,255,0.16); --accent-grad: linear-gradient(150deg,#7db0ff,#3d7bf5);
+    --accent-glow: 0 4px 14px rgba(61,123,245,0.4);
+    --pos: #4ce6a4; --pos-bg: rgba(61,220,151,0.16); --neg: #ff8a7a;
+    --track: rgba(0,0,0,0.28); --on-bg: #f2f3f5; --on-ink: #0a0b0e;
+    --chip: rgba(255,255,255,0.05); --hover: rgba(255,255,255,0.06);
+    --s1:#7db0ff; --s2:#5b9cff; --s3:#4177d6; --s4:#2f558f; --s5:#233a5c;
+    --blur: blur(30px) saturate(180%);
+    --bezel: #1b1e25;
+  }
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="min-height:100vh; padding:40px 24px 56px; display:flex; flex-direction:column; align-items:center; gap:22px">
+
+  <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center">
+    <div>
+      <h1 style="margin:0; font-size:22px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">Refonte — mobile</h1>
+      <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">390 × 844 · même système de jetons que le desktop</p>
+    </div>
+    <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px">
+      <button type="button" onClick="{{ themeClair }}" style="{{ tgClair }}">Clair</button>
+      <button type="button" onClick="{{ themeSombre }}" style="{{ tgSombre }}">Sombre</button>
+    </div>
+  </div>
+
+  <div style="position:relative; width:390px; height:844px; flex-shrink:0; border-radius:52px; padding:11px; background:var(--bezel); box-shadow:0 30px 70px rgba(20,26,40,0.3), inset 0 0 0 1px rgba(255,255,255,0.14)">
+    <div style="position:relative; height:100%; overflow:hidden; border-radius:42px; background:#eceef3">
+      <div style="position:absolute; inset:0; background:var(--bg)"></div>
+
+      <div style="position:relative; display:flex; flex-direction:column; height:100%">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-shrink:0; padding:14px 26px 0; font-size:13px; font-weight:600; color:var(--ink)">
+          <span>9:41</span>
+          <span style="display:flex; align-items:center; gap:5px">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"></rect><rect x="4.5" y="5" width="3" height="6" rx="1"></rect><rect x="9" y="2.5" width="3" height="8.5" rx="1"></rect><rect x="13.5" y="0" width="3" height="11" rx="1"></rect></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" stroke-opacity="0.4"></rect><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"></rect><path d="M23 4 V8 A2 2 0 0 0 23 4 Z" fill="currentColor" fill-opacity="0.4"></path></svg>
+          </span>
+        </div>
+
+        <!-- ═══ SYNTHÈSE ═══ -->
+        <sc-if value="{{ estSynthese }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Mobile · Synthèse" style="flex:1; min-height:0; overflow-y:auto; padding:10px 14px 100px">
+          <div style="display:flex; align-items:center; gap:10px; padding:6px 4px 14px">
+            <div>
+              <p style="margin:0; font-size:20px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">Synthèse</p>
+              <p style="margin:2px 0 0; font-size:12px; color:var(--ink3)">Foyer · vue nette</p>
+            </div>
+            <button type="button" onClick="{{ basculerMontants }}" aria-label="Masquer les montants" style="margin-left:auto; display:flex; height:44px; width:44px; flex-shrink:0; align-items:center; justify-content:center; border:1px solid var(--hairline); border-radius:999px; background:var(--chip); color:var(--ink2); cursor:pointer; font-family:inherit">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M2.5 10 C4.5 5.5 7 3.5 10 3.5 C13 3.5 15.5 5.5 17.5 10 C15.5 14.5 13 16.5 10 16.5 C7 16.5 4.5 14.5 2.5 10 Z"></path><circle cx="10" cy="10" r="2.8"></circle></svg>
+            </button>
+            <span style="display:flex; height:44px; width:44px; flex-shrink:0; align-items:center; justify-content:center; border-radius:999px; background:linear-gradient(150deg,#8b93a5,#5f6674); color:#fff; font-size:15px; font-weight:600">N</span>
+          </div>
+
+          <div style="border-radius:22px; padding:20px 18px 10px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <p style="margin:0 0 3px; font-size:12px; font-weight:500; color:var(--ink3)">Patrimoine net</p>
+            <p style="margin:0; font-size:40px; line-height:1.05; font-weight:600; letter-spacing:-0.035em; color:var(--ink)">{{ hero }}</p>
+            <div style="display:flex; align-items:center; gap:7px; margin-top:9px">
+              <span style="display:inline-flex; align-items:center; gap:3px; border-radius:999px; background:var(--pos-bg); padding:3px 9px; font-size:12px; font-weight:600; color:var(--pos)">
+                <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 15.5 V5 M5.5 9.5 L10 5 L14.5 9.5"></path></svg>6,4 %</span>
+              <span style="font-size:12px; color:var(--ink3)">{{ delta }} · 12 mois</span>
+            </div>
+            <svg viewBox="0 0 340 120" width="100%" height="112" preserveAspectRatio="none" role="img" aria-label="Évolution du patrimoine net" style="margin-top:12px; display:block">
+              <defs>
+                <linearGradient id="mFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style="stop-color:var(--accent); stop-opacity:0.34"></stop>
+                  <stop offset="100%" style="stop-color:var(--accent); stop-opacity:0"></stop>
+                </linearGradient>
+              </defs>
+              <path d="{{ aire }}" fill="url(#mFill)"></path>
+              <path d="{{ courbe }}" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+            </svg>
+            <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px; margin-top:12px; margin-bottom:12px">
+              <button type="button" onClick="{{ periode1M }}" style="{{ per1M }}">1M</button>
+              <button type="button" onClick="{{ periode3M }}" style="{{ per3M }}">3M</button>
+              <button type="button" onClick="{{ periode1A }}" style="{{ per1A }}">1A</button>
+              <button type="button" onClick="{{ periode5A }}" style="{{ per5A }}">5A</button>
+              <button type="button" onClick="{{ periodeTout }}" style="{{ perTout }}">Tout</button>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px">
+            <div style="border-radius:18px; padding:14px 15px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:11px; font-weight:600; letter-spacing:0.02em; color:var(--ink3)">FINANCIER</p>
+              <p style="margin:0; font-size:19px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ mFinancier }}</p>
+              <p style="margin:4px 0 0; font-size:12px; color:var(--pos)">+4,8 %</p>
+            </div>
+            <div style="border-radius:18px; padding:14px 15px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:11px; font-weight:600; letter-spacing:0.02em; color:var(--ink3)">IMMOBILIER NET</p>
+              <p style="margin:0; font-size:19px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ mImmo }}</p>
+              <p style="margin:4px 0 0; font-size:12px; color:var(--ink3)">−244 130 €</p>
+            </div>
+            <div style="grid-column:1 / -1; border-radius:18px; padding:14px 15px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:11px; font-weight:600; letter-spacing:0.02em; color:var(--ink3)">ÉPARGNE</p>
+              <p style="margin:0; font-size:19px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ mEpargne }}</p>
+              <p style="margin:4px 0 0; font-size:12px; color:var(--ink3)">650 € / mois versés</p>
+            </div>
+          </div>
+
+          <div style="border-radius:20px; padding:16px 18px; margin-top:12px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <p style="margin:0 0 12px; font-size:14px; font-weight:600; letter-spacing:-0.01em; color:var(--ink)">Répartition</p>
+            <div style="display:flex; height:11px; border-radius:999px; overflow:hidden; gap:2px">
+              <span style="width:43.6%; background:var(--s1)"></span>
+              <span style="width:30.6%; background:var(--s2)"></span>
+              <span style="width:12.5%; background:var(--s3)"></span>
+              <span style="width:7.2%; background:var(--s4)"></span>
+              <span style="width:6.1%; background:var(--s5)"></span>
+            </div>
+            <div style="display:flex; flex-direction:column; margin-top:12px">
+              <div style="display:flex; align-items:center; gap:9px; padding:8px 0; border-bottom:1px solid var(--hairline)"><span style="width:8px; height:8px; flex-shrink:0; border-radius:3px; background:var(--s1)"></span><span style="font-size:13px; color:var(--ink2)">Immobilier</span><span style="margin-left:auto; font-size:13px; font-weight:600; color:var(--ink)">{{ rImmo }}</span></div>
+              <div style="display:flex; align-items:center; gap:9px; padding:8px 0; border-bottom:1px solid var(--hairline)"><span style="width:8px; height:8px; flex-shrink:0; border-radius:3px; background:var(--s2)"></span><span style="font-size:13px; color:var(--ink2)">Actions &amp; ETF</span><span style="margin-left:auto; font-size:13px; font-weight:600; color:var(--ink)">{{ rActions }}</span></div>
+              <div style="display:flex; align-items:center; gap:9px; padding:8px 0; border-bottom:1px solid var(--hairline)"><span style="width:8px; height:8px; flex-shrink:0; border-radius:3px; background:var(--s3)"></span><span style="font-size:13px; color:var(--ink2)">Assurance-vie</span><span style="margin-left:auto; font-size:13px; font-weight:600; color:var(--ink)">{{ rAv }}</span></div>
+              <div style="display:flex; align-items:center; gap:9px; padding:8px 0"><span style="width:8px; height:8px; flex-shrink:0; border-radius:3px; background:var(--s4)"></span><span style="font-size:13px; color:var(--ink2)">Épargne réglementée</span><span style="margin-left:auto; font-size:13px; font-weight:600; color:var(--ink)">{{ rEpargne }}</span></div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══ PATRIMOINE ═══ -->
+        <sc-if value="{{ estPatrimoine }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Mobile · Patrimoine" style="flex:1; min-height:0; overflow-y:auto; padding:10px 14px 100px">
+          <div style="display:flex; align-items:center; gap:10px; padding:6px 4px 14px">
+            <div>
+              <p style="margin:0; font-size:20px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">Patrimoine</p>
+              <p style="margin:2px 0 0; font-size:12px; color:var(--ink3)">{{ sousTitre }}</p>
+            </div>
+            <button type="button" aria-label="Ajouter une ligne" style="margin-left:auto; display:flex; height:44px; width:44px; flex-shrink:0; align-items:center; justify-content:center; border:0; border-radius:999px; background:var(--accent-grad); color:#fff; cursor:pointer; font-family:inherit; box-shadow:var(--accent-glow)">
+              <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5 V15.5 M4.5 10 H15.5"></path></svg>
+            </button>
+          </div>
+
+          <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px; margin-bottom:12px">
+            <button type="button" onClick="{{ filtreTous }}" style="{{ filTous }}">Tous</button>
+            <button type="button" onClick="{{ filtreActions }}" style="{{ filActions }}">Actions</button>
+            <button type="button" onClick="{{ filtreEtf }}" style="{{ filEtf }}">ETF</button>
+            <button type="button" onClick="{{ filtreCrypto }}" style="{{ filCrypto }}">Crypto</button>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <sc-for list="{{ positions }}" as="p" hint-placeholder-count="7">
+              <button type="button" onClick="{{ allerDetail }}" style="display:flex; width:100%; align-items:center; gap:11px; padding:12px 15px; border:0; border-bottom:1px solid var(--hairline); background:transparent; text-align:left; cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+                <span style="display:flex; height:36px; width:36px; flex-shrink:0; align-items:center; justify-content:center; border-radius:10px; background:var(--accent-soft); font-size:11px; font-weight:700; color:var(--accent)">{{ p.sigle }}</span>
+                <span style="min-width:0; flex:1">
+                  <span style="display:block; font-size:14px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.nom }}</span>
+                  <span style="display:block; font-size:12px; color:var(--ink4)">{{ p.meta }}</span>
+                </span>
+                <span style="flex-shrink:0; text-align:right">
+                  <span style="display:block; font-size:14px; font-weight:600; color:var(--ink)">{{ p.valeur }}</span>
+                  <span style="display:block; font-size:12px; font-weight:600; color:{{ p.couleur }}">{{ p.perf }}</span>
+                </span>
+              </button>
+            </sc-for>
+            <div style="display:flex; align-items:center; padding:12px 15px; font-size:14px; font-weight:600; color:var(--ink)">
+              <span>{{ libelleTotal }}</span><span style="margin-left:auto">{{ total }}</span>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══ DÉTAIL ═══ -->
+        <sc-if value="{{ estDetail }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Mobile · Détail" style="flex:1; min-height:0; overflow-y:auto; padding:10px 14px 100px">
+          <button type="button" onClick="{{ allerPatrimoine }}" style="display:flex; align-items:center; gap:4px; margin:0 0 8px -8px; min-height:44px; border:0; background:transparent; padding:12px 8px; font-size:15px; font-weight:500; color:var(--accent); cursor:pointer; font-family:inherit">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4.5 L7 10 L12.5 15.5"></path></svg>Patrimoine
+          </button>
+
+          <div style="border-radius:22px; padding:20px 18px 10px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px">
+              <span style="border-radius:999px; background:var(--accent-soft); padding:3px 9px; font-size:11px; font-weight:600; color:var(--accent)">ETF</span>
+              <span style="border-radius:999px; background:var(--track); padding:3px 9px; font-size:11px; font-weight:500; color:var(--ink3)">PEA</span>
+            </div>
+            <p style="margin:0; font-size:17px; font-weight:600; letter-spacing:-0.01em; color:var(--ink); text-wrap:pretty">Amundi MSCI World UCITS ETF</p>
+            <p style="margin:10px 0 0; font-size:34px; line-height:1.05; font-weight:600; letter-spacing:-0.03em; color:var(--ink)">{{ dValeur }}</p>
+            <div style="display:flex; align-items:center; gap:7px; margin-top:8px">
+              <span style="border-radius:999px; background:var(--pos-bg); padding:3px 9px; font-size:12px; font-weight:600; color:var(--pos)">+18,4 %</span>
+              <span style="font-size:12px; color:var(--ink3)">{{ dGain }} de plus-value</span>
+            </div>
+            <svg viewBox="0 0 340 110" width="100%" height="104" preserveAspectRatio="none" role="img" aria-label="Historique du cours" style="margin-top:12px; display:block">
+              <defs>
+                <linearGradient id="mDetFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style="stop-color:var(--accent); stop-opacity:0.3"></stop>
+                  <stop offset="100%" style="stop-color:var(--accent); stop-opacity:0"></stop>
+                </linearGradient>
+              </defs>
+              <path d="M0 88 C 40 82, 70 74, 110 78 C 150 82, 170 58, 210 52 C 250 46, 270 56, 310 32 C 325 22, 335 16, 340 12 L 340 110 L 0 110 Z" fill="url(#mDetFill)"></path>
+              <path d="M0 88 C 40 82, 70 74, 110 78 C 150 82, 170 58, 210 52 C 250 46, 270 56, 310 32 C 325 22, 335 16, 340 12" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+            </svg>
+            <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px; margin:12px 0">
+              <button type="button" onClick="{{ periode1M }}" style="{{ per1M }}">1M</button>
+              <button type="button" onClick="{{ periode1A }}" style="{{ per1A }}">1A</button>
+              <button type="button" onClick="{{ periodeTout }}" style="{{ perTout }}">Tout</button>
+            </div>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; margin-top:12px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink3)">Quantité</span><span style="margin-left:auto; font-weight:600; color:var(--ink)">142</span></div>
+            <div style="display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink3)">Prix de revient</span><span style="margin-left:auto; font-weight:600; color:var(--ink)">432,80 €</span></div>
+            <div style="display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink3)">Cours actuel</span><span style="margin-left:auto; font-weight:600; color:var(--ink)">512,40 €</span></div>
+            <div style="display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink3)">Annualisé</span><span style="margin-left:auto; font-weight:600; color:var(--pos)">+9,2 %</span></div>
+            <div style="display:flex; align-items:center; padding:12px 16px; font-size:14px"><span style="color:var(--ink3)">Frais annuels</span><span style="margin-left:auto; font-weight:600; color:var(--ink)">0,38 %</span></div>
+          </div>
+
+          <div style="border-radius:20px; padding:16px 18px; margin-top:12px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <p style="margin:0 0 10px; font-size:14px; font-weight:600; color:var(--ink)">Exposition</p>
+            <div style="display:flex; height:11px; border-radius:999px; overflow:hidden; gap:2px"><span style="width:64%; background:var(--s1)"></span><span style="width:19%; background:var(--s2)"></span><span style="width:11%; background:var(--s3)"></span><span style="width:6%; background:var(--s4)"></span></div>
+            <p style="margin:10px 0 0; font-size:12px; color:var(--ink3)">64 % Amérique du Nord · 19 % Europe · 11 % Japon · 6 % reste du monde</p>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══ BARRE D'ONGLETS ═══ -->
+        <div style="position:absolute; bottom:0; left:0; right:0; padding:8px 12px 26px;
+            background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+            border-top:1px solid var(--stroke); box-shadow:0 -8px 30px rgba(20,26,40,0.10)">
+          <div style="display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:2px">
+            <button type="button" onClick="{{ allerSynthese }}" style="{{ ongletSynthese }}">
+              <svg width="23" height="23" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10 L10 3.5 L17 10"></path><path d="M5 8.5 V16 H15 V8.5"></path><path d="M8 16 V11.5 H12 V16"></path></svg>
+              <span style="font-size:10px; font-weight:500">Synthèse</span></button>
+            <button type="button" onClick="{{ allerPatrimoine }}" style="{{ ongletPatrimoine }}">
+              <svg width="23" height="23" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="14" height="10" rx="1.6"></rect><path d="M3 8.5 H17"></path><path d="M13 12 H14.4"></path></svg>
+              <span style="font-size:10px; font-weight:500">Patrimoine</span></button>
+            <button type="button" onClick="{{ allerComptes }}" style="{{ ongletComptes }}">
+              <svg width="23" height="23" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="15" height="11" rx="1.6"></rect><path d="M2.5 8.5 H17.5"></path></svg>
+              <span style="font-size:10px; font-weight:500">Comptes</span></button>
+            <button type="button" onClick="{{ allerBudget }}" style="{{ ongletBudget }}">
+              <svg width="23" height="23" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5 A2 2 0 0 1 5.5 4.5 H14.5 A2 2 0 0 1 16.5 6.5 V14.5 A2 2 0 0 1 14.5 16.5 H5.5 A2 2 0 0 1 3.5 14.5 Z"></path><path d="M12.5 9.5 H16.5 V12.5 H12.5 A1.5 1.5 0 0 1 12.5 9.5 Z"></path></svg>
+              <span style="font-size:10px; font-weight:500">Budget</span></button>
+            <button type="button" onClick="{{ allerObjectifs }}" style="{{ ongletObjectifs }}">
+              <svg width="23" height="23" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"></circle><circle cx="10" cy="10" r="3.4"></circle></svg>
+              <span style="font-size:10px; font-weight:500">Objectifs</span></button>
+          </div>
+          <div style="margin:10px auto 0; width:134px; height:5px; border-radius:999px; background:var(--ink); opacity:0.28"></div>
+        </div>
+
+        <!-- ═══ ÉCRANS NON DÉTAILLÉS ═══ -->
+        <sc-if value="{{ estBientot }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:24px 32px 120px; text-align:center">
+          <span style="display:flex; height:52px; width:52px; align-items:center; justify-content:center; border-radius:16px; background:var(--panel); border:1px solid var(--stroke); color:var(--ink3); box-shadow:var(--shadow)">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.8"></circle><path d="M10 6 V10 L12.8 12"></path></svg>
+          </span>
+          <p style="margin:0; font-size:16px; font-weight:600; color:var(--ink)">{{ titreBientot }} — pas encore dessiné</p>
+          <p style="margin:0; font-size:13px; line-height:1.5; color:var(--ink3); text-wrap:pretty">Les trois écrans mobiles livrés sont Synthèse, Patrimoine et Détail — ceux que tu consultes en déplacement. Les autres se déclinent sur les mêmes gabarits.</p>
+        </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;clair&quot;,&quot;sombre&quot;],&quot;default&quot;:&quot;clair&quot;,&quot;tsType&quot;:&quot;'clair' | 'sombre'&quot;}}">
+const ONGLET = 'display:flex; flex-direction:column; align-items:center; gap:3px; border:0; border-radius:12px; background:transparent; padding:6px 2px; cursor:pointer; font-family:inherit; ';
+const ONGLET_ON = ONGLET + 'color:var(--accent);';
+const ONGLET_OFF = ONGLET + 'color:var(--ink4);';
+
+const PER = 'flex:1; border:0; border-radius:999px; cursor:pointer; font-family:inherit; min-height:44px; padding:13px 0; font-size:13px; ';
+const PER_ON = PER + 'font-weight:600; color:var(--on-ink); background:var(--on-bg); box-shadow:0 1px 3px rgba(20,26,40,0.14);';
+const PER_OFF = PER + 'font-weight:500; color:var(--ink3); background:transparent;';
+
+const COURBES = {
+  '1M': { c: 'M0 76 C 40 74, 70 80, 110 70 C 150 60, 175 74, 215 58 C 255 42, 300 48, 340 32', ax: '1 mois' },
+  '3M': { c: 'M0 88 C 40 84, 70 90, 110 74 C 150 58, 185 68, 225 52 C 265 36, 300 32, 340 20', ax: '3 mois' },
+  '1A': { c: 'M0 94 C 45 90, 75 84, 110 80 C 150 76, 170 86, 205 76 C 240 66, 265 56, 300 44 C 320 36, 330 28, 340 16', ax: '12 mois' },
+  '5A': { c: 'M0 108 C 45 106, 80 98, 120 94 C 165 90, 200 74, 240 64 C 280 54, 310 34, 340 14', ax: '5 ans' },
+  'Tout': { c: 'M0 112 C 45 110, 80 104, 120 98 C 165 92, 200 76, 240 64 C 280 50, 310 28, 340 10', ax: 'depuis 2018' },
+};
+
+const POSITIONS = [
+  { sigle: 'CW8', nom: 'Amundi MSCI World ETF', meta: 'CW8.PA · PEA', valeur: '72 760,80 €', perf: '+18,4 %', val: 72760.80, positif: true, type: 'ETF' },
+  { sigle: 'BTC', nom: 'Bitcoin', meta: 'BTC-EUR · Ledger', valeur: '18 105,15 €', perf: '+64,3 %', val: 18105.15, positif: true, type: 'Crypto' },
+  { sigle: 'AI', nom: 'Air Liquide S.A.', meta: 'AI.PA · PEA', valeur: '10 135,20 €', perf: '+12,1 %', val: 10135.20, positif: true, type: 'Actions' },
+  { sigle: 'MC', nom: 'LVMH Moët Hennessy', meta: 'MC.PA · CTO', valeur: '7 695,60 €', perf: '−4,2 %', val: 7695.60, positif: false, type: 'Actions' },
+  { sigle: 'ESE', nom: 'BNP Easy S&P 500', meta: 'ESE.PA · PEA', valeur: '6 967,80 €', perf: '+21,7 %', val: 6967.80, positif: true, type: 'ETF' },
+  { sigle: 'AAPL', nom: 'Apple Inc.', meta: 'AAPL · CTO', valeur: '5 461,25 €', perf: '+32,6 %', val: 5461.25, positif: true, type: 'Actions' },
+  { sigle: 'TTE', nom: 'TotalEnergies SE', meta: 'TTE.PA · PEA', valeur: '4 992,90 €', perf: '+6,9 %', val: 4992.90, positif: true, type: 'Actions' },
+];
+
+const TITRES = { comptes: 'Comptes', budget: 'Budget', objectifs: 'Objectifs' };
+
+function fEuro(n) {
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+class Component extends DCLogic {
+  state = { ecran: 'synthese', periode: '1A', filtre: 'Tous', theme: null, masque: false };
+
+  go(ecran) { return () => this.setState({ ecran }); }
+
+  renderVals() {
+    const s = this.state.ecran;
+    const p = this.state.periode;
+    const f = this.state.filtre;
+    const theme = this.state.theme || this.props.theme || 'clair';
+    const e = (x) => (this.state.masque ? '••• •••' : x);
+    const courbe = COURBES[p] || COURBES['1A'];
+
+    const retenues = POSITIONS.filter((x) => f === 'Tous' || x.type === f);
+    const somme = retenues.reduce((a, x) => a + x.val, 0);
+
+    return {
+      theme,
+      estSynthese: s === 'synthese',
+      estPatrimoine: s === 'patrimoine',
+      estDetail: s === 'detail',
+      estBientot: s === 'comptes' || s === 'budget' || s === 'objectifs',
+      titreBientot: TITRES[s] || '',
+
+      allerSynthese: this.go('synthese'),
+      allerPatrimoine: this.go('patrimoine'),
+      allerDetail: this.go('detail'),
+      allerComptes: this.go('comptes'),
+      allerBudget: this.go('budget'),
+      allerObjectifs: this.go('objectifs'),
+
+      ongletSynthese: s === 'synthese' ? ONGLET_ON : ONGLET_OFF,
+      ongletPatrimoine: s === 'patrimoine' || s === 'detail' ? ONGLET_ON : ONGLET_OFF,
+      ongletComptes: s === 'comptes' ? ONGLET_ON : ONGLET_OFF,
+      ongletBudget: s === 'budget' ? ONGLET_ON : ONGLET_OFF,
+      ongletObjectifs: s === 'objectifs' ? ONGLET_ON : ONGLET_OFF,
+
+      periode1M: () => this.setState({ periode: '1M' }),
+      periode3M: () => this.setState({ periode: '3M' }),
+      periode1A: () => this.setState({ periode: '1A' }),
+      periode5A: () => this.setState({ periode: '5A' }),
+      periodeTout: () => this.setState({ periode: 'Tout' }),
+      per1M: p === '1M' ? PER_ON : PER_OFF,
+      per3M: p === '3M' ? PER_ON : PER_OFF,
+      per1A: p === '1A' ? PER_ON : PER_OFF,
+      per5A: p === '5A' ? PER_ON : PER_OFF,
+      perTout: p === 'Tout' ? PER_ON : PER_OFF,
+      courbe: courbe.c,
+      aire: courbe.c + ' L 340 120 L 0 120 Z',
+
+      filtreTous: () => this.setState({ filtre: 'Tous' }),
+      filtreActions: () => this.setState({ filtre: 'Actions' }),
+      filtreEtf: () => this.setState({ filtre: 'ETF' }),
+      filtreCrypto: () => this.setState({ filtre: 'Crypto' }),
+      filTous: f === 'Tous' ? PER_ON : PER_OFF,
+      filActions: f === 'Actions' ? PER_ON : PER_OFF,
+      filEtf: f === 'ETF' ? PER_ON : PER_OFF,
+      filCrypto: f === 'Crypto' ? PER_ON : PER_OFF,
+
+      themeClair: () => this.setState({ theme: 'clair' }),
+      themeSombre: () => this.setState({ theme: 'sombre' }),
+      tgClair: theme === 'clair' ? PER_ON : PER_OFF,
+      tgSombre: theme === 'sombre' ? PER_ON : PER_OFF,
+      basculerMontants: () => this.setState({ masque: !this.state.masque }),
+
+      hero: e('487 320 €'),
+      delta: e('+29 280 €'),
+      mFinancier: e('126 119 €'),
+      mImmo: e('222 000 €'),
+      mEpargne: e('118 950 €'),
+      rImmo: e('212 400 €'), rActions: e('148 900 €'), rAv: e('61 200 €'), rEpargne: e('34 800 €'),
+
+      positions: retenues.map((x) => Object.assign({}, x, {
+        valeur: e(x.valeur),
+        couleur: x.positif ? 'var(--pos)' : 'var(--neg)',
+      })),
+      total: e(fEuro(somme)),
+      libelleTotal: retenues.length > 1 ? retenues.length + ' lignes' : '1 ligne',
+      sousTitre: (retenues.length > 1 ? retenues.length + ' lignes' : '1 ligne')
+        + (f === 'Tous' ? '' : ' · ' + f) + ' · ' + courbe.ax,
+
+      dValeur: e('72 760,80 €'),
+      dGain: e('11 303 €'),
+    };
+  }
+}
+</script>
+</body>
+</html>

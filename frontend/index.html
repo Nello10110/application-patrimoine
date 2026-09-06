@@ -13,6 +13,29 @@
       content="Application Patrimoine : suivi et gestion de portefeuille boursier, analyse de patrimoine et suivi d'objectifs financiers."
     />
     <title>Application Patrimoine</title>
+    <!-- Thème posé AVANT le premier rendu (refonte « liquid glass », étape 1) :
+         sans ça, la page s'affiche en clair le temps que React monte, puis bascule —
+         un flash blanc à chaque chargement pour qui utilise le thème sombre.
+         Reprend la clé et les trois états de `hooks/useTheme.ts` ('clair' | 'sombre'
+         | 'systeme', ce dernier suivant la préférence du système), et pose les deux
+         marqueurs que l'application utilise : la classe `.dark` (variantes Tailwind)
+         et `data-theme` (jetons de verre). `try` : `localStorage` lève dans une
+         fenêtre privée ou quand les données de site sont bloquées, et un thème n'est
+         pas une raison d'empêcher l'application de démarrer. -->
+    <script>
+      (function () {
+        try {
+          var choix = localStorage.getItem('patrimoine:theme')
+          var sombre =
+            choix === 'sombre' ||
+            (choix !== 'clair' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', sombre)
+          document.documentElement.dataset.theme = sombre ? 'sombre' : 'clair'
+        } catch (e) {
+          /* thème par défaut (clair) */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

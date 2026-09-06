@@ -32,7 +32,43 @@ describe('useTheme (LOT 5.12)', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     document.documentElement.classList.remove('dark')
+    delete document.documentElement.dataset.theme
     window.localStorage.clear()
+  })
+
+  /** Refonte « liquid glass » (étape 1) : les jetons de verre sont rattachés à
+   * `data-theme`, le reste de l'application à la classe `.dark`. Les deux doivent
+   * TOUJOURS désigner le même thème résolu — sinon on obtient des panneaux sombres
+   * sous un texte prévu pour le clair. */
+  function marqueurs() {
+    return {
+      classeDark: document.documentElement.classList.contains('dark'),
+      dataTheme: document.documentElement.dataset.theme,
+    }
+  }
+
+  it('pose les deux marqueurs (classe .dark et data-theme) en accord, thème choisi', () => {
+    const { mql } = creerMatchMediaMock(false)
+    vi.stubGlobal('matchMedia', () => mql)
+    const { result } = renderHook(() => useTheme())
+
+    act(() => result.current.setTheme('sombre'))
+    expect(marqueurs()).toEqual({ classeDark: true, dataTheme: 'sombre' })
+
+    act(() => result.current.setTheme('clair'))
+    expect(marqueurs()).toEqual({ classeDark: false, dataTheme: 'clair' })
+  })
+
+  it('en mode « système », data-theme reçoit le thème RÉSOLU, jamais "systeme"', () => {
+    const { mql, setMatches } = creerMatchMediaMock(true)
+    vi.stubGlobal('matchMedia', () => mql)
+    const { result } = renderHook(() => useTheme())
+
+    expect(result.current.theme).toBe('systeme')
+    expect(marqueurs()).toEqual({ classeDark: true, dataTheme: 'sombre' })
+
+    act(() => setMatches(false))
+    expect(marqueurs()).toEqual({ classeDark: false, dataTheme: 'clair' })
   })
 
   it('vaut "système" par défaut, sans préférence stockée', () => {

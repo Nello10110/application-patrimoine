@@ -20,8 +20,15 @@ function requeteSysteme(): MediaQueryList | null {
   return window.matchMedia('(prefers-color-scheme: dark)')
 }
 
-function appliquerClasse(sombre: boolean) {
+function appliquerTheme(sombre: boolean) {
   document.documentElement.classList.toggle('dark', sombre)
+  // Refonte « liquid glass » (05/09/2026) : ses jetons sont rattachés à
+  // `:root[data-theme='clair'|'sombre']` (cf. `styles/tokens-glass.css`), là où le
+  // reste de l'application s'appuie sur la classe `.dark`. Les deux marqueurs sont
+  // donc posés ENSEMBLE, et à partir du thème RÉSOLU — le mode « système » n'existe
+  // pas côté jetons. Les laisser diverger donnerait le pire des cas : des panneaux
+  // de verre sombres sous un texte prévu pour le clair.
+  document.documentElement.dataset.theme = sombre ? 'sombre' : 'clair'
 }
 
 /** Thème clair/sombre/système (LOT 5.12), persisté dans `localStorage` et appliqué
@@ -53,7 +60,7 @@ export function useTheme() {
 
     function recalculer() {
       const sombre = theme === 'sombre' || (theme === 'systeme' && (media?.matches ?? false))
-      appliquerClasse(sombre)
+      appliquerTheme(sombre)
     }
 
     recalculer()

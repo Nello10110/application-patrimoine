@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin:0; background:#c9ccd4;
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, system-ui, sans-serif; }
+  *, *::before, *::after { box-sizing:border-box; }
+  a { color:#2a6df4; text-decoration:none; }
+  a:hover { color:#1d55c9; text-decoration:underline; }
+  :focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+  [data-theme="clair"] {
+    --bg: radial-gradient(680px 460px at 12% 8%, rgba(120,160,255,0.42), transparent 62%),
+          radial-gradient(560px 420px at 88% 4%, rgba(255,176,150,0.34), transparent 60%),
+          radial-gradient(760px 560px at 72% 92%, rgba(150,220,205,0.36), transparent 62%),
+          linear-gradient(160deg, #f4f6fa, #e7eaf1);
+    --panel: rgba(255,255,255,0.56);
+    --panel-hi: rgba(255,255,255,0.62);
+    --stroke: rgba(255,255,255,0.7);
+    --hairline: rgba(22,24,29,0.09);
+    --shadow: 0 8px 30px rgba(20,26,40,0.10), inset 0 1px 0 rgba(255,255,255,0.85);
+    --shadow-lg: 0 14px 40px rgba(20,26,40,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+    --ink: #16181d; --ink2: #4b5262; --ink3: #6b7280; --ink4: #9aa1ad;
+    --accent: #2a6df4; --accent-soft: rgba(42,109,244,0.12); --accent-grad: linear-gradient(150deg,#4f8dff,#2a6df4);
+    --accent-glow: 0 4px 14px rgba(42,109,244,0.3);
+    --pos: #0f7a4f; --pos-bg: rgba(22,145,95,0.12);
+    --neg: #c0392b; --neg-bg: rgba(192,57,43,0.10);
+    --track: rgba(22,24,29,0.06); --on-bg: #ffffff; --on-ink: #16181d;
+    --chip: rgba(255,255,255,0.55); --hover: rgba(22,24,29,0.04);
+    --s1:#2a6df4; --s2:#5b93f7; --s3:#8fb6fa; --s4:#b9d0fc; --s5:#d9e5fd;
+    --blur: blur(28px) saturate(180%);
+  }
+  [data-theme="sombre"] {
+    --bg: radial-gradient(660px 460px at 10% 6%, rgba(70,110,240,0.40), transparent 62%),
+          radial-gradient(520px 400px at 92% 2%, rgba(220,90,120,0.24), transparent 60%),
+          radial-gradient(760px 560px at 76% 96%, rgba(40,170,150,0.26), transparent 62%),
+          linear-gradient(160deg, #12141a, #08090c);
+    --panel: rgba(255,255,255,0.07);
+    --panel-hi: rgba(255,255,255,0.08);
+    --stroke: rgba(255,255,255,0.13);
+    --hairline: rgba(255,255,255,0.12);
+    --shadow: 0 10px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14);
+    --shadow-lg: 0 16px 44px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.16);
+    --ink: #ffffff; --ink2: #d5d9e0; --ink3: #9aa1ad; --ink4: #6b7280;
+    --accent: #7db0ff; --accent-soft: rgba(125,176,255,0.16); --accent-grad: linear-gradient(150deg,#7db0ff,#3d7bf5);
+    --accent-glow: 0 4px 14px rgba(61,123,245,0.4);
+    --pos: #4ce6a4; --pos-bg: rgba(61,220,151,0.16);
+    --neg: #ff8a7a; --neg-bg: rgba(255,138,122,0.14);
+    --track: rgba(0,0,0,0.28); --on-bg: #f2f3f5; --on-ink: #0a0b0e;
+    --chip: rgba(255,255,255,0.05); --hover: rgba(255,255,255,0.06);
+    --s1:#7db0ff; --s2:#5b9cff; --s3:#4177d6; --s4:#2f558f; --s5:#233a5c;
+    --blur: blur(30px) saturate(180%);
+  }
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="{{ overrides }}">
+<div style="position:relative; height:100vh; min-height:440px; overflow:hidden; background:#eceef3">
+  <div style="position:absolute; inset:0; background:var(--bg)"></div>
+
+  <sc-if value="{{ estLogin }}" hint-placeholder-val="{{ false }}">
+    <div style="position:relative; display:flex; height:100%; align-items:center; justify-content:center; padding:24px">
+      <div style="width:100%; max-width:400px; border-radius:26px; padding:30px 28px;
+          background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+          border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+        <span style="display:flex; height:44px; width:44px; align-items:center; justify-content:center; border-radius:13px; background:var(--accent-grad); color:#fff; font-size:21px; font-weight:700; box-shadow:0 4px 14px rgba(42,109,244,0.35)">P</span>
+        <h1 style="margin:18px 0 4px; font-size:26px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">Bon retour</h1>
+        <p style="margin:0 0 22px; font-size:14px; color:var(--ink3)">Ton patrimoine, en un seul endroit.</p>
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">IDENTIFIANT
+            <input type="text" placeholder="nello" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit" /></label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">MOT DE PASSE
+            <input type="password" placeholder="••••••••" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit" /></label>
+          <button type="button" onClick="{{ allerSynthese }}" style="margin-top:6px; border:0; border-radius:12px; background:var(--accent-grad); padding:12px; font-size:15px; font-weight:600; color:#fff; cursor:pointer; font-family:inherit; box-shadow:0 4px 16px rgba(42,109,244,0.32)">Se connecter</button>
+          <button type="button" style="border:1px solid var(--hairline); border-radius:12px; background:var(--chip); padding:11px; font-size:14px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">Continuer avec SSO</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ estApp }}" hint-placeholder-val="{{ true }}">
+  <div style="position:relative; display:flex; height:100%; padding:14px; gap:14px">
+
+    <aside style="width:222px; flex-shrink:0; display:flex; flex-direction:column; border-radius:20px; padding:16px 12px;
+        background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+        border:1px solid var(--stroke); box-shadow:var(--shadow)">
+      <div style="display:flex; align-items:center; gap:10px; padding:2px 6px 16px">
+        <span style="display:flex; height:30px; width:30px; align-items:center; justify-content:center; border-radius:9px; background:var(--accent-grad); color:#fff; font-size:15px; font-weight:700; box-shadow:0 3px 10px rgba(42,109,244,0.36)">P</span>
+        <span style="font-size:15px; font-weight:600; letter-spacing:-0.01em; color:var(--ink)">Patrimoine</span>
+      </div>
+
+      <button type="button" style="display:flex; align-items:center; gap:8px; width:100%; margin-bottom:14px; border:1px solid var(--hairline); border-radius:11px; background:var(--chip); padding:8px 10px; font-size:13px; color:var(--ink3); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="M16.5 16.5 L12.7 12.7"></path></svg>
+        Rechercher<span style="margin-left:auto; font-size:11px; color:var(--ink4)">⌘K</span>
+      </button>
+
+      <nav aria-label="Navigation principale" style="display:flex; flex:1; min-height:0; overflow-y:auto; flex-direction:column; gap:2px">
+        <button type="button" onClick="{{ allerSynthese }}" style="{{ navSynthese }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10 L10 3.5 L17 10"></path><path d="M5 8.5 V16 H15 V8.5"></path><path d="M8 16 V11.5 H12 V16"></path></svg>Synthèse</button>
+        <button type="button" onClick="{{ allerPatrimoine }}" style="{{ navPatrimoine }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="14" height="10" rx="1.6"></rect><path d="M3 8.5 H17"></path><path d="M13 12 H14.4"></path></svg>Patrimoine</button>
+        <button type="button" onClick="{{ allerComptes }}" style="{{ navComptes }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="15" height="11" rx="1.6"></rect><path d="M2.5 8.5 H17.5"></path></svg>Comptes</button>
+        <button type="button" onClick="{{ allerBudget }}" style="{{ navBudget }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5 A2 2 0 0 1 5.5 4.5 H14.5 A2 2 0 0 1 16.5 6.5 V14.5 A2 2 0 0 1 14.5 16.5 H5.5 A2 2 0 0 1 3.5 14.5 Z"></path><path d="M12.5 9.5 H16.5 V12.5 H12.5 A1.5 1.5 0 0 1 12.5 9.5 Z"></path></svg>Budget</button>
+        <button type="button" onClick="{{ allerObjectifs }}" style="{{ navObjectifs }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"></circle><circle cx="10" cy="10" r="3.4"></circle></svg>Objectifs</button>
+        <button type="button" onClick="{{ allerRapport }}" style="{{ navRapport }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3 H12 L15 6 V17 H6 Z"></path><path d="M8.2 10 H12.8 M8.2 12.6 H12.8"></path></svg>Rapport</button>
+        <button type="button" onClick="{{ allerDividendes }}" style="{{ navDividendes }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="4.7"></circle><path d="M9.8 12.3 A4.7 4.7 0 1 0 9.8 3.7"></path></svg>Dividendes</button>
+      </nav>
+
+      <div style="margin-top:auto; display:flex; flex-direction:column; gap:2px; border-top:1px solid var(--hairline); padding-top:10px">
+        <button type="button" onClick="{{ allerReglages }}" style="{{ navReglages }}" style-hover="background:var(--hover)">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="2.6"></circle><path d="M10 3.4 V5.2 M10 14.8 V16.6 M16.6 10 H14.8 M5.2 10 H3.4 M14.8 5.2 L13.5 6.5 M6.5 13.5 L5.2 14.8 M14.8 14.8 L13.5 13.5 M6.5 6.5 L5.2 5.2"></path></svg>Réglages</button>
+        <button type="button" onClick="{{ allerLogin }}" style="display:flex; align-items:center; gap:10px; width:100%; border:0; border-radius:11px; background:transparent; padding:8px 10px; font-size:14px; font-weight:500; text-align:left; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+          <span style="display:flex; height:26px; width:26px; align-items:center; justify-content:center; border-radius:999px; background:linear-gradient(150deg,#8b93a5,#5f6674); color:#fff; font-size:11px; font-weight:600">N</span>Nello</button>
+      </div>
+    </aside>
+
+    <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; overflow:hidden">
+
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-radius:18px; padding:9px 12px;
+          background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+          border:1px solid var(--stroke); box-shadow:var(--shadow)">
+        <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px">
+          <button type="button" onClick="{{ vueNet }}" style="{{ segNet }}">Net</button>
+          <button type="button" onClick="{{ vueBrut }}" style="{{ segBrut }}">Brut</button>
+          <button type="button" onClick="{{ vueFinancier }}" style="{{ segFinancier }}">Financier</button>
+        </div>
+        <span style="display:flex; align-items:center; gap:7px; border:1px solid var(--hairline); border-radius:999px; padding:5px 12px; font-size:13px; color:var(--ink2); background:var(--chip)">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="7" r="3.2"></circle><path d="M4 16.5 C4 12.9 6.7 11 10 11 C13.3 11 16 12.9 16 16.5"></path></svg>Foyer
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="transform:rotate(-90deg); opacity:0.5"><path d="M12.5 4.5 L7 10 L12.5 15.5"></path></svg>
+        </span>
+        <span style="font-size:13px; color:var(--ink4)">{{ contexteEcran }}</span>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px">
+          <button type="button" onClick="{{ basculerMontants }}" style="display:flex; align-items:center; gap:7px; border:1px solid var(--hairline); border-radius:999px; padding:5px 12px; font-size:13px; color:var(--ink2); background:var(--chip); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M2.5 10 C4.5 5.5 7 3.5 10 3.5 C13 3.5 15.5 5.5 17.5 10 C15.5 14.5 13 16.5 10 16.5 C7 16.5 4.5 14.5 2.5 10 Z"></path><circle cx="10" cy="10" r="2.8"></circle></svg>{{ libelleMontants }}</button>
+          <button type="button" onClick="{{ basculerTheme }}" style="display:flex; align-items:center; gap:7px; border:1px solid var(--hairline); border-radius:999px; padding:5px 12px; font-size:13px; color:var(--ink2); background:var(--chip); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 12.5 A6.5 6.5 0 0 1 7.5 4.5 A6.5 6.5 0 1 0 15.5 12.5 Z"></path></svg>{{ libelleTheme }}</button>
+        </div>
+      </div>
+
+      <div style="flex:1; min-height:0; overflow-y:auto; padding-right:2px">
+
+        <!-- ═══════════ SYNTHÈSE ═══════════ -->
+        <sc-if value="{{ estSynthese }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Synthèse" style="display:flex; flex-direction:column; gap:14px">
+
+          <div style="border-radius:22px; padding:24px 26px 8px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap">
+              <div>
+                <p style="margin:0 0 4px; font-size:13px; font-weight:500; color:var(--ink3)">Patrimoine net · Foyer</p>
+                <p style="margin:0; font-size:54px; line-height:1.05; font-weight:600; letter-spacing:-0.035em; color:var(--ink)">{{ montantHero }}</p>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:10px">
+                  <span style="display:inline-flex; align-items:center; gap:4px; border-radius:999px; background:var(--pos-bg); padding:4px 10px; font-size:13px; font-weight:600; color:var(--pos)">
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 15.5 V5 M5.5 9.5 L10 5 L14.5 9.5"></path></svg>6,4 %</span>
+                  <span style="font-size:13px; color:var(--ink3)">{{ deltaHero }} sur 12 mois</span>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+                <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px">
+                  <button type="button" onClick="{{ periode1M }}" style="{{ per1M }}">1M</button>
+                  <button type="button" onClick="{{ periode3M }}" style="{{ per3M }}">3M</button>
+                  <button type="button" onClick="{{ periode1A }}" style="{{ per1A }}">1A</button>
+                  <button type="button" onClick="{{ periode5A }}" style="{{ per5A }}">5A</button>
+                  <button type="button" onClick="{{ periodeTout }}" style="{{ perTout }}">Tout</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px">
+                  <sc-if value="{{ estEtage }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex; gap:12px; font-size:11px; color:var(--ink3)">
+                      <span style="display:flex; align-items:center; gap:5px"><span style="width:8px; height:8px; border-radius:3px; background:var(--s4)"></span>Investi</span>
+                      <span style="display:flex; align-items:center; gap:5px"><span style="width:8px; height:8px; border-radius:3px; background:var(--accent)"></span>Gains</span>
+                    </div>
+                  </sc-if>
+                  <button type="button" onClick="{{ basculerEtage }}" aria-pressed="{{ estEtage }}" style="{{ styleEtage }}">Mode étagé</button>
+                </div>
+              </div>
+            </div>
+
+            <svg viewBox="0 0 1000 190" width="100%" height="180" preserveAspectRatio="none" role="img" aria-label="Évolution du patrimoine net" style="margin-top:8px; display:block">
+              <defs>
+                <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style="stop-color:var(--accent); stop-opacity:0.34"></stop>
+                  <stop offset="100%" style="stop-color:var(--accent); stop-opacity:0"></stop>
+                </linearGradient>
+              </defs>
+              <path d="{{ aireHero }}" fill="url(#heroFill)"></path>
+              <sc-if value="{{ estEtage }}" hint-placeholder-val="{{ false }}">
+                <path d="{{ aireInvesti }}" fill="var(--s4)" fill-opacity="0.55"></path>
+                <path d="{{ courbeInvesti }}" fill="none" stroke="var(--s3)" stroke-width="1.5" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"></path>
+              </sc-if>
+              <path d="{{ courbeHero }}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+            </svg>
+            <div style="display:flex; justify-content:space-between; padding:2px 0 14px; font-size:11px; color:var(--ink4)">
+              <span>{{ axe1 }}</span><span>{{ axe2 }}</span><span>{{ axe3 }}</span><span>{{ axe4 }}</span><span>{{ axe5 }}</span>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr)); gap:14px">
+            <button type="button" onClick="{{ allerPatrimoine }}" style="text-align:left; cursor:pointer; font-family:inherit; border-radius:18px; padding:16px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)" style-hover="background:var(--panel-hi)">
+              <p style="margin:0 0 6px; font-size:12px; font-weight:600; letter-spacing:0.02em; color:var(--ink3)">FINANCIER</p>
+              <p style="margin:0; font-size:26px; line-height:1.1; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ mFinancier }}</p>
+              <p style="margin:6px 0 0; font-size:13px; color:var(--pos)">+4,8 % · 12 mois</p>
+            </button>
+            <button type="button" onClick="{{ allerComptes }}" style="text-align:left; cursor:pointer; font-family:inherit; border-radius:18px; padding:16px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)" style-hover="background:var(--panel-hi)">
+              <p style="margin:0 0 6px; font-size:12px; font-weight:600; letter-spacing:0.02em; color:var(--ink3)">IMMOBILIER NET</p>
+              <p style="margin:0; font-size:26px; line-height:1.1; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ mImmo }}</p>
+              <p style="margin:6px 0 0; font-size:13px; color:var(--ink3)">{{ mDette }} restant dû</p>
+            </button>
+            <button type="button" onClick="{{ allerComptes }}" style="text-align:left; cursor:pointer; font-family:inherit; border-radius:18px; padding:16px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)" style-hover="background:var(--panel-hi)">
+              <p style="margin:0 0 6px; font-size:12px; font-weight:600; letter-spacing:0.02em; color:var(--ink3)">ÉPARGNE</p>
+              <p style="margin:0; font-size:26px; line-height:1.1; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ mEpargne }}</p>
+              <p style="margin:6px 0 0; font-size:13px; color:var(--ink3)">650 € / mois versés</p>
+            </button>
+          </div>
+
+          <div style="border-radius:20px; padding:18px 20px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px">
+              <p style="margin:0; font-size:15px; font-weight:600; letter-spacing:-0.01em; color:var(--ink)">Répartition du patrimoine net</p>
+              <button type="button" onClick="{{ allerPatrimoine }}" style="border:0; background:transparent; font-size:13px; color:var(--accent); cursor:pointer; font-family:inherit" style-hover="text-decoration:underline">Tout voir</button>
+            </div>
+            <div style="display:flex; height:12px; border-radius:999px; overflow:hidden; gap:2px">
+              <span style="width:43.6%; background:var(--s1)"></span>
+              <span style="width:30.6%; background:var(--s2)"></span>
+              <span style="width:12.5%; background:var(--s3)"></span>
+              <span style="width:7.2%; background:var(--s4)"></span>
+              <span style="width:6.1%; background:var(--s5)"></span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:14px; margin-top:16px">
+              <div><p style="margin:0 0 4px; display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink3)"><span style="width:8px; height:8px; border-radius:3px; background:var(--s1)"></span>Immobilier</p><p style="margin:0; font-size:16px; font-weight:600; color:var(--ink)">{{ rImmo }}</p><p style="margin:2px 0 0; font-size:12px; color:var(--ink4)">43,6 %</p></div>
+              <div><p style="margin:0 0 4px; display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink3)"><span style="width:8px; height:8px; border-radius:3px; background:var(--s2)"></span>Actions &amp; ETF</p><p style="margin:0; font-size:16px; font-weight:600; color:var(--ink)">{{ rActions }}</p><p style="margin:2px 0 0; font-size:12px; color:var(--ink4)">30,6 %</p></div>
+              <div><p style="margin:0 0 4px; display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink3)"><span style="width:8px; height:8px; border-radius:3px; background:var(--s3)"></span>Assurance-vie</p><p style="margin:0; font-size:16px; font-weight:600; color:var(--ink)">{{ rAv }}</p><p style="margin:2px 0 0; font-size:12px; color:var(--ink4)">12,5 %</p></div>
+              <div><p style="margin:0 0 4px; display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink3)"><span style="width:8px; height:8px; border-radius:3px; background:var(--s4)"></span>Épargne réglem.</p><p style="margin:0; font-size:16px; font-weight:600; color:var(--ink)">{{ rEpargne }}</p><p style="margin:2px 0 0; font-size:12px; color:var(--ink4)">7,2 %</p></div>
+              <div><p style="margin:0 0 4px; display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink3)"><span style="width:8px; height:8px; border-radius:3px; background:var(--s5)"></span>Autres</p><p style="margin:0; font-size:16px; font-weight:600; color:var(--ink)">{{ rAutres }}</p><p style="margin:2px 0 0; font-size:12px; color:var(--ink4)">6,1 %</p></div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:14px; padding-bottom:4px">
+            <div style="border-radius:20px; padding:18px 20px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 12px; font-size:15px; font-weight:600; letter-spacing:-0.01em; color:var(--ink)">Qualité du portefeuille</p>
+              <div style="display:flex; flex-direction:column; gap:12px">
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--ink2)"><span>Diversification</span><span style="font-weight:600; color:var(--ink)">68/100</span></div>
+                  <div style="margin-top:6px; height:6px; border-radius:999px; background:var(--track)"><div style="height:6px; width:68%; border-radius:999px; background:var(--accent)"></div></div>
+                </div>
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--ink2)"><span>Plus grosse ligne · CW8.PA</span><span style="font-weight:600; color:var(--ink)">57,7 %</span></div>
+                  <div style="margin-top:6px; height:6px; border-radius:999px; background:var(--track)"><div style="height:6px; width:57.7%; border-radius:999px; background:var(--s2)"></div></div>
+                </div>
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--ink2)"><span>Amérique du Nord</span><span style="font-weight:600; color:var(--ink)">64,1 %</span></div>
+                  <div style="margin-top:6px; height:6px; border-radius:999px; background:var(--track)"><div style="height:6px; width:64.1%; border-radius:999px; background:var(--s3)"></div></div>
+                </div>
+              </div>
+            </div>
+            <div style="border-radius:20px; padding:18px 20px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 12px; font-size:15px; font-weight:600; letter-spacing:-0.01em; color:var(--ink)">À venir</p>
+              <div style="display:flex; flex-direction:column">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink2)">Dividende TotalEnergies</span><span style="font-weight:600; color:var(--pos)">+248 €</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink2)">Versement PEA programmé</span><span style="font-weight:600; color:var(--ink)">800 €</span></div>
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0; font-size:14px"><span style="color:var(--ink2)">Mensualité crédit immo</span><span style="font-weight:600; color:var(--ink)">1 042 €</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ PATRIMOINE ═══════════ -->
+        <sc-if value="{{ estPatrimoine }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Patrimoine" style="display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <div>
+              <h1 style="margin:0; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink)">Patrimoine</h1>
+              <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">{{ sousTitrePatrimoine }}</p>
+            </div>
+            <div style="display:flex; gap:8px">
+              <button type="button" style="display:flex; align-items:center; gap:6px; border:1px solid var(--hairline); border-radius:12px; background:var(--chip); padding:8px 14px; font-size:14px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10 A6 6 0 1 1 10 4 M10 4 L13 4 M10 4 L10 7" transform="rotate(-45 10 10)"></path></svg>Rafraîchir</button>
+              <button type="button" onClick="{{ ouvrirAjout }}" style="display:flex; align-items:center; gap:6px; border:0; border-radius:12px; background:var(--accent-grad); padding:8px 15px; font-size:14px; font-weight:600; color:#fff; cursor:pointer; font-family:inherit; box-shadow:0 3px 12px rgba(42,109,244,0.3)">
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5 V15.5 M4.5 10 H15.5"></path></svg>Ajouter une ligne</button>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+            <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px">
+              <button type="button" onClick="{{ filtreTous }}" style="{{ filTous }}">Tous</button>
+              <button type="button" onClick="{{ filtreActions }}" style="{{ filActions }}">Actions</button>
+              <button type="button" onClick="{{ filtreEtf }}" style="{{ filEtf }}">ETF</button>
+              <button type="button" onClick="{{ filtreCrypto }}" style="{{ filCrypto }}">Crypto</button>
+            </div>
+            <span style="margin-left:auto; display:flex; align-items:center; gap:7px; border:1px solid var(--hairline); border-radius:999px; padding:5px 12px; font-size:13px; color:var(--ink2); background:var(--chip)">Tous les comptes
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="transform:rotate(-90deg); opacity:0.5"><path d="M12.5 4.5 L7 10 L12.5 15.5"></path></svg></span>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="display:grid; grid-template-columns:1.6fr 0.7fr 0.9fr 1fr 0.8fr 0.8fr; gap:12px; padding:12px 20px; border-bottom:1px solid var(--hairline); font-size:11px; font-weight:600; letter-spacing:0.06em; color:var(--ink3)">
+              <span>LIGNE</span><span style="text-align:right">QTÉ</span><span style="text-align:right">COURS</span><span style="text-align:right">VALEUR</span><span style="text-align:right">DEPUIS ACHAT</span><span style="text-align:right">ANNUALISÉ</span>
+            </div>
+            <sc-for list="{{ positions }}" as="p" hint-placeholder-count="7">
+              <button type="button" onClick="{{ allerDetail }}" style="display:grid; width:100%; grid-template-columns:1.6fr 0.7fr 0.9fr 1fr 0.8fr 0.8fr; gap:12px; align-items:center; padding:13px 20px; border:0; border-bottom:1px solid var(--hairline); background:transparent; text-align:left; cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+                <span style="display:flex; align-items:center; gap:11px; min-width:0">
+                  <span style="display:flex; height:32px; width:32px; flex-shrink:0; align-items:center; justify-content:center; border-radius:9px; background:var(--accent-soft); font-size:11px; font-weight:700; color:var(--accent)">{{ p.sigle }}</span>
+                  <span style="min-width:0">
+                    <span style="display:block; font-size:14px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ p.nom }}</span>
+                    <span style="display:block; font-size:12px; color:var(--ink4)">{{ p.meta }}</span>
+                  </span>
+                </span>
+                <span style="text-align:right; font-size:14px; color:var(--ink2)">{{ p.qte }}</span>
+                <span style="text-align:right; font-size:14px; color:var(--ink2)">{{ p.cours }}</span>
+                <span style="text-align:right; font-size:14px; font-weight:600; color:var(--ink)">{{ p.valeur }}</span>
+                <span style="text-align:right; font-size:14px; font-weight:600; color:{{ p.couleur }}">{{ p.perf }}</span>
+                <span style="text-align:right; font-size:14px; color:{{ p.couleur }}">{{ p.annu }}</span>
+              </button>
+            </sc-for>
+            <div style="display:grid; grid-template-columns:1.6fr 0.7fr 0.9fr 1fr 0.8fr 0.8fr; gap:12px; padding:13px 20px; font-size:14px; font-weight:600; color:var(--ink)">
+              <span>{{ libelleTotal }}</span><span></span><span></span><span style="text-align:right">{{ totalPositions }}</span><span style="text-align:right; color:{{ couleurPerfPositions }}">{{ perfPositions }}</span><span></span>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ DÉTAIL POSITION ═══════════ -->
+        <sc-if value="{{ estDetail }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Détail position" style="display:flex; flex-direction:column; gap:14px">
+          <button type="button" onClick="{{ allerPatrimoine }}" style="display:inline-flex; align-self:flex-start; align-items:center; gap:6px; border:0; background:transparent; padding:0; font-size:13px; color:var(--accent); cursor:pointer; font-family:inherit" style-hover="text-decoration:underline">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10 H4.5 M9.5 4.5 L4 10 L9.5 15.5"></path></svg>Patrimoine</button>
+
+          <div style="border-radius:22px; padding:22px 24px 8px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap">
+              <div>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+                  <h1 style="margin:0; font-size:24px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">Amundi MSCI World UCITS ETF</h1>
+                  <span style="border-radius:999px; background:var(--accent-soft); padding:3px 10px; font-size:12px; font-weight:600; color:var(--accent)">ETF</span>
+                  <span style="border-radius:999px; background:var(--track); padding:3px 10px; font-size:12px; font-weight:500; color:var(--ink3)">PEA</span>
+                </div>
+                <p style="margin:8px 0 0; font-size:40px; line-height:1; font-weight:600; letter-spacing:-0.03em; color:var(--ink)">{{ dValeur }}</p>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:8px">
+                  <span style="display:inline-flex; align-items:center; gap:4px; border-radius:999px; background:var(--pos-bg); padding:4px 10px; font-size:13px; font-weight:600; color:var(--pos)">+18,4 %</span>
+                  <span style="font-size:13px; color:var(--ink3)">soit {{ dGain }} de plus-value latente</span>
+                </div>
+              </div>
+              <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px">
+                <button type="button" onClick="{{ periode1M }}" style="{{ per1M }}">1M</button>
+                <button type="button" onClick="{{ periode1A }}" style="{{ per1A }}">1A</button>
+                <button type="button" onClick="{{ periodeTout }}" style="{{ perTout }}">Tout</button>
+              </div>
+            </div>
+            <svg viewBox="0 0 1000 170" width="100%" height="160" preserveAspectRatio="none" role="img" aria-label="Historique du cours" style="margin-top:10px; display:block">
+              <defs>
+                <linearGradient id="detFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style="stop-color:var(--accent); stop-opacity:0.3"></stop>
+                  <stop offset="100%" style="stop-color:var(--accent); stop-opacity:0"></stop>
+                </linearGradient>
+              </defs>
+              <path d="M0 140 C 80 132, 140 118, 220 124 C 300 130, 340 96, 420 88 C 500 80, 540 96, 620 70 C 700 44, 760 52, 840 34 C 900 22, 950 18, 1000 14 L 1000 170 L 0 170 Z" fill="url(#detFill)"></path>
+              <path d="M0 140 C 80 132, 140 118, 220 124 C 300 130, 340 96, 420 88 C 500 80, 540 96, 620 70 C 700 44, 760 52, 840 34 C 900 22, 950 18, 1000 14" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+            </svg>
+            <div style="display:flex; justify-content:space-between; padding:2px 0 14px; font-size:11px; color:var(--ink4)"><span>oct. 2025</span><span>janv. 2026</span><span>avr. 2026</span><span>juil. 2026</span><span>sept. 2026</span></div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:14px">
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">QUANTITÉ</p><p style="margin:0; font-size:22px; font-weight:600; color:var(--ink)">142</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">PRIX DE REVIENT</p><p style="margin:0; font-size:22px; font-weight:600; color:var(--ink)">432,80 €</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">COURS ACTUEL</p><p style="margin:0; font-size:22px; font-weight:600; color:var(--ink)">512,40 €</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">ANNUALISÉ</p><p style="margin:0; font-size:22px; font-weight:600; color:var(--pos)">+9,2 %</p></div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:14px; padding-bottom:4px">
+            <div style="border-radius:20px; padding:18px 20px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 10px; font-size:15px; font-weight:600; color:var(--ink)">Émetteur</p>
+              <p style="margin:0 0 12px; font-size:14px; line-height:1.55; color:var(--ink2); text-wrap:pretty">Amundi Asset Management. Le fonds réplique l'indice MSCI World — grandes et moyennes capitalisations de 23 pays développés.</p>
+              <div style="display:flex; gap:28px; border-top:1px solid var(--hairline); padding-top:12px">
+                <div><p style="margin:0; font-size:12px; color:var(--ink3)">Frais annuels</p><p style="margin:2px 0 0; font-size:15px; font-weight:600; color:var(--ink)">0,38 %</p></div>
+                <div><p style="margin:0; font-size:12px; color:var(--ink3)">Frais payés (cumul)</p><p style="margin:2px 0 0; font-size:15px; font-weight:600; color:var(--ink)">148,20 €</p></div>
+              </div>
+            </div>
+            <div style="border-radius:20px; padding:18px 20px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 12px; font-size:15px; font-weight:600; color:var(--ink)">Exposition géographique</p>
+              <div style="display:flex; height:12px; border-radius:999px; overflow:hidden; gap:2px"><span style="width:64%; background:var(--s1)"></span><span style="width:19%; background:var(--s2)"></span><span style="width:11%; background:var(--s3)"></span><span style="width:6%; background:var(--s4)"></span></div>
+              <div style="display:flex; flex-direction:column; margin-top:12px">
+                <div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink2)">Amérique du Nord</span><span style="font-weight:600; color:var(--ink)">64 %</span></div>
+                <div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink2)">Europe</span><span style="font-weight:600; color:var(--ink)">19 %</span></div>
+                <div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink2)">Japon</span><span style="font-weight:600; color:var(--ink)">11 %</span></div>
+                <div style="display:flex; justify-content:space-between; padding:7px 0; font-size:14px"><span style="color:var(--ink2)">Reste du monde</span><span style="font-weight:600; color:var(--ink)">6 %</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ COMPTES ═══════════ -->
+        <sc-if value="{{ estComptes }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Comptes" style="display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <div>
+              <h1 style="margin:0; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink)">Comptes</h1>
+              <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">6 comptes · 3 établissements · 650 € versés chaque mois</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px">
+              <p style="margin:0; font-size:26px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ totalComptes }}</p>
+              <div style="display:flex; gap:8px">
+                <button type="button" onClick="{{ nouvelEtablissement }}" style="display:flex; align-items:center; gap:6px; border:1px solid var(--hairline); border-radius:12px; background:var(--chip); padding:8px 14px; font-size:14px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">Établissement</button>
+                <button type="button" onClick="{{ nouveauCompte }}" style="display:flex; align-items:center; gap:6px; border:0; border-radius:12px; background:var(--accent-grad); padding:8px 15px; font-size:14px; font-weight:600; color:#fff; cursor:pointer; font-family:inherit; box-shadow:var(--accent-glow)">
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5 V15.5 M4.5 10 H15.5"></path></svg>Ajouter un compte</button>
+              </div>
+            </div>
+          </div>
+
+          <sc-for list="{{ etablissements }}" as="e" hint-placeholder-count="3">
+            <div style="border-radius:20px; overflow:hidden; margin-bottom:14px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <div style="display:flex; align-items:center; gap:11px; padding:14px 20px; border-bottom:1px solid var(--hairline)">
+                <span style="display:flex; height:28px; width:28px; align-items:center; justify-content:center; border-radius:8px; background:var(--track); font-size:12px; font-weight:700; color:var(--ink2)">{{ e.sigle }}</span>
+                <span style="font-size:15px; font-weight:600; color:var(--ink)">{{ e.nom }}</span>
+                <span style="margin-left:auto; font-size:15px; font-weight:600; color:var(--ink)">{{ e.total }}</span>
+                <button type="button" onClick="{{ e.renommer }}" aria-label="Renommer l’établissement" style="display:flex; height:28px; width:28px; flex-shrink:0; align-items:center; justify-content:center; border:0; border-radius:999px; background:transparent; color:var(--ink4); cursor:pointer; font-family:inherit" style-hover="background:var(--hover); color:var(--ink2)">
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.2 3.6 L16.4 6.8 L7.4 15.8 L3.6 16.4 L4.2 12.6 Z"></path></svg>
+                </button>
+              </div>
+              <sc-for list="{{ e.comptes }}" as="c" hint-placeholder-count="2">
+                <div style="display:flex; align-items:center; gap:12px; padding:12px 20px; border-bottom:1px solid var(--hairline)">
+                  <span style="min-width:0">
+                    <span style="display:block; font-size:14px; font-weight:500; color:var(--ink)">{{ c.nom }}</span>
+                    <span style="display:block; font-size:12px; color:var(--ink4)">{{ c.detail }}</span>
+                  </span>
+                  <span style="margin-left:auto; font-size:14px; font-weight:600; color:var(--ink)">{{ c.solde }}</span>
+                  <button type="button" onClick="{{ c.editer }}" aria-label="Modifier le compte" style="display:flex; height:28px; width:28px; flex-shrink:0; align-items:center; justify-content:center; border:0; border-radius:999px; background:transparent; color:var(--ink4); cursor:pointer; font-family:inherit" style-hover="background:var(--hover); color:var(--ink2)">
+                    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.2 3.6 L16.4 6.8 L7.4 15.8 L3.6 16.4 L4.2 12.6 Z"></path></svg>
+                  </button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ BUDGET ═══════════ -->
+        <sc-if value="{{ estBudget }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Budget" style="display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <div>
+              <h1 style="margin:0; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink)">Budget</h1>
+              <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">Septembre 2026</p>
+            </div>
+            <div style="display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px">
+              <button type="button" onClick="{{ periode1M }}" style="{{ per1M }}">Mensuel</button>
+              <button type="button" onClick="{{ periode1A }}" style="{{ per1A }}">Annuel</button>
+            </div>
+          </div>
+
+          <div style="border-radius:22px; padding:22px 24px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <p style="margin:0 0 4px; font-size:13px; font-weight:500; color:var(--ink3)">Disponible ce mois</p>
+            <p style="margin:0; font-size:48px; line-height:1.05; font-weight:600; letter-spacing:-0.035em; color:var(--ink)">{{ bDispo }}</p>
+            <div style="display:flex; height:12px; border-radius:999px; overflow:hidden; gap:2px; margin-top:18px">
+              <span style="width:31.7%; background:var(--s1)"></span>
+              <span style="width:24.3%; background:var(--s2)"></span>
+              <span style="width:15.6%; background:var(--s3)"></span>
+              <span style="width:7.2%; background:var(--s4)"></span>
+              <span style="width:21.2%; background:var(--track)"></span>
+            </div>
+            <div style="display:flex; gap:22px; flex-wrap:wrap; margin-top:14px; font-size:13px; color:var(--ink3)">
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:3px; background:var(--s1)"></span>Logement 1 240 €</span>
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:3px; background:var(--s2)"></span>Épargne 1 330 €</span>
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:3px; background:var(--s3)"></span>Courses 612 €</span>
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:3px; background:var(--s4)"></span>Loisirs 284 €</span>
+              <span style="display:flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:3px; background:var(--track)"></span>Non dépensé 1 568 €</span>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:14px">
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">ENTRÉES</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--ink)">{{ bEntrees }}</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">SORTIES</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--ink)">{{ bSorties }}</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">TAUX D'ÉPARGNE</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--pos)">24,3 %</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">RESTE À VIVRE</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--ink)">{{ bReste }}</p></div>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="display:flex; align-items:center; padding:14px 20px; border-bottom:1px solid var(--hairline)">
+              <p style="margin:0; font-size:15px; font-weight:600; color:var(--ink)">Mouvements</p>
+              <span style="margin-left:auto; font-size:13px; color:var(--ink4)">4 non catégorisés</span>
+            </div>
+            <sc-for list="{{ mouvements }}" as="m" hint-placeholder-count="5">
+              <div style="display:flex; align-items:center; gap:12px; padding:12px 20px; border-bottom:1px solid var(--hairline)">
+                <span style="display:flex; height:32px; width:32px; flex-shrink:0; align-items:center; justify-content:center; border-radius:9px; background:var(--track); color:var(--ink3)">
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5 V15.5"></path><path d="M5.5 11 L10 15.5 L14.5 11"></path></svg>
+                </span>
+                <span style="min-width:0">
+                  <span style="display:block; font-size:14px; font-weight:500; color:var(--ink)">{{ m.libelle }}</span>
+                  <span style="display:block; font-size:12px; color:var(--ink4)">{{ m.date }}</span>
+                </span>
+                <span style="margin-left:auto; border-radius:999px; background:var(--track); padding:3px 10px; font-size:12px; font-weight:500; color:var(--ink3)">{{ m.categorie }}</span>
+                <span style="min-width:110px; text-align:right; font-size:14px; font-weight:600; color:{{ m.couleur }}">{{ m.montant }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ RAPPORT ═══════════ -->
+        <sc-if value="{{ estRapport }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Rapport" style="display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+            <div>
+              <h1 style="margin:0; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink)">Rapport</h1>
+              <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">Septembre 2026 · portefeuille financier</p>
+            </div>
+            <button type="button" style="display:flex; align-items:center; gap:6px; border:1px solid var(--hairline); border-radius:12px; background:var(--chip); padding:8px 14px; font-size:14px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 V12.5 M6 9 L10 13 L14 9"></path><path d="M4 16.5 H16"></path></svg>Exporter en PDF</button>
+          </div>
+
+          <div style="border-radius:22px; padding:22px 24px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <p style="margin:0 0 16px; font-size:15px; font-weight:600; color:var(--ink)">D'où vient l'évolution ?</p>
+            <div style="display:flex; align-items:flex-end; gap:14px; height:150px">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px">
+                <span style="font-size:13px; font-weight:600; color:var(--ink)">{{ rDebut }}</span>
+                <span style="width:100%; height:96px; border-radius:10px 10px 0 0; background:var(--s3)"></span>
+                <span style="font-size:12px; color:var(--ink3)">Début de période</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px">
+                <span style="font-size:13px; font-weight:600; color:var(--ink)">+ {{ rInvesti }}</span>
+                <span style="width:100%; height:24px; border-radius:10px 10px 0 0; background:var(--s2)"></span>
+                <span style="font-size:12px; color:var(--ink3)">Investi par toi</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px">
+                <span style="font-size:13px; font-weight:600; color:var(--pos)">+ {{ rGenere }}</span>
+                <span style="width:100%; height:34px; border-radius:10px 10px 0 0; background:var(--pos)"></span>
+                <span style="font-size:12px; color:var(--ink3)">Généré seul</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px">
+                <span style="font-size:13px; font-weight:600; color:var(--ink)">{{ rFin }}</span>
+                <span style="width:100%; height:118px; border-radius:10px 10px 0 0; background:var(--s1)"></span>
+                <span style="font-size:12px; color:var(--ink3)">Fin de période</span>
+              </div>
+            </div>
+            <p style="margin:16px 0 0; font-size:13px; line-height:1.55; color:var(--ink3); text-wrap:pretty; max-width:70ch">« Investi » : ce que tu as ajouté toi-même. « Généré » : plus-values, dividendes et intérêts — ce que le portefeuille a produit sans que tu ajoutes un euro.</p>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:14px">
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">ÉVOLUTION</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--pos)">+4,8 %</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">DIVIDENDES PERÇUS</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--pos)">412,60 €</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">FRAIS PAYÉS</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--ink)">62,40 €</p></div>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="padding:14px 20px; border-bottom:1px solid var(--hairline)"><p style="margin:0; font-size:15px; font-weight:600; color:var(--ink)">Plus gros mouvements</p></div>
+            <div style="display:flex; align-items:center; padding:12px 20px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink2)">01/09 · Amundi MSCI World UCITS ETF</span><span style="margin-left:auto; font-weight:600; color:var(--ink)">−1 600,00 €</span></div>
+            <div style="display:flex; align-items:center; padding:12px 20px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink2)">15/09 · TotalEnergies SE — dividende</span><span style="margin-left:auto; font-weight:600; color:var(--pos)">+248,30 €</span></div>
+            <div style="display:flex; align-items:center; padding:12px 20px; font-size:14px"><span style="color:var(--ink2)">22/09 · BNP Paribas Easy S&amp;P 500</span><span style="margin-left:auto; font-weight:600; color:var(--ink)">−800,00 €</span></div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ OBJECTIFS ═══════════ -->
+        <sc-if value="{{ estObjectifs }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Objectifs" style="display:flex; flex-direction:column; gap:14px">
+          <div>
+            <h1 style="margin:0; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink)">Objectifs</h1>
+            <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">Projection à 6 % par an, 650 € versés par mois</p>
+          </div>
+
+          <div style="border-radius:22px; padding:22px 24px 8px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap">
+              <div>
+                <p style="margin:0 0 4px; font-size:13px; font-weight:500; color:var(--ink3)">Indépendance financière atteinte en</p>
+                <p style="margin:0; font-size:48px; line-height:1.05; font-weight:600; letter-spacing:-0.035em; color:var(--ink)">2048<span style="font-size:22px; font-weight:500; color:var(--ink3)"> · dans 22 ans</span></p>
+                <p style="margin:8px 0 0; font-size:13px; color:var(--ink3)">Objectif {{ oCible }} — 34 000 € de dépenses annuelles à 4 % de retrait</p>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px; min-width:220px">
+                <label style="display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--ink3)">VERSEMENT MENSUEL
+                  <input type="range" min="0" max="2000" value="650" style="accent-color:var(--accent)" /></label>
+                <label style="display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--ink3)">RENDEMENT VISÉ · 6 %
+                  <input type="range" min="0" max="12" value="6" style="accent-color:var(--accent)" /></label>
+              </div>
+            </div>
+            <svg viewBox="0 0 1000 190" width="100%" height="180" preserveAspectRatio="none" role="img" aria-label="Projection du patrimoine" style="margin-top:12px; display:block">
+              <defs>
+                <linearGradient id="projFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style="stop-color:var(--accent); stop-opacity:0.3"></stop>
+                  <stop offset="100%" style="stop-color:var(--accent); stop-opacity:0"></stop>
+                </linearGradient>
+              </defs>
+              <line x1="0" y1="44" x2="1000" y2="44" stroke="var(--hairline)" stroke-width="1" stroke-dasharray="4 4"></line>
+              <path d="M0 168 C 140 162, 260 152, 380 138 C 500 124, 600 104, 700 78 C 800 52, 900 30, 1000 12 L 1000 190 L 0 190 Z" fill="url(#projFill)"></path>
+              <path d="M0 168 C 140 162, 260 152, 380 138 C 500 124, 600 104, 700 78 C 800 52, 900 30, 1000 12" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+              <path d="M0 168 C 140 166, 260 163, 380 160 C 500 157, 600 154, 700 150 C 800 147, 900 144, 1000 140" fill="none" stroke="var(--ink4)" stroke-width="1.5" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"></path>
+            </svg>
+            <div style="display:flex; justify-content:space-between; padding:2px 0 14px; font-size:11px; color:var(--ink4)"><span>2026</span><span>2032</span><span>2038</span><span>2044</span><span>2048</span></div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:14px">
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">VALEUR FINALE</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--ink)">{{ oFinal }}</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">TOTAL VERSÉ</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--ink)">{{ oVerse }}</p></div>
+            <div style="border-radius:18px; padding:15px 18px; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+              <p style="margin:0 0 5px; font-size:12px; font-weight:600; color:var(--ink3)">DONT INTÉRÊTS</p><p style="margin:0; font-size:24px; font-weight:600; color:var(--pos)">{{ oInterets }}</p></div>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="padding:14px 20px; border-bottom:1px solid var(--hairline)"><p style="margin:0; font-size:15px; font-weight:600; color:var(--ink)">Jalons</p></div>
+            <div style="display:flex; align-items:center; gap:14px; padding:13px 20px; border-bottom:1px solid var(--hairline)">
+              <span style="font-size:14px; color:var(--ink2); min-width:180px">Apport résidence secondaire</span>
+              <span style="flex:1; height:6px; border-radius:999px; background:var(--track)"><span style="display:block; height:6px; width:74%; border-radius:999px; background:var(--pos)"></span></span>
+              <span style="font-size:14px; font-weight:600; color:var(--ink); min-width:130px; text-align:right">74 000 / 100 000 €</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px; padding:13px 20px; border-bottom:1px solid var(--hairline)">
+              <span style="font-size:14px; color:var(--ink2); min-width:180px">Épargne de précaution</span>
+              <span style="flex:1; height:6px; border-radius:999px; background:var(--track)"><span style="display:block; height:6px; width:100%; border-radius:999px; background:var(--pos)"></span></span>
+              <span style="font-size:14px; font-weight:600; color:var(--ink); min-width:130px; text-align:right">Atteint</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px; padding:13px 20px">
+              <span style="font-size:14px; color:var(--ink2); min-width:180px">Indépendance financière</span>
+              <span style="flex:1; height:6px; border-radius:999px; background:var(--track)"><span style="display:block; height:6px; width:57%; border-radius:999px; background:var(--accent)"></span></span>
+              <span style="font-size:14px; font-weight:600; color:var(--ink); min-width:130px; text-align:right">487 320 / 850 000 €</span>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ DIVIDENDES ═══════════ -->
+        <sc-if value="{{ estDividendes }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Dividendes" style="display:flex; flex-direction:column; gap:14px">
+          <div>
+            <h1 style="margin:0; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink)">Dividendes</h1>
+            <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">12 derniers mois · rendement moyen 2,1 %</p>
+          </div>
+
+          <div style="border-radius:22px; padding:22px 24px; background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+            <p style="margin:0 0 4px; font-size:13px; font-weight:500; color:var(--ink3)">Perçu sur 12 mois</p>
+            <p style="margin:0 0 20px; font-size:44px; line-height:1.05; font-weight:600; letter-spacing:-0.035em; color:var(--ink)">{{ divTotal }}</p>
+            <div style="display:flex; align-items:flex-end; gap:9px; height:130px">
+              <sc-for list="{{ barresDiv }}" as="b" hint-placeholder-count="12">
+                <span style="flex:1; display:flex; flex-direction:column; align-items:center; gap:7px">
+                  <span style="width:100%; border-radius:7px 7px 0 0; background:var(--accent); height:{{ b.h }}"></span>
+                  <span style="font-size:11px; color:var(--ink4)">{{ b.mois }}</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="padding:14px 20px; border-bottom:1px solid var(--hairline)"><p style="margin:0; font-size:15px; font-weight:600; color:var(--ink)">Derniers versements</p></div>
+            <div style="display:flex; align-items:center; padding:12px 20px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink)">TotalEnergies SE</span><span style="margin-left:14px; color:var(--ink4); font-size:12px">15/09/2026</span><span style="margin-left:auto; font-weight:600; color:var(--pos)">+248,30 €</span></div>
+            <div style="display:flex; align-items:center; padding:12px 20px; border-bottom:1px solid var(--hairline); font-size:14px"><span style="color:var(--ink)">Air Liquide S.A.</span><span style="margin-left:14px; color:var(--ink4); font-size:12px">28/06/2026</span><span style="margin-left:auto; font-weight:600; color:var(--pos)">+192,00 €</span></div>
+            <div style="display:flex; align-items:center; padding:12px 20px; font-size:14px"><span style="color:var(--ink)">LVMH Moët Hennessy</span><span style="margin-left:14px; color:var(--ink4); font-size:12px">12/05/2026</span><span style="margin-left:auto; font-weight:600; color:var(--pos)">+156,00 €</span></div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ═══════════ RÉGLAGES ═══════════ -->
+        <sc-if value="{{ estReglages }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Réglages" style="display:flex; flex-direction:column; gap:14px; max-width:760px">
+          <div>
+            <h1 style="margin:0; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink)">Réglages</h1>
+            <p style="margin:4px 0 0; font-size:13px; color:var(--ink3)">Foyer Nello · 2 détenteurs · devise EUR</p>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="padding:14px 20px; border-bottom:1px solid var(--hairline)"><p style="margin:0; font-size:15px; font-weight:600; color:var(--ink)">Apparence</p></div>
+            <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--hairline)">
+              <span style="min-width:0"><span style="display:block; font-size:14px; color:var(--ink)">Thème</span><span style="display:block; font-size:12px; color:var(--ink4)">Suit le système par défaut</span></span>
+              <span style="margin-left:auto; display:flex; gap:2px; border-radius:999px; background:var(--track); padding:2px">
+                <button type="button" onClick="{{ themeClair }}" style="{{ tgClair }}">Clair</button>
+                <button type="button" onClick="{{ themeSombre }}" style="{{ tgSombre }}">Sombre</button>
+              </span>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px; padding:14px 20px">
+              <span style="min-width:0"><span style="display:block; font-size:14px; color:var(--ink)">Masquer les montants</span><span style="display:block; font-size:12px; color:var(--ink4)">Remplace les chiffres par des points</span></span>
+              <button type="button" onClick="{{ basculerMontants }}" style="{{ interrupteurMontants }}"><span style="{{ pastilleMontants }}"></span></button>
+            </div>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="padding:14px 20px; border-bottom:1px solid var(--hairline)"><p style="margin:0; font-size:15px; font-weight:600; color:var(--ink)">Détenteurs</p></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 20px; border-bottom:1px solid var(--hairline)">
+              <span style="display:flex; height:30px; width:30px; align-items:center; justify-content:center; border-radius:999px; background:var(--accent-grad); color:#fff; font-size:12px; font-weight:600">N</span>
+              <span style="font-size:14px; color:var(--ink)">Nello</span><span style="font-size:12px; color:var(--ink4)">Administrateur</span>
+              <span style="margin-left:auto; font-size:14px; font-weight:600; color:var(--ink)">61 %</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 20px">
+              <span style="display:flex; height:30px; width:30px; align-items:center; justify-content:center; border-radius:999px; background:linear-gradient(150deg,#8b93a5,#5f6674); color:#fff; font-size:12px; font-weight:600">F</span>
+              <span style="font-size:14px; color:var(--ink)">Floriane</span><span style="font-size:12px; color:var(--ink4)">Lecture &amp; écriture</span>
+              <span style="margin-left:auto; font-size:14px; font-weight:600; color:var(--ink)">39 %</span>
+            </div>
+          </div>
+
+          <div style="border-radius:20px; overflow:hidden; background:var(--panel); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); border:1px solid var(--stroke); box-shadow:var(--shadow)">
+            <div style="padding:14px 20px; border-bottom:1px solid var(--hairline)"><p style="margin:0; font-size:15px; font-weight:600; color:var(--ink)">Exporter</p></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; padding:16px 20px">
+              <button type="button" style="border:1px solid var(--hairline); border-radius:11px; background:var(--chip); padding:8px 14px; font-size:14px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">Positions (CSV)</button>
+              <button type="button" style="border:1px solid var(--hairline); border-radius:11px; background:var(--chip); padding:8px 14px; font-size:14px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">Transactions (CSV)</button>
+              <button type="button" style="border:0; border-radius:11px; background:var(--accent-grad); padding:8px 14px; font-size:14px; font-weight:600; color:#fff; cursor:pointer; font-family:inherit; box-shadow:0 3px 12px rgba(42,109,244,0.3)">Relevé de patrimoine (PDF)</button>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ ficheOuverte }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:50; display:flex; align-items:flex-start; justify-content:center; overflow-y:auto; padding:24px; background:rgba(10,11,14,0.28); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px)">
+      <div role="dialog" aria-modal="true" style="width:100%; max-width:480px; border-radius:24px; padding:24px 26px;
+          background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+          border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+        <div style="display:flex; align-items:flex-start; gap:14px">
+          <div>
+            <h2 style="margin:0; font-size:22px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ ficheTitre }}</h2>
+            <p style="margin:5px 0 0; font-size:13px; color:var(--ink3)">{{ ficheSousTitre }}</p>
+          </div>
+          <button type="button" onClick="{{ fermerFiche }}" aria-label="Fermer" style="margin-left:auto; flex-shrink:0; display:flex; height:30px; width:30px; align-items:center; justify-content:center; border:0; border-radius:999px; background:var(--track); color:var(--ink3); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5.5 5.5 L14.5 14.5 M14.5 5.5 L5.5 14.5"></path></svg>
+          </button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:20px">
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">NOM
+            <input type="text" value="{{ fNom }}" onChange="{{ majFNom }}" placeholder="PEA" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit" /></label>
+          <sc-if value="{{ ficheEstCompte }}" hint-placeholder-val="{{ true }}">
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">ÉTABLISSEMENT
+              <select onChange="{{ majFEtab }}" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit">
+                <option>Boursorama</option><option>Crédit Agricole</option><option>Sans établissement</option>
+              </select></label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">TYPE DE COMPTE
+              <select style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit">
+                <option>PEA</option><option>Compte-titres</option><option>Compte courant</option><option>Assurance-vie</option><option>Épargne réglementée</option><option>Immobilier</option>
+              </select></label>
+            <div>
+              <p style="margin:0 0 8px; font-size:12px; font-weight:600; color:var(--ink3)">RÉPARTITION ENTRE DÉTENTEURS</p>
+              <div style="display:flex; align-items:center; gap:12px; border-radius:14px; border:1px solid var(--hairline); background:var(--chip); padding:12px 14px">
+                <span style="display:flex; height:26px; width:26px; align-items:center; justify-content:center; border-radius:999px; background:var(--accent-grad); color:#fff; font-size:11px; font-weight:600">N</span>
+                <input type="range" min="0" max="100" value="61" style="flex:1; accent-color:var(--accent)" aria-label="Part de Nello" />
+                <span style="min-width:74px; text-align:right; font-size:14px; font-weight:600; color:var(--ink)">61 / 39 %</span>
+                <span style="display:flex; height:26px; width:26px; align-items:center; justify-content:center; border-radius:999px; background:linear-gradient(150deg,#8b93a5,#5f6674); color:#fff; font-size:11px; font-weight:600">F</span>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:20px">
+          <button type="button" onClick="{{ fermerFiche }}" style="border:1px solid var(--hairline); border-radius:12px; background:var(--chip); padding:11px 18px; font-size:15px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">Annuler</button>
+          <button type="button" onClick="{{ fermerFiche }}" disabled="{{ ficheDesactivee }}" style="{{ styleFicheValider }}">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ ajoutOuvert }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:50; display:flex; align-items:flex-start; justify-content:center; overflow-y:auto; padding:24px; background:rgba(10,11,14,0.28); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px)">
+      <div role="dialog" aria-modal="true" aria-label="Ajouter une ligne" style="width:100%; max-width:520px; border-radius:24px; padding:24px 26px;
+          background:var(--panel-hi); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+          border:1px solid var(--stroke); box-shadow:var(--shadow-lg)">
+        <div style="display:flex; align-items:flex-start; gap:14px">
+          <div>
+            <h2 style="margin:0; font-size:22px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">Ajouter une ligne</h2>
+            <p style="margin:5px 0 0; font-size:13px; color:var(--ink3)">Le cours est récupéré automatiquement à partir du ticker.</p>
+          </div>
+          <button type="button" onClick="{{ fermerAjout }}" aria-label="Fermer" style="margin-left:auto; flex-shrink:0; display:flex; height:30px; width:30px; align-items:center; justify-content:center; border:0; border-radius:999px; background:var(--track); color:var(--ink3); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5.5 5.5 L14.5 14.5 M14.5 5.5 L5.5 14.5"></path></svg>
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; margin-top:20px">
+          <label style="grid-column:1 / -1; display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">TICKER
+            <input type="text" value="{{ aTicker }}" onChange="{{ majTicker }}" placeholder="CW8.PA" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit" /></label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">QUANTITÉ
+            <input type="text" inputMode="decimal" value="{{ aQte }}" onChange="{{ majQte }}" placeholder="142" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit" /></label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">PRIX DE REVIENT
+            <input type="text" inputMode="decimal" value="{{ aPru }}" onChange="{{ majPru }}" placeholder="432,80" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit" /></label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">TYPE D'ACTIF
+            <select onChange="{{ majType }}" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit">
+              <option>ETF / Fonds</option><option>Action</option><option>Crypto</option><option>Obligation</option><option>Private equity</option><option>Non précisé</option>
+            </select></label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink3)">COMPTE
+            <select onChange="{{ majCompte }}" style="border-radius:12px; border:1px solid var(--hairline); background:var(--chip); padding:11px 13px; font-size:15px; color:var(--ink); font-family:inherit">
+              <option>PEA</option><option>CTO</option><option>Assurance-vie Floriane</option><option>Sans compte</option><option>+ Nouveau compte…</option>
+            </select></label>
+        </div>
+
+        <sc-if value="{{ apercuAjout }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; gap:10px; margin-top:16px; border-radius:14px; border:1px solid var(--hairline); background:var(--accent-soft); padding:12px 14px">
+            <span style="font-size:13px; color:var(--ink2)">Valeur d'acquisition</span>
+            <span style="margin-left:auto; font-size:18px; font-weight:600; letter-spacing:-0.02em; color:var(--ink)">{{ apercuAjout }}</span>
+          </div>
+        </sc-if>
+
+        <div style="display:flex; gap:10px; margin-top:20px">
+          <button type="button" onClick="{{ fermerAjout }}" style="border:1px solid var(--hairline); border-radius:12px; background:var(--chip); padding:11px 18px; font-size:15px; font-weight:500; color:var(--ink2); cursor:pointer; font-family:inherit" style-hover="background:var(--hover)">Annuler</button>
+          <button type="button" onClick="{{ fermerAjout }}" disabled="{{ ajoutDesactive }}" style="{{ styleValider }}">Ajouter la ligne</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;clair&quot;,&quot;sombre&quot;],&quot;default&quot;:&quot;clair&quot;,&quot;tsType&quot;:&quot;'clair' | 'sombre'&quot;},&quot;couleurAccent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#2a6df4&quot;,&quot;#0f7a4f&quot;,&quot;#7c5cf0&quot;,&quot;#c2410c&quot;]},&quot;intensiteVerre&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:28,&quot;min&quot;:0,&quot;max&quot;:48,&quot;step&quot;:2,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;}}">
+const NAV = 'display:flex; align-items:center; gap:10px; width:100%; border:0; border-radius:11px; padding:9px 10px; font-size:14px; text-align:left; cursor:pointer; font-family:inherit; ';
+const NAV_ON = NAV + 'font-weight:600; color:#fff; background:var(--accent-grad); box-shadow:0 4px 14px rgba(42,109,244,0.28);';
+const NAV_OFF = NAV + 'font-weight:500; color:var(--ink2); background:transparent;';
+
+const SEG = 'border:0; border-radius:999px; cursor:pointer; font-family:inherit; padding:5px 14px; font-size:13px; ';
+const SEG_ON = SEG + 'font-weight:600; color:var(--on-ink); background:var(--on-bg); box-shadow:0 1px 3px rgba(20,26,40,0.14);';
+const SEG_OFF = SEG + 'font-weight:500; color:var(--ink3); background:transparent;';
+
+const PER = 'border:0; border-radius:999px; cursor:pointer; font-family:inherit; padding:5px 12px; font-size:12px; ';
+const PER_ON = PER + 'font-weight:600; color:var(--on-ink); background:var(--on-bg); box-shadow:0 1px 3px rgba(20,26,40,0.14);';
+const PER_OFF = PER + 'font-weight:500; color:var(--ink3); background:transparent;';
+
+const CONTEXTE = {
+  synthese: 'Vue d’ensemble du foyer',
+  patrimoine: 'Toutes les lignes détenues',
+  detail: 'Amundi MSCI World · PEA',
+  comptes: 'Par établissement',
+  budget: 'Septembre 2026',
+  rapport: 'Septembre 2026',
+  objectifs: 'Projection à 22 ans',
+  dividendes: '12 derniers mois',
+  reglages: 'Foyer Nello',
+};
+
+const COURBES = {
+  '1M': {
+    c: 'M0 120 C 120 116, 220 128, 340 112 C 460 96, 540 118, 660 92 C 780 66, 880 78, 1000 52',
+    i: 'M0 128 C 200 124, 400 118, 600 106 C 800 92, 900 82, 1000 72',
+    axes: ['6 août', '13 août', '20 août', '27 août', '5 sept.'],
+  },
+  '3M': {
+    c: 'M0 140 C 120 132, 220 144, 340 118 C 460 92, 560 108, 660 84 C 780 60, 880 50, 1000 30',
+    i: 'M0 146 C 200 140, 400 128, 600 106 C 800 80, 900 62, 1000 52',
+    axes: ['juin', 'juil.', 'août', 'sept.', 'auj.'],
+  },
+  '1A': {
+    c: 'M0 150 C 60 146, 100 138, 160 132 C 220 126, 250 140, 310 128 C 370 116, 400 104, 460 100 C 520 96, 550 82, 610 74 C 670 66, 700 76, 760 60 C 820 44, 870 34, 1000 22',
+    i: 'M0 154 C 200 148, 400 136, 600 112 C 800 84, 900 62, 1000 44',
+    axes: ['oct. 2025', 'janv. 2026', 'avr. 2026', 'juil. 2026', 'sept. 2026'],
+  },
+  '5A': {
+    c: 'M0 174 C 120 170, 220 158, 340 152 C 460 146, 560 120, 660 104 C 780 84, 880 52, 1000 20',
+    i: 'M0 176 C 200 170, 400 158, 600 132 C 800 96, 900 66, 1000 42',
+    axes: ['2021', '2022', '2023', '2024', '2026'],
+  },
+  'Tout': {
+    c: 'M0 182 C 120 178, 220 172, 340 160 C 460 148, 560 128, 660 106 C 780 80, 880 46, 1000 16',
+    i: 'M0 183 C 200 178, 400 166, 600 138 C 800 100, 900 66, 1000 39',
+    axes: ['2018', '2020', '2022', '2024', '2026'],
+  },
+};
+
+const POSITIONS = [
+  { sigle: 'CW8', nom: 'Amundi MSCI World UCITS ETF', meta: 'CW8.PA · PEA', qte: '142', cours: '512,40 €', valeur: '72 760,80 €', val: 72760.80, cout: 61457.60, perf: '+18,4 %', annu: '+9,2 %', positif: true },
+  { sigle: 'BTC', nom: 'Bitcoin', meta: 'BTC-EUR · Ledger', qte: '0,215', cours: '84 210,00 €', valeur: '18 105,15 €', val: 18105.15, cout: 11019.60, perf: '+64,3 %', annu: '+28,1 %', positif: true },
+  { sigle: 'AI', nom: 'Air Liquide S.A.', meta: 'AI.PA · PEA', qte: '60', cours: '168,92 €', valeur: '10 135,20 €', val: 10135.20, cout: 9040.30, perf: '+12,1 %', annu: '+7,4 %', positif: true },
+  { sigle: 'MC', nom: 'LVMH Moët Hennessy', meta: 'MC.PA · CTO', qte: '12', cours: '641,30 €', valeur: '7 695,60 €', val: 7695.60, cout: 8033.00, perf: '−4,2 %', annu: '−1,8 %', positif: false },
+  { sigle: 'ESE', nom: 'BNP Paribas Easy S&P 500', meta: 'ESE.PA · PEA', qte: '210', cours: '33,18 €', valeur: '6 967,80 €', val: 6967.80, cout: 5726.20, perf: '+21,7 %', annu: '+11,3 %', positif: true },
+  { sigle: 'AAPL', nom: 'Apple Inc.', meta: 'AAPL · CTO · saisie manuelle', qte: '25', cours: '218,45 €', valeur: '5 461,25 €', val: 5461.25, cout: 4118.60, perf: '+32,6 %', annu: '+14,9 %', positif: true },
+  { sigle: 'TTE', nom: 'TotalEnergies SE', meta: 'TTE.PA · PEA', qte: '85', cours: '58,74 €', valeur: '4 992,90 €', val: 4992.90, cout: 4670.60, perf: '+6,9 %', annu: '+4,1 %', positif: true },
+];
+
+function fEuro(n) {
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+function fPct(n) {
+  return (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(1).replace('.', ',') + ' %';
+}
+
+const ETABLISSEMENTS = [
+  { sigle: 'BO', nom: 'Boursorama', total: '93 933,95 €', comptes: [
+    { nom: 'PEA', detail: '4 lignes · ouvert en 2019', solde: '89 723,60 €' },
+    { nom: 'Compte courant', detail: 'compte du foyer', solde: '4 210,35 €' },
+  ] },
+  { sigle: 'CA', nom: 'Crédit Agricole', total: '84 150,00 €', comptes: [
+    { nom: 'Assurance-vie Floriane', detail: '2 supports · 100 % Floriane', solde: '61 200,00 €' },
+    { nom: 'Livret A', detail: 'plafond atteint', solde: '22 950,00 €' },
+  ] },
+  { sigle: '—', nom: 'Sans établissement', total: '219 700,00 €', comptes: [
+    { nom: 'Résidence principale', detail: 'valorisée en juin 2026', solde: '212 400,00 €' },
+    { nom: 'Véhicule', detail: 'décote annuelle appliquée', solde: '7 300,00 €' },
+  ] },
+];
+
+const MOUVEMENTS = [
+  { libelle: 'VIR SALAIRE SEPTEMBRE', date: '03/09/2026', categorie: 'Revenus', montant: '+3 420,00 €', positif: true },
+  { libelle: 'PRLV CREDIT IMMO', date: '02/09/2026', categorie: 'Logement', montant: '−1 042,00 €', positif: false },
+  { libelle: 'CB MONOPRIX', date: '02/09/2026', categorie: 'Courses', montant: '−84,32 €', positif: false },
+  { libelle: 'VIR PEA BOURSORAMA', date: '01/09/2026', categorie: 'Épargne', montant: '−800,00 €', positif: false },
+  { libelle: 'CB CINEMA PATHE', date: '31/08/2026', categorie: 'Loisirs', montant: '−28,40 €', positif: false },
+];
+
+const DIV_BARRES = [
+  { mois: 'oct.', h: 34 }, { mois: 'nov.', h: 58 }, { mois: 'déc.', h: 22 }, { mois: 'janv.', h: 78 },
+  { mois: 'févr.', h: 42 }, { mois: 'mars', h: 104 }, { mois: 'avr.', h: 28 }, { mois: 'mai', h: 66 },
+  { mois: 'juin', h: 88 }, { mois: 'juil.', h: 24 }, { mois: 'août', h: 40 }, { mois: 'sept.', h: 96 },
+];
+
+const MASQUE = '••• •••';
+
+class Component extends DCLogic {
+  state = {
+    ecran: 'synthese', vue: 'net', periode: '1A', filtre: 'Tous', theme: null,
+    masque: false, etage: false,
+    ajoutOuvert: false, aTicker: '', aQte: '', aPru: '', aType: 'ETF / Fonds', aCompte: 'PEA',
+    fiche: null, fNom: '', fEtab: 'Boursorama',
+  };
+
+  ouvrirFiche(mode, nom) {
+    return () => this.setState({ fiche: mode, fNom: nom || '' });
+  }
+
+  go(ecran) { return () => this.setState({ ecran }); }
+
+  euro(v) { return this.state.masque ? MASQUE : v; }
+
+  renderVals() {
+    const s = this.state.ecran;
+    const v = this.state.vue;
+    const p = this.state.periode;
+    const f = this.state.filtre;
+    const theme = this.state.theme || this.props.theme || 'clair';
+    const e = (x) => this.euro(x);
+    const courbe = COURBES[p] || COURBES['1A'];
+    const aire = courbe.c + ' L 1000 190 L 0 190 Z';
+
+    const overrides = {};
+    if (this.props.couleurAccent) {
+      overrides['--accent'] = this.props.couleurAccent;
+      overrides['--accent-grad'] = 'linear-gradient(150deg, ' + this.props.couleurAccent + ', ' + this.props.couleurAccent + ')';
+    }
+    if (this.props.intensiteVerre != null) {
+      overrides['--blur'] = 'blur(' + this.props.intensiteVerre + 'px) saturate(180%)';
+    }
+
+    const retenues = POSITIONS
+      .filter((x) => {
+        if (f === 'Tous') return true;
+        if (f === 'Actions') return ['AI', 'MC', 'AAPL', 'TTE'].indexOf(x.sigle) >= 0;
+        if (f === 'ETF') return ['CW8', 'ESE'].indexOf(x.sigle) >= 0;
+        return x.sigle === 'BTC';
+      });
+
+    const positions = retenues.map((x) => Object.assign({}, x, {
+      valeur: e(x.valeur), cours: e(x.cours),
+      couleur: x.positif ? 'var(--pos)' : 'var(--neg)',
+    }));
+
+    const sommeVal = retenues.reduce((a, x) => a + x.val, 0);
+    const sommeCout = retenues.reduce((a, x) => a + x.cout, 0);
+    const perfGlobale = sommeCout > 0 ? ((sommeVal - sommeCout) / sommeCout) * 100 : 0;
+
+    const etablissements = ETABLISSEMENTS.map((x) => Object.assign({}, x, {
+      total: e(x.total),
+      renommer: this.ouvrirFiche('etab', x.nom),
+      comptes: x.comptes.map((c) => Object.assign({}, c, {
+        solde: e(c.solde),
+        editer: this.ouvrirFiche('compte', c.nom),
+      })),
+    }));
+
+    const fiche = this.state.fiche;
+    const ficheTitres = {
+      compte: 'Modifier le compte',
+      'compte-nouveau': 'Nouveau compte',
+      etab: 'Renommer l’établissement',
+      'etab-nouveau': 'Nouvel établissement',
+    };
+    const ficheSousTitres = {
+      compte: 'Nom, établissement de rattachement et détenteurs.',
+      'compte-nouveau': 'Un compte regroupe les lignes détenues chez un même établissement.',
+      etab: 'Le nouveau nom s’applique à tous ses comptes.',
+      'etab-nouveau': 'Tu pourras y rattacher des comptes juste après.',
+    };
+    const ficheEstCompte = fiche === 'compte' || fiche === 'compte-nouveau';
+
+    const mouvements = MOUVEMENTS.map((m) => Object.assign({}, m, {
+      montant: e(m.montant), couleur: m.positif ? 'var(--pos)' : 'var(--ink)',
+    }));
+
+    const interrupteurBase = 'margin-left:auto; flex-shrink:0; width:46px; height:28px; border:0; border-radius:999px; padding:3px; cursor:pointer; display:flex; ';
+    const pastilleBase = 'display:block; width:22px; height:22px; border-radius:999px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.25); ';
+
+    return {
+      theme,
+      overrides,
+      estLogin: s === 'login',
+      estApp: s !== 'login',
+      estSynthese: s === 'synthese',
+      estPatrimoine: s === 'patrimoine',
+      estDetail: s === 'detail',
+      estComptes: s === 'comptes',
+      estBudget: s === 'budget',
+      estRapport: s === 'rapport',
+      estObjectifs: s === 'objectifs',
+      estDividendes: s === 'dividendes',
+      estReglages: s === 'reglages',
+      contexteEcran: CONTEXTE[s] || '',
+
+      allerSynthese: this.go('synthese'),
+      allerPatrimoine: this.go('patrimoine'),
+      allerDetail: this.go('detail'),
+      allerComptes: this.go('comptes'),
+      allerBudget: this.go('budget'),
+      allerRapport: this.go('rapport'),
+      allerObjectifs: this.go('objectifs'),
+      allerDividendes: this.go('dividendes'),
+      allerReglages: this.go('reglages'),
+      allerLogin: this.go('login'),
+
+      navSynthese: s === 'synthese' ? NAV_ON : NAV_OFF,
+      navPatrimoine: s === 'patrimoine' || s === 'detail' ? NAV_ON : NAV_OFF,
+      navComptes: s === 'comptes' ? NAV_ON : NAV_OFF,
+      navBudget: s === 'budget' ? NAV_ON : NAV_OFF,
+      navObjectifs: s === 'objectifs' ? NAV_ON : NAV_OFF,
+      navRapport: s === 'rapport' ? NAV_ON : NAV_OFF,
+      navDividendes: s === 'dividendes' ? NAV_ON : NAV_OFF,
+      navReglages: s === 'reglages' ? NAV_ON : NAV_OFF,
+
+      vueNet: () => this.setState({ vue: 'net' }),
+      vueBrut: () => this.setState({ vue: 'brut' }),
+      vueFinancier: () => this.setState({ vue: 'financier' }),
+      segNet: v === 'net' ? SEG_ON : SEG_OFF,
+      segBrut: v === 'brut' ? SEG_ON : SEG_OFF,
+      segFinancier: v === 'financier' ? SEG_ON : SEG_OFF,
+
+      periode1M: () => this.setState({ periode: '1M' }),
+      periode3M: () => this.setState({ periode: '3M' }),
+      periode1A: () => this.setState({ periode: '1A' }),
+      periode5A: () => this.setState({ periode: '5A' }),
+      periodeTout: () => this.setState({ periode: 'Tout' }),
+      per1M: p === '1M' ? PER_ON : PER_OFF,
+      per3M: p === '3M' ? PER_ON : PER_OFF,
+      per1A: p === '1A' ? PER_ON : PER_OFF,
+      per5A: p === '5A' ? PER_ON : PER_OFF,
+      perTout: p === 'Tout' ? PER_ON : PER_OFF,
+      courbeHero: courbe.c,
+      aireHero: aire,
+      courbeInvesti: courbe.i,
+      aireInvesti: courbe.i + ' L 1000 190 L 0 190 Z',
+      estEtage: this.state.etage,
+      basculerEtage: () => this.setState({ etage: !this.state.etage }),
+      styleEtage: 'border:1px solid var(--hairline); border-radius:999px; cursor:pointer; font-family:inherit; padding:5px 12px; font-size:12px; font-weight:500; '
+        + (this.state.etage
+          ? 'color:var(--accent); background:var(--accent-soft);'
+          : 'color:var(--ink3); background:var(--chip);'),
+      axe1: courbe.axes[0], axe2: courbe.axes[1], axe3: courbe.axes[2], axe4: courbe.axes[3], axe5: courbe.axes[4],
+
+      filtreTous: () => this.setState({ filtre: 'Tous' }),
+      filtreActions: () => this.setState({ filtre: 'Actions' }),
+      filtreEtf: () => this.setState({ filtre: 'ETF' }),
+      filtreCrypto: () => this.setState({ filtre: 'Crypto' }),
+      filTous: f === 'Tous' ? SEG_ON : SEG_OFF,
+      filActions: f === 'Actions' ? SEG_ON : SEG_OFF,
+      filEtf: f === 'ETF' ? SEG_ON : SEG_OFF,
+      filCrypto: f === 'Crypto' ? SEG_ON : SEG_OFF,
+
+      basculerTheme: () => this.setState({ theme: theme === 'clair' ? 'sombre' : 'clair' }),
+      libelleTheme: theme === 'clair' ? 'Sombre' : 'Clair',
+      themeClair: () => this.setState({ theme: 'clair' }),
+      themeSombre: () => this.setState({ theme: 'sombre' }),
+      tgClair: theme === 'clair' ? PER_ON : PER_OFF,
+      tgSombre: theme === 'sombre' ? PER_ON : PER_OFF,
+
+      basculerMontants: () => this.setState({ masque: !this.state.masque }),
+      libelleMontants: this.state.masque ? 'Masqués' : 'Visibles',
+      interrupteurMontants: interrupteurBase + (this.state.masque
+        ? 'background:var(--accent); justify-content:flex-end;'
+        : 'background:var(--track); justify-content:flex-start;'),
+      pastilleMontants: pastilleBase,
+
+      montantHero: e('487 320 €'),
+      deltaHero: e('+29 280 €'),
+      mFinancier: e('126 119 €'),
+      mImmo: e('222 000 €'),
+      mDette: e('244 130 €'),
+      mEpargne: e('118 950 €'),
+      rImmo: e('212 400 €'), rActions: e('148 900 €'), rAv: e('61 200 €'),
+      rEpargne: e('34 800 €'), rAutres: e('30 020 €'),
+
+      ajoutOuvert: this.state.ajoutOuvert,
+      ouvrirAjout: () => this.setState({ ajoutOuvert: true }),
+      fermerAjout: () => this.setState({ ajoutOuvert: false, aTicker: '', aQte: '', aPru: '' }),
+      aTicker: this.state.aTicker,
+      aQte: this.state.aQte,
+      aPru: this.state.aPru,
+      majTicker: (ev) => this.setState({ aTicker: ev.target.value.toUpperCase() }),
+      majQte: (ev) => this.setState({ aQte: ev.target.value }),
+      majPru: (ev) => this.setState({ aPru: ev.target.value }),
+      majType: (ev) => this.setState({ aType: ev.target.value }),
+      majCompte: (ev) => this.setState({ aCompte: ev.target.value }),
+      apercuAjout: (() => {
+        const q = parseFloat(String(this.state.aQte).replace(',', '.'));
+        const pr = parseFloat(String(this.state.aPru).replace(',', '.'));
+        if (!isFinite(q) || !isFinite(pr) || q <= 0 || pr <= 0) return null;
+        return fEuro(q * pr);
+      })(),
+      ajoutDesactive: (() => {
+        const q = parseFloat(String(this.state.aQte).replace(',', '.'));
+        const pr = parseFloat(String(this.state.aPru).replace(',', '.'));
+        return !(!!this.state.aTicker && isFinite(q) && q > 0 && isFinite(pr) && pr > 0);
+      })(),
+      ajoutValide: (() => {
+        const q = parseFloat(String(this.state.aQte).replace(',', '.'));
+        const pr = parseFloat(String(this.state.aPru).replace(',', '.'));
+        return !!this.state.aTicker && isFinite(q) && q > 0 && isFinite(pr) && pr > 0;
+      })(),
+      styleValider: (() => {
+        const q = parseFloat(String(this.state.aQte).replace(',', '.'));
+        const pr = parseFloat(String(this.state.aPru).replace(',', '.'));
+        const ok = !!this.state.aTicker && isFinite(q) && q > 0 && isFinite(pr) && pr > 0;
+        return 'flex:1; border:0; border-radius:12px; padding:11px; font-size:15px; font-weight:600; color:#fff; font-family:inherit; '
+          + (ok
+            ? 'background:var(--accent-grad); cursor:pointer; box-shadow:var(--accent-glow);'
+            : 'background:var(--track); color:var(--ink4); cursor:not-allowed;');
+      })(),
+
+      positions,
+      totalPositions: e(fEuro(sommeVal)),
+      perfPositions: fPct(perfGlobale),
+      couleurPerfPositions: perfGlobale >= 0 ? 'var(--pos)' : 'var(--neg)',
+      libelleTotal: retenues.length > 1 ? 'Total · ' + retenues.length + ' lignes' : 'Total · 1 ligne',
+      sousTitrePatrimoine: (retenues.length > 1 ? retenues.length + ' lignes' : '1 ligne')
+        + (f === 'Tous' ? '' : ' · filtre ' + f)
+        + ' · cours à jour au 05/09/2026 18:42',
+      etablissements,
+      totalComptes: e('421 329 €'),
+      ficheOuverte: !!fiche,
+      ficheEstCompte,
+      ficheTitre: ficheTitres[fiche] || '',
+      ficheSousTitre: ficheSousTitres[fiche] || '',
+      fNom: this.state.fNom,
+      majFNom: (ev) => this.setState({ fNom: ev.target.value }),
+      majFEtab: (ev) => this.setState({ fEtab: ev.target.value }),
+      nouveauCompte: this.ouvrirFiche('compte-nouveau', ''),
+      nouvelEtablissement: this.ouvrirFiche('etab-nouveau', ''),
+      fermerFiche: () => this.setState({ fiche: null, fNom: '' }),
+      styleFicheValider: 'flex:1; border:0; border-radius:12px; padding:11px; font-size:15px; font-weight:600; font-family:inherit; '
+        + (this.state.fNom.trim()
+          ? 'background:var(--accent-grad); color:#fff; cursor:pointer; box-shadow:var(--accent-glow);'
+          : 'background:var(--track); color:var(--ink4); cursor:not-allowed;'),
+      ficheDesactivee: !this.state.fNom.trim(),
+      mouvements,
+
+      dValeur: e('72 760,80 €'),
+      dGain: e('11 303 €'),
+
+      bDispo: e('1 568 €'),
+      bEntrees: e('5 480 €'),
+      bSorties: e('3 912 €'),
+      bReste: e('1 980 €'),
+
+      rDebut: e('120 339 €'), rInvesti: e('2 400 €'), rGenere: e('3 380 €'), rFin: e('126 119 €'),
+
+      oCible: e('850 000 €'),
+      oFinal: e('699 840 €'),
+      oVerse: e('282 119 €'),
+      oInterets: e('417 721 €'),
+
+      divTotal: e('1 842,30 €'),
+      barresDiv: DIV_BARRES.map((b) => ({ mois: b.mois, h: b.h + 'px' })),
+    };
+  }
+}
+</script>
+</body>
+</html>
