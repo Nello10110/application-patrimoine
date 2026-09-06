@@ -12,6 +12,15 @@ import { cardByTitle, positionsTable } from './helpers'
  * technique, jamais un doublon silencieux.
  */
 
+// Le formulaire d'ajout vit dans une feuille modale depuis la refonte (étape 4) :
+// il faut l'ouvrir, et tout y est scopé — « Ajouter » existe aussi sur la carte
+// Dettes et emprunts, plus bas sur le même écran.
+async function formulaireAjout(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Ajouter une ligne' }).click()
+  return page.getByRole('dialog')
+}
+
+
 test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () => {
   test('créer deux comptes du même nom affiche un message clair, sans casser l\'écran', async ({ page }) => {
     await page.goto('/comptes')
@@ -89,16 +98,11 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
 })
 
 test.describe('Parcours dégradés — saisies incohérentes dans le portefeuille', () => {
-  // « Ajouter » existe aussi sur la carte Dettes et emprunts, plus bas sur le même
-  // écran : tout est scopé au formulaire d'ajout de ligne pour lever l'ambiguïté.
-  const formulaireAjout = (page: import('@playwright/test').Page) =>
-    cardByTitle(page, 'Ajouter une ligne manuellement')
-
   test('le bouton Ajouter reste inactif tant que ticker et quantité manquent, et dit ce qui manque', async ({ page }) => {
     await page.goto('/patrimoine')
     await expect(page.getByRole('heading', { name: 'Portefeuille' })).toBeVisible()
 
-    const formulaire = formulaireAjout(page)
+    const formulaire = await formulaireAjout(page)
     const bouton = formulaire.getByRole('button', { name: 'Ajouter' })
 
     // Formulaire vierge : bouton inactif ET explication de ce qui est attendu —
@@ -120,7 +124,7 @@ test.describe('Parcours dégradés — saisies incohérentes dans le portefeuill
     await expect(page.getByRole('heading', { name: 'Portefeuille' })).toBeVisible()
 
     const ticker = `NEG${Date.now().toString().slice(-5)}`
-    const formulaire = formulaireAjout(page)
+    const formulaire = await formulaireAjout(page)
     await formulaire.getByPlaceholder('AAPL').fill(ticker)
     // `type="number"` n'empêche pas la saisie d'un négatif au clavier : c'est bien
     // le backend qui doit refuser, avec un message lisible.
@@ -156,7 +160,7 @@ test.describe('Ergonomie — le guidage promis est réellement présent à l\'é
     const ticker = `AUTRE${Date.now().toString().slice(-5)}`
     await page.goto('/patrimoine')
     await expect(page.getByRole('heading', { name: 'Portefeuille' })).toBeVisible()
-    const formulaire = cardByTitle(page, 'Ajouter une ligne manuellement')
+    const formulaire = await formulaireAjout(page)
     await formulaire.getByPlaceholder('AAPL').fill(ticker)
     await formulaire.getByLabel('Quantité').fill('1')
     await formulaire.getByLabel('Type d\'actif').selectOption('Autre actif')

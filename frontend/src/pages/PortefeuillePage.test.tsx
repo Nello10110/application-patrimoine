@@ -103,6 +103,13 @@ function marketData(overrides: Partial<NonNullable<Holding['market_data']>> = {}
   }
 }
 
+/** Le formulaire d'ajout vit dans une feuille modale depuis la refonte (étape 4) :
+ * il faut l'ouvrir avant d'atteindre ses champs. */
+async function ouvrirFeuilleAjout() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Ajouter une ligne' }))
+  return screen.findByRole('dialog')
+}
+
 describe('PortefeuillePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -121,7 +128,7 @@ describe('PortefeuillePage', () => {
     it("le champ « Taux » n'apparaît pas pour un type d'actif sans taux (ex. action)", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       expect(screen.queryByLabelText(/Taux d'intérêt annuel/)).not.toBeInTheDocument()
       expect(screen.queryByLabelText(/Décote annuelle/)).not.toBeInTheDocument()
@@ -130,7 +137,7 @@ describe('PortefeuillePage', () => {
     it("sélectionner « Épargne réglementée » révèle le champ « Taux d'intérêt annuel »", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REGULATED_SAVINGS' } })
 
@@ -140,7 +147,7 @@ describe('PortefeuillePage', () => {
     it("sélectionner « Véhicule » révèle le champ « Décote annuelle », libellé distinct de l'épargne", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
 
@@ -151,7 +158,7 @@ describe('PortefeuillePage', () => {
     it('affiche la valeur projetée à 1 an (indicatif) une fois valeur estimée et taux renseignés', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REGULATED_SAVINGS' } })
       fireEvent.change(screen.getByLabelText('Valeur estimée'), { target: { value: '10000' } })
@@ -167,7 +174,7 @@ describe('PortefeuillePage', () => {
         holding({ id: 9, ticker: 'LIVRETA', quantite: 1, type_actif: 'REGULATED_SAVINGS', valeur_estimee: 10000, taux_pct: 3 }),
       )
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'LIVRETA' } })
       fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
@@ -188,7 +195,7 @@ describe('PortefeuillePage', () => {
     it("le champ « Zone géographique » n'apparaît pas pour un type d'actif financier (ex. action)", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       expect(screen.queryByLabelText('Zone géographique')).not.toBeInTheDocument()
     })
@@ -196,7 +203,7 @@ describe('PortefeuillePage', () => {
     it("sélectionner « Immobilier » révèle le champ « Zone géographique »", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
 
@@ -209,7 +216,7 @@ describe('PortefeuillePage', () => {
         holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'REAL_ESTATE', valeur_estimee: 200000, zone_geo: 'Amérique du Nord' }),
       )
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'MAISON' } })
       fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
@@ -228,7 +235,7 @@ describe('PortefeuillePage', () => {
     it("le champ « Date d'acquisition » n'apparaît pas pour un type d'actif financier (ex. action)", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       expect(screen.queryByLabelText("Date d'acquisition")).not.toBeInTheDocument()
     })
@@ -236,7 +243,7 @@ describe('PortefeuillePage', () => {
     it("sélectionner « Immobilier » révèle le champ « Date d'acquisition »", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
 
@@ -249,7 +256,7 @@ describe('PortefeuillePage', () => {
         holding({ id: 9, ticker: 'MAISON', quantite: 1, type_actif: 'REAL_ESTATE', valeur_estimee: 200000, date_acquisition: '2021-06-15T00:00:00' }),
       )
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'MAISON' } })
       fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
@@ -277,7 +284,7 @@ describe('PortefeuillePage', () => {
     it("le champ « Versement mensuel » n'apparaît pas pour un type hors TYPES_EPARGNE (ex. action, véhicule)", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       expect(screen.queryByLabelText('Versement mensuel (€)')).not.toBeInTheDocument()
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'VEHICLE' } })
@@ -287,7 +294,7 @@ describe('PortefeuillePage', () => {
     it("sélectionner une assurance-vie révèle le champ « Versement mensuel »", async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'LIFE_INSURANCE' } })
 
@@ -300,7 +307,7 @@ describe('PortefeuillePage', () => {
         holding({ id: 9, ticker: 'AV1', quantite: 1, type_actif: 'LIFE_INSURANCE', valeur_estimee: 10000, versement_mensuel: 200 }),
       )
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
 
       fireEvent.change(screen.getByPlaceholderText('AAPL'), { target: { value: 'AV1' } })
       fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '1' } })
@@ -824,7 +831,7 @@ describe('PortefeuillePage', () => {
       ])
 
       render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
-      await screen.findByText('Ajouter une ligne manuellement')
+      await ouvrirFeuilleAjout()
       await waitFor(() => expect(vi.mocked(api.listComptes)).toHaveBeenCalled())
 
       // `LoansCard` est mocké dans ce fichier (voir en tête) : son propre appel à

@@ -51,7 +51,10 @@ test.describe('Portefeuille', () => {
     // Distinct du formulaire d'ajout d'emprunt de `LoansCard` (plus bas sur la même
     // page), qui a lui aussi un bouton "Ajouter" — seul CE formulaire porte un champ
     // "Ticker".
-    const formulaireAjout = page.locator('form').filter({ has: page.getByLabel('Ticker') })
+    // Feuille modale depuis la refonte (étape 4) : le formulaire n'est plus une
+    // carte permanente en haut de l'écran.
+    await page.getByRole('button', { name: 'Ajouter une ligne' }).click()
+    const formulaireAjout = page.getByRole('dialog')
     await formulaireAjout.getByLabel('Ticker').fill(ticker)
     await formulaireAjout.getByLabel('Quantité', { exact: true }).fill('3')
     await formulaireAjout.getByLabel('Prix de revient').fill('10')
