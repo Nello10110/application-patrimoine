@@ -90,7 +90,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
   }
 
   return (
-    <Modale onClose={onClose} panelClassName="w-full max-w-xl rounded-xl bg-surface p-6 shadow-xl">
+    <Modale onClose={onClose} panelClassName="w-full max-w-xl rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
       {({ titleId }) => (
         <>
           <div className="mb-4 flex items-start justify-between">
@@ -114,7 +114,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
                     value={destinataire}
                     onChange={(e) => setDestinataire(e.target.value)}
                     placeholder="Banque XYZ"
-                    className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                    className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -122,7 +122,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
                   <select
                     value={detenteurId}
                     onChange={(e) => setDetenteurId(e.target.value)}
-                    className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                    className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                   >
                     <option value="">Foyer entier</option>
                     {detenteurs.map((d) => (
@@ -149,7 +149,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
                 {holdings.length === 0 ? (
                   <p className="text-sm text-texte-attenue">Aucun actif dans le portefeuille.</p>
                 ) : (
-                  <ul className="max-h-40 divide-y divide-bordure overflow-y-auto rounded-md border border-bordure">
+                  <ul className="max-h-40 divide-y divide-bordure overflow-y-auto rounded-control border border-bordure">
                     {holdings.map((h) => (
                       <li key={h.id} className="flex items-center justify-between px-2 py-1.5 text-sm">
                         <label className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
                 {loans.length === 0 ? (
                   <p className="text-sm text-texte-attenue">Aucun emprunt enregistré.</p>
                 ) : (
-                  <ul className="max-h-32 divide-y divide-bordure overflow-y-auto rounded-md border border-bordure">
+                  <ul className="max-h-32 divide-y divide-bordure overflow-y-auto rounded-control border border-bordure">
                     {loans.map((l) => (
                       <li key={l.id} className="flex items-center justify-between px-2 py-1.5 text-sm">
                         <label className="flex items-center gap-2">
@@ -183,13 +183,13 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
               {erreurGeneration && <p className="text-sm text-negatif">{erreurGeneration}</p>}
 
               <div className="flex justify-end gap-3 border-t border-bordure pt-4">
-                <button onClick={onClose} className="rounded-md border border-bordure px-4 py-2 text-sm font-medium text-texte">
+                <button onClick={onClose} className="rounded-control border border-bordure px-4 py-2 text-sm font-medium text-texte">
                   Annuler
                 </button>
                 <button
                   onClick={handleGenerer}
                   disabled={generating}
-                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
                 >
                   {generating ? 'Génération...' : 'Générer le PDF'}
                 </button>

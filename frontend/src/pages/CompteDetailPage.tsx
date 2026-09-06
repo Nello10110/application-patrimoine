@@ -15,7 +15,7 @@ export default function CompteDetailPage() {
   if (!compte) return null
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[14px]">
       <button
         onClick={() => navigate('/comptes')}
         className="inline-flex items-center gap-1 text-sm text-accent hover:underline"

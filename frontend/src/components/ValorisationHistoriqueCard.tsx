@@ -158,7 +158,7 @@ export function ValorisationHistoriqueCard({
                         step="any"
                         min={0}
                         aria-label={`Valeur du ${formatDate(p.date_valeur)} (édition)`}
-                        className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                        className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
                     <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -168,7 +168,7 @@ export function ValorisationHistoriqueCard({
                         onChange={(e) => setEditDate(e.target.value)}
                         type="date"
                         aria-label={`Date du ${formatDate(p.date_valeur)} (édition)`}
-                        className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                        className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
                     <ChampDecomposition
@@ -187,13 +187,13 @@ export function ValorisationHistoriqueCard({
                     <button
                       onClick={() => saveEdition(p.id)}
                       disabled={editionSaving}
-                      className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-40"
+                      className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-40"
                     >
                       Enregistrer
                     </button>
                     <button
                       onClick={() => setEditionId(null)}
-                      className="rounded-md border border-bordure px-3 py-1.5 text-sm font-medium text-texte"
+                      className="rounded-control border border-bordure px-3 py-1.5 text-sm font-medium text-texte"
                     >
                       Annuler
                     </button>
@@ -229,7 +229,7 @@ export function ValorisationHistoriqueCard({
       {erreurAction && <p className="mt-2 text-sm text-negatif">{erreurAction}</p>}
 
       {confirmSuppression && (
-        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
               <h2 id={titleId} className="text-lg font-semibold text-texte">
@@ -244,14 +244,14 @@ export function ValorisationHistoriqueCard({
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                  className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>

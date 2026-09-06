@@ -183,11 +183,13 @@ export default function SimulateurPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[14px]">
+      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Objectifs</h1>
+
       <ObjectifsSuivisSection />
 
       <div className="border-t border-bordure pt-6">
-        <h2 className="text-xl font-semibold text-texte">Simulateur</h2>
+        <h2 className="text-[22px] font-semibold tracking-title text-ink">Simulateur</h2>
         <p className="mt-1 text-sm text-texte-attenue">
           Projette un capital dans le temps — une <strong>hypothèse</strong>, pas une promesse : les marchés ne progressent
           jamais de façon aussi régulière dans la réalité. Préempli avec ton patrimoine net actuel, mais librement modifiable
@@ -206,7 +208,7 @@ export default function SimulateurPage() {
               step="any"
               min={0}
               disabled={chargementPatrimoine}
-              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte disabled:opacity-50"
+              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte disabled:opacity-50"
             />
             {patrimoineNetActuel !== null && capitalNum !== patrimoineNetActuel && (
               <button
@@ -227,7 +229,7 @@ export default function SimulateurPage() {
               step="any"
               min={0}
               placeholder="optionnel"
-              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -237,7 +239,7 @@ export default function SimulateurPage() {
               onChange={(e) => setTaux(e.target.value)}
               type="number"
               step="any"
-              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -248,7 +250,7 @@ export default function SimulateurPage() {
               type="number"
               step="any"
               min={0}
-              className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
             {versementSuggere !== null && versementNum !== Math.round(versementSuggere) && (
               <button
@@ -361,7 +363,7 @@ export default function SimulateurPage() {
               />
             </div>
 
-            <div className="mt-3 max-h-96 overflow-y-auto overflow-x-auto rounded-md border border-bordure">
+            <div className="mt-3 max-h-96 overflow-y-auto overflow-x-auto rounded-control border border-bordure">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-surface">
                   <tr className="border-b border-bordure text-left text-xs font-medium uppercase text-texte-attenue">
@@ -433,7 +435,7 @@ export default function SimulateurPage() {
               type="number"
               step="any"
               placeholder="ex. 30000"
-              className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -443,7 +445,7 @@ export default function SimulateurPage() {
               onChange={(e) => setTauxRetrait(e.target.value)}
               type="number"
               step="any"
-              className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-28 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
         </div>

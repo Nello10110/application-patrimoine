@@ -28,10 +28,11 @@
    est recouvert par le conteneur racine `bg-surface-elevee` de `App.tsx`). */
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--surface-elevee);
+  /* Pile de polices : `--font-sans` du bloc `@theme` (refonte). Le fond appartient
+     à `--app-bg`, posé par `styles/tokens-glass.css` — plus d'aplat par-dessus. */
+  font-family: var(--font-sans);
   color: var(--texte);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 /* Focus clavier (audit de design du 03/09/2026) : l'application ne définissait
@@ -62,19 +63,11 @@ body {
    lues par chaque graphique (`var(--color-chart-grid)`, etc.) : le navigateur les
    réévalue seul dès que la classe `.dark` bascule sur `<html>`, sans re-render React. */
 :root {
-  --color-chart-grid: #e2e8f0; /* slate-200 */
-  --color-chart-axis: #64748b; /* slate-500 */
-  --color-tooltip-bg: #ffffff;
-  --color-tooltip-border: #e2e8f0; /* slate-200 */
-  --color-tooltip-text: #0f172a; /* slate-900 */
-}
-
-.dark {
-  --color-chart-grid: #334155; /* slate-700 */
-  --color-chart-axis: #94a3b8; /* slate-400 */
-  --color-tooltip-bg: #1e293b; /* slate-800 */
-  --color-tooltip-border: #334155; /* slate-700 */
-  --color-tooltip-text: #e2e8f0; /* slate-200 */
+  --color-chart-grid: var(--hairline, rgba(22, 24, 29, 0.09));
+  --color-chart-axis: var(--ink4, #9aa1ad);
+  --color-tooltip-bg: var(--panel-hi, #ffffff);
+  --color-tooltip-border: var(--stroke, rgba(22, 24, 29, 0.09));
+  --color-tooltip-text: var(--ink, #16181d);
 }
 
 /* Chiffre héros en mobile (refonte, étape 5) : 40 px au lieu de 54 — la maquette
@@ -117,23 +110,11 @@ body {
   --color-accent: var(--accent);
   --color-avertissement: var(--avertissement);
 
-  --text-display: 2rem;
-  --text-display--line-height: 1.2;
-  --text-display--font-weight: 700;
-  --text-titre: 1.5rem;
-  --text-titre--line-height: 1.3;
-  --text-titre--font-weight: 600;
-  --text-soustitre: 1.125rem;
-  --text-soustitre--line-height: 1.4;
-  --text-soustitre--font-weight: 600;
-  --text-corps: 1rem;
-  --text-corps--line-height: 1.5;
-  --text-petit: 0.875rem;
-  --text-petit--line-height: 1.5;
-  --text-micro: 0.75rem;
-  --text-micro--line-height: 1.4;
-  --text-micro--font-weight: 500;
-  --text-micro--letter-spacing: 0.03em;
+  /* L'ancienne échelle typographique (`text-display`/`titre`/`soustitre`/`corps`/
+     `petit`/`micro`, backlog 2.K.1) est retirée : plus aucun composant ne l'utilise
+     depuis le portage des écrans, et deux échelles déclarées côte à côte laissent
+     croire qu'il reste un choix à faire. Celle de la refonte, ci-dessous, est la
+     seule. */
 
   /* --- Refonte « liquid glass » (05/09/2026), étape 1 ------------------------
      Équivalent CSS-first du `tailwind.config.additions.js` du paquet de design :
@@ -198,39 +179,46 @@ body {
     "Helvetica Neue", Helvetica, sans-serif;
 }
 
+/* Jetons sémantiques d'origine (backlog 2.K.1), REBRANCHÉS sur la palette de verre
+   (refonte, passe de cohérence). Les deux familles coexistent volontairement — le
+   portage écran par écran laisse environ un millier d'usages de `text-texte`,
+   `bg-surface`, `border-bordure`… encore en place, et les réécrire un à un serait
+   une semaine de diff mécanique pour le même rendu. Les faire POINTER vers les
+   jetons de verre obtient le résultat en un seul endroit : chaque écran non encore
+   repris adopte l'encre, les filets et les couleurs de la refonte, et un écran
+   repris ne change pas.
+
+   Deux valeurs ne sont pas de simples alias :
+   - `--surface` / `--surface-elevee` restent OPAQUES. Un panneau de verre tire sa
+     matière du fond qu'il filtre ; une carte translucide posée dans une autre carte
+     translucide n'a plus rien à filtrer et devient un voile gris. Les surfaces
+     héritées prennent donc l'équivalent opaque du verre (celui-là même que
+     `tokens-glass.css` utilise déjà comme repli sans `backdrop-filter`).
+   - `--avertissement` garde sa teinte ambre : la palette de verre n'a pas de
+     couleur d'avertissement, et le vert/rouge ne peut pas la remplacer. */
 :root {
   --surface: #ffffff;
-  --surface-elevee: #f8fafc; /* slate-50 */
-  --bordure: #e2e8f0; /* slate-200 */
-  --texte: #0f172a; /* slate-900 */
-  --texte-attenue: #64748b; /* slate-500 */
-  --positif: #047857; /* emerald-700 — 5,48:1 sur blanc. emerald-600 (#059669) ne
-                         donnait que 3,77:1, sous le seuil de 4,5:1, alors que cette
-                         couleur PORTE l'information (gain) et n'est pas décorative
-                         (audit de design du 03/09/2026). */
-  --negatif: #dc2626; /* red-600 */
-  --accent: #4f46e5; /* indigo-600 */
-  --avertissement: #b45309; /* amber-700 — 5,02:1 sur blanc, contre 3,19:1 pour
-                               amber-600 (#d97706). Même raison que `--positif`. */
+  --surface-elevee: #f4f6fa; /* teinte de départ du dégradé `--app-bg` en clair */
+  --bordure: var(--hairline, rgba(22, 24, 29, 0.09));
+  --texte: var(--ink, #16181d);
+  --texte-attenue: var(--ink3, #6b7280);
+  --positif: var(--pos, #0f7a4f);
+  --negatif: var(--neg, #c0392b);
+  --avertissement: #b45309; /* amber-700 — 5,02:1 sur blanc (audit du 03/09/2026) */
 }
 
 .dark {
-  --surface: #1e293b; /* slate-800 */
-  --surface-elevee: #0f172a; /* slate-900 — fond de PAGE (cf. `body` plus haut).
-                                slate-700 (#334155) était un gris moyen, pas un fond
-                                sombre : il ne laissait plus assez d'écart pour le texte
-                                secondaire (4,04:1), les erreurs (3,74:1) ni les liens
-                                (3,47:1). Ces trois teintes passent au-dessus de 4,5:1
-                                sans changer de valeur — c'est le fond qui les étouffait.
-                                Effet de bord voulu : les cartes (`--surface`, slate-800)
-                                deviennent plus CLAIRES que la page, sens d'élévation
-                                habituel en mode sombre, alors qu'elles étaient plus
-                                sombres jusqu'ici. */
-  --bordure: #334155; /* slate-700 */
-  --texte: #f1f5f9; /* slate-100 */
-  --texte-attenue: #94a3b8; /* slate-400 */
-  --positif: #34d399; /* emerald-400 */
-  --negatif: #f87171; /* red-400 */
-  --accent: #818cf8; /* indigo-400 */
+  /* Repli opaque du verre sombre (`tokens-glass.css`, bloc `@supports not`) plutôt
+     que l'ancien slate-800/900 : ce bleu-gris jurait franchement contre le
+     quasi-noir de la refonte dès qu'une carte non reprise voisinait un panneau de
+     verre. Le sens d'élévation est conservé — la carte reste plus CLAIRE que la
+     page. */
+  --surface: #1e2229;
+  --surface-elevee: #12141a; /* teinte de départ du dégradé `--app-bg` en sombre */
+  --bordure: var(--hairline, rgba(255, 255, 255, 0.12));
+  --texte: var(--ink, #ffffff);
+  --texte-attenue: var(--ink3, #9aa1ad);
+  --positif: var(--pos, #4ce6a4);
+  --negatif: var(--neg, #ff8a7a);
   --avertissement: #fbbf24; /* amber-400 */
 }

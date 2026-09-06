@@ -34,7 +34,7 @@ export default function ImmobilierParametresForm({
           <select
             value={form.type_location}
             onChange={(e) => setForm({ ...form, type_location: e.target.value })}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           >
             {OPTIONS_TYPE_LOCATION.map((o) => (
               <option key={o.value} value={o.value}>
@@ -50,7 +50,7 @@ export default function ImmobilierParametresForm({
             step="any"
             value={form.loyer_mensuel}
             onChange={(e) => setForm({ ...form, loyer_mensuel: e.target.value })}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -60,7 +60,7 @@ export default function ImmobilierParametresForm({
             step="any"
             value={form.charges_mensuelles}
             onChange={(e) => setForm({ ...form, charges_mensuelles: e.target.value })}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -70,7 +70,7 @@ export default function ImmobilierParametresForm({
             step="any"
             value={form.frais_annuels}
             onChange={(e) => setForm({ ...form, frais_annuels: e.target.value })}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -80,7 +80,7 @@ export default function ImmobilierParametresForm({
             step="any"
             value={form.surface_m2}
             onChange={(e) => setForm({ ...form, surface_m2: e.target.value })}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -90,7 +90,7 @@ export default function ImmobilierParametresForm({
             step="1"
             value={form.nb_pieces}
             onChange={(e) => setForm({ ...form, nb_pieces: e.target.value })}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -100,7 +100,7 @@ export default function ImmobilierParametresForm({
             step="1"
             value={form.annee_construction}
             onChange={(e) => setForm({ ...form, annee_construction: e.target.value })}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -110,7 +110,7 @@ export default function ImmobilierParametresForm({
             onChange={(e) => setForm({ ...form, dpe: e.target.value })}
             placeholder="A à G"
             maxLength={2}
-            className="w-20 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-20 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
       </div>
@@ -118,7 +118,7 @@ export default function ImmobilierParametresForm({
       <button
         onClick={onSave}
         disabled={saving}
-        className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
       >
         {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>

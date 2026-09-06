@@ -19,7 +19,11 @@ test.describe('Navigation', () => {
 
       await page.goto(route.path)
       await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
-      await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible()
+      // Un titre, quel que soit son niveau : depuis la refonte, le titre d'écran est
+      // un `<h1>` (28 px, masqué sous 768 px où `EnTeteMobile` le porte) et les `<h2>`
+      // sont les titres de section — figer le niveau 2 revenait à exiger qu'un écran
+      // ait au moins une section, ce que Synthèse et Import n'ont pas.
+      await expect(page.getByRole('heading').first()).toBeVisible()
       expect(erreurs, `erreurs console sur ${route.path}`).toEqual([])
     })
   }

@@ -129,8 +129,8 @@ export default function DashboardPage() {
   // (chargement, erreur, données) : c'est la seule voie de récupération d'une page
   // restée en erreur, faute d'un rechargement complet (F5).
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-[14px]">
+      <div className="flex items-center justify-end md:justify-between">
         <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Tableau de bord</h1>
         <SecondaryButton onClick={chargerDonnees} disabled={loading} className="min-h-11 md:min-h-0">
           {loading ? 'Actualisation...' : 'Actualiser'}
@@ -172,8 +172,8 @@ export default function DashboardPage() {
               ci-dessous : ce sont des appels à l'action, pas de la simple information
               complémentaire. */}
           {hasNoHoldings && (
-            <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
-              <p className="text-sm text-amber-800 dark:text-amber-200/90">
+            <Card className="border-avertissement/25 bg-avertissement/10">
+              <p className="text-sm text-avertissement">
                 Aucune position dans le portefeuille. Commence par{' '}
                 <Link to="/import" className="font-medium underline">
                   importer ton portefeuille

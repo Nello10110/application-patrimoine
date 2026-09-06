@@ -104,7 +104,7 @@ export default function JobCard({ job, onChange }: { job: ScheduledJob; onChange
             value={job.intervalle_heures}
             disabled={saving || !job.enabled}
             onChange={(e) => handleIntervalChange(Number(e.target.value))}
-            className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
+            className="rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
           >
             {INTERVAL_OPTIONS.map((h) => (
               <option key={h} value={h}>

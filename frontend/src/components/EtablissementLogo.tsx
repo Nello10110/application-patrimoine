@@ -42,7 +42,7 @@ export default function EtablissementLogo({
 }) {
   const logoReel = useLogoReel(etablissementId)
   const connu = trouverEtablissementConnu(logoKey)
-  const base = `inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${TAILLES[taille]} ${className ?? ''}`
+  const base = `inline-flex shrink-0 items-center justify-center rounded-chip font-semibold ${TAILLES[taille]} ${className ?? ''}`
 
   if (logoReel) {
     return (

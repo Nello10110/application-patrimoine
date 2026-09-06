@@ -48,7 +48,7 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
               step="any"
               value={saisie[d.id] ?? ''}
               onChange={(e) => setValeur(d.id, e.target.value)}
-              className="w-20 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+              className="w-20 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
             />
           </label>
         ))}
@@ -56,7 +56,7 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
           type="button"
           onClick={handleSave}
           disabled={!totalValide || saving}
-          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-3 py-1.5 text-xs font-medium text-surface disabled:opacity-40"
         >
           Enregistrer
         </button>
@@ -139,7 +139,7 @@ function LoanCardMobile({
 
   if (enEdition) {
     return (
-      <div className="rounded-lg border border-bordure bg-surface p-4">
+      <div className="rounded-card border border-bordure bg-surface p-4">
         <div className="space-y-3">
           <LoanFormFields
             form={editForm}
@@ -158,11 +158,11 @@ function LoanCardMobile({
           <button
             onClick={onSaveEdition}
             disabled={editionSaving}
-            className="min-h-11 flex-1 rounded-md bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
           >
             Enregistrer
           </button>
-          <button onClick={onCancelEdition} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+          <button onClick={onCancelEdition} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
             Annuler
           </button>
         </div>
@@ -171,7 +171,7 @@ function LoanCardMobile({
   }
 
   return (
-    <div className="rounded-lg border border-bordure bg-surface p-4">
+    <div className="rounded-card border border-bordure bg-surface p-4">
       <p className="font-medium text-texte">{loan.libelle}</p>
 
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -205,7 +205,7 @@ function LoanCardMobile({
             type="number"
             step="any"
             aria-label={`Recaler le capital restant dû de ${loan.libelle}`}
-            className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
           />
         </label>
       )}
@@ -217,7 +217,7 @@ function LoanCardMobile({
           disabled={rattachementSaving === loan.id || holdingsIndisponibles}
           title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
           onChange={(e) => onRattacher(e.target.value === '' ? null : Number(e.target.value))}
-          className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
         >
           {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>Actif rattaché (liste indisponible)</option>}
           <option value="">Aucun</option>
@@ -238,7 +238,7 @@ function LoanCardMobile({
           value={loan.etablissement_id ?? ''}
           disabled={etablissementSaving === loan.id}
           onChange={(e) => onRattacherEtablissement(e.target.value === '' ? null : Number(e.target.value))}
-          className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+          className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
         >
           <option value="">Aucun</option>
           {etablissements.map((et) => (
@@ -262,28 +262,28 @@ function LoanCardMobile({
             <button
               onClick={onSaveRecalage}
               disabled={recalageSaving}
-              className="min-h-11 flex-1 rounded-md bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+              className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
             >
               Enregistrer
             </button>
-            <button onClick={onCancelRecalage} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+            <button onClick={onCancelRecalage} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
               Annuler
             </button>
           </>
         ) : (
           <>
-            <button onClick={onStartEdition} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+            <button onClick={onStartEdition} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
               Modifier
             </button>
-            <button onClick={onStartRecalage} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+            <button onClick={onStartRecalage} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
               Recaler
             </button>
-            <button onClick={onToggleDetenteurs} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+            <button onClick={onToggleDetenteurs} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
               {detenteursOuverts ? 'Fermer' : 'Détenteurs'}
             </button>
             <button
               onClick={onRequestDelete}
-              className="min-h-11 flex-1 rounded-md border border-negatif/40 px-3 text-sm font-medium text-negatif"
+              className="min-h-11 flex-1 rounded-control border border-negatif/40 px-3 text-sm font-medium text-negatif"
             >
               Supprimer
             </button>
@@ -597,7 +597,7 @@ export default function LoansCard({
                           type="number"
                           step="any"
                           aria-label={`Recaler le capital restant dû de ${loan.libelle}`}
-                          className="w-28 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                          className="w-28 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                         />
                         <button
                           onClick={() => saveRecalage(loan.id)}
@@ -628,7 +628,7 @@ export default function LoansCard({
                       title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
                       onChange={(e) => handleRattacher(loan.id, e.target.value === '' ? null : Number(e.target.value))}
                       aria-label={`Actif rattaché à ${loan.libelle}`}
-                      className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                      className="rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     >
                       {/* Sans cette option, un emprunt rattaché retombait sur
                           « Aucun » quand la liste n'avait pas pu être chargée. */}
@@ -647,7 +647,7 @@ export default function LoansCard({
                       disabled={etablissementSaving === loan.id}
                       onChange={(e) => handleRattacherEtablissement(loan.id, e.target.value === '' ? null : Number(e.target.value))}
                       aria-label={`Établissement du crédit de ${loan.libelle}`}
-                      className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                      className="rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     >
                       <option value="">Aucun</option>
                       {etablissements.map((et) => (
@@ -695,13 +695,13 @@ export default function LoansCard({
                         <button
                           onClick={() => saveEdition(loan.id)}
                           disabled={editionSaving}
-                          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+                          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
                         >
                           Enregistrer
                         </button>
                         <button
                           onClick={cancelEdition}
-                          className="rounded-md border border-bordure px-4 py-2 text-sm font-medium text-texte"
+                          className="rounded-control border border-bordure px-4 py-2 text-sm font-medium text-texte"
                         >
                           Annuler
                         </button>
@@ -739,7 +739,7 @@ export default function LoansCard({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Ajouter
         </button>
@@ -750,7 +750,7 @@ export default function LoansCard({
       </p>
 
       {confirmSuppression && (
-        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
               <h2 id={titleId} className="text-lg font-semibold text-texte">
@@ -764,14 +764,14 @@ export default function LoansCard({
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                  className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>

@@ -124,7 +124,7 @@ export default function MetriquesAvanceesCard() {
               <select
                 value={benchmarkChoisi}
                 onChange={(e) => handleBenchmarkChange(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               >
                 <option value="">Choisir un indice de référence</option>
                 {benchmarks.map((b) => (

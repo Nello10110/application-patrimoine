@@ -39,7 +39,7 @@ export default function MouvementsSection({
       <select
         value={filtreCategorieId}
         onChange={(e) => setFiltreCategorieId(e.target.value === 'TOUTES' || e.target.value === 'NON_CATEGORISE' ? e.target.value : Number(e.target.value))}
-        className="rounded-md border border-bordure bg-surface px-2 py-1 text-xs text-texte"
+        className="rounded-control border border-bordure bg-surface px-2 py-1 text-xs text-texte"
       >
         <option value="TOUTES">Toutes catégories</option>
         <option value="NON_CATEGORISE">Non catégorisé</option>
@@ -54,7 +54,7 @@ export default function MouvementsSection({
         <select
           value={filtreCompte}
           onChange={(e) => setFiltreCompte(e.target.value)}
-          className="rounded-md border border-bordure bg-surface px-2 py-1 text-xs text-texte"
+          className="rounded-control border border-bordure bg-surface px-2 py-1 text-xs text-texte"
         >
           <option value="TOUS">Tous les comptes</option>
           {comptesDisponibles.map((c) => (
@@ -102,7 +102,7 @@ export default function MouvementsSection({
                     <select
                       value={m.categorie_id ?? ''}
                       onChange={(e) => api.categoriserMouvement(m.id, e.target.value ? Number(e.target.value) : null).then(onCategorized)}
-                      className="rounded-md border border-bordure bg-surface px-2 py-1 text-xs text-texte"
+                      className="rounded-control border border-bordure bg-surface px-2 py-1 text-xs text-texte"
                     >
                       <option value="">Non catégorisé</option>
                       {categories.map((c) => (

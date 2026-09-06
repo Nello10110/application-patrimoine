@@ -136,7 +136,7 @@ export default function AjoutHoldingForm({
           <input
             value={form.ticker}
             onChange={(e) => setForm({ ...form, ticker: e.target.value })}
-            className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-28 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             placeholder="AAPL"
           />
         </label>
@@ -147,7 +147,7 @@ export default function AjoutHoldingForm({
             onChange={(e) => setForm({ ...form, quantite: e.target.value })}
             type="number"
             step="any"
-            className="w-28 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-28 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -160,7 +160,7 @@ export default function AjoutHoldingForm({
             onChange={(e) => setForm({ ...form, prix_revient_moyen: e.target.value })}
             type="number"
             step="any"
-            className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -169,7 +169,7 @@ export default function AjoutHoldingForm({
             value={form.compte_id}
             onChange={(e) => setForm({ ...form, compte_id: e.target.value })}
             aria-label="Compte"
-            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           >
             {/* Retiré dès que le type choisi n'est pas dispensé de compte (revue du
                 03/09/2026, compte obligatoire) — cf. `TYPES_ACTIF_SANS_ETABLISSEMENT`.
@@ -198,7 +198,7 @@ export default function AjoutHoldingForm({
               <input
                 value={form.compte_nom}
                 onChange={(e) => setForm({ ...form, compte_nom: e.target.value })}
-                className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 placeholder="PEA, CTO..."
               />
             </label>
@@ -213,7 +213,7 @@ export default function AjoutHoldingForm({
                 logoKeyNouveau={form.etablissement_logo_key}
                 onLogoKeyNouveauChange={(v) => setForm({ ...form, etablissement_logo_key: v })}
                 ariaLabel="Établissement du nouveau compte"
-                className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               />
             </label>
           </>
@@ -223,7 +223,7 @@ export default function AjoutHoldingForm({
           <select
             value={form.type_actif}
             onChange={(e) => setForm({ ...form, type_actif: e.target.value })}
-            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           >
             {TYPE_ACTIF_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -242,7 +242,7 @@ export default function AjoutHoldingForm({
             onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
             type="number"
             step="any"
-            className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             placeholder="optionnel"
           />
         </label>
@@ -254,7 +254,7 @@ export default function AjoutHoldingForm({
               onChange={(e) => setForm({ ...form, taux_pct: e.target.value })}
               type="number"
               step="any"
-              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
             />
           </label>
@@ -268,7 +268,7 @@ export default function AjoutHoldingForm({
               type="number"
               step="any"
               min={0}
-              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               placeholder="optionnel"
             />
           </label>
@@ -279,7 +279,7 @@ export default function AjoutHoldingForm({
             <select
               value={form.zone_geo}
               onChange={(e) => setForm({ ...form, zone_geo: e.target.value })}
-              className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             >
               <option value="">Europe (par défaut)</option>
               {ZONES_GEO.map((zone) => (
@@ -297,7 +297,7 @@ export default function AjoutHoldingForm({
               value={form.date_acquisition}
               onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
               type="date"
-              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
         )}
@@ -310,7 +310,7 @@ export default function AjoutHoldingForm({
           type="submit"
           disabled={saving || !form.ticker.trim() || !form.quantite}
           title={!form.ticker.trim() || !form.quantite ? 'Renseignez au minimum un ticker et une quantité.' : undefined}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Ajouter
         </button>

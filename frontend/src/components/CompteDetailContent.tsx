@@ -48,7 +48,7 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
         <input
           value={nom}
           onChange={(e) => setNom(e.target.value)}
-          className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -56,7 +56,7 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
         <select
           value={etablissementId}
           onChange={(e) => setEtablissementId(e.target.value)}
-          className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         >
           <option value="">— Sans établissement —</option>
           {etablissements.map((et) => (
@@ -69,7 +69,7 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
       <button
         type="submit"
         disabled={saving || !nom.trim()}
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
       >
         Enregistrer
       </button>
@@ -142,7 +142,7 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
               step="any"
               value={saisie[d.id] ?? ''}
               onChange={(e) => setValeur(d.id, e.target.value)}
-              className="w-20 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-20 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
         ))}
@@ -150,7 +150,7 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
           type="button"
           onClick={handleSave}
           disabled={!totalValide || saving}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Enregistrer
         </button>
@@ -187,7 +187,7 @@ export default function CompteDetailContent({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-texte">{compte.nom}</h2>
+        <h2 className="text-[22px] font-semibold tracking-title text-ink">{compte.nom}</h2>
         <p className="text-sm text-texte-attenue">{compte.etablissement?.nom ?? 'Sans établissement'}</p>
       </div>
 

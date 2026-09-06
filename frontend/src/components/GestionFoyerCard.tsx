@@ -151,7 +151,7 @@ export default function GestionFoyerCard() {
                           value={usernameEdition}
                           onChange={(e) => setUsernameEdition(e.target.value)}
                           aria-label={`Nom d'utilisateur de ${m.username} (édition)`}
-                          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                          className="w-32 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                         />
                         <button
                           type="submit"
@@ -199,7 +199,7 @@ export default function GestionFoyerCard() {
                     )}
                     {verrouille && (
                       <span
-                        className="rounded-full bg-negatif/10 px-1.5 py-0.5 font-medium text-negatif"
+                        className="rounded-chip bg-negatif/10 px-1.5 py-0.5 font-medium text-negatif"
                         title="Trop de tentatives de connexion échouées récentes"
                       >
                         Verrouillé jusqu'à {formatDateHeure(m.verrouille_jusqua!)}
@@ -223,7 +223,7 @@ export default function GestionFoyerCard() {
                           value={m.role}
                           disabled={changingRoleId === m.id}
                           onChange={(e) => handleRoleChange(m.id, e.target.value as 'membre' | 'invite')}
-                          className="rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
+                          className="rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
                         >
                           <option value="membre">{ROLE_LABELS.membre}</option>
                           <option value="invite">{ROLE_LABELS.invite}</option>
@@ -251,7 +251,7 @@ export default function GestionFoyerCard() {
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -261,7 +261,7 @@ export default function GestionFoyerCard() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
-            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -269,7 +269,7 @@ export default function GestionFoyerCard() {
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as 'membre' | 'invite')}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           >
             <option value="membre">Membre du foyer</option>
             <option value="invite">Invité</option>
@@ -278,7 +278,7 @@ export default function GestionFoyerCard() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Ajouter
         </button>

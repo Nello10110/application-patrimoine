@@ -39,7 +39,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
           {ETAPES_ONBOARDING.map((e, i) => (
             <span
               key={e.key}
-              className={`h-1.5 w-8 rounded-full transition-colors ${i <= index ? 'bg-accent' : 'bg-bordure'}`}
+              className={`h-1.5 w-8 rounded-chip transition-colors ${i <= index ? 'bg-accent' : 'bg-bordure'}`}
             />
           ))}
         </div>
@@ -54,7 +54,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
               type="button"
               onClick={() => setIndex((i) => i - 1)}
               disabled={index === 0}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-texte-attenue hover:text-texte disabled:opacity-0"
+              className="rounded-control px-3 py-1.5 text-sm font-medium text-texte-attenue hover:text-texte disabled:opacity-0"
             >
               Précédent
             </button>
@@ -73,7 +73,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                 <button
                   type="button"
                   onClick={terminer}
-                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface"
+                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface"
                 >
                   Terminer
                 </button>
@@ -81,7 +81,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                 <button
                   type="button"
                   onClick={() => setIndex((i) => i + 1)}
-                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface"
+                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface"
                 >
                   Suivant
                 </button>

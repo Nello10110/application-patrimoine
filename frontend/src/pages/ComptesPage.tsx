@@ -105,8 +105,8 @@ export default function ComptesPage() {
   )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
+    <div className="space-y-[14px]">
+      <div className="flex items-center justify-end md:justify-between gap-2">
         <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Comptes</h1>
         {/* Le total du foyer à droite du titre, en 26 px (maquette de la refonte) :
             c'est le chiffre héros de cet écran, il n'a pas besoin d'une carte à lui. */}
@@ -233,7 +233,7 @@ export default function ComptesPage() {
       {compteOuvert && <CompteDetailModal compteId={compteOuvert} onClose={() => setCompteOuvert(null)} />}
 
       {confirmSuppression?.compte && (
-        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
               <h2 id={titleId} className="text-lg font-semibold text-texte">
@@ -255,14 +255,14 @@ export default function ComptesPage() {
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                  className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>

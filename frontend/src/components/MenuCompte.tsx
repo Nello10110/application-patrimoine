@@ -52,11 +52,11 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
         onClick={() => setOuvert((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={ouvert}
-        className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm text-texte hover:bg-surface-elevee"
+        className="flex w-full items-center gap-2.5 rounded-control px-2 py-2 text-sm text-texte hover:bg-surface-elevee"
       >
         <span
           aria-hidden="true"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-chip text-xs font-semibold text-white"
           style={{ backgroundColor: couleurAvatar(user.username) }}
         >
           {initiale}
@@ -68,7 +68,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
         <div
           role="menu"
           aria-label="Menu du compte"
-          className="absolute bottom-full left-0 z-10 mb-2 w-56 rounded-lg border border-bordure bg-surface p-1.5 shadow-lg"
+          className="absolute bottom-full left-0 z-10 mb-2 w-56 rounded-card border border-bordure bg-surface p-1.5 shadow-glass-lg"
         >
           <p className="px-2.5 py-1.5 text-xs font-medium uppercase tracking-wide text-texte-attenue">{nomAffiche}</p>
 
@@ -80,7 +80,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
                 to={r.path}
                 role="menuitem"
                 onClick={() => setOuvert(false)}
-                className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-texte hover:bg-surface-elevee"
+                className="flex items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-texte hover:bg-surface-elevee"
               >
                 {Icone && <Icone className="h-4 w-4 text-texte-attenue" />}
                 {r.navLabel}
@@ -100,7 +100,7 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
               setOuvert(false)
               logout()
             }}
-            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-negatif hover:bg-surface-elevee"
+            className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-negatif hover:bg-surface-elevee"
           >
             <IconDeconnexion className="h-4 w-4" />
             Se déconnecter

@@ -10,7 +10,7 @@ export default function HoldingDetailModal({ ticker, onClose }: { ticker: string
   const { detail, loading, error, recharger } = useHoldingDetail(ticker)
 
   return (
-    <Modale onClose={onClose} panelClassName="w-full max-w-3xl rounded-xl bg-surface p-6 shadow-xl">
+    <Modale onClose={onClose} panelClassName="w-full max-w-3xl rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
       {({ titleId }) => (
         <>
           <div className="mb-2 flex items-start justify-between gap-4">

@@ -108,14 +108,14 @@ export default function PaletteRecherche({ compact = false }: { compact?: boolea
         onClick={() => setOuvert(true)}
         title="Recherche (Ctrl/⌘ + K)"
         aria-label="Recherche"
-        className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-texte-attenue hover:bg-surface-elevee"
+        className="flex items-center gap-2 rounded-control px-2.5 py-2 text-sm text-texte-attenue hover:bg-surface-elevee"
       >
         <IconRecherche className="h-4 w-4 shrink-0" />
         {!compact && <span className="truncate">Rechercher…</span>}
       </button>
 
       {ouvert && (
-        <Modale onClose={fermer} panelClassName="w-full max-w-lg rounded-xl bg-surface shadow-xl">
+        <Modale onClose={fermer} panelClassName="w-full max-w-lg rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass">
           {({ titleId }) => (
             <div className="flex max-h-[70vh] flex-col">
               <h2 id={titleId} className="sr-only">
@@ -152,7 +152,7 @@ export default function PaletteRecherche({ compact = false }: { compact?: boolea
                               key={`${r.type}-${r.to}-${r.label}`}
                               onClick={() => ouvrirResultat(r)}
                               onMouseEnter={() => setActiveIndex(index)}
-                              className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm ${
+                              className={`flex w-full items-center justify-between gap-2 rounded-control px-2.5 py-2 text-left text-sm ${
                                 index === activeIndex ? 'bg-surface-elevee text-texte' : 'text-texte-attenue'
                               }`}
                             >

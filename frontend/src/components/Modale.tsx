@@ -33,11 +33,11 @@ function elementsFocusables(conteneur: HTMLElement): HTMLElement[] {
  * `variant="bottom"` (backlog 2.K.4, mobile) : le panneau s'ancre en bas de l'écran
  * plutôt qu'au centre — même mécanique de pile/piège du focus/fermeture au clic sur
  * le fond, seul le positionnement change. L'appelant garde la main sur l'arrondi/le
- * padding via `panelClassName` (ex. `rounded-t-2xl` plutôt que `rounded-xl`). */
+ * padding via `panelClassName` (ex. `rounded-t-2xl` plutôt que `rounded-panel`). */
 export default function Modale({
   onClose,
   children,
-  panelClassName = 'w-full max-w-lg rounded-xl bg-surface p-6 shadow-xl',
+  panelClassName = 'w-full max-w-lg rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6',
   variant = 'center',
 }: {
   onClose: () => void

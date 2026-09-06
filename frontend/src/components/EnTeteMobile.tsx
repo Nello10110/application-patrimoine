@@ -77,7 +77,7 @@ export default function EnTeteMobile() {
         onClick={toggleMontantsMasques}
         aria-pressed={montantsMasques}
         aria-label={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants`}
-        className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-hairline bg-chip text-ink2"
+        className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-chip border border-hairline bg-chip text-ink2"
       >
         {montantsMasques ? <IconOeilBarre className="h-[18px] w-[18px]" /> : <IconOeil className="h-[18px] w-[18px]" />}
       </button>
@@ -87,7 +87,7 @@ export default function EnTeteMobile() {
         onClick={() => setReglagesOuverts(true)}
         aria-haspopup="dialog"
         aria-label="Réglages d'affichage"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[image:var(--accent-grad)] text-[15px] font-semibold text-white shadow-accent"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-chip bg-[image:var(--accent-grad)] text-[15px] font-semibold text-white shadow-accent"
       >
         {initiale}
       </button>
@@ -96,11 +96,11 @@ export default function EnTeteMobile() {
         <Modale
           onClose={() => setReglagesOuverts(false)}
           variant="bottom"
-          panelClassName="w-full rounded-t-2xl border-t border-stroke bg-panel-hi p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur-glass"
+          panelClassName="w-full rounded-t-2xl border-t border-stroke bg-panel-hi p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-glass-lg backdrop-blur-glass"
         >
           {({ titleId }) => (
             <div className="space-y-4">
-              <div className="mx-auto h-1 w-10 rounded-full bg-track" aria-hidden="true" />
+              <div className="mx-auto h-1 w-10 rounded-chip bg-track" aria-hidden="true" />
               <h2 id={titleId} className="text-[15px] font-semibold text-ink">
                 Réglages d'affichage
               </h2>

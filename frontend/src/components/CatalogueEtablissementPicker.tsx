@@ -21,7 +21,7 @@ export default function CatalogueEtablissementPicker({
           key={e.cle}
           type="button"
           onClick={() => onSelect(e.cle, e.nom)}
-          className={`flex min-h-11 items-center gap-1.5 rounded-full border px-2 text-xs text-texte transition-colors md:min-h-0 md:py-1 ${
+          className={`flex min-h-11 items-center gap-1.5 rounded-chip border px-2 text-xs text-texte transition-colors md:min-h-0 md:py-1 ${
             selection === e.cle ? 'border-accent bg-accent/10' : 'border-bordure bg-surface hover:border-accent/50'
           }`}
         >
@@ -32,7 +32,7 @@ export default function CatalogueEtablissementPicker({
       <button
         type="button"
         onClick={() => onSelect(null, '')}
-        className={`min-h-11 rounded-full border px-2 text-xs text-texte-attenue transition-colors md:min-h-0 md:py-1 ${
+        className={`min-h-11 rounded-chip border px-2 text-xs text-texte-attenue transition-colors md:min-h-0 md:py-1 ${
           selection === null ? 'border-accent bg-accent/10' : 'border-bordure bg-surface hover:border-accent/50'
         }`}
       >

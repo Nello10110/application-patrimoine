@@ -202,11 +202,11 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Nom
-          <input value={nom} onChange={(e) => setNom(e.target.value)} className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
+          <input value={nom} onChange={(e) => setNom(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Type
-          <select value={type} onChange={(e) => setType(e.target.value as TypeObjectif)} className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte">
+          <select value={type} onChange={(e) => setType(e.target.value as TypeObjectif)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte">
             {TYPES_OBJECTIF.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
@@ -216,15 +216,15 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Montant cible (€)
-          <input type="number" min={0} step="any" value={montantCible} onChange={(e) => setMontantCible(e.target.value)} className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
+          <input type="number" min={0} step="any" value={montantCible} onChange={(e) => setMontantCible(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Échéance
-          <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
+          <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Rendement hypothèse (%, pour la contribution mensuelle)
-          <input type="number" step="any" value={rendementHypothese} onChange={(e) => setRendementHypothese(e.target.value)} className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
+          <input type="number" step="any" value={rendementHypothese} onChange={(e) => setRendementHypothese(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
         </label>
       </div>
 
@@ -279,7 +279,7 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
       <button
         onClick={handleSubmit}
         disabled={!valide || saving}
-        className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
       >
         {saving ? 'Création...' : "Créer l'objectif"}
       </button>
@@ -350,7 +350,7 @@ export default function ObjectifsSuivisSection() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-texte">Objectifs suivis</h2>
+        <h2 className="text-[22px] font-semibold tracking-title text-ink">Objectifs suivis</h2>
         <p className="mt-1 text-sm text-texte-attenue">
           Un objectif = un montant cible, une échéance, et les actifs dont la valeur mesure la progression réelle — distinct
           du simulateur ci-dessous, qui projette sans rien conserver.

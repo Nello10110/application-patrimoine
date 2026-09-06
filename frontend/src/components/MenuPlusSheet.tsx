@@ -38,11 +38,11 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
         <Modale
           onClose={() => setOuvert(false)}
           variant="bottom"
-          panelClassName="w-full rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl"
+          panelClassName="w-full rounded-t-[20px] border-t border-stroke bg-panel-hi backdrop-blur-glass p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-glass-lg"
         >
           {() => (
             <div className="space-y-1">
-              <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-bordure" aria-hidden="true" />
+              <div className="mx-auto mb-2 h-1 w-10 rounded-chip bg-bordure" aria-hidden="true" />
 
               {routesConsultationRestantes.map((r) => {
                 const Icone = r.icone
@@ -51,7 +51,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
                     key={r.path}
                     to={r.path}
                     onClick={() => setOuvert(false)}
-                    className="flex items-center gap-2.5 rounded-md px-2.5 py-3 text-sm font-medium text-texte hover:bg-surface-elevee"
+                    className="flex items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-texte hover:bg-surface-elevee"
                   >
                     {Icone && <Icone className="h-5 w-5 text-texte-attenue" />}
                     {r.navLabel}
@@ -68,7 +68,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
                     key={r.path}
                     to={r.path}
                     onClick={() => setOuvert(false)}
-                    className="flex items-center gap-2.5 rounded-md px-2.5 py-3 text-sm font-medium text-texte hover:bg-surface-elevee"
+                    className="flex items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-texte hover:bg-surface-elevee"
                   >
                     {Icone && <Icone className="h-5 w-5 text-texte-attenue" />}
                     {r.navLabel}
@@ -86,7 +86,7 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
                   setOuvert(false)
                   logout()
                 }}
-                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-3 text-sm font-medium text-negatif hover:bg-surface-elevee"
+                className="flex w-full items-center gap-2.5 rounded-control px-2.5 py-3 text-sm font-medium text-negatif hover:bg-surface-elevee"
               >
                 <IconDeconnexion className="h-5 w-5" />
                 Se déconnecter

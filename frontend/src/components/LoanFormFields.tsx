@@ -48,7 +48,7 @@ export default function LoanFormFields({
   const largeurs = LARGEURS[variant]
   const padding = variant === 'pleineLargeur' ? 'px-3 py-2' : 'px-2 py-1.5'
   const inputClassName = (champ: keyof LoanForm) =>
-    `${largeurs[champ]} rounded-md border border-bordure bg-surface ${padding} text-sm text-texte`
+    `${largeurs[champ]} rounded-control border border-bordure bg-surface ${padding} text-sm text-texte`
 
   return (
     <>

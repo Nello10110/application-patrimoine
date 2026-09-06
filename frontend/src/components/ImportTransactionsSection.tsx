@@ -132,7 +132,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
               onLogoKeyNouveauChange={setEtablissementLogoKey}
               required
               ariaLabel="Établissement"
-              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
 
@@ -144,7 +144,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
                   <input
                     value={nomsComptes[cle] ?? apercu.noms_par_defaut[cle]}
                     onChange={(e) => setNomsComptes({ ...nomsComptes, [cle]: e.target.value })}
-                    className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                    className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                   />
                 </label>
               ))}
@@ -154,7 +154,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
           <button
             onClick={handleConfirm}
             disabled={!etablissementValide || confirming}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
           >
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
           </button>
@@ -164,7 +164,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
       {/* Bandeaux à fond teinté (succès/avertissement) : même exception que
           `QualiteDonneesCard` (backlog 2.K.1) — hors des 9 jetons sémantiques. */}
       {result && (
-        <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/40 dark:text-emerald-200">
+        <div className="mt-3 rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
           <p>
             {result.importees} transaction(s) importée(s){result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présente(s)`}
             , {result.mouvements_hors_bourse_exclus} mouvement(s) hors suivi boursier exclu(s).
@@ -174,13 +174,13 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
             {result.comptes_crees > 0 && `, ${result.comptes_crees} compte(s) créé(s)`}.
           </p>
           {result.anomalies_detectees > 0 && (
-            <p className="mt-1 text-amber-700 dark:text-amber-400">
+            <p className="mt-1 text-avertissement">
               {result.anomalies_detectees} anomalie(s) détectée(s) (vente supérieure à la quantité détenue) —
               position(s) bornée(s) à 0, voir les journaux serveur.
             </p>
           )}
           {result.lignes_manuelles_remplacees > 0 && (
-            <p className="mt-1 text-amber-700 dark:text-amber-400">
+            <p className="mt-1 text-avertissement">
               {result.lignes_manuelles_remplacees} ligne(s) saisie(s) manuellement remplacée(s) par la position
               recalculée depuis le grand livre (même ticker) — le grand livre fait foi.
             </p>

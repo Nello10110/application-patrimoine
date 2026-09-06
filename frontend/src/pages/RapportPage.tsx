@@ -99,9 +99,9 @@ export default function RapportPage() {
   // mises chacune à 100 % de leur propre valeur ne compareraient plus rien.
   const montantsColonnes = rapport
     ? [
-        { libelle: 'Début de période', montant: rapport.valeur_debut_periode, classe: 'bg-s3' },
-        { libelle: 'Investi par vous', montant: rapport.montant_investi_periode, classe: 'bg-s2' },
-        { libelle: 'Généré seul', montant: rapport.gain_genere_periode, classe: 'bg-pos' },
+        { libelle: 'Début de période', montant: rapport.valeur_debut_periode, classe: 'bg-s4' },
+        { libelle: 'Investi par vous', montant: rapport.montant_investi_periode, classe: 'bg-s3' },
+        { libelle: 'Généré seul', montant: rapport.gain_genere_periode, classe: 'bg-s2' },
         { libelle: 'Fin de période', montant: rapport.valeur_fin_periode, classe: 'bg-s1' },
       ]
     : []
@@ -115,9 +115,12 @@ export default function RapportPage() {
   }))
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Rapport</h1>
+    <div className="space-y-[14px]">
+      <div className="flex flex-wrap items-center justify-end md:justify-between gap-3">
+        <div className="hidden md:block">
+          <h1 className="text-[28px] font-semibold tracking-title text-ink">Rapport</h1>
+          <p className="mt-0.5 text-[13px] text-ink3">{libellePeriode}</p>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedControl
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
@@ -132,7 +135,7 @@ export default function RapportPage() {
               value={moisSelectionne}
               max={moisCourant()}
               onChange={(e) => setMoisSelectionne(e.target.value)}
-              className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+              className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
             />
           )}
           {mode === 'annuel' && (
@@ -142,7 +145,7 @@ export default function RapportPage() {
               min={2000}
               max={new Date().getFullYear()}
               onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
-              className="w-24 rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+              className="w-24 rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
             />
           )}
           {mode === 'personnalise' && (
@@ -152,7 +155,7 @@ export default function RapportPage() {
                 value={dateDebutPerso}
                 max={aujourdhuiISO()}
                 onChange={(e) => setDateDebutPerso(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
               <span className="text-sm text-texte-attenue">au</span>
               <input
@@ -160,7 +163,7 @@ export default function RapportPage() {
                 value={dateFinPerso}
                 max={aujourdhuiISO()}
                 onChange={(e) => setDateFinPerso(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
             </div>
           )}
@@ -173,7 +176,6 @@ export default function RapportPage() {
 
       {!periodeInvalide && rapport && !loading && (
         <>
-          <h3 className="text-sm text-texte-attenue">{libellePeriode}</h3>
 
           {rapport.nombre_transactions === 0 && rapport.valeur_debut_periode === null ? (
             <Card>

@@ -120,7 +120,7 @@ function CompteEditSelect({
         onChange={(e) => setEditForm({ ...editForm, compte_id: e.target.value })}
         onClick={(e) => e.stopPropagation()}
         aria-label={ariaLabel}
-        className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+        className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
       >
         {TYPES_ACTIF_SANS_ETABLISSEMENT.has(editForm.type_actif) && <option value="">— Aucun —</option>}
         {comptes.map((c) => (
@@ -138,7 +138,7 @@ function CompteEditSelect({
             onClick={(e) => e.stopPropagation()}
             aria-label={`Nom du nouveau compte (${ariaLabel})`}
             placeholder="PEA, CTO..."
-            className="mt-1 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+            className="mt-1 w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
           />
           <SelecteurEtablissement
             etablissements={etablissements}
@@ -149,7 +149,7 @@ function CompteEditSelect({
             logoKeyNouveau={editForm.etablissement_logo_key}
             onLogoKeyNouveauChange={(v) => setEditForm({ ...editForm, etablissement_logo_key: v })}
             ariaLabel={`Établissement du nouveau compte (${ariaLabel})`}
-            className="mt-1 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+            className="mt-1 w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
           />
         </>
       )}
@@ -197,7 +197,7 @@ function PositionCard({
 
   if (enEdition) {
     return (
-      <div className="rounded-lg border border-bordure bg-surface p-4">
+      <div className="rounded-card border border-bordure bg-surface p-4">
         <p className="mb-3 font-medium text-texte">{h.ticker}</p>
         <div className="space-y-3">
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -208,7 +208,7 @@ function PositionCard({
               type="number"
               step="any"
               aria-label="Quantité (édition)"
-              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -222,7 +222,7 @@ function PositionCard({
               type="number"
               step="any"
               aria-label="Prix de revient (édition)"
-              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -241,7 +241,7 @@ function PositionCard({
               value={editForm.type_actif}
               onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
               aria-label="Type d'actif (édition)"
-              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             >
               {TYPE_ACTIF_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -262,7 +262,7 @@ function PositionCard({
               step="any"
               aria-label="Valeur estimée (édition)"
               placeholder="optionnel"
-              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             />
           </label>
           {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
@@ -275,7 +275,7 @@ function PositionCard({
                 step="any"
                 aria-label="Taux annuel (édition)"
                 placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
-                className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
               />
             </label>
           )}
@@ -287,7 +287,7 @@ function PositionCard({
                 onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
                 type="date"
                 aria-label="Date d'acquisition (édition)"
-                className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
               />
             </label>
           )}
@@ -313,11 +313,11 @@ function PositionCard({
           <button
             onClick={onSaveEdit}
             disabled={editSaving}
-            className="min-h-11 flex-1 rounded-md bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
           >
             Enregistrer
           </button>
-          <button onClick={onCancelEdit} className="min-h-11 flex-1 rounded-md border border-bordure px-3 text-sm font-medium text-texte">
+          <button onClick={onCancelEdit} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
             Annuler
           </button>
         </div>
@@ -341,7 +341,7 @@ function PositionCard({
           onSelect()
         }
       }}
-      className="rounded-lg border border-bordure bg-surface p-4 active:bg-surface-elevee"
+      className="rounded-card border border-bordure bg-surface p-4 active:bg-surface-elevee"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -350,7 +350,7 @@ function PositionCard({
             {h.origine === 'manuel' && (
               <span
                 title="Ligne saisie manuellement : non recalculée par un import de transactions"
-                className="ml-2 rounded-full bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
+                className="ml-2 rounded-chip bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
               >
                 saisie manuelle
               </span>
@@ -395,7 +395,7 @@ function PositionCard({
             e.stopPropagation()
             onStartEdit(e)
           }}
-          className="min-h-11 flex-1 rounded-md border border-bordure text-sm font-medium text-texte"
+          className="min-h-11 flex-1 rounded-control border border-bordure text-sm font-medium text-texte"
         >
           Modifier
         </button>
@@ -404,7 +404,7 @@ function PositionCard({
             e.stopPropagation()
             onDelete(e)
           }}
-          className="min-h-11 flex-1 rounded-md border border-negatif/40 text-sm font-medium text-negatif"
+          className="min-h-11 flex-1 rounded-control border border-negatif/40 text-sm font-medium text-negatif"
         >
           Supprimer
         </button>
@@ -589,7 +589,7 @@ export default function PositionsTable({
                 const cle = e.target.value as CleTri
                 setTri((prev) => ({ cle, direction: prev?.cle === cle ? prev.direction : 'asc' }))
               }}
-              className="flex-1 rounded-md border border-bordure bg-surface px-2 py-2 text-sm text-texte"
+              className="flex-1 rounded-control border border-bordure bg-surface px-2 py-2 text-sm text-texte"
             >
               <option value="" disabled>
                 Choisir...
@@ -606,7 +606,7 @@ export default function PositionsTable({
             onClick={() => tri && setTri((prev) => ({ cle: prev!.cle, direction: prev!.direction === 'asc' ? 'desc' : 'asc' }))}
             disabled={!tri}
             aria-label={tri?.direction === 'asc' ? 'Tri croissant' : 'Tri décroissant'}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-bordure text-texte disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-bordure text-texte disabled:opacity-40"
           >
             {tri?.direction === 'desc' ? '▼' : '▲'}
           </button>
@@ -717,7 +717,7 @@ export default function PositionsTable({
                   {h.origine === 'manuel' && (
                     <span
                       title="Ligne saisie manuellement : non recalculée par un import de transactions"
-                      className="ml-2 rounded-full bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
+                      className="ml-2 rounded-chip bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
                     >
                       saisie manuelle
                     </span>
@@ -736,7 +736,7 @@ export default function PositionsTable({
                       type="number"
                       step="any"
                       aria-label="Quantité (édition)"
-                      className="w-24 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                      className="w-24 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                     />
                   ) : (
                     formatQuantite(h.quantite)
@@ -798,7 +798,7 @@ export default function PositionsTable({
                       type="number"
                       step="any"
                       aria-label="Prix de revient (édition)"
-                      className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                      className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                     />
                   </label>
                   <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -818,7 +818,7 @@ export default function PositionsTable({
                       onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
                       aria-label="Type d'actif (édition)"
-                      className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                      className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                     >
                       {TYPE_ACTIF_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -839,7 +839,7 @@ export default function PositionsTable({
                       type="number"
                       step="any"
                       aria-label="Valeur estimée (édition)"
-                      className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                      className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       placeholder="optionnel"
                     />
                   </label>
@@ -853,7 +853,7 @@ export default function PositionsTable({
                         type="number"
                         step="any"
                         aria-label="Taux annuel (édition)"
-                        className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                        className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                         placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
                       />
                     </label>
@@ -867,7 +867,7 @@ export default function PositionsTable({
                         onClick={(e) => e.stopPropagation()}
                         type="date"
                         aria-label="Date d'acquisition (édition)"
-                        className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                        className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
                     </label>
                   )}

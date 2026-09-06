@@ -141,7 +141,7 @@ function BankImportSection() {
               <select
                 value={dateCol}
                 onChange={(e) => setDateCol(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               >
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
@@ -156,7 +156,7 @@ function BankImportSection() {
               <select
                 value={libelleCol}
                 onChange={(e) => setLibelleCol(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               >
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
@@ -172,7 +172,7 @@ function BankImportSection() {
                 value={compte}
                 onChange={(e) => setCompte(e.target.value)}
                 placeholder="Compte courant"
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               />
             </label>
           </div>
@@ -205,7 +205,7 @@ function BankImportSection() {
               <select
                 value={montantCol}
                 onChange={(e) => setMontantCol(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               >
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
@@ -222,7 +222,7 @@ function BankImportSection() {
                 <select
                   value={debitCol}
                   onChange={(e) => setDebitCol(e.target.value)}
-                  className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                  className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 >
                   <option value="">— Aucune —</option>
                   {preview.columns.map((c) => (
@@ -237,7 +237,7 @@ function BankImportSection() {
                 <select
                   value={creditCol}
                   onChange={(e) => setCreditCol(e.target.value)}
-                  className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                  className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 >
                   <option value="">— Aucune —</option>
                   {preview.columns.map((c) => (
@@ -253,7 +253,7 @@ function BankImportSection() {
           <button
             onClick={handleCsvConfirm}
             disabled={!csvPret || confirming}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
           >
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
           </button>
@@ -261,7 +261,7 @@ function BankImportSection() {
       )}
 
       {result && (
-        <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/40 dark:text-emerald-200">
+        <div className="mt-3 rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
           <p>
             {result.importees} mouvement(s) importé(s){result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présent(s)`}
             {result.lignes_ignorees > 0 && `, ${result.lignes_ignorees} ligne(s) illisible(s) ignorée(s)`}.
@@ -372,8 +372,8 @@ export default function ImportPage() {
   const canConfirm = Boolean(preview && tickerCol && quantiteCol && etablissementValidePositions)
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-texte">Importer le portefeuille</h2>
+    <div className="space-y-[14px]">
+      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Importer le portefeuille</h1>
 
       <ImportTransactionsSection />
 
@@ -412,15 +412,15 @@ export default function ImportPage() {
         <Card
           className={
             result.errors.length > 0
-              ? 'border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40'
-              : 'border-emerald-200 bg-emerald-50 dark:border-emerald-400/30 dark:bg-emerald-950/40'
+              ? 'border-avertissement/25 bg-avertissement/10'
+              : 'border-transparent bg-pos-bg'
           }
         >
           <p className="text-sm font-medium text-texte">
             {result.imported} ligne(s) importée(s), {result.skipped} ignorée(s).
           </p>
           {result.errors.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 text-xs text-amber-700 dark:text-amber-400">
+            <ul className="mt-2 list-disc pl-5 text-xs text-avertissement">
               {result.errors.slice(0, 10).map((e, i) => (
                 <li key={i}>{e}</li>
               ))}
@@ -447,7 +447,7 @@ export default function ImportPage() {
               <select
                 value={tickerCol}
                 onChange={(e) => setTickerCol(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               >
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
@@ -463,7 +463,7 @@ export default function ImportPage() {
               <select
                 value={quantiteCol}
                 onChange={(e) => setQuantiteCol(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               >
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
@@ -479,7 +479,7 @@ export default function ImportPage() {
               <select
                 value={prixRevientCol}
                 onChange={(e) => setPrixRevientCol(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               >
                 <option value="">— Aucune —</option>
                 {preview.columns.map((c) => (
@@ -496,7 +496,7 @@ export default function ImportPage() {
                 <select
                   value={optionalCols[field.key] ?? ''}
                   onChange={(e) => setOptionalCols({ ...optionalCols, [field.key]: e.target.value })}
-                  className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                  className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 >
                   <option value="">— Aucune —</option>
                   {preview.columns.map((c) => (
@@ -522,7 +522,7 @@ export default function ImportPage() {
                 onLogoKeyNouveauChange={setEtablissementLogoKey}
                 required
                 ariaLabel="Établissement des comptes créés"
-                className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               />
             </label>
           )}
@@ -535,7 +535,7 @@ export default function ImportPage() {
           <button
             onClick={handleConfirm}
             disabled={!canConfirm || confirming}
-            className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+            className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
           >
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
           </button>

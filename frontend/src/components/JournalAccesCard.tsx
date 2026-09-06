@@ -61,7 +61,7 @@ export default function JournalAccesCard() {
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
-          className="rounded-md border border-bordure px-2 py-1 text-texte disabled:opacity-40"
+          className="rounded-control border border-bordure px-2 py-1 text-texte disabled:opacity-40"
         >
           Page précédente
         </button>
@@ -69,7 +69,7 @@ export default function JournalAccesCard() {
         <button
           onClick={() => setPage((p) => p + 1)}
           disabled={entrees.length === 0}
-          className="rounded-md border border-bordure px-2 py-1 text-texte disabled:opacity-40"
+          className="rounded-control border border-bordure px-2 py-1 text-texte disabled:opacity-40"
         >
           Page suivante
         </button>

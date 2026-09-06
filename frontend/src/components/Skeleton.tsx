@@ -9,7 +9,7 @@
 // fallback de route d'`App.tsx`. `--bordure` se détache à la fois de la page et
 // des cartes, dans les deux thèmes (audit de design du 03/09/2026).
 export function Skeleton({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
-  return <div aria-hidden="true" style={style} className={`animate-pulse rounded-md bg-bordure ${className}`} />
+  return <div aria-hidden="true" style={style} className={`animate-pulse rounded-control bg-bordure ${className}`} />
 }
 
 /** Bloc de texte en cours de chargement (remplace `<p>Chargement...</p>`). */

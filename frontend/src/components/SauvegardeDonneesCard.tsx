@@ -175,7 +175,7 @@ export default function SauvegardeDonneesCard() {
           accept=".json,application/json"
           onChange={handleFichierChoisi}
           aria-label="Fichier de sauvegarde à restaurer"
-          className="block w-full text-sm text-texte file:mr-3 file:rounded-md file:border-0 file:bg-surface-elevee file:px-4 file:py-2 file:text-sm file:font-medium file:text-texte"
+          className="block w-full text-sm text-texte file:mr-3 file:rounded-control file:border-0 file:bg-surface-elevee file:px-4 file:py-2 file:text-sm file:font-medium file:text-texte"
         />
         {analyse && <p className="mt-2 text-sm text-texte-attenue">Analyse du fichier…</p>}
       </div>
@@ -190,7 +190,7 @@ export default function SauvegardeDonneesCard() {
         <button
           type="button"
           onClick={() => setWipeOuverte(true)}
-          className="rounded-md border border-negatif px-4 py-2 text-sm font-medium text-negatif"
+          className="rounded-control border border-negatif px-4 py-2 text-sm font-medium text-negatif"
         >
           Réinitialiser le foyer
         </button>
@@ -200,7 +200,7 @@ export default function SauvegardeDonneesCard() {
       {erreur && <EtatErreur message={erreur} />}
 
       {apercu && fichier && (
-        <Modale onClose={reinitialiser} panelClassName="w-full max-w-md rounded-xl bg-surface p-6 shadow-xl">
+        <Modale onClose={reinitialiser} panelClassName="w-full max-w-md rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
               <h2 id={titleId} className="text-lg font-semibold text-texte">
@@ -227,14 +227,14 @@ export default function SauvegardeDonneesCard() {
                 <button
                   onClick={reinitialiser}
                   disabled={importEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                  className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerImport}
                   disabled={importEnCours}
-                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {importEnCours ? 'Import en cours…' : 'Remplacer mes données'}
                 </button>
@@ -250,7 +250,7 @@ export default function SauvegardeDonneesCard() {
             setWipeOuverte(false)
             setConfirmationSaisie('')
           }}
-          panelClassName="w-full max-w-md rounded-xl bg-surface p-6 shadow-xl"
+          panelClassName="w-full max-w-md rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6"
         >
           {({ titleId }) => (
             <>
@@ -273,7 +273,7 @@ export default function SauvegardeDonneesCard() {
                   onChange={(e) => setConfirmationSaisie(e.target.value)}
                   aria-label="Confirmation de la réinitialisation du foyer"
                   autoComplete="off"
-                  className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                  className="rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
               <div className="mt-5 flex justify-end gap-2">
@@ -283,14 +283,14 @@ export default function SauvegardeDonneesCard() {
                     setConfirmationSaisie('')
                   }}
                   disabled={wipeEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                  className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerEffacement}
                   disabled={wipeEnCours || confirmationSaisie !== phraseAttendue}
-                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {wipeEnCours ? 'Réinitialisation en cours…' : 'Réinitialiser définitivement'}
                 </button>

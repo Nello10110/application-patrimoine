@@ -61,7 +61,7 @@ const Dropzone = forwardRef<
       }}
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
-      className={`flex flex-col items-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
+      className={`flex flex-col items-center gap-1.5 rounded-card border-2 border-dashed px-4 py-6 text-center transition-colors ${
         uploading
           ? 'cursor-not-allowed border-bordure opacity-60'
           : dragActive

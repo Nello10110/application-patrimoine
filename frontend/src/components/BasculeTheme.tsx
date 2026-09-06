@@ -22,7 +22,7 @@ export default function BasculeTheme({ className = '' }: { className?: string })
       onClick={() => setTheme(THEME_SUIVANT[theme])}
       title={`Thème : ${THEME_LABELS[theme]} (cliquer pour changer)`}
       aria-label={`Thème : ${THEME_LABELS[theme]}. Cliquer pour changer.`}
-      className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-texte-attenue hover:bg-surface-elevee ${className}`}
+      className={`flex w-full items-center gap-2.5 rounded-control px-3 py-2 text-sm text-texte-attenue hover:bg-surface-elevee ${className}`}
     >
       <Icone className="h-4 w-4" />
       <span>Thème : {THEME_LABELS[theme]}</span>

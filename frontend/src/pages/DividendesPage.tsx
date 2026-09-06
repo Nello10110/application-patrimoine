@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { api } from '../api/client'
 import type { DividendeMois } from '../api/types'
 import Card from '../components/Card'
+import { GlassPanel } from '../components/GlassPanel'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
 import { SkeletonTexte } from '../components/Skeleton'
@@ -22,7 +23,7 @@ function MoisCard({ mois }: { mois: DividendeMois }) {
   const [ouvert, setOuvert] = useState(false)
 
   return (
-    <div className="rounded-lg border border-bordure">
+    <div className="rounded-card border border-bordure">
       <button
         type="button"
         onClick={() => setOuvert((v) => !v)}
@@ -77,8 +78,8 @@ export default function DividendesPage() {
   const hauteurGraphique = Math.max(220, donneesGraphique.length * 32)
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-texte">Dividendes</h2>
+    <div className="space-y-[14px]">
+      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Dividendes</h1>
 
       {calendrier.length === 0 ? (
         <Card>
@@ -86,12 +87,18 @@ export default function DividendesPage() {
         </Card>
       ) : (
         <>
-          <Card title="Total perçu">
-            <p className="text-3xl font-semibold text-positif">{formatEuro(total, 2, montantsMasques)}</p>
-            <p className="mt-1 text-sm text-texte-attenue">
+          {/* Chiffre héros de l'écran (un seul par écran, règle de la refonte) : le
+              total perçu, en encre — c'est un cumul, pas un gain à comparer à une
+              référence, et le vert le faisait lire comme une variation. */}
+          <GlassPanel niveau="hero" className="px-6 py-5">
+            <p className="text-[13px] font-medium text-ink3">Total perçu</p>
+            <p className="text-[48px] font-semibold leading-none tracking-hero text-ink">
+              {formatEuro(total, 2, montantsMasques)}
+            </p>
+            <p className="mt-1.5 text-[13px] text-ink3">
               sur {calendrier.length} mois, du {libelleMois(calendrier[0].mois)} au {libelleMois(calendrier[calendrier.length - 1].mois)}
             </p>
-          </Card>
+          </GlassPanel>
 
           <Card title="Par mois">
             <ResponsiveContainer width="100%" height={hauteurGraphique}>

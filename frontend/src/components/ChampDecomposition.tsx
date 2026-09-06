@@ -71,7 +71,7 @@ export default function ChampDecomposition({
           step="any"
           placeholder="optionnel"
           aria-label={mode === 'versement' ? ariaLabelVersement : ariaLabelPlusValue}
-          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
       {autre !== null && (

@@ -69,7 +69,7 @@ function CompteSelect({
       <select
         value={filtreCompte}
         onChange={(e) => setFiltreCompte(e.target.value)}
-        className={`rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte ${pleineLargeur ? 'w-full' : ''}`}
+        className={`rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte ${pleineLargeur ? 'w-full' : ''}`}
       >
         <option value={FILTRE_TOUS_COMPTES}>Tous les comptes</option>
         {comptesDisponibles(holdings).map((compte) => (
@@ -256,9 +256,12 @@ export default function PortefeuillePage() {
     : false
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+    <div className="space-y-[14px]">
+      <div className="flex flex-wrap items-start justify-end gap-3 md:justify-between">
+        {/* `mr-auto` : le titre étant masqué sous 768 px, son sous-titre restait seul
+            dans un conteneur poussé à droite par `justify-end` — il doit rester calé
+            à gauche, sous l'en-tête mobile qui porte le titre. */}
+        <div className="mr-auto">
           <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Portefeuille</h1>
           {/* Sous-titre CALCULÉ (refonte, étape 4) : il décrit ce que le tableau
               montre RÉELLEMENT — il ne doit jamais annoncer « 7 lignes » quand un
@@ -339,10 +342,10 @@ export default function PortefeuillePage() {
         <button
           type="button"
           onClick={() => setFiltresOuverts(true)}
-          className="flex min-h-11 w-full items-center justify-between rounded-md border border-bordure bg-surface px-4 py-2.5 text-sm font-medium text-texte"
+          className="flex min-h-11 w-full items-center justify-between rounded-control border border-bordure bg-surface px-4 py-2.5 text-sm font-medium text-texte"
         >
           <span>
-            Filtrer{filtreActif && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />}
+            Filtrer{filtreActif && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-chip bg-accent" aria-hidden="true" />}
           </span>
           <span className="text-texte-attenue">{CATEGORY_TABS.find((t) => t.key === categorie)?.label}</span>
         </button>
@@ -352,11 +355,11 @@ export default function PortefeuillePage() {
         <Modale
           onClose={() => setFiltresOuverts(false)}
           variant="bottom"
-          panelClassName="w-full rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl"
+          panelClassName="w-full rounded-t-[20px] border-t border-stroke bg-panel-hi backdrop-blur-glass p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-glass-lg"
         >
           {({ titleId }) => (
             <div className="space-y-4">
-              <div className="mx-auto h-1 w-10 rounded-full bg-bordure" aria-hidden="true" />
+              <div className="mx-auto h-1 w-10 rounded-chip bg-bordure" aria-hidden="true" />
               <h2 id={titleId} className="text-sm font-semibold text-texte">
                 Filtrer le portefeuille
               </h2>
@@ -369,7 +372,7 @@ export default function PortefeuillePage() {
               <button
                 type="button"
                 onClick={() => setFiltresOuverts(false)}
-                className="min-h-11 w-full rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-surface"
+                className="min-h-11 w-full rounded-control bg-accent px-4 py-2.5 text-sm font-medium text-surface"
               >
                 Voir {lignesFiltrees.length} position{lignesFiltrees.length > 1 ? 's' : ''}
               </button>
@@ -430,7 +433,7 @@ export default function PortefeuillePage() {
       {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
 
       {confirmSuppression && (
-        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+        <Modale onClose={() => setConfirmSuppression(null)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
               <h2 id={titleId} className="text-lg font-semibold text-texte">
@@ -444,14 +447,14 @@ export default function PortefeuillePage() {
                 <button
                   onClick={() => setConfirmSuppression(null)}
                   disabled={suppressionEnCours}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                  className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>

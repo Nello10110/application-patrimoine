@@ -125,9 +125,12 @@ export default function BudgetPage() {
   const totalDecomposition = decompositionMois.reduce((somme, p) => somme + p.montant, 0) || 1
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Budget</h1>
+    <div className="space-y-[14px]">
+      <div className="flex flex-wrap items-center justify-end md:justify-between gap-3">
+        <div className="hidden md:block">
+          <h1 className="text-[28px] font-semibold tracking-title text-ink">Budget</h1>
+          <p className="mt-0.5 text-[13px] text-ink3">{libellePeriode}</p>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedControl
             options={MODES.map((m) => ({ valeur: m.value, libelle: m.label }))}
@@ -142,7 +145,7 @@ export default function BudgetPage() {
               value={moisSelectionne}
               max={moisCourant()}
               onChange={(e) => setMoisSelectionne(e.target.value)}
-              className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+              className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
             />
           )}
           {mode === 'annuel' && (
@@ -152,7 +155,7 @@ export default function BudgetPage() {
               min={2000}
               max={new Date().getFullYear()}
               onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
-              className="w-24 rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+              className="w-24 rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
             />
           )}
           {mode === 'personnalise' && (
@@ -162,7 +165,7 @@ export default function BudgetPage() {
                 value={dateDebutPerso}
                 max={aujourdhuiISO()}
                 onChange={(e) => setDateDebutPerso(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
               <span className="text-sm text-texte-attenue">au</span>
               <input
@@ -170,7 +173,7 @@ export default function BudgetPage() {
                 value={dateFinPerso}
                 max={aujourdhuiISO()}
                 onChange={(e) => setDateFinPerso(e.target.value)}
-                className="rounded-md border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
+                className="rounded-control border border-bordure bg-surface px-3 py-1.5 text-sm text-texte"
               />
             </div>
           )}
@@ -183,8 +186,6 @@ export default function BudgetPage() {
 
       {!periodeInvalide && summary && !loading && (
         <>
-          <h3 className="text-sm text-texte-attenue">{libellePeriode}</h3>
-
           {mouvements.length === 0 ? (
             <Card>
               <EtatVide
@@ -204,7 +205,7 @@ export default function BudgetPage() {
                 <p className="text-[13px] font-medium text-ink3">Disponible sur la période</p>
                 <p
                   className={`text-[48px] font-semibold leading-none tracking-hero ${
-                    summary.disponible >= 0 ? 'text-pos' : 'text-neg'
+                    summary.disponible >= 0 ? 'text-ink' : 'text-neg'
                   }`}
                 >
                   {formatEuro(summary.disponible, 0, montantsMasques)}
@@ -241,33 +242,31 @@ export default function BudgetPage() {
                 )}
               </GlassPanel>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Les trois indicateurs secondaires sur UN seul rang : ils étaient
+                  répartis en deux grilles de deux colonnes dont la première n'avait
+                  qu'un occupant, ce qui laissait une demi-carte suivie d'un trou. */}
+              <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2 lg:grid-cols-3">
                 <StatTile
                   label="Dépenses récurrentes / mois"
                   value={formatEuro(summary.depenses_recurrentes_mensuelles, 0, montantsMasques)}
                   sub="estimé sur les 3 derniers mois"
                 />
+                {jonction?.taux_epargne_reel_pct != null && (
+                  <StatTile
+                    label="Taux d'épargne réel"
+                    value={`${jonction.taux_epargne_reel_pct.toFixed(1)} %`}
+                    sub="sorties catégorie « Épargne » / entrées"
+                  />
+                )}
+                {jonction?.reste_a_vivre != null && (
+                  <StatTile
+                    label="Reste à vivre"
+                    value={formatEuro(jonction.reste_a_vivre, 0, montantsMasques)}
+                    sub="entrées − logement − charges récurrentes"
+                    tone={jonction.reste_a_vivre >= 0 ? 'good' : 'warning'}
+                  />
+                )}
               </div>
-
-              {jonction && (jonction.taux_epargne_reel_pct !== null || jonction.reste_a_vivre !== null) && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {jonction.taux_epargne_reel_pct !== null && (
-                    <StatTile
-                      label="Taux d'épargne réel"
-                      value={`${jonction.taux_epargne_reel_pct.toFixed(1)} %`}
-                      sub="sorties catégorie « Épargne » / entrées"
-                    />
-                  )}
-                  {jonction.reste_a_vivre !== null && (
-                    <StatTile
-                      label="Reste à vivre"
-                      value={formatEuro(jonction.reste_a_vivre, 0, montantsMasques)}
-                      sub="entrées − logement − charges récurrentes"
-                      tone={jonction.reste_a_vivre >= 0 ? 'good' : 'warning'}
-                    />
-                  )}
-                </div>
-              )}
               {jonction && (jonction.categorie_epargne_introuvable || jonction.categorie_logement_introuvable) && (
                 <p className="text-xs text-texte-attenue">
                   {jonction.categorie_epargne_introuvable && 'Taux d\'épargne indisponible : crée ou renomme une catégorie « Épargne » ci-dessous. '}

@@ -5,41 +5,19 @@ import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
 import { SkeletonTexte } from '../components/Skeleton'
 
-// Couleurs distinctes par zone (bordure + badge), choisies pour rester lisibles en
-// clair comme en sombre — purement décoratif, aucun lien avec les couleurs des
-// graphiques du Tableau de bord (qui restent neutres pour rester lisibles à plus
-// grande échelle, cf. `utils/chartTheme`).
-const STYLE_PAR_ZONE: Record<string, { emoji: string; bordure: string; badge: string }> = {
-  'Amérique du Nord': {
-    emoji: '🌎',
-    bordure: 'border-l-blue-500',
-    badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  },
-  Europe: {
-    emoji: '🏰',
-    bordure: 'border-l-indigo-500',
-    badge: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-  },
-  Japon: {
-    emoji: '🎌',
-    bordure: 'border-l-rose-500',
-    badge: 'bg-rose-50 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-  },
-  'Asie-Pacifique (hors Japon)': {
-    emoji: '🌏',
-    bordure: 'border-l-amber-500',
-    badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  },
-  'Marchés émergents': {
-    emoji: '🌱',
-    bordure: 'border-l-emerald-500',
-    badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  },
-  'Autres zones': {
-    emoji: '🧭',
-    bordure: 'border-l-slate-400',
-    badge: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-  },
+// Un emoji par zone, plus aucune couleur (refonte « liquid glass ») : les six
+// bordures et six familles de pastilles colorées formaient un arc-en-ciel qui ne
+// renvoyait à rien — ces teintes n'ont jamais correspondu à celles des graphiques,
+// et depuis que ceux-ci tiennent dans une seule famille de bleus, elles étaient la
+// dernière palette catégorielle de l'application. Le nom de la zone est écrit en
+// toutes lettres au-dessus de ses pays : c'est lui qui les distingue.
+const EMOJI_PAR_ZONE: Record<string, string> = {
+  'Amérique du Nord': '🌎',
+  Europe: '🏰',
+  Japon: '🎌',
+  'Asie-Pacifique (hors Japon)': '🌏',
+  'Marchés émergents': '🌱',
+  'Autres zones': '🧭',
 }
 
 interface SecteurInfo {
@@ -175,17 +153,17 @@ const GLOSSAIRE: GlossaireEntry[] = [
 ]
 
 function ZoneCard({ zone }: { zone: ZoneGeographiqueInfo }) {
-  const style = STYLE_PAR_ZONE[zone.zone] ?? STYLE_PAR_ZONE['Autres zones']
+  const emoji = EMOJI_PAR_ZONE[zone.zone] ?? EMOJI_PAR_ZONE['Autres zones']
   return (
-    <div className={`rounded-xl border border-l-4 border-bordure bg-surface p-4 shadow-sm ${style.bordure}`}>
-      <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-texte">
-        <span aria-hidden="true">{style.emoji}</span>
+    <div className="rounded-card border border-stroke bg-panel p-4 shadow-glass">
+      <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
+        <span aria-hidden="true">{emoji}</span>
         {zone.zone}
       </p>
       {zone.pays.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {zone.pays.map((pays) => (
-            <span key={pays} className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.badge}`}>
+            <span key={pays} className="rounded-chip bg-chip px-2 py-0.5 text-xs font-medium text-ink2">
               {pays}
             </span>
           ))}
@@ -203,8 +181,8 @@ function ZoneCard({ zone }: { zone: ZoneGeographiqueInfo }) {
 
 function SectorCard({ secteur }: { secteur: SecteurInfo }) {
   return (
-    <div className="rounded-xl border border-bordure bg-surface p-4 shadow-sm">
-      <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-texte">
+    <div className="rounded-card border border-stroke bg-panel p-4 shadow-glass">
+      <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink">
         <span aria-hidden="true">{secteur.emoji}</span>
         {secteur.nom}
       </p>
@@ -216,7 +194,7 @@ function SectorCard({ secteur }: { secteur: SecteurInfo }) {
 
 function AccordeonItem({ question, reponse }: QuestionReponse) {
   return (
-    <details className="group rounded-lg border border-bordure p-3 open:bg-surface-elevee">
+    <details className="group rounded-card border border-bordure p-3 open:bg-surface-elevee">
       <summary className="cursor-pointer list-none text-sm font-medium text-texte marker:content-none">
         <span className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>
         {question}
@@ -241,9 +219,9 @@ export default function AidePage() {
   useEffect(charger, [])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[14px]">
       <div>
-        <h2 className="text-xl font-semibold text-texte">🧭 Aide &amp; FAQ</h2>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Aide &amp; FAQ</h1>
         <p className="mt-1 text-sm text-texte-attenue">
           Un petit guide pour comprendre ce que racontent vraiment les chiffres du Tableau de bord — pensé pour un premier
           passage dans l’investissement, promis, sans jargon inutile.

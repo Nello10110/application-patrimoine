@@ -109,7 +109,11 @@ export default function ReglagesPage() {
         onChange={setOnglet}
         ariaLabel="Catégories de réglages"
         semantique="onglets"
-        className="w-fit flex-wrap"
+        // Sous 768 px, les cinq onglets se repliaient sur trois lignes DANS la
+        // gouttière arrondie du contrôle segmenté, qui n'est pas faite pour ça — la
+        // rangée défile horizontalement à la place (motif iOS), et reprend sa largeur
+        // naturelle dès qu'elle tient.
+        className="max-w-full flex-nowrap overflow-x-auto md:w-fit md:flex-wrap md:overflow-visible"
       />
 
       {onglet === 'general' && (

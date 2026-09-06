@@ -101,13 +101,13 @@ export default function EtablissementEditModal({
               <input
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
-                className="w-56 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                className="w-56 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               />
             </label>
             <button
               type="submit"
               disabled={occupe || !nom.trim() || nom.trim() === courant.nom}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+              className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
             >
               {enCours === 'nom' ? 'Enregistrement…' : 'Renommer'}
             </button>
@@ -126,7 +126,7 @@ export default function EtablissementEditModal({
                     ? undefined
                     : "Disponible uniquement pour un établissement choisi dans le catalogue — téléversez une image ou saisissez une adresse."
                 }
-                className="rounded-md border border-bordure px-3 py-1.5 text-sm text-texte hover:border-accent disabled:opacity-40"
+                className="rounded-control border border-bordure px-3 py-1.5 text-sm text-texte hover:border-accent disabled:opacity-40"
               >
                 {enCours === 'catalogue' ? 'Récupération…' : 'Récupérer le logo officiel'}
               </button>
@@ -134,7 +134,7 @@ export default function EtablissementEditModal({
                 type="button"
                 onClick={() => fichierRef.current?.click()}
                 disabled={occupe}
-                className="rounded-md border border-bordure px-3 py-1.5 text-sm text-texte hover:border-accent disabled:opacity-40"
+                className="rounded-control border border-bordure px-3 py-1.5 text-sm text-texte hover:border-accent disabled:opacity-40"
               >
                 {enCours === 'fichier' ? 'Envoi…' : 'Téléverser une image'}
               </button>
@@ -143,7 +143,7 @@ export default function EtablissementEditModal({
                   type="button"
                   onClick={() => void executer('suppression', () => api.deleteEtablissementLogo(courant.id))}
                   disabled={occupe}
-                  className="rounded-md border border-bordure px-3 py-1.5 text-sm text-negatif hover:border-negatif disabled:opacity-40"
+                  className="rounded-control border border-bordure px-3 py-1.5 text-sm text-negatif hover:border-negatif disabled:opacity-40"
                 >
                   Retirer le logo
                 </button>
@@ -177,13 +177,13 @@ export default function EtablissementEditModal({
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://exemple.fr/logo.png"
-                  className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                  className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 />
               </label>
               <button
                 type="submit"
                 disabled={occupe || !url.trim()}
-                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+                className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
               >
                 {enCours === 'url' ? 'Récupération…' : 'Utiliser cette adresse'}
               </button>
@@ -202,7 +202,7 @@ export default function EtablissementEditModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-bordure px-4 py-2 text-sm font-medium text-texte"
+              className="rounded-control border border-bordure px-4 py-2 text-sm font-medium text-texte"
             >
               Fermer
             </button>

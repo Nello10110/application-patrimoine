@@ -99,7 +99,7 @@ export default function DetenteursSection({
                     step="any"
                     value={saisie[d.id] ?? ''}
                     onChange={(e) => setValeur(d.id, e.target.value)}
-                    className="w-20 rounded-md border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                    className="w-20 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
                   />
                   %
                 </td>
@@ -119,7 +119,7 @@ export default function DetenteursSection({
         <button
           onClick={handleSave}
           disabled={!totalValide || saving}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Enregistrer
         </button>

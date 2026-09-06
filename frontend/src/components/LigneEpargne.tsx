@@ -51,7 +51,7 @@ function ModifierLigneEpargneForm({ holding, onSaved, onCancel }: { holding: Hol
           type="text"
           value={nom}
           onChange={(e) => setNom(e.target.value)}
-          className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -63,13 +63,13 @@ function ModifierLigneEpargneForm({ holding, onSaved, onCancel }: { holding: Hol
           value={versementMensuel}
           onChange={(e) => setVersementMensuel(e.target.value)}
           placeholder="optionnel"
-          className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
       <button
         type="submit"
         disabled={saving}
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
       >
         {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>
@@ -207,7 +207,7 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
       </div>
 
       {confirmSuppression && (
-        <Modale onClose={() => setConfirmSuppression(false)} panelClassName="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+        <Modale onClose={() => setConfirmSuppression(false)} panelClassName="w-full max-w-sm rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
           {({ titleId }) => (
             <>
               <h2 id={titleId} className="text-lg font-semibold text-texte">
@@ -221,14 +221,14 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
                 <button
                   onClick={() => setConfirmSuppression(false)}
                   disabled={suppression}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
+                  className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:bg-surface-elevee disabled:opacity-40"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={handleSupprimer}
                   disabled={suppression}
-                  className="rounded-md bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
                 >
                   {suppression ? 'Suppression...' : 'Supprimer'}
                 </button>

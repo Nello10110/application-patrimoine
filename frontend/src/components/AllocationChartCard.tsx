@@ -72,7 +72,7 @@ export default function AllocationChartCard({
       </Card>
 
       {pleinEcran && items.length > 0 && (
-        <Modale onClose={() => setPleinEcran(false)} panelClassName="w-full max-w-4xl rounded-panel border border-stroke bg-panel-hi p-6 shadow-lg backdrop-blur-glass">
+        <Modale onClose={() => setPleinEcran(false)} panelClassName="w-full max-w-4xl rounded-panel border border-stroke bg-panel-hi p-6 shadow-glass-lg backdrop-blur-glass">
           {({ titleId }) => (
             <>
               <div className="mb-4 flex items-start justify-between gap-4">

@@ -39,7 +39,7 @@ export default function RecurrencesSection({ recurrences, categories }: { recurr
                 <td className="py-2 pr-4 text-right">
                   <span className="font-medium text-texte">{formatEuro(r.montant_actuel, 2, montantsMasques)}</span>
                   {r.hausse_prix && (
-                    <span className="ml-2 rounded-full bg-avertissement/15 px-2 py-0.5 text-xs font-medium text-avertissement">
+                    <span className="ml-2 rounded-chip bg-avertissement/15 px-2 py-0.5 text-xs font-medium text-avertissement">
                       Hausse de prix
                     </span>
                   )}

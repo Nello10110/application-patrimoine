@@ -65,14 +65,12 @@ function Poche({
   note,
   vers,
   montantsMasques,
-  ton = 'neutre',
 }: {
   libelle: string
   valeur: number
   note: string
   vers: string
   montantsMasques: boolean
-  ton?: 'neutre' | 'negatif'
 }) {
   return (
     <Link
@@ -80,10 +78,11 @@ function Poche({
       className="rounded-card border border-stroke bg-panel px-[18px] py-4 transition-colors hover:bg-panel-hi"
     >
       <p className="text-xs font-semibold uppercase tracking-wide text-ink3">{libelle}</p>
-      <p className={`mt-1 text-[26px] font-semibold ${ton === 'negatif' ? 'text-neg' : 'text-ink'}`}>
-        {formatEuro(valeur, 0, montantsMasques)}
-      </p>
-      <p className="mt-0.5 text-[13px] text-ink4">{note}</p>
+      {/* Toujours en encre : une poche affiche un ÉTAT (« il reste 240 000 € à
+          rembourser »), pas un résultat. Le rouge, ici, se lisait comme une alerte
+          permanente sur un emprunt qui se déroule normalement. */}
+      <p className="mt-1 text-[26px] font-semibold text-ink">{formatEuro(valeur, 0, montantsMasques)}</p>
+      <p className="mt-0.5 hidden text-[13px] text-ink4 md:block">{note}</p>
     </Link>
   )
 }
@@ -151,7 +150,6 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
   if (!patrimoine || (patrimoine.actifs_totaux === 0 && patrimoine.passifs_totaux === 0)) return null
 
   const principale = TUILE_PRINCIPALE[lentille](patrimoine)
-  const toneClassPrincipale = { good: 'text-positif', warning: 'text-avertissement', neutral: 'text-texte' }[principale.tone]
 
   // Camembert/liste (feature Net/Brut/Financier sur toute la page Synthèse) : en
   // lentille "financier", filtre aux seules catégories financières ; en "net", nette
@@ -180,9 +178,12 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
       <p className="text-[13px] font-medium text-ink3">
         {principale.label} · {detenteurId === null ? 'Foyer' : 'Détenteur sélectionné'}
       </p>
-      <p className={`text-heros ${toneClassPrincipale}`}>
-        {formatEuro(principale.valeur, 0, montantsMasques)}
-      </p>
+      {/* Chiffre héros TOUJOURS en encre, jamais en vert ou en rouge (maquette de la
+          refonte) : un patrimoine n'est ni un gain ni une perte, c'est un état. Le
+          vert d'ancienne version faisait lire « +79 000 € » là où la variation, elle,
+          est portée par le badge juste en dessous — seul endroit où une couleur de
+          signe veut dire quelque chose. */}
+      <p className="text-heros text-ink">{formatEuro(principale.valeur, 0, montantsMasques)}</p>
       {variationPct !== null && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <DeltaBadge
@@ -190,7 +191,8 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
             positif={variationPct >= 0}
           />
           <span className="text-[13px] text-ink3">
-            {libellePeriodeEcoulee(periode)} — {LEGENDE_VARIATION[lentille]}
+            {libellePeriodeEcoulee(periode)}
+            <span className="hidden md:inline"> — {LEGENDE_VARIATION[lentille]}</span>
           </span>
         </div>
       )}
@@ -202,7 +204,7 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
           déduisent exactement des chiffres déjà calculés côté serveur — et couvrent
           la même information que les deux tuiles qu'elles remplacent (actifs, dont
           la ventilation, et passifs). */}
-      <div className="mt-5 grid gap-[14px] sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid grid-cols-2 gap-[14px] lg:grid-cols-3">
         <Poche
           libelle="Financier"
           valeur={patrimoine.patrimoine_financier}
@@ -223,7 +225,6 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
           note="Capital restant dû"
           vers="/comptes"
           montantsMasques={montantsMasques}
-          ton={patrimoine.passifs_totaux > 0 ? 'negatif' : 'neutre'}
         />
       </div>
 

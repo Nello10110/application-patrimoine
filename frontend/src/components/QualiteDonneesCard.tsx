@@ -38,11 +38,11 @@ export default function QualiteDonneesCard({ qualite }: { qualite: QualiteDonnee
   // à plusieurs nuances avec opacité ; en introduire un pour ce seul usage aurait
   // été prématuré (aucun autre bandeau de ce type dans l'application aujourd'hui).
   return (
-    <Card className="border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-950/40">
-      <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-300">Qualité des données</p>
+    <Card className="border-avertissement/25 bg-avertissement/10">
+      <p className="mb-2 text-sm font-semibold text-avertissement">Qualité des données</p>
       <ul className="space-y-1.5">
         {lignes.map((ligne) => (
-          <li key={ligne} className="text-sm text-amber-800 dark:text-amber-200/90">
+          <li key={ligne} className="text-sm text-avertissement">
             {ligne}
           </li>
         ))}

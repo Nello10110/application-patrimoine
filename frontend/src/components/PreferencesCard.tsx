@@ -93,7 +93,7 @@ export default function PreferencesCard() {
           {METHODE_OPTIONS.map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-start gap-3 rounded-md border border-bordure p-3"
+              className="flex cursor-pointer items-start gap-3 rounded-control border border-bordure p-3"
             >
               <input
                 type="radio"
@@ -136,7 +136,7 @@ export default function PreferencesCard() {
                 if (valeur !== prefs.taux_imposition_pct) handleTauxImpositionChange(valeur)
               }
             }}
-            className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-24 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
           %
         </label>

@@ -88,7 +88,7 @@ export default function DetenteursCard() {
             value={nom}
             onChange={(e) => setNom(e.target.value)}
             placeholder="Alice"
-            className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -96,7 +96,7 @@ export default function DetenteursCard() {
           <select
             value={type}
             onChange={(e) => setType(e.target.value as TypeDetenteur)}
-            className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
           >
             <option value="personne">Personne</option>
             <option value="societe">Société</option>
@@ -105,7 +105,7 @@ export default function DetenteursCard() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           Ajouter
         </button>

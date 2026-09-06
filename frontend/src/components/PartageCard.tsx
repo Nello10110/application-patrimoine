@@ -124,7 +124,7 @@ export default function PartageCard() {
                     readOnly
                     value={urlPublique(lien.token)}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="mt-1 w-full rounded-md border border-bordure bg-surface-elevee px-2 py-1 text-xs text-texte-attenue"
+                    className="mt-1 w-full rounded-control border border-bordure bg-surface-elevee px-2 py-1 text-xs text-texte-attenue"
                   />
                 )}
               </li>
@@ -141,7 +141,7 @@ export default function PartageCard() {
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               placeholder="Pour la banque"
-              className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -149,7 +149,7 @@ export default function PartageCard() {
             <select
               value={detenteurId}
               onChange={(e) => setDetenteurId(e.target.value)}
-              className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             >
               <option value="">Foyer entier</option>
               {detenteurs.map((d) => (
@@ -167,7 +167,7 @@ export default function PartageCard() {
               type="number"
               min={1}
               max={365}
-              className="w-24 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-24 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -176,7 +176,7 @@ export default function PartageCard() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="min. 4 caractères"
-              className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
         </div>
@@ -211,7 +211,7 @@ export default function PartageCard() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           {saving ? 'Création...' : 'Créer le lien'}
         </button>

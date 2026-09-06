@@ -10,7 +10,7 @@ export default function CompteDetailModal({ compteId, onClose }: { compteId: num
   const { compte, holdings, loading, error, recharger } = useCompteDetail(compteId)
 
   return (
-    <Modale onClose={onClose} panelClassName="w-full max-w-3xl rounded-xl bg-surface p-6 shadow-xl">
+    <Modale onClose={onClose} panelClassName="w-full max-w-3xl rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
       {({ titleId }) => (
         <>
           <div className="mb-2 flex items-start justify-between gap-4">

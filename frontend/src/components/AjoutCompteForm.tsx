@@ -107,7 +107,7 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
           value={nom}
           onChange={(e) => setNom(e.target.value)}
           placeholder="PEA, Livret A..."
-          className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -115,7 +115,7 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
         <select
           value={typeActif}
           onChange={(e) => setTypeActif(e.target.value)}
-          className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         >
           {OPTIONS_TYPE.map((o) => (
             <option key={o.value} value={o.value}>
@@ -134,7 +134,7 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
               min={0}
               value={valeurEstimee}
               onChange={(e) => setValeurEstimee(e.target.value)}
-              className="w-32 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
@@ -145,7 +145,7 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
               min={0}
               value={versementMensuel}
               onChange={(e) => setVersementMensuel(e.target.value)}
-              className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
         </>
@@ -164,13 +164,13 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
           onLogoKeyNouveauChange={setEtablissementLogoKey}
           required
           ariaLabel="Établissement"
-          className="w-48 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
         />
       </label>
       <button
         type="submit"
         disabled={saving || !nom.trim() || !etablissementValide}
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
       >
         + Nouveau compte
       </button>

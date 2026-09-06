@@ -46,13 +46,13 @@ export default function FoyerCard() {
             onChange={(e) => setNom(e.target.value)}
             placeholder="Famille Dupont"
             maxLength={60}
-            className="w-64 rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+            className="w-64 rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
           />
         </label>
         <button
           type="submit"
           disabled={saving || !nom.trim()}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
         >
           {saving ? 'Enregistrement…' : 'Enregistrer'}
         </button>

@@ -140,13 +140,13 @@ export default function SalairePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[14px]">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold text-texte">Salaire</h2>
+        <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Salaire</h1>
         <select
           value={annee}
           onChange={(e) => setAnnee(Number(e.target.value))}
-          className="rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-sm text-texte"
+          className="rounded-control border border-bordure bg-surface px-2.5 py-1.5 text-sm text-texte"
         >
           {anneesDisponibles.map((a) => (
             <option key={a} value={a}>
@@ -160,7 +160,7 @@ export default function SalairePage() {
         title={`Salaires — ${annee}`}
         headerActions={
           !formulaireOuvert && (
-            <button type="button" onClick={ouvrirAjout} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-surface">
+            <button type="button" onClick={ouvrirAjout} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface">
               + Ajouter un salaire
             </button>
           )
@@ -176,7 +176,7 @@ export default function SalairePage() {
         {entreesAnnee.length > 0 && (
           <div className="space-y-3">
             {entreesAnnee.map((entree) => (
-              <div key={entree.id} className="rounded-lg border border-bordure p-3">
+              <div key={entree.id} className="rounded-card border border-bordure p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium text-texte">{entree.nom}</p>
@@ -214,7 +214,7 @@ export default function SalairePage() {
         )}
 
         {formulaireOuvert && (
-          <div className={`rounded-lg border border-bordure p-4 ${entreesAnnee.length > 0 ? 'mt-3' : ''}`}>
+          <div className={`rounded-card border border-bordure p-4 ${entreesAnnee.length > 0 ? 'mt-3' : ''}`}>
             <p className="mb-3 text-sm font-medium text-texte">{entreeEnEdition ? 'Modifier ce salaire' : 'Nouveau salaire'}</p>
             <p className="mb-4 text-sm text-texte-attenue">
               Conversion brut/net approximative (cotisations salariales forfaitaires selon le statut) — pas un bulletin
@@ -231,7 +231,7 @@ export default function SalairePage() {
                   value={formulaire.nom}
                   onChange={(e) => setFormulaire({ ...formulaire, nom: e.target.value })}
                   placeholder="ex. Salaire de Paul"
-                  className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                  className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
 
@@ -241,7 +241,7 @@ export default function SalairePage() {
                   type="number"
                   value={formulaire.annee}
                   onChange={(e) => setFormulaire({ ...formulaire, annee: Number(e.target.value) || ANNEE_COURANTE })}
-                  className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                  className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
 
@@ -253,7 +253,7 @@ export default function SalairePage() {
                   value={formulaire.montant}
                   onChange={(e) => setFormulaire({ ...formulaire, montant: e.target.value })}
                   placeholder="ex. 2500"
-                  className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                  className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
 
@@ -267,7 +267,7 @@ export default function SalairePage() {
                   max={24}
                   value={formulaire.nombreMois}
                   onChange={(e) => setFormulaire({ ...formulaire, nombreMois: Number(e.target.value) || 12 })}
-                  className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                  className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
 
@@ -281,7 +281,7 @@ export default function SalairePage() {
                   value={formulaire.tauxImposition}
                   onChange={(e) => setFormulaire({ ...formulaire, tauxImposition: e.target.value })}
                   placeholder="ex. 11"
-                  className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                  className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
             </div>
@@ -336,14 +336,14 @@ export default function SalairePage() {
                 type="button"
                 onClick={enregistrer}
                 disabled={sauvegarde}
-                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-60"
+                className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-60"
               >
                 {sauvegarde ? 'Enregistrement…' : entreeEnEdition ? 'Enregistrer les modifications' : 'Ajouter ce salaire'}
               </button>
               <button
                 type="button"
                 onClick={() => setFormulaireOuvert(false)}
-                className="rounded-md px-4 py-2 text-sm font-medium text-texte-attenue hover:text-texte"
+                className="rounded-control px-4 py-2 text-sm font-medium text-texte-attenue hover:text-texte"
               >
                 Annuler
               </button>

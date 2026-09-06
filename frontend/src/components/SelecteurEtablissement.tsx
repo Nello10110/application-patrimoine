@@ -48,7 +48,7 @@ export default function SelecteurEtablissement({
         onChange={(e) => onValueChange(e.target.value)}
         onClick={(e) => e.stopPropagation()}
         aria-label={ariaLabel}
-        className={className ?? 'w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-40 sm:px-2 sm:py-1'}
+        className={className ?? 'w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-40 sm:px-2 sm:py-1'}
       >
         {!required && <option value="">— Sans établissement —</option>}
         {required && value === '' && <option value="">— Choisir —</option>}
@@ -79,7 +79,7 @@ export default function SelecteurEtablissement({
             onClick={(e) => e.stopPropagation()}
             aria-label={`Nom du nouvel établissement (${ariaLabel})`}
             placeholder="Boursorama, Caisse d'Épargne..."
-            className="w-full rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-40 sm:px-2 sm:py-1"
+            className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-40 sm:px-2 sm:py-1"
           />
         </div>
       )}

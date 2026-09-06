@@ -46,7 +46,7 @@ function CibleInput({ categorieId, valeurInitiale, onSaved }: { categorieId: num
       onKeyDown={(e) => e.key === 'Enter' && enregistrer()}
       placeholder="—"
       title="Montant mensuel visé pour cette catégorie. Videz le champ pour retirer la cible."
-      className="w-24 rounded-md border border-bordure bg-surface px-2 py-1 text-right text-sm text-texte"
+      className="w-24 rounded-control border border-bordure bg-surface px-2 py-1 text-right text-sm text-texte"
     />
   )
 }

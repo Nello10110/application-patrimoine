@@ -154,7 +154,7 @@ export default function RattrapageComptes() {
                         value={form.compte_id}
                         onChange={(e) => majForm(h.id, { compte_id: e.target.value })}
                         aria-label={`Compte pour ${h.ticker}`}
-                        className="w-40 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                        className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       >
                         <option value="">— Choisir —</option>
                         {comptes.map((c) => (
@@ -173,7 +173,7 @@ export default function RattrapageComptes() {
                             value={form.compte_nom}
                             onChange={(e) => majForm(h.id, { compte_nom: e.target.value })}
                             aria-label={`Nom du nouveau compte pour ${h.ticker}`}
-                            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                             placeholder="PEA, CTO..."
                           />
                         </label>
@@ -188,7 +188,7 @@ export default function RattrapageComptes() {
                             logoKeyNouveau={form.etablissement_logo_key}
                             onLogoKeyNouveauChange={(v) => majForm(h.id, { etablissement_logo_key: v })}
                             ariaLabel={`Établissement pour ${h.ticker}`}
-                            className="w-36 rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+                            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                           />
                         </label>
                       </>
@@ -197,7 +197,7 @@ export default function RattrapageComptes() {
                       type="button"
                       onClick={() => resoudre(h)}
                       disabled={savingId === h.id || !validable}
-                      className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-40"
+                      className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-40"
                     >
                       Valider
                     </button>
@@ -212,7 +212,7 @@ export default function RattrapageComptes() {
               type="button"
               onClick={continuer}
               disabled={!toutesResolues || finishing}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+              className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
             >
               {finishing ? 'Chargement…' : 'Continuer'}
             </button>

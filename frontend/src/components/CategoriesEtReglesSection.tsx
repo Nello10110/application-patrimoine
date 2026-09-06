@@ -57,7 +57,7 @@ export default function CategoriesEtReglesSection({
   }
 
   return (
-    <details open className="rounded-lg border border-bordure bg-surface">
+    <details open className="rounded-card border border-bordure bg-surface">
       <summary className="cursor-pointer px-4 py-3 text-sm font-semibold uppercase tracking-wide text-texte-attenue">
         Catégories et règles de catégorisation
       </summary>
@@ -66,7 +66,7 @@ export default function CategoriesEtReglesSection({
           <h4 className="mb-2 text-sm font-medium text-texte">Catégories</h4>
           <ul className="mb-3 flex flex-wrap gap-2">
             {categoriesRacines.map((c) => (
-              <li key={c.id} className="flex items-center gap-1.5 rounded-full bg-surface-elevee px-3 py-1 text-sm text-texte">
+              <li key={c.id} className="flex items-center gap-1.5 rounded-chip bg-surface-elevee px-3 py-1 text-sm text-texte">
                 {c.nom}
                 <button onClick={() => supprimerCategorie(c.id)} aria-label={`Supprimer ${c.nom}`} className="text-texte-attenue hover:text-negatif">
                   ×
@@ -79,9 +79,9 @@ export default function CategoriesEtReglesSection({
               value={nouvelleCategorie}
               onChange={(e) => setNouvelleCategorie(e.target.value)}
               placeholder="Nouvelle catégorie"
-              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
-            <button onClick={ajouterCategorie} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-surface">
+            <button onClick={ajouterCategorie} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface">
               Ajouter
             </button>
           </div>
@@ -114,12 +114,12 @@ export default function CategoriesEtReglesSection({
               value={motif}
               onChange={(e) => setMotif(e.target.value)}
               placeholder="Motif (ex. sncf)"
-              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
             <select
               value={categorieRegle}
               onChange={(e) => setCategorieRegle(e.target.value ? Number(e.target.value) : '')}
-              className="rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             >
               <option value="">— Catégorie —</option>
               {categories.map((c) => (
@@ -129,7 +129,7 @@ export default function CategoriesEtReglesSection({
                 </option>
               ))}
             </select>
-            <button onClick={ajouterRegle} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-surface">
+            <button onClick={ajouterRegle} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface">
               Ajouter la règle
             </button>
           </div>
@@ -137,7 +137,7 @@ export default function CategoriesEtReglesSection({
             <button
               onClick={reappliquer}
               disabled={reapplicationEnCours}
-              className="rounded-md border border-bordure px-3 py-1.5 text-sm font-medium text-texte disabled:opacity-40"
+              className="rounded-control border border-bordure px-3 py-1.5 text-sm font-medium text-texte disabled:opacity-40"
             >
               {reapplicationEnCours ? 'Réapplication en cours...' : 'Réappliquer les règles en masse'}
             </button>

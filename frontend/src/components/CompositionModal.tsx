@@ -53,7 +53,7 @@ export default function CompositionModal({
 
   return (
     <>
-      <Modale onClose={onClose} panelClassName="w-full max-w-lg rounded-xl bg-surface p-6 shadow-xl">
+      <Modale onClose={onClose} panelClassName="w-full max-w-lg rounded-panel border border-stroke bg-panel-hi shadow-glass-lg backdrop-blur-glass p-6">
         {({ titleId }) => (
           <>
             <div className="mb-4 flex items-start justify-between">
