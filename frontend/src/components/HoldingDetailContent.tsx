@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { HoldingDetail } from '../api/types'
 import Card from './Card'
-import { SegmentedControl } from './Controls'
+import { DeltaBadge, SegmentedControl } from './Controls'
+import { GlassPanel } from './GlassPanel'
 import DetenteursSection from './DetenteursSection'
 import EpargneApercu from './EpargneApercu'
 import EtatVide from './EtatVide'
@@ -48,28 +49,56 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
   const estEpargne = detail.type_actif !== null && TYPES_EPARGNE.has(detail.type_actif)
   const immo = useImmobilierDetail(detail.ticker, estImmobilier || estEpargne, detail.immobilier)
   const [onglet, setOnglet] = useState<Onglet>('apercu')
+  const plusValueLatente =
+    detail.prix_revient_moyen !== null && detail.prix_revient_moyen !== undefined
+      ? detail.valeur - detail.prix_revient_moyen * detail.quantite
+      : null
 
   return (
     <div className="space-y-6">
-      <div className="flex items-baseline gap-3">
-        <h2 id={titleId} className="text-xl font-semibold text-texte">
-          {detail.nom ?? detail.ticker}
-        </h2>
-        <span className="text-sm text-texte-attenue">{detail.ticker}</span>
-        {detail.type_actif && (
-          <span className="rounded-full bg-surface-elevee px-2 py-0.5 text-xs font-medium text-texte-attenue">
-            {libelleTypeActif(detail.type_actif)}
-          </span>
+      {/* Bloc héros de la fiche (refonte, étape 4) : le nom, ses deux badges, puis LA
+          valeur — la même hiérarchie que la Synthèse, un seul chiffre qui porte le
+          regard. Les quatre chiffres secondaires (quantité, prix de revient, cours,
+          annualisé) restent dans le panneau juste en dessous. */}
+      <GlassPanel niveau="hero" className="px-6 py-5">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h2 id={titleId} className="text-2xl font-semibold tracking-title text-ink">
+            {detail.nom ?? detail.ticker}
+          </h2>
+          <span className="text-sm text-ink3">{detail.ticker}</span>
+          {detail.type_actif && (
+            <span className="rounded-chip bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+              {libelleTypeActif(detail.type_actif)}
+            </span>
+          )}
+          {detail.compte && (
+            <Link
+              to={`/comptes/${detail.compte.id}`}
+              className="rounded-chip bg-track px-2 py-0.5 text-xs font-medium text-ink2 hover:text-ink hover:underline"
+            >
+              {detail.compte.nom}
+            </Link>
+          )}
+        </div>
+
+        <p className="mt-3 text-[40px] font-semibold leading-none tracking-hero text-ink">
+          {formatEuro(detail.valeur, 2, montantsMasques)}
+        </p>
+        {detail.rendement_depuis_achat_pct !== null && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <DeltaBadge
+              valeur={`${gainPositif ? '↑' : '↓'} ${Math.abs(detail.rendement_depuis_achat_pct).toFixed(1)} %`}
+              positif={gainPositif}
+            />
+            {plusValueLatente !== null && (
+              <span className={`text-[13px] ${gainPositif ? 'text-pos' : 'text-neg'}`}>
+                {gainPositif ? '+' : ''}
+                {formatEuro(plusValueLatente, 0, montantsMasques)} depuis l'achat
+              </span>
+            )}
+          </div>
         )}
-        {detail.compte && (
-          <Link
-            to={`/comptes/${detail.compte.id}`}
-            className="rounded-full bg-surface-elevee px-2 py-0.5 text-xs font-medium text-texte-attenue hover:text-texte hover:underline"
-          >
-            {detail.compte.nom}
-          </Link>
-        )}
-      </div>
+      </GlassPanel>
 
       <SegmentedControl
         options={ONGLETS.map((o) => ({ valeur: o.key, libelle: o.label }))}

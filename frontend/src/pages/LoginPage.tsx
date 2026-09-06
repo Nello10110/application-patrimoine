@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
-import Card from '../components/Card'
+import { PrimaryButton } from '../components/Controls'
+import { GlassPanel } from '../components/GlassPanel'
 
 type Mode = 'connexion' | 'creation'
 
@@ -57,89 +58,98 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-elevee px-6">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-center text-xl font-semibold text-texte">Application Patrimoine</h1>
-        <Card>
-          <div className="mb-4 flex gap-1">
-            <button
-              type="button"
-              onClick={() => setMode('connexion')}
-              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                mode === 'connexion'
-                  ? 'bg-texte text-surface'
-                  : 'bg-surface-elevee text-texte-attenue hover:text-texte'
-              }`}
-            >
-              Se connecter
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('creation')}
-              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                mode === 'creation'
-                  ? 'bg-texte text-surface'
-                  : 'bg-surface-elevee text-texte-attenue hover:text-texte'
-              }`}
-            >
-              Créer un compte
-            </button>
+    // Pas de fond opaque ici : l'écran de connexion est le premier endroit où le
+    // fond à halos de la refonte est visible, le panneau de verre flottant dessus.
+    <div className="flex min-h-screen items-center justify-center px-6">
+      <GlassPanel niveau="hero" className="w-full max-w-[400px] rounded-[26px] px-7 py-[30px]">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="flex h-11 w-11 items-center justify-center rounded-control bg-[image:var(--accent-grad)] text-lg font-bold text-white shadow-accent"
+          >
+            P
+          </span>
+          <div>
+            <h1 className="text-[26px] font-semibold tracking-title text-ink">
+              {mode === 'connexion' ? 'Bon retour' : 'Créer un compte'}
+            </h1>
+            <p className="text-sm text-ink3">Application Patrimoine</p>
           </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Nom d'utilisateur
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                autoComplete="username"
-                className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Mot de passe
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={mode === 'creation' ? 8 : undefined}
-                autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
-                className="rounded-md border border-bordure bg-surface px-3 py-2 text-sm text-texte"
-              />
-              {mode === 'creation' && <span className="font-normal normal-case text-texte-attenue">8 caractères minimum</span>}
-            </label>
+        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink3">
+            Nom d'utilisateur
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+              className="rounded-[12px] border border-hairline bg-chip px-3 py-2.5 text-sm font-normal normal-case text-ink"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink3">
+            Mot de passe
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={mode === 'creation' ? 8 : undefined}
+              autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
+              className="rounded-[12px] border border-hairline bg-chip px-3 py-2.5 text-sm font-normal normal-case text-ink"
+            />
+            {mode === 'creation' && (
+              <span className="font-normal normal-case tracking-normal text-ink4">8 caractères minimum</span>
+            )}
+          </label>
 
-            {error && <p className="text-sm text-negatif">{error}</p>}
+          {error && <p className="text-sm text-neg">{error}</p>}
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="mt-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          <PrimaryButton type="submit" disabled={saving} className="w-full">
+            {saving ? 'Un instant...' : mode === 'connexion' ? 'Se connecter' : 'Créer mon compte'}
+          </PrimaryButton>
+        </form>
+
+        {oidcEnabled && (
+          <>
+            <div className="my-4 flex items-center gap-3 text-xs text-ink4">
+              <span className="h-px flex-1 bg-hairline" />
+              ou
+              <span className="h-px flex-1 bg-hairline" />
+            </div>
+            <a
+              href="/api/auth/oidc/login"
+              className="block rounded-control border border-hairline bg-chip px-4 py-2 text-center text-sm font-medium text-ink2 hover:bg-hover"
             >
-              {saving ? 'Un instant...' : mode === 'connexion' ? 'Se connecter' : 'Créer mon compte'}
-            </button>
-          </form>
+              Se connecter avec {oidcDisplayName}
+            </a>
+          </>
+        )}
 
-          {oidcEnabled && (
+        {/* Les deux onglets « Se connecter / Créer un compte » deviennent un simple
+            lien (maquette de la refonte) : ils donnaient le même poids visuel aux deux
+            actions, alors qu'on se connecte cent fois pour un compte créé une fois. La
+            création reste accessible, sans hiérarchiser à tort. */}
+        <p className="mt-5 text-center text-[13px] text-ink3">
+          {mode === 'connexion' ? (
             <>
-              <div className="my-4 flex items-center gap-3 text-xs text-texte-attenue">
-                <span className="h-px flex-1 bg-bordure" />
-                ou
-                <span className="h-px flex-1 bg-bordure" />
-              </div>
-              <a
-                href="/api/auth/oidc/login"
-                className="block rounded-md border border-bordure px-4 py-2 text-center text-sm font-medium text-texte hover:bg-surface-elevee"
-              >
-                Se connecter avec {oidcDisplayName}
-              </a>
+              Pas encore de compte ?{' '}
+              <button type="button" onClick={() => setMode('creation')} className="font-medium text-accent hover:underline">
+                Créer un compte
+              </button>
+            </>
+          ) : (
+            <>
+              Déjà un compte ?{' '}
+              <button type="button" onClick={() => setMode('connexion')} className="font-medium text-accent hover:underline">
+                Se connecter
+              </button>
             </>
           )}
-        </Card>
-      </div>
+        </p>
+      </GlassPanel>
     </div>
   )
 }

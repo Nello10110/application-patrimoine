@@ -13,7 +13,6 @@ import LoansCard from '../components/LoansCard'
 import Modale from '../components/Modale'
 import PositionsTable from '../components/PositionsTable'
 import { SkeletonTexte } from '../components/Skeleton'
-import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useRafraichissementCours } from '../hooks/useRafraichissementCours'
 import {
   CATEGORY_TABS,
@@ -26,7 +25,7 @@ import {
   correspondAuFiltreCompte,
   coursLePlusAncien,
 } from '../utils/holdingCategories'
-import { formatDateHeure, formatEuro, parseDateApi } from '../utils/format'
+import { formatDateHeure, parseDateApi } from '../utils/format'
 
 // Position de défilement de la page (backlog 2.K.2), restituée au remontage
 // (ex. retour depuis la fiche détaillée en pleine page) — comme le tri de
@@ -88,7 +87,6 @@ export default function PortefeuillePage() {
   // Feuille d'ajout (refonte, étape 4) : le formulaire ne vit plus en carte
   // permanente en haut de l'écran.
   const [ajoutOuvert, setAjoutOuvert] = useState(false)
-  const { montantsMasques } = usePreferencesAffichage()
   const [holdings, setHoldings] = useState<Holding[]>([])
   // Catégorie et compte sont des FILTRES (ils changent ce qui est affiché), donc
   // portés par l'URL (backlog 2.K.2) plutôt qu'un état local : le retour
@@ -231,21 +229,16 @@ export default function PortefeuillePage() {
     (h) => (categorie === 'TOUS' || categorieDe(h) === categorie) && correspondAuFiltreCompte(h, filtreCompte),
   )
 
-  // Totaux du PIED de tableau, calculés sur les lignes réellement affichées.
-  // `prix_revient_moyen` absent (compte courant, livret) : la ligne compte dans le
-  // total mais reste hors du calcul de performance — on ne peut pas comparer une
-  // valeur à un coût qu'on ignore, et l'inclure à coût nul gonflerait la performance.
+  // Performance globale des lignes RÉELLEMENT AFFICHÉES.
   const totaux = lignesFiltrees.reduce(
     (acc, h) => {
-      const valeur = h.valeur ?? 0
-      acc.valeur += valeur
       if (h.prix_revient_moyen !== null && h.prix_revient_moyen !== undefined) {
-        acc.valeurAvecCout += valeur
+        acc.valeurAvecCout += h.valeur ?? 0
         acc.cout += h.prix_revient_moyen * h.quantite
       }
       return acc
     },
-    { valeur: 0, valeurAvecCout: 0, cout: 0 },
+    { valeurAvecCout: 0, cout: 0 },
   )
   const performancePct = totaux.cout > 0 ? ((totaux.valeurAvecCout - totaux.cout) / totaux.cout) * 100 : null
 
@@ -411,32 +404,23 @@ export default function PortefeuillePage() {
           />
         )}
 
-        {/* Pied de tableau (règle de cohérence des données du paquet de design) :
-            total, nombre de lignes et performance globale sont recalculés DEPUIS LA
-            LISTE FILTRÉE, jamais depuis le portefeuille entier. Et la performance
-            globale est (Σ valeurs − Σ coûts) / Σ coûts — jamais une moyenne des
-            pourcentages individuels, qui donnerait autant de poids à une ligne de
-            200 € qu'à une de 200 000 €. */}
-        {!loading && lignesFiltrees.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-hairline pt-4 text-sm">
-            <span className="text-ink3">
-              {lignesFiltrees.length} ligne{lignesFiltrees.length > 1 ? 's' : ''} affichée
-              {lignesFiltrees.length > 1 ? 's' : ''}
+        {/* Performance globale des lignes AFFICHÉES (règle de cohérence des données du
+            paquet de design) : (Σ valeurs − Σ coûts) / Σ coûts, jamais une moyenne des
+            pourcentages individuels — qui donnerait autant de poids à une ligne de
+            200 € qu'à une de 200 000 €. Le nombre de lignes et le total, eux, restent
+            dans le pied du tableau lui-même (`PositionsTable`), déjà calculés sur les
+            lignes filtrées : les répéter ici ferait deux affichages du même chiffre,
+            exactement ce que cette refonte supprime ailleurs.
+            Une ligne sans prix de revient connu (compte courant, livret) compte dans le
+            total mais reste hors de ce calcul : on ne compare pas une valeur à un coût
+            qu'on ignore. */}
+        {!loading && performancePct !== null && (
+          <div className="mt-4 flex items-center justify-end gap-2 border-t border-hairline pt-4 text-sm">
+            <span className="text-ink3">Performance des lignes affichées</span>
+            <span className={`font-semibold ${performancePct >= 0 ? 'text-pos' : 'text-neg'}`}>
+              {performancePct >= 0 ? '+' : ''}
+              {performancePct.toFixed(1)} %
             </span>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
-              <span className="text-ink3">
-                Total <span className="ml-1 font-semibold text-ink">{formatEuro(totaux.valeur, 0, montantsMasques)}</span>
-              </span>
-              {performancePct !== null && (
-                <span className="text-ink3">
-                  Performance{' '}
-                  <span className={`ml-1 font-semibold ${performancePct >= 0 ? 'text-pos' : 'text-neg'}`}>
-                    {performancePct >= 0 ? '+' : ''}
-                    {performancePct.toFixed(1)} %
-                  </span>
-                </span>
-              )}
-            </div>
           </div>
         )}
       </Card>
