@@ -35,6 +35,28 @@ body {
   transition: color 0.15s ease;
 }
 
+/* Curseur des éléments cliquables (retour utilisateur du 07/09/2026 : « la souris
+   ne change pas pour préciser que les champs sont des boutons »).
+
+   Ce n'est pas un oubli de composant mais le défaut du navigateur : un `<button>`
+   natif garde `cursor: default`, contrairement à un lien. Chrome et Firefox ont
+   arrêté d'y mettre la main il y a longtemps, et le reset de Tailwind ne le corrige
+   pas non plus. Chaque composant aurait donc dû poser `cursor-pointer` de son côté —
+   dix l'avaient fait, tous les autres non, d'où l'incohérence : le segmenté
+   Net/Brut/Financier, la bascule des montants et le sélecteur de thème ne
+   s'annonçaient pas comme cliquables.
+
+   Réglé ici une fois pour toutes, plutôt que composant par composant : la règle
+   couvre aussi les prochains. `:not(:disabled)` laisse la main aux boutons inactifs,
+   qui posent déjà `cursor-not-allowed` ; `[role="button"]` couvre les lignes de
+   tableau cliquables ; `summary` les blocs dépliables. */
+button:not(:disabled),
+select:not(:disabled),
+summary,
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
 /* Focus clavier (audit de design du 03/09/2026) : l'application ne définissait
    AUCUNE règle `:focus-visible`. Le focus restait visible, mais uniquement via
    l'anneau par défaut du navigateur — 1 px, couleur imposée, variable d'un
