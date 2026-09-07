@@ -27,8 +27,8 @@ export default function HoldingDetailPage() {
 
   return (
     <div className="space-y-[14px]">
-      <button onClick={handleRetour} className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
-        <IconFlecheGauche className="h-4 w-4" /> Retour au patrimoine
+      <button onClick={handleRetour} className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 text-[13px] text-accent hover:underline md:min-h-0 md:py-3">
+        <IconFlecheGauche className="h-4 w-4" /> Patrimoine
       </button>
       <HoldingDetailContent detail={detail} />
     </div>

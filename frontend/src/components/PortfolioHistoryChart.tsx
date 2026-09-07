@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { PatrimoineHistoryPoint, PortfolioHistoryPoint } from '../api/types'
 import { Pill, SegmentedControl } from './Controls'
@@ -9,6 +9,52 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro } from '../utils/format'
 import { PERIODES_RELATIVES, bornesPeriode } from '../utils/periode'
 import { STYLE_INFOBULLE } from '../utils/chartTheme'
+
+/** Contrôles de la courbe — légende du mode étagé, pilule « Mode étagé » et
+ * sélecteur de période. Séparés du graphique parce que la maquette les place dans
+ * l'EN-TÊTE du bloc héros, alignés en haut à droite du chiffre, et non au-dessus du
+ * tracé : c'est la ligne où l'œil cherche « sur quelle période ce chiffre varie-t-il ».
+ *
+ * Sous 768 px, seule la période descend sous la courbe (à portée du pouce, cf.
+ * `PortfolioHistoryChart`) ; la pilule, elle, reste ici. */
+export function ControlesCourbe({ stacked, onStackedChange }: { stacked: boolean; onStackedChange: (v: boolean) => void }) {
+  const { periode, setPeriode } = usePreferencesAffichage()
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {stacked && (
+        <div className="flex gap-3 text-[11px] text-ink3">
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />
+            Investi
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />
+            Gains
+          </span>
+        </div>
+      )}
+      <Pill
+        actif={stacked}
+        onClick={() => onStackedChange(!stacked)}
+        title="Superpose l'investi sous le total : la tranche visible entre les deux courbes, ce sont les gains."
+      >
+        Mode étagé
+      </Pill>
+      {/* La période vit à CÔTÉ de la courbe qu'elle change (deuxième décision
+          structurelle du paquet de design). Elle reste la préférence transverse et
+          non un état local : le chiffre héros juste à gauche affiche sa variation sur
+          cette même période, les deux doivent raconter la même histoire. */}
+      <SegmentedControl
+        options={PERIODES_RELATIVES.map((p) => ({ valeur: p.valeur, libelle: p.label }))}
+        valeur={periode.type === 'relative' ? periode.valeur : 'TOUT'}
+        onChange={(valeur) => setPeriode({ type: 'relative', valeur })}
+        taille="sm"
+        ariaLabel="Période du graphique"
+        className="hidden md:flex"
+      />
+    </div>
+  )
+}
 
 interface PortfolioHistoryChartProps {
   /** `null` tant que le chargement n'a pas abouti (cf. `loading`) — remonté par
@@ -27,6 +73,10 @@ interface PortfolioHistoryChartProps {
   loadingPatrimoine?: boolean
   errorPatrimoine?: string | null
   onRetryPatrimoine?: () => void
+  /** État du mode étagé, PORTÉ PAR LE PARENT (maquette de la refonte) : sa pilule
+   * vit dans l'en-tête du bloc héros, à côté du sélecteur de période et alignée sur
+   * le chiffre — pas au-dessus du graphique. Cf. `ControlesCourbe` ci-dessous. */
+  stacked: boolean
 }
 
 export default function PortfolioHistoryChart({
@@ -38,9 +88,9 @@ export default function PortfolioHistoryChart({
   loadingPatrimoine,
   errorPatrimoine,
   onRetryPatrimoine,
+  stacked,
 }: PortfolioHistoryChartProps) {
   const { lentille, montantsMasques, periode, setPeriode } = usePreferencesAffichage()
-  const [stacked, setStacked] = useState(false)
 
   // Migration d'une préférence dont l'interface a disparu : le sélecteur de période
   // de la barre du haut proposait « Personnalisée… » avec deux champs de date, que la
@@ -119,42 +169,6 @@ export default function PortfolioHistoryChart({
 
   return (
     <>
-      <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
-        {stackedEffectif && (
-          <div className="mr-auto flex gap-3 text-[11px] text-ink3">
-            <span className="flex items-center gap-1.5">
-              <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />
-              Investi
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />
-              Gains
-            </span>
-          </div>
-        )}
-        <Pill
-          actif={stackedEffectif}
-          onClick={() => setStacked(!stackedEffectif)}
-          title="Superpose l'investi sous le total : la tranche visible entre les deux courbes, ce sont les gains."
-        >
-          Mode étagé
-        </Pill>
-        {/* La période vit à CÔTÉ de la courbe qu'elle change (deuxième décision
-            structurelle du paquet de design). Elle reste la préférence transverse et
-            non un état local : le chiffre héros juste au-dessus affiche sa variation
-            sur cette même période, les deux doivent raconter la même histoire.
-            Sous 768 px, elle passe SOUS la courbe, à portée du pouce — cf. l'ordre
-            flex plus bas. */}
-        <SegmentedControl
-          options={PERIODES_RELATIVES.map((p) => ({ valeur: p.valeur, libelle: p.label }))}
-          valeur={periode.type === 'relative' ? periode.valeur : 'TOUT'}
-          onChange={(valeur) => setPeriode({ type: 'relative', valeur })}
-          taille="sm"
-          ariaLabel="Période du graphique"
-          className="hidden md:flex"
-        />
-      </div>
-
       {loadingActif && (
         <>
           <p className="mb-2 text-[13px] text-ink3">

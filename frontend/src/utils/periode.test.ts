@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, type Periode, variationSurPeriode } from './periode'
+import { bornesPeriode, deltaSurPeriode, estPeriodeRelativeConnue, libellePeriodeEcoulee, type Periode, variationSurPeriode } from './periode'
 
 // Date de référence fixe pour des tests déterministes (2026 n'est pas bissextile).
 const MAINTENANT = new Date('2026-08-21T12:00:00Z')
@@ -17,20 +17,12 @@ describe('bornesPeriode', () => {
     expect(bornesPeriode({ type: 'relative', valeur: '3M' }, MAINTENANT)).toEqual({ dateDebut: '2026-05-21', dateFin: '2026-08-21' })
   })
 
-  it('"6M" recule de six mois', () => {
-    expect(bornesPeriode({ type: 'relative', valeur: '6M' }, MAINTENANT)).toEqual({ dateDebut: '2026-02-21', dateFin: '2026-08-21' })
-  })
-
-  it('"YTD" démarre au 1er janvier de l\'année courante', () => {
-    expect(bornesPeriode({ type: 'relative', valeur: 'YTD' }, MAINTENANT)).toEqual({ dateDebut: '2026-01-01', dateFin: '2026-08-21' })
-  })
-
   it('"1A" recule d\'un an', () => {
     expect(bornesPeriode({ type: 'relative', valeur: '1A' }, MAINTENANT)).toEqual({ dateDebut: '2025-08-21', dateFin: '2026-08-21' })
   })
 
-  it('"3A" recule de trois ans', () => {
-    expect(bornesPeriode({ type: 'relative', valeur: '3A' }, MAINTENANT)).toEqual({ dateDebut: '2023-08-21', dateFin: '2026-08-21' })
+  it('"5A" recule de cinq ans', () => {
+    expect(bornesPeriode({ type: 'relative', valeur: '5A' }, MAINTENANT)).toEqual({ dateDebut: '2021-08-21', dateFin: '2026-08-21' })
   })
 
   it('une période personnalisée renvoie ses propres bornes, sans dépendre de "maintenant"', () => {
@@ -42,12 +34,10 @@ describe('bornesPeriode', () => {
 describe('libellePeriodeEcoulee (backlog 2.K.6)', () => {
   it.each<[Periode, string]>([
     [{ type: 'relative', valeur: 'TOUT' }, 'depuis le début du suivi'],
-    [{ type: 'relative', valeur: 'YTD' }, 'depuis janvier'],
     [{ type: 'relative', valeur: '1M' }, 'sur le dernier mois'],
     [{ type: 'relative', valeur: '3M' }, 'sur les 3 derniers mois'],
-    [{ type: 'relative', valeur: '6M' }, 'sur les 6 derniers mois'],
     [{ type: 'relative', valeur: '1A' }, 'sur la dernière année'],
-    [{ type: 'relative', valeur: '3A' }, 'sur les 3 dernières années'],
+    [{ type: 'relative', valeur: '5A' }, 'sur les 5 dernières années'],
     [{ type: 'personnalisee', dateDebut: '2020-01-01', dateFin: '2020-12-31' }, 'sur la période sélectionnée'],
   ])('%o → %s', (periode, attendu) => {
     expect(libellePeriodeEcoulee(periode)).toBe(attendu)
@@ -99,5 +89,21 @@ describe('deltaSurPeriode (correction du 07/09/2026)', () => {
   it('gère une baisse et renvoie null avec moins de 2 points', () => {
     expect(deltaSurPeriode([{ valeur: 1000 }, { valeur: 900 }])).toBe(-100)
     expect(deltaSurPeriode([{ valeur: 1000 }])).toBeNull()
+  })
+})
+
+describe('estPeriodeRelativeConnue (resserrage à 5 périodes, 07/09/2026)', () => {
+  it('accepte les cinq périodes de la maquette', () => {
+    for (const valeur of ['1M', '3M', '1A', '5A', 'TOUT']) {
+      expect(estPeriodeRelativeConnue(valeur)).toBe(true)
+    }
+  })
+
+  // Ces trois-là peuvent encore dormir dans le `localStorage` d'un utilisateur :
+  // les accepter ferait calculer des bornes invalides sur tous ses graphiques.
+  it("refuse les périodes retirées, et tout ce qui n'en est pas une", () => {
+    for (const valeur of ['6M', 'YTD', '3A', '', null, undefined, 42]) {
+      expect(estPeriodeRelativeConnue(valeur)).toBe(false)
+    }
   })
 })

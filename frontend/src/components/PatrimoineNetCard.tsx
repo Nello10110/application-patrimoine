@@ -54,6 +54,10 @@ interface PatrimoineNetCardProps {
    * appartiennent au même bloc — les séparer obligeait à lire deux panneaux pour une
    * seule idée. */
   courbe?: ReactNode
+  /** Contrôles de la courbe (période, mode étagé), rendus en haut à DROITE du bloc
+   * héros et alignés sur le chiffre — c'est la ligne où l'œil cherche « sur quelle
+   * période ce chiffre varie-t-il ». Cf. `ControlesCourbe`. */
+  controlesCourbe?: ReactNode
 }
 
 /** Une des trois poches sous le chiffre héros : un panneau de verre cliquable qui
@@ -92,7 +96,7 @@ function Poche({
  * indépendante de l'année sélectionnée et du reste du tableau de bord (comme
  * `PerformanceCard`) : chargée et affichée même si l'analyse géo/sectorielle
  * échoue, puisqu'elle ne dépend d'aucune des deux. */
-export default function PatrimoineNetCard({ historiquePortefeuille, historiquePatrimoine, courbe }: PatrimoineNetCardProps = {}) {
+export default function PatrimoineNetCard({ historiquePortefeuille, historiquePatrimoine, courbe, controlesCourbe }: PatrimoineNetCardProps = {}) {
   const [patrimoine, setPatrimoine] = useState<PatrimoineNet | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -173,7 +177,16 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
   const totalPositif = partsPositives.reduce((somme, item) => somme + item.valeur, 0)
 
   return (
-    <GlassPanel niveau="hero" className="px-6 pb-5 pt-6">
+    // Trois blocs distincts, comme la maquette (07/09/2026) : le héros (chiffre,
+    // variation, contrôles, courbe), les poches, la répartition. Ils vivaient
+    // jusqu'ici dans un seul panneau de verre, qui devenait un mur de 800 px sans
+    // aucune respiration entre trois idées différentes.
+    <div className="space-y-[14px]">
+      <GlassPanel niveau="hero" className="px-[26px] pb-2 pt-6">
+        {/* En-tête sur une ligne : le chiffre à gauche, les contrôles de la courbe
+            alignés en haut à droite (maquette). */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
       {/* UN SEUL chiffre héros par écran (première des trois décisions structurelles
           de la refonte) : l'ancienne carte annonçait « Patrimoine net » trois fois —
           titre de carte, libellé, valeur — et empilait quatre tuiles de même poids.
@@ -203,14 +216,21 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
         </div>
       )}
 
-      {/* Trois « poches » cliquables sous le chiffre héros (maquette de la refonte).
+          </div>
+          {controlesCourbe}
+        </div>
+
+        {courbe}
+      </GlassPanel>
+
+      {/* Trois « poches » cliquables sous le bloc héros (maquette de la refonte).
           Écart assumé sur leur découpage : la maquette proposait financier /
           immobilier net / épargne, trois postes que `PatrimoineNet` ne sait pas
           isoler sans deviner à partir des libellés de catégories. Ces trois-là se
           déduisent exactement des chiffres déjà calculés côté serveur — et couvrent
           la même information que les deux tuiles qu'elles remplacent (actifs, dont
           la ventilation, et passifs). */}
-      <div className="mt-5 grid grid-cols-2 gap-[14px] lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-[14px] lg:grid-cols-3">
         <Poche
           libelle="Financier"
           valeur={patrimoine.patrimoine_financier}
@@ -234,10 +254,8 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
         />
       </div>
 
-      {courbe && <div className="mt-4">{courbe}</div>}
-
       {repartitionAffichee.length > 0 && (
-        <div className="mt-5 border-t border-hairline pt-4">
+        <GlassPanel className="px-5 py-[18px]">
           <p className="text-xs font-semibold uppercase tracking-wide text-ink3">Par type d'investissement</p>
 
           {/* UN SEUL langage graphique (troisième décision structurelle) : le
@@ -287,8 +305,8 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
               )
             })}
           </div>
-        </div>
+        </GlassPanel>
       )}
-    </GlassPanel>
+    </div>
   )
 }

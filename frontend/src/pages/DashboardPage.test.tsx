@@ -19,7 +19,7 @@ vi.mock('../api/client', () => ({
 
 // Composants lourds (recharts, appels réseau propres) mis de côté : ce fichier ne
 // verrouille pas leur rendu interne, couvert dans leurs propres fichiers.
-vi.mock('../components/PortfolioHistoryChart', () => ({ default: () => <div /> }))
+vi.mock('../components/PortfolioHistoryChart', () => ({ default: () => <div />, ControlesCourbe: () => <div /> }))
 vi.mock('../components/PatrimoineNetCard', () => ({ default: () => <div /> }))
 
 vi.mock('../hooks/usePreferencesAffichage', () => ({

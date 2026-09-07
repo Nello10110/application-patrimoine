@@ -5,7 +5,7 @@ import type { PatrimoineHistoryPoint, PortfolioHistoryPoint } from '../api/types
 import Card from '../components/Card'
 import { SecondaryButton } from '../components/Controls'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
-import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
+import PortfolioHistoryChart, { ControlesCourbe } from '../components/PortfolioHistoryChart'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 
 /** Écran d'accueil — délibérément court (demande directe de l'utilisateur du
@@ -24,6 +24,11 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
  * des positions pour savoir si le portefeuille est vide. */
 export default function DashboardPage() {
   const { detenteurId } = usePreferencesAffichage()
+
+  // Mode étagé porté ici plutôt que dans le graphique : sa pilule vit dans l'en-tête
+  // du bloc héros (maquette), rendue par `PatrimoineNetCard`, alors que le tracé
+  // qu'elle pilote est plus bas. Un seul état pour les deux.
+  const [modeEtage, setModeEtage] = useState(false)
 
   // Historique du portefeuille (backlog 2.K.6) : remonté ici plutôt que chargé dans
   // `PortfolioHistoryChart` lui-même — partagé avec `PatrimoineNetCard` (variation
@@ -101,8 +106,10 @@ export default function DashboardPage() {
       <PatrimoineNetCard
         historiquePortefeuille={{ points: historique, loading: chargementHistorique }}
         historiquePatrimoine={{ points: patrimoineHistorique, loading: chargementPatrimoineHistorique }}
+        controlesCourbe={<ControlesCourbe stacked={modeEtage} onStackedChange={setModeEtage} />}
         courbe={
           <PortfolioHistoryChart
+            stacked={modeEtage}
             points={historique}
             loading={chargementHistorique}
             error={erreurHistorique}

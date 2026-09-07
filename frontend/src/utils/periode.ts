@@ -4,20 +4,31 @@
 
 import { dateVersISO } from './format'
 
-export type PeriodeRelative = '1M' | '3M' | '6M' | 'YTD' | '1A' | '3A' | 'TOUT'
+/** Cinq périodes, libellés courts (maquette de la refonte, 07/09/2026). Les sept
+ * d'avant portaient des libellés longs (« Depuis janvier », « 3 mois ») qui
+ * forçaient le sélecteur sur deux lignes dès qu'il vivait à côté de la courbe, et
+ * le poussaient hors écran sur mobile. Deux disparaissent (« 6 mois » et « Depuis
+ * janvier »), « 3 ans » devient « 5A » — une projection de patrimoine se juge sur
+ * un horizon plus long. */
+export type PeriodeRelative = '1M' | '3M' | '1A' | '5A' | 'TOUT'
 export type Periode = { type: 'relative'; valeur: PeriodeRelative } | { type: 'personnalisee'; dateDebut: string; dateFin: string }
 
 export const PERIODES_RELATIVES: { valeur: PeriodeRelative; label: string }[] = [
-  { valeur: '1M', label: '1 mois' },
-  { valeur: '3M', label: '3 mois' },
-  { valeur: '6M', label: '6 mois' },
-  { valeur: 'YTD', label: 'Depuis janvier' },
-  { valeur: '1A', label: '1 an' },
-  { valeur: '3A', label: '3 ans' },
+  { valeur: '1M', label: '1M' },
+  { valeur: '3M', label: '3M' },
+  { valeur: '1A', label: '1A' },
+  { valeur: '5A', label: '5A' },
   { valeur: 'TOUT', label: 'Tout' },
 ]
 
-const MOIS_PAR_PERIODE: Record<Exclude<PeriodeRelative, 'TOUT' | 'YTD'>, number> = { '1M': 1, '3M': 3, '6M': 6, '1A': 12, '3A': 36 }
+/** Une période lue depuis `localStorage` peut dater d'avant ce resserrage (« 6M »,
+ * « YTD », « 3A ») : sans cette vérification, `MOIS_PAR_PERIODE` renverrait
+ * `undefined` et toutes les bornes deviendraient des dates invalides. */
+export function estPeriodeRelativeConnue(valeur: unknown): valeur is PeriodeRelative {
+  return PERIODES_RELATIVES.some((p) => p.valeur === valeur)
+}
+
+const MOIS_PAR_PERIODE: Record<Exclude<PeriodeRelative, 'TOUT'>, number> = { '1M': 1, '3M': 3, '1A': 12, '5A': 60 }
 
 /** `null` = pas de filtrage (`TOUT`, ou aucune restriction). `maintenant` est
  * injectable pour des tests déterministes. */
@@ -27,11 +38,6 @@ export function bornesPeriode(periode: Periode, maintenant = new Date()): { date
   if (periode.valeur === 'TOUT') return null
 
   const dateFin = dateVersISO(maintenant)
-
-  if (periode.valeur === 'YTD') {
-    return { dateDebut: dateVersISO(new Date(maintenant.getFullYear(), 0, 1)), dateFin }
-  }
-
   const debut = new Date(maintenant)
   debut.setMonth(debut.getMonth() - MOIS_PAR_PERIODE[periode.valeur])
   return { dateDebut: dateVersISO(debut), dateFin }
@@ -50,18 +56,14 @@ export function libellePeriodeEcoulee(periode: Periode): string {
   switch (periode.valeur) {
     case 'TOUT':
       return 'depuis le début du suivi'
-    case 'YTD':
-      return 'depuis janvier'
     case '1M':
       return 'sur le dernier mois'
     case '3M':
       return 'sur les 3 derniers mois'
-    case '6M':
-      return 'sur les 6 derniers mois'
     case '1A':
       return 'sur la dernière année'
-    case '3A':
-      return 'sur les 3 dernières années'
+    case '5A':
+      return 'sur les 5 dernières années'
   }
 }
 

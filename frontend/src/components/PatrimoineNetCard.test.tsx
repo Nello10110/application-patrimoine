@@ -359,28 +359,27 @@ describe('PatrimoineNetCard — variation et phrase (backlog 2.K.6)', () => {
   })
 
   it('lentille "financier" : filtre la série sur la Période transverse active avant de calculer la variation', async () => {
-    // Bornes du dernier point calées sur "aujourd'hui" (pas un mois fixe) pour que
-    // ce test reste vrai toute l'année, y compris en janvier — `bornesPeriode` en
-    // YTD fixe `dateFin` à la date du jour.
-    const anneeEnCours = new Date().getFullYear()
+    // Bornes du dernier point calées sur "aujourd'hui" (pas une date fixe) pour que
+    // ce test reste vrai toute l'année — `bornesPeriode` fixe `dateFin` au jour même.
     const aujourdhui = new Date().toISOString().slice(0, 10)
+    const ilYAUnMois = new Date(Date.now() - 20 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     vi.mocked(api.getPatrimoineNet).mockResolvedValue(patrimoine({ actifs_totaux: 1700, passifs_totaux: 500, patrimoine_net: 1200, patrimoine_financier: 1200 }))
     renderCard(
       'financier',
       null,
       {
         points: [
-          point({ date: '2020-01-01', valeur_portefeuille: 100 }), // hors période YTD, ignoré
-          point({ date: `${anneeEnCours}-01-01`, valeur_portefeuille: 1000 }),
+          point({ date: '2020-01-01', valeur_portefeuille: 100 }), // hors des 3 derniers mois, ignoré
+          point({ date: ilYAUnMois, valeur_portefeuille: 1000 }),
           point({ date: aujourdhui, valeur_portefeuille: 1200 }),
         ],
         loading: false,
       },
-      { type: 'relative', valeur: 'YTD' },
+      { type: 'relative', valeur: '3M' },
     )
 
     await screen.findByText('↑ 20.0 %')
-    expect(screen.getByText(/depuis janvier/)).toBeInTheDocument()
+    expect(screen.getByText(/sur les 3 derniers mois/)).toBeInTheDocument()
   })
 
   it('lentille "brut" : la variation vient de `historiquePatrimoine.actifs_totaux`, pas du portefeuille financier', async () => {

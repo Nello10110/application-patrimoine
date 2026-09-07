@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { PreferencesAffichageContext, type Lentille } from './preferencesAffichageContextObject'
-import { PERIODE_DEFAUT, type Periode } from '../utils/periode'
+import { estPeriodeRelativeConnue, PERIODE_DEFAUT, type Periode } from '../utils/periode'
 
 const CLE_LENTILLE = 'patrimoine:lentille'
 const CLE_MONTANTS_MASQUES = 'patrimoine:montants-masques'
@@ -35,7 +35,11 @@ function periodeStockee(): Periode {
   if (!brut) return PERIODE_DEFAUT
   try {
     const valeur = JSON.parse(brut)
-    if (valeur?.type === 'relative' || valeur?.type === 'personnalisee') return valeur as Periode
+    // `estPeriodeRelativeConnue` et pas seulement le `type` : une préférence
+    // enregistrée avant le resserrage à cinq périodes (07/09/2026) peut contenir
+    // « 6M », « YTD » ou « 3A », que plus rien ne sait borner.
+    if (valeur?.type === 'relative' && estPeriodeRelativeConnue(valeur.valeur)) return valeur as Periode
+    if (valeur?.type === 'personnalisee') return valeur as Periode
     return PERIODE_DEFAUT
   } catch {
     return PERIODE_DEFAUT

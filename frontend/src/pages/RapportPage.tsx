@@ -99,9 +99,9 @@ export default function RapportPage() {
   // mises chacune à 100 % de leur propre valeur ne compareraient plus rien.
   const montantsColonnes = rapport
     ? [
-        { libelle: 'Début de période', montant: rapport.valeur_debut_periode, classe: 'bg-s4' },
-        { libelle: 'Investi par vous', montant: rapport.montant_investi_periode, classe: 'bg-s3' },
-        { libelle: 'Généré seul', montant: rapport.gain_genere_periode, classe: 'bg-s2' },
+        { libelle: 'Début de période', montant: rapport.valeur_debut_periode, classe: 'bg-s3' },
+        { libelle: 'Investi par vous', montant: rapport.montant_investi_periode, classe: 'bg-s2' },
+        { libelle: 'Généré seul', montant: rapport.gain_genere_periode, classe: 'bg-pos' },
         { libelle: 'Fin de période', montant: rapport.valeur_fin_periode, classe: 'bg-s1' },
       ]
     : []
