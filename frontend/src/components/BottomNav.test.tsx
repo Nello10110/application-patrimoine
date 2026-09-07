@@ -40,7 +40,7 @@ describe('BottomNav (backlog 2.K.4)', () => {
     expect(within(nav).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(nav).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
     expect(within(nav).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
-    expect(within(nav).queryByRole('link', { name: /Dividendes/ })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: /Analyse/ })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
   })
@@ -62,13 +62,13 @@ describe('BottomNav (backlog 2.K.4)', () => {
     expect(within(nav).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
   })
 
-  it("« Plus » ouvre une feuille avec Dividendes/Rapport, Import/Réglages/Aide, thème et déconnexion", async () => {
+  it("« Plus » ouvre une feuille avec Analyse/Rapport, Import/Réglages/Aide, thème et déconnexion", async () => {
     renderNav(utilisateur())
 
     fireEvent.click(screen.getByRole('button', { name: 'Plus' }))
 
     const feuille = await screen.findByRole('dialog')
-    expect(within(feuille).getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
+    expect(within(feuille).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(feuille).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
     expect(within(feuille).getByRole('link', { name: 'Import' })).toHaveAttribute('href', '/import')
     expect(within(feuille).getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')

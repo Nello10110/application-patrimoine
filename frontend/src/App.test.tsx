@@ -9,7 +9,7 @@ import App from './App'
 // menu du compte, bouton de thème, déconnexion), donc chaque page est remplacée
 // par un composant vide.
 vi.mock('./pages/DashboardPage', () => ({ default: () => <div /> }))
-vi.mock('./pages/DividendesPage', () => ({ default: () => <div /> }))
+vi.mock('./pages/AnalysePage', () => ({ default: () => <div /> }))
 vi.mock('./pages/RapportPage', () => ({ default: () => <div /> }))
 vi.mock('./pages/PortefeuillePage', () => ({ default: () => <div /> }))
 vi.mock('./pages/HoldingDetailPage', () => ({ default: () => <div /> }))
@@ -75,7 +75,7 @@ describe('App — barre latérale (backlog 2.K.2)', () => {
     expect(within(barreLaterale).getByRole('link', { name: /Synthèse/ })).toHaveAttribute('href', '/')
     expect(within(barreLaterale).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(barreLaterale).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
-    expect(within(barreLaterale).getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
+    expect(within(barreLaterale).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(barreLaterale).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
 
     // Import/Réglages/Aide ne sont plus dans la barre latérale : seulement dans le
@@ -99,14 +99,14 @@ describe('App — navigation inférieure mobile (backlog 2.K.4)', () => {
     expect(within(navMobile).getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
     expect(within(navMobile).getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
     expect(within(navMobile).getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
-    // Dividendes/Rapport ne tiennent pas dans les 4 entrées directes : rangés
+    // Analyse/Rapport ne tiennent pas dans les 4 entrées directes : rangés
     // derrière "Plus", fermé par défaut.
-    expect(within(navMobile).queryByRole('link', { name: /Dividendes/ })).not.toBeInTheDocument()
+    expect(within(navMobile).queryByRole('link', { name: /Analyse/ })).not.toBeInTheDocument()
     expect(within(navMobile).queryByRole('link', { name: /Rapport/ })).not.toBeInTheDocument()
     expect(within(navMobile).getByRole('button', { name: 'Plus' })).toBeInTheDocument()
   })
 
-  it('"Plus" ouvre une feuille avec Dividendes/Rapport, Import/Réglages/Aide, thème et déconnexion', async () => {
+  it('"Plus" ouvre une feuille avec Analyse/Rapport, Import/Réglages/Aide, thème et déconnexion', async () => {
     render(
       <MemoryRouter>
         <App />
@@ -117,7 +117,7 @@ describe('App — navigation inférieure mobile (backlog 2.K.4)', () => {
     fireEvent.click(within(navMobile).getByRole('button', { name: 'Plus' }))
 
     const feuille = await screen.findByRole('dialog')
-    expect(within(feuille).getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
+    expect(within(feuille).getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(within(feuille).getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
     expect(within(feuille).getByRole('link', { name: 'Import' })).toHaveAttribute('href', '/import')
     expect(within(feuille).getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')

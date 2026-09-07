@@ -103,11 +103,15 @@ function AppAuthentifiee() {
 
                 <Route path="/portefeuille" element={<Navigate to="/patrimoine" replace />} />
                 <Route path="/portefeuille/:ticker" element={<RedirectionTicker />} />
-                {/* Feature d'objectifs de répartition annuelle retirée (25/08/2026) — ces
-                    deux anciennes URL redirigent vers le Tableau de bord plutôt que de
-                    disparaître, même logique que les autres redirections ci-dessus. */}
+                {/* Feature d'objectifs de répartition annuelle retirée (25/08/2026) —
+                    cette ancienne URL redirige vers le Tableau de bord plutôt que de
+                    disparaître, même logique que les autres redirections ci-dessus.
+                    `/analyse`, qui redirigeait ici pour la même raison, est redevenue
+                    un écran à part entière le 07/09/2026. */}
                 <Route path="/repartition" element={<Navigate to="/" replace />} />
-                <Route path="/analyse" element={<Navigate to="/" replace />} />
+                {/* L'écran Dividendes est devenu l'onglet Revenus d'`Analyse`
+                    (07/09/2026) : l'ancienne URL y mène directement. */}
+                <Route path="/dividendes" element={<Navigate to="/analyse?onglet=revenus" replace />} />
                 <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
               </Routes>
             </Suspense>

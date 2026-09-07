@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import type { PatrimoineHistoryPoint, PatrimoineNet, PortfolioHistoryPoint } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
-import { bornesPeriode, libellePeriodeEcoulee, variationSurPeriode } from '../utils/periode'
+import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, variationSurPeriode } from '../utils/periode'
 import Card from './Card'
 import { DeltaBadge } from './Controls'
 import EtatErreur from './EtatErreur'
@@ -104,15 +104,18 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
   // raconter la même histoire pour la même période. Source différente selon la
   // lentille (feature Net/Brut/Financier sur toute la page Synthèse) : le
   // portefeuille financier seul en "financier", l'historique combiné en "brut"/"net".
-  const variationPct = useMemo(() => {
+  const { variationPct, delta } = useMemo(() => {
     const source =
       lentille === 'financier'
         ? historiquePortefeuille?.points?.map((p) => ({ date: p.date, valeur: p.valeur_portefeuille }))
         : historiquePatrimoine?.points?.map((p) => ({ date: p.date, valeur: lentille === 'brut' ? p.actifs_totaux : p.patrimoine_net }))
-    if (!source) return null
+    if (!source) return { variationPct: null, delta: null }
     const bornes = bornesPeriode(periode)
     const filtres = bornes ? source.filter((p) => p.date >= bornes.dateDebut && p.date <= bornes.dateFin) : source
-    return variationSurPeriode(filtres)
+    // Deux mesures de la même chose, et la seconde survit toujours à la première :
+    // le pourcentage est écarté quand il n'est plus interprétable (cf.
+    // `variationSurPeriode`), le montant en euros reste affiché dans tous les cas.
+    return { variationPct: variationSurPeriode(filtres), delta: deltaSurPeriode(filtres) }
   }, [lentille, historiquePortefeuille?.points, historiquePatrimoine?.points, periode])
 
   function charger() {
@@ -184,14 +187,17 @@ export default function PatrimoineNetCard({ historiquePortefeuille, historiquePa
           est portée par le badge juste en dessous — seul endroit où une couleur de
           signe veut dire quelque chose. */}
       <p className="text-heros text-ink">{formatEuro(principale.valeur, 0, montantsMasques)}</p>
-      {variationPct !== null && (
+      {delta !== null && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <DeltaBadge
-            valeur={`${variationPct >= 0 ? '↑' : '↓'} ${Math.abs(variationPct).toFixed(1)} %`}
-            positif={variationPct >= 0}
-          />
+          {variationPct !== null && (
+            <DeltaBadge
+              valeur={`${variationPct >= 0 ? '↑' : '↓'} ${Math.abs(variationPct).toFixed(1)} %`}
+              positif={variationPct >= 0}
+            />
+          )}
           <span className="text-[13px] text-ink3">
-            {libellePeriodeEcoulee(periode)}
+            {delta >= 0 ? '+' : '−'}
+            {formatEuro(Math.abs(delta), 0, montantsMasques)} {libellePeriodeEcoulee(periode)}
             <span className="hidden md:inline"> — {LEGENDE_VARIATION[lentille]}</span>
           </span>
         </div>

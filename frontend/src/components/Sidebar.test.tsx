@@ -35,7 +35,7 @@ describe('Sidebar (backlog 2.K.2)', () => {
     expect(screen.getByRole('link', { name: /^Patrimoine$/ })).toHaveAttribute('href', '/patrimoine')
     expect(screen.getByRole('link', { name: /Objectifs/ })).toHaveAttribute('href', '/objectifs')
     expect(screen.getByRole('link', { name: /Comptes/ })).toHaveAttribute('href', '/comptes')
-    expect(screen.getByRole('link', { name: /Dividendes/ })).toHaveAttribute('href', '/dividendes')
+    expect(screen.getByRole('link', { name: /Analyse/ })).toHaveAttribute('href', '/analyse')
     expect(screen.getByRole('link', { name: /Rapport/ })).toHaveAttribute('href', '/rapport')
   })
 

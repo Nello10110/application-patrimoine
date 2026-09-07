@@ -65,15 +65,47 @@ export function libellePeriodeEcoulee(periode: Periode): string {
   }
 }
 
+/** Au-delà de ce rapport entre la valeur de départ et celle d'arrivée, le
+ * pourcentage cesse d'informer (retour utilisateur du 07/09/2026 : « ↑ 22 008,2 % »
+ * sur la période « Tout »).
+ *
+ * Le calcul était juste ; c'est la question qu'il répondait qui ne se posait pas.
+ * Sur « Tout », le premier point de la série est le tout premier jour de suivi —
+ * un patrimoine quasi vide, souvent quelques centaines d'euros avant qu'un bien
+ * immobilier ne soit déclaré. Diviser par presque rien produit un nombre exact et
+ * illisible : personne ne sait se représenter 22 008 %, et il ne dit RIEN de plus
+ * que « le patrimoine était quasi nul au départ ».
+ *
+ * Le seuil ne masque donc pas un cas gênant : il marque la frontière au-delà de
+ * laquelle un rapport n'est plus une variation mais un changement d'échelle. En
+ * deçà (jusqu'à ×10, soit +900 %), le pourcentage reste interprétable — « mon
+ * patrimoine a triplé » se lit. Le montant en euros, lui, reste affiché dans tous
+ * les cas : il est toujours vrai et toujours lisible. */
+const RAPPORT_MAX_INTERPRETABLE = 10
+
 /** Variation en % entre le premier et le dernier point d'une série déjà filtrée sur
- * la période (cf. `bornesPeriode`) — `null` si moins de 2 points ou si le point de
- * départ vaut 0 (variation indéfinie). Fonction pure, générique sur `{ valeur }` :
- * ne dépend pas du type exact des points (réutilisable au-delà de
- * `PortfolioHistoryPoint`). */
+ * la période (cf. `bornesPeriode`). `null` quand le pourcentage n'aurait pas de
+ * sens : moins de 2 points, point de départ nul ou NÉGATIF (un patrimoine net peut
+ * l'être — diviser par un nombre négatif inverse le signe et affiche une baisse là
+ * où la situation s'est améliorée), ou départ si petit devant l'arrivée que le
+ * rapport n'est plus lisible (cf. `RAPPORT_MAX_INTERPRETABLE`). L'appelant affiche
+ * alors le montant seul — cf. `deltaSurPeriode`.
+ *
+ * Fonction pure, générique sur `{ valeur }` : ne dépend pas du type exact des points
+ * (réutilisable au-delà de `PortfolioHistoryPoint`). */
 export function variationSurPeriode(points: { valeur: number }[]): number | null {
   if (points.length < 2) return null
   const debut = points[0].valeur
   const fin = points[points.length - 1].valeur
-  if (debut === 0) return null
+  if (debut <= 0) return null
+  if (fin > debut * RAPPORT_MAX_INTERPRETABLE) return null
   return ((fin - debut) / debut) * 100
+}
+
+/** Variation en euros sur la même série — toujours définie dès qu'il y a deux
+ * points, quels que soient les montants. C'est elle qui porte l'information quand
+ * le pourcentage est écarté ci-dessus. */
+export function deltaSurPeriode(points: { valeur: number }[]): number | null {
+  if (points.length < 2) return null
+  return points[points.length - 1].valeur - points[0].valeur
 }

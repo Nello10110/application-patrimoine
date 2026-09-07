@@ -11,7 +11,7 @@ Parcours type conseillé :
 
 1. Importer son historique de transactions (écran **Import**).
 2. Rafraîchir les cours (bouton sur l'écran **Portefeuille**, ou automatiquement via **Réglages**).
-3. Consulter le **Tableau de bord** pour voir la répartition géographique/sectorielle du portefeuille.
+3. Consulter l'écran **Analyse** (onglet Portefeuille) pour voir la répartition géographique/sectorielle du portefeuille.
 
 Un bouton en haut à droite de chaque écran bascule l'apparence entre thème clair, thème sombre et suivi automatique du système (un clic fait passer de l'un à l'autre) ; le choix est mémorisé d'une visite à l'autre.
 
@@ -54,7 +54,7 @@ Tableau des positions avec, pour chaque ligne : quantité, prix actuel, valeur, 
 - **Rafraîchir les cours** relance la récupération des données de marché pour tout le portefeuille. L'opération s'exécute en tâche de fond : le bouton affiche sa progression (« x / y positions ») et le tableau se met à jour tout seul une fois terminé, sans bloquer le reste de l'écran.
 - **Ajouter une ligne manuellement** : formulaire au-dessus du tableau (ticker, quantité, prix de revient, compte, type d'actif, valeur estimée) — pour une position hors historique de transactions (ex. actif détenu ailleurs). Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant, une épargne réglementée (Livret A, LDDS, LEP, PEL, CEL...), une épargne salariale (PEE, PERCO, PER entreprise), un véhicule ou tout autre actif hors marché (objet de valeur, métal précieux physique...) : laisser Quantité à 1 et renseigner **Valeur estimée** plutôt que Prix de revient — elle remplace le calcul prix × quantité et se met à jour à la main, périodiquement ; Prix de revient garde alors son sens habituel (montant investi à l'origine), ce qui permet de voir le gain latent depuis l'achat.
 - **Compte** (à l'ajout comme à l'édition) : une liste déroulante propose les comptes déjà créés, avec en dernière option « + Nouveau compte... » pour en créer un à la volée par son nom — aucune étape séparée n'est nécessaire pour commencer à utiliser un compte. Voir l'écran Comptes pour tout regrouper par établissement, définir la répartition entre détenteurs pour un compte entier, ou renommer/rattacher un compte a posteriori.
-- **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée du Tableau de bord.
+- **Zone géographique** (immobilier/épargne/tous les types manuels ci-dessus) : champ apparaissant uniquement pour ces types — précise où se situe l'actif (Europe par défaut si laissé vide), utilisé par l'exposition consolidée de l'écran Analyse.
 - **Date d'acquisition** (immobilier/épargne/tous les types manuels ci-dessus, retour utilisateur du 26/08/2026) : champ apparaissant uniquement pour ces types, modifiable aussi bien à l'ajout que sur une ligne déjà existante (bouton « Modifier » du tableau) — la date à laquelle le bien a réellement été acquis, affichée sous son nom dans le tableau (« Acquis le JJ/MM/AAAA ») une fois renseignée. Prise en compte dans le **rendement annualisé** (calculable désormais même sans historique de transactions, à partir du prix de revient et de cette date) et dans les **graphiques** — la courbe d'évolution du Tableau de bord et le graphique de la fiche détaillée démarrent depuis le prix payé à cette date plutôt que depuis la date de saisie de la ligne dans l'application. Une date dans le futur est refusée : c'est un constat passé, pas une projection (le Simulateur est là pour ça).
 - **Taux annuel** (épargne réglementée/salariale, véhicule) : champ apparaissant uniquement pour ces types — un pourcentage positif pour un taux d'intérêt attendu (épargne), négatif pour une décote annuelle attendue (véhicule). Purement indicatif : une fois Valeur estimée et Taux renseignés, une ligne « Valeur projetée dans 1 an » s'affiche à titre de repère, mais n'est **jamais appliquée automatiquement** — reporter soi-même le montant dans Valeur estimée si on souhaite l'adopter.
 - **Versement mensuel** (compte courant, épargne réglementée/salariale, assurance-vie, PER — backlog § 2.S.1) : champ apparaissant uniquement pour ces types — le montant versé régulièrement sur ce compte, additionné au préremplissage du Simulateur. Voir l'écran Épargne pour un suivi dédié (valorisation datée, historique, ajout rapide).
@@ -81,7 +81,7 @@ Carte sous le tableau des positions, indépendante des filtres ci-dessus. Chaque
 
 ## Fiche détaillée d'une position
 
-Accessible en cliquant sur une ligne du Portefeuille, sur un camembert du Tableau de bord, ou directement par son adresse (`/patrimoine/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...). Un badge à côté du type d'actif indique le compte rattaché, s'il y en a un — clique dessus pour aller directement à sa fiche (écran Comptes) :
+Accessible en cliquant sur une ligne du Portefeuille, sur une barre de répartition de l'écran Analyse, ou directement par son adresse (`/patrimoine/TICKER`) — un lien « Ouvrir en pleine page » dans la fenêtre superposée y conduit également. **Même structure à trois onglets pour toute ligne du patrimoine**, quelle que soit sa nature (action, fonds, crypto, immobilier, épargne...). Un badge à côté du type d'actif indique le compte rattaché, s'il y en a un — clique dessus pour aller directement à sa fiche (écran Comptes) :
 
 - **Aperçu** : valorisation (quantité, prix de revient, prix actuel, valeur), rendement depuis achat et rendement annualisé (avec une explication à l'écran quand ce dernier est indisponible : moins de 90 jours de détention, ou pas d'historique exploitable) ; en dessous, le graphique de performance historique du titre (prix, volatilité annualisée, perte maximale/drawdown) — ou, pour un bien immobilier, le cashflow mensuel, les rentabilités brute/nette et le prix au m² déjà calculés puis l'historique daté de ses valorisations successives — ou, pour un compte Épargne (compte courant, épargne réglementée/salariale, assurance-vie, PER), la valeur actuelle et sa date, le versement mensuel déclaré, le même historique daté, et un ajout rapide d'une valorisation (voir l'écran Épargne) ; enfin l'émetteur et le résumé d'activité (Yahoo Finance pour une action, description justETF pour un fonds couvert) avec frais de gestion annuels et frais de transaction cumulés ;
 - **Analyse** : pour un fonds, deux camemberts (répartition géographique et sectorielle interne, par grande zone/catégorie), le tableau des ~10 plus grosses lignes sous-jacentes, et — pour un fonds couvert par justETF — une répartition détaillée avec les intitulés exacts publiés (ex. « Inde » plutôt que « Marchés émergents »). Une action individuelle ou une crypto n'affiche pas de camembert de composition (pas de décomposition interne pour un titre unique). En dessous, la répartition entre détenteurs déclarés (Réglages) et la part nette qui en résulte, si au moins un détenteur a été créé ;
@@ -119,7 +119,7 @@ Un ratio affiche « — » plutôt qu'un chiffre trompeur s'il manque une donné
 Projette un capital dans le temps — une **hypothèse**, pas une promesse : les marchés ne progressent jamais de façon aussi régulière dans la réalité. Le **capital de départ** est préempli avec ton patrimoine net actuel, mais librement modifiable : laisse-le tel quel pour voir où en sera ton patrimoine réel, ou change-le pour tester n'importe quel autre scénario ("et si je plaçais 10 000 € à 6 % ?"). Un lien apparaît sous le champ pour revenir en un clic au patrimoine net actuel dès que tu l'as modifié.
 
 - **Hypothèses** : capital de départ (€), rendement annuel moyen (%, peut être négatif pour un scénario pessimiste), versement mensuel (€), **intérêts déjà obtenus (€, facultatif)**, durée (boutons 5/10/20/30 ans). Tout se recalcule instantanément à chaque changement (aucun appel au serveur).
-- **Intérêts déjà obtenus** : préempli avec le gain/perte déjà réalisé sur ton portefeuille financier (la carte Rentabilité du Tableau de bord), librement modifiable ou effaçable. Sert à indiquer que le capital de départ contient déjà des gains, pas seulement des versements — le tableau de détail en tient alors compte dès la ligne « Départ » au lieu de repartir de zéro, pour mieux distinguer les vrais intérêts déjà gagnés de ceux à venir.
+- **Intérêts déjà obtenus** : préempli avec le gain/perte déjà réalisé sur ton portefeuille financier (la carte Rentabilité de l'écran Analyse), librement modifiable ou effaçable. Sert à indiquer que le capital de départ contient déjà des gains, pas seulement des versements — le tableau de détail en tient alors compte dès la ligne « Départ » au lieu de repartir de zéro, pour mieux distinguer les vrais intérêts déjà gagnés de ceux à venir.
 - **Versement mensuel** (backlog § 2.N.4 + 2.S.1) : préempli avec le versement moyen réellement observé sur le budget des 3 derniers mois (écran Budget) **additionné** aux versements mensuels déclarés sur tes comptes Épargne (assurance-vie, PER...), plutôt qu'une hypothèse saisie à la main — une légende sous le champ détaille les deux montants séparément, un lien apparaît pour revenir à leur somme en un clic si modifié. Reste à 0 si aucune des deux sources n'est renseignée, librement modifiable dans tous les cas.
 - **Graphique et tuiles** : valeur finale, total versé, intérêts gagnés, avec un graphique étagé (capital versé + gains).
 - **Tableau de détail** : sous le graphique, bascule **Annuelle** / **Mensuelle** listant, période par période, les versements, les intérêts gagnés, le capital, le versé cumulé et les intérêts cumulés à date. Chaque ligne est libellée par la **date réelle prévue** (ex. « 2028 » en vue annuelle, « 2027 Mars » en vue mensuelle) plutôt que par un compteur abstrait — seule la première ligne reste « Départ ». La vue mensuelle défile (jusqu'à 360 lignes sur 30 ans) dans un cadre à hauteur fixe, en-tête toujours visible.
@@ -220,9 +220,70 @@ titres), ou n'en contenir qu'une (ex. une assurance-vie, un bien immobilier).
   n'avez rattachées à aucun compte. Il ne se renomme ni ne se supprime — il disparaît de lui-même
   quand toutes les lignes sont rangées.
 
-## Écran Dividendes
+## Écran Analyse
 
-Calendrier des dividendes déjà perçus : un total en tête, un graphique en barres par mois, puis la liste des mois (les plus récents en premier) — cliquer sur un mois déplie le détail des lignes qui l'ont composé (date, titre, montant net). Ne montre que des montants déjà perçus, jamais une projection future.
+Deux onglets, parce que ce sont deux questions différentes. L'ancien écran Dividendes et le repli « Détail » du Tableau de bord ont fusionné ici (07/09/2026) ; l'adresse `/dividendes` conduit directement à l'onglet Revenus.
+
+### Onglet Portefeuille
+
+De quoi le patrimoine est fait et comment il se comporte. Le bouton **Actualiser**, en haut à droite
+de l'écran, recharge toutes ces données.
+
+- **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement
+  associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net),
+  autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à
+  titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits
+  une seconde fois.
+- **Métriques de performance avancées** (backlog § 2.P.2), juste en dessous : le TWR (rendement
+  pondéré par le temps) à côté du rendement money-weighted ci-dessus, avec une explication de ce
+  que chacun mesure — le premier juge le placement lui-même, le second juge vos décisions de
+  versement. Puis la volatilité annualisée et la perte maximale (max drawdown), avec le délai de
+  récupération si elle a été comblée. Un sélecteur permet de comparer l'évolution du portefeuille
+  (en %) à un indice de référence (MSCI World, S&P 500, CAC 40, STOXX Europe 600) sur un graphique.
+- **Répartition géographique/sectorielle** : deux graphiques en barres (le choix barres/camembert a
+  été retiré le 07/09/2026 — les barres se lisent triées, portent leur libellé en clair et restent
+  lisibles au-delà de cinq catégories). Cliquer sur une barre (ou une ligne du tableau en plein
+  écran) ouvre le détail des lignes qui composent cette catégorie.
+- **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une
+  partie du portefeuille n'est pas mesurée avec certitude — répartition géographique estimée à
+  partir de l'indice suivi par un fonds (faute de composition détaillée), donnée totalement
+  manquante, ou position valorisée à son coût de revient faute de cotation. N'apparaît pas si tout
+  le portefeuille est couvert par une donnée réelle et coté.
+- **Exposition consolidée — tous actifs** : une seule vue combinant le portefeuille boursier ET
+  l'immobilier/l'épargne, là où les graphiques de répartition ci-dessus ne regardent que le
+  portefeuille financier. Deux camemberts (géographie et classe d'actif, tout le patrimoine
+  confondu — la géographie d'un actif saisi manuellement vient de sa **zone géographique**
+  déclarée, écran Portefeuille), la plus grosse ligne du patrimoine et son poids, le poids des 5
+  plus grosses lignes réunies, la première zone géographique et son poids. Suit elle aussi la
+  lentille Net/Brut/Financier : en Brut, valeur brute de chaque ligne ; en Net, chaque ligne est
+  nettée de son emprunt rattaché (même logique que le camembert/liste du chiffre principal) — la
+  valeur totale consolidée correspond alors au patrimoine net, pas aux actifs bruts ; en Financier,
+  cette carte n'apparaît pas (la répartition géo/sectorielle financière est déjà couverte
+  juste au-dessus). Une note rappelle quelle part du patrimoine a une géographie *déclarée* plutôt
+  que *mesurée*. Comme pour les camemberts financiers plus haut, **cliquer une part** ouvre le
+  détail des lignes qui la composent.
+- **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût
+  annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la
+  part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est
+  récupéré qu'une fois par fonds, au fil des rafraîchissements, donc la couverture peut rester
+  partielle un moment après l'ajout d'un nouveau fonds ; le message le rappelle explicitement
+  tant qu'elle n'atteint pas 100 %.
+- **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne,
+  concentration géographique.
+
+### Onglet Revenus
+
+Ce que le patrimoine rapporte sans qu'on ait à le vendre.
+
+- **Dividendes perçus** : le total en tête, un graphique en barres par mois, puis la liste des mois
+  (les plus récents en premier) — cliquer sur un mois déplie le détail des lignes qui l'ont composé
+  (date, titre, montant net). Ne montre que des montants déjà perçus, jamais une projection future.
+- **Revenus passifs projetés** (backlog § 2.P.3) : projection à 12 mois, en deux blocs. **Certain**
+   (loyers nets déclarés sur une fiche immobilière, intérêts d'une épargne à taux déclaré) : des
+   montants déjà connus. **Estimé** (dividendes, intérêts de courtage) : extrapolation des 12
+   derniers mois réellement perçus — jamais une promesse pour les 12 prochains, la nuance est
+   rappelée explicitement sous l'encart. N'apparaît vide que si aucune de ces quatre sources n'est
+   détectée sur le patrimoine.
 
 ## Écran Budget
 
@@ -257,35 +318,43 @@ Pour chaque salaire : sélectionne l'année en haut de l'écran, clique « + Ajo
 
 Une fois enregistré, le détail complet de chaque salaire apparaît — brut et net avant/après impôt, en annuel, en moyenne mensuelle sur 12 mois et par versement réel. Le net après impôt n'apparaît que si un taux d'imposition a été renseigné pour cette entrée précise.
 
-En dessous, la carte **Taux d'épargne du foyer** répond à « quelle part de nos revenus est-ce qu'on met vraiment de côté ? » : le montant réellement investi dans l'année (les achats réels de titres du foyer) rapporté au revenu net **total** de tous les salaires de l'année réunis — jamais calculé salaire par salaire, ce qui fausserait le résultat dès qu'il y a plusieurs revenus. Un message précise si un des salaires n'a pas de taux d'imposition renseigné (son net avant impôt est alors utilisé, moins précis). Historique année par année et moyenne en dessous. C'est volontairement différent du rendement affiché sur le Tableau de bord : le rendement mesure la performance de marché de ce qui est déjà investi, le taux d'épargne mesure l'effort d'épargne réel du foyer.
+En dessous, la carte **Taux d'épargne du foyer** répond à « quelle part de nos revenus est-ce qu'on met vraiment de côté ? » : le montant réellement investi dans l'année (les achats réels de titres du foyer) rapporté au revenu net **total** de tous les salaires de l'année réunis — jamais calculé salaire par salaire, ce qui fausserait le résultat dès qu'il y a plusieurs revenus. Un message précise si un des salaires n'a pas de taux d'imposition renseigné (son net avant impôt est alors utilisé, moins précis). Historique année par année et moyenne en dessous. C'est volontairement différent du rendement affiché sur l'écran Analyse : le rendement mesure la performance de marché de ce qui est déjà investi, le taux d'épargne mesure l'effort d'épargne réel du foyer.
 
 ## Tableau de bord
 
-Organisé en trois temps, pour aller du plus important au plus accessoire (le chiffre, puis la
-courbe, puis le détail replié) :
+Écran d'accueil délibérément court (07/09/2026) : il ne répond qu'à la question qu'on se pose en
+l'ouvrant — combien, et dans quel sens ça va. Tout le détail a rejoint l'**écran Analyse**, et un
+lien en bas de l'écran y conduit ; le bouton **Actualiser**, en haut à droite, recharge la courbe.
+Le bandeau « aucune position dans le portefeuille » reste ici : c'est un appel à l'action, pas de
+l'information complémentaire.
+
+Organisé en deux temps, du plus important au reste — le chiffre, puis la courbe :
 
 1. **Le chiffre** — **Patrimoine net**, en tout premier, affiché en très grand : actifs totaux
    (portefeuille financier + immobilier/SCPI/assurance-vie/PER/comptes/épargne/véhicules), passifs
-   (somme des emprunts), patrimoine net, puis un **camembert « Par type d'investissement »**
-   (Actions, ETF/Fonds, Immobilier, Crypto...) — survoler une part affiche le montant exact et son
-   pourcentage — et, juste en dessous, la **liste détaillée** des mêmes catégories avec leur montant
-   exact toujours visible (le camembert vient en plus de cette liste, pas à sa place). Suit lui aussi la
-   lentille Net/Brut/Financier (§ "Barre de contrôles" ci-dessous) : en **Brut**, valeur brute de
+   (somme des emprunts), patrimoine net, puis une **barre empilée « Par type d'investissement »**
+   (Actions, ETF/Fonds, Immobilier, Crypto...) et, juste en dessous, la **liste détaillée** des mêmes
+   catégories avec leur montant exact et leur pourcentage toujours visibles (la barre vient en plus de
+   cette liste, pas à sa place). Suit lui aussi la lentille Net/Brut/Financier (§ "Barre de contrôles" ci-dessous) : en **Brut**, valeur brute de
    chaque ligne, comme avant ; en **Financier**, restreint aux seules catégories financières ; en
    **Net**, chaque ligne est nettée de SON emprunt (ex. l'appartement affiche sa valeur moins ce qu'il
    reste à rembourser dessus, pas sa valeur brute) — une ligne peut alors apparaître en négatif (montant
-   en rouge) si l'emprunt dépasse la valeur du bien, auquel cas elle n'est pas représentée dans le
-   camembert (qui ne peut pas afficher une part négative) mais reste visible dans la liste.
-   Sous le chiffre, une ligne de variation (« +10,0 % depuis le début du suivi », ou selon la Période
-   active dans la barre de contrôles) qui suit elle aussi la lentille Net/Brut/Financier : en
-   Financier, elle porte sur le portefeuille suivi (le même que la courbe ci-dessous) ; en Brut/Net,
+   en rouge) si l'emprunt dépasse la valeur du bien, auquel cas elle n'est pas représentée dans la
+   barre (qui ne peut pas afficher une part négative) mais reste visible dans la liste.
+   Sous le chiffre, une ligne de variation (« ↑ 6,4 %  +29 280 € depuis le début du suivi », ou selon
+   la Période active) qui suit elle aussi la lentille Net/Brut/Financier : en Financier, elle porte sur le portefeuille suivi (le même que la courbe ci-dessous) ; en Brut/Net,
    sur le patrimoine combiné (financier + immobilier/épargne valorisés à leurs derniers points connus,
    moins les emprunts) — la ligne précise dans chaque cas ce qu'elle mesure, plutôt que d'afficher un
    chiffre à la définition ambiguë. N'apparaît pas tant qu'aucun actif ni passif n'est enregistré.
+   Le **montant en euros** est toujours affiché ; le **pourcentage**, lui, disparaît quand il cesse
+   d'informer (correction du 07/09/2026) : point de départ nul ou négatif, ou patrimoine parti de si
+   peu que le rapport dépasse ×10 — sur la période « Tout », le premier jour de suivi est souvent un
+   patrimoine quasi vide, et « ↑ 22 008 % » ne dit rien de plus que « c'était presque zéro au
+   départ ». En deçà, « mon patrimoine a triplé » reste lisible, donc le pourcentage reste affiché.
 2. **La courbe** — **Évolution du portefeuille** : suit elle aussi la lentille Net/Brut/Financier, avec
-   un sélecteur d'échelle (via la Période) et une case **Mode étagé (investi + gains)** disponible
-   dans les trois lentilles — coche « Investi » (aire grise) et « Gains » (aire verte) empilées plutôt
-   qu'une seule courbe. En Brut/Net, la courbe porte sur le patrimoine combiné (financier +
+   un sélecteur de période à côté d'elle et une pilule **Mode étagé** disponible dans les trois
+   lentilles — superpose l'« Investi » (aire claire, trait pointillé) sous le total : la tranche
+   visible entre les deux courbes, ce sont les gains. En Brut/Net, la courbe porte sur le patrimoine combiné (financier +
    immobilier/épargne/emprunts) ; seul un **versement explicitement déclaré** sur un actif valorisé
    manuellement (fiche du bien, champ « dont versement ») compte comme « Investi » — une hausse non
    déclarée reste comptée comme un gain, une explication sous la case le rappelle. En lentille Net,
@@ -293,60 +362,7 @@ courbe, puis le détail replié) :
    aurait été comptée deux fois) : la part « Gains » reste rigoureusement identique en Brut et en Net,
    seule la part « Investi » diminue du montant restant dû. Cette courbe combinée peut apparaître
    plate ou en escalier tant que peu de valorisations manuelles ont été saisies (immobilier, épargne)
-   — elle s'affine au fil des saisies. Reste visible même si le reste de l'écran (répartitions,
-   indicateurs) échoue à charger.
-3. **Le détail** — tout le reste, replié sous un bouton **Détail** (ouvert par défaut, l'état choisi
-   est mémorisé d'une visite à l'autre). Le bouton **Actualiser**, en haut à droite de l'écran (hors
-   du repliable), recharge toutes les données de l'écran.
-   - **Rentabilité globale** : valeur totale, coût total investi, gain/perte total et rendement
-     associé, rendement annualisé (money-weighted), dividendes perçus (net), intérêts perçus (net),
-     autres revenus, frais payés, impôts prélevés, gains réalisés. Frais et impôts sont affichés à
-     titre informatif : ils sont déjà pris en compte dans le calcul du gain/perte, pas resoustraits
-     une seconde fois.
-   - **Métriques de performance avancées** (backlog § 2.P.2), juste en dessous : le TWR (rendement
-     pondéré par le temps) à côté du rendement money-weighted ci-dessus, avec une explication de ce
-     que chacun mesure — le premier juge le placement lui-même, le second juge vos décisions de
-     versement. Puis la volatilité annualisée et la perte maximale (max drawdown), avec le délai de
-     récupération si elle a été comblée. Un sélecteur permet de comparer l'évolution du portefeuille
-     (en %) à un indice de référence (MSCI World, S&P 500, CAC 40, STOXX Europe 600) sur un graphique.
-   - **Revenus passifs projetés** (backlog § 2.P.3) : projection à 12 mois, en deux blocs. **Certain**
-     (loyers nets déclarés sur une fiche immobilière, intérêts d'une épargne à taux déclaré) : des
-     montants déjà connus. **Estimé** (dividendes, intérêts de courtage) : extrapolation des 12
-     derniers mois réellement perçus — jamais une promesse pour les 12 prochains, la nuance est
-     rappelée explicitement sous l'encart. N'apparaît vide que si aucune de ces quatre sources n'est
-     détectée sur le patrimoine.
-   - **Répartition géographique/sectorielle** : deux graphiques (barres ou camembert, bascule en haut
-     à droite de chaque carte). Cliquer sur une barre (ou une ligne du tableau en plein écran) ouvre
-     le détail des lignes qui composent cette catégorie.
-   - **Qualité des données** : encart qui apparaît sous les graphiques de répartition dès qu'une
-     partie du portefeuille n'est pas mesurée avec certitude — répartition géographique estimée à
-     partir de l'indice suivi par un fonds (faute de composition détaillée), donnée totalement
-     manquante, ou position valorisée à son coût de revient faute de cotation. N'apparaît pas si tout
-     le portefeuille est couvert par une donnée réelle et coté.
-   - **Exposition consolidée — tous actifs** : une seule vue combinant le portefeuille boursier ET
-     l'immobilier/l'épargne, là où les graphiques de répartition ci-dessus ne regardent que le
-     portefeuille financier. Deux camemberts (géographie et classe d'actif, tout le patrimoine
-     confondu — la géographie d'un actif saisi manuellement vient de sa **zone géographique**
-     déclarée, écran Portefeuille), la plus grosse ligne du patrimoine et son poids, le poids des 5
-     plus grosses lignes réunies, la première zone géographique et son poids. Suit elle aussi la
-     lentille Net/Brut/Financier : en Brut, valeur brute de chaque ligne ; en Net, chaque ligne est
-     nettée de son emprunt rattaché (même logique que le camembert/liste du chiffre principal) — la
-     valeur totale consolidée correspond alors au patrimoine net, pas aux actifs bruts ; en Financier,
-     cette carte n'apparaît pas (la répartition géo/sectorielle financière est déjà couverte
-     juste au-dessus). Une note rappelle quelle part du patrimoine a une géographie *déclarée* plutôt
-     que *mesurée*. Comme pour les camemberts financiers plus haut, **cliquer une part** ouvre le
-     détail des lignes qui la composent.
-   - **Coût de gestion annuel estimé** : n'apparaît que si au moins un fonds/ETF est détenu. Coût
-     annuel en euros (somme des frais de gestion de chaque fonds pondérés par sa valeur), avec la
-     part du portefeuille en fonds pour laquelle ce frais est réellement connu — ce frais n'est
-     récupéré qu'une fois par fonds, au fil des rafraîchissements, donc la couverture peut rester
-     partielle un moment après l'ajout d'un nouveau fonds ; le message le rappelle explicitement
-     tant qu'elle n'atteint pas 100 %.
-   - **Indicateurs de risque** : score de diversification, poids de la plus grosse ligne,
-     concentration géographique.
-
-Le bandeau d'accueil (aucune position dans le portefeuille) reste visible même si le détail est
-replié — c'est un appel à l'action, pas de la simple information complémentaire.
+   — elle s'affine au fil des saisies.
 
 ## Écran Réglages
 

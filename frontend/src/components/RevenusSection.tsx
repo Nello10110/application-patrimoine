@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { DividendeMois } from '../api/types'
-import Card from '../components/Card'
-import { GlassPanel } from '../components/GlassPanel'
-import EtatErreur from '../components/EtatErreur'
-import EtatVide from '../components/EtatVide'
-import { SkeletonTexte } from '../components/Skeleton'
+import Card from './Card'
+import EtatErreur from './EtatErreur'
+import EtatVide from './EtatVide'
+import { GlassPanel } from './GlassPanel'
+import RevenusPassifsCard from './RevenusPassifsCard'
+import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
@@ -55,7 +56,15 @@ function MoisCard({ mois }: { mois: DividendeMois }) {
   )
 }
 
-export default function DividendesPage() {
+/** Onglet « Revenus » de l'écran Analyse (réorganisation du 07/09/2026) — ce qui
+ * TOMBE du patrimoine sans le vendre : dividendes encaissés (ex-écran Dividendes,
+ * déplacé ici tel quel) et revenus passifs (loyers, intérêts d'épargne, ex-détail du
+ * tableau de bord).
+ *
+ * Les deux vivaient dans deux écrans différents alors qu'ils répondent à la même
+ * question — « combien mon patrimoine me rapporte-t-il ? » — et qu'aucun des deux ne
+ * suffisait seul à y répondre. */
+export default function RevenusSection() {
   const { montantsMasques } = usePreferencesAffichage()
   const [calendrier, setCalendrier] = useState<DividendeMois[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -79,19 +88,17 @@ export default function DividendesPage() {
 
   return (
     <div className="space-y-[14px]">
-      <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Dividendes</h1>
-
       {calendrier.length === 0 ? (
-        <Card>
+        <Card title="Dividendes">
           <EtatVide titre="Aucun dividende perçu pour l'instant sur les transactions importées." />
         </Card>
       ) : (
         <>
-          {/* Chiffre héros de l'écran (un seul par écran, règle de la refonte) : le
+          {/* Chiffre héros de l'onglet (un seul par écran, règle de la refonte) : le
               total perçu, en encre — c'est un cumul, pas un gain à comparer à une
               référence, et le vert le faisait lire comme une variation. */}
           <GlassPanel niveau="hero" className="px-6 py-5">
-            <p className="text-[13px] font-medium text-ink3">Total perçu</p>
+            <p className="text-[13px] font-medium text-ink3">Dividendes perçus</p>
             <p className="text-[48px] font-semibold leading-none tracking-hero text-ink">
               {formatEuro(total, 2, montantsMasques)}
             </p>
@@ -112,7 +119,7 @@ export default function DividendesPage() {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="Détail">
+          <Card title="Détail des dividendes">
             <div className="space-y-2">
               {[...calendrier].reverse().map((mois) => (
                 <MoisCard key={mois.mois} mois={mois} />
@@ -121,6 +128,11 @@ export default function DividendesPage() {
           </Card>
         </>
       )}
+
+      {/* Indépendant de l'historique de transactions (backlog 2.P.3) : un foyer sans
+          aucun achat boursier peut quand même avoir des loyers ou une épargne à taux
+          — jamais gardé derrière la présence de dividendes. */}
+      <RevenusPassifsCard />
     </div>
   )
 }

@@ -609,3 +609,52 @@ def test_un_etf_non_couvert_par_justetf_n_est_recontacte_qu_une_fois(db, monkeyp
     # recalculée à chaque fois — seul l'appel réseau à justETF est évité.
     lignes = db.query(FundComposition).filter(FundComposition.ticker == "FR0011871078").all()
     assert lignes, "la composition doit rester présente après le second rafraîchissement"
+
+
+def test_resolution_concurrente_ne_leve_pas(db, monkeypatch):
+    """Course entre deux requêtes qui résolvent le MÊME identifiant (correction du
+    07/09/2026).
+
+    Le tableau de bord lance plusieurs endpoints en parallèle et chacun résout les
+    tickers dont il a besoin. Quand deux d'entre eux tombent sur un identifiant non
+    encore mis en cache, tous deux insèrent la même clé primaire : la seconde
+    insertion violait la contrainte d'unicité et faisait remonter un 500 jusqu'au
+    navigateur (« Une erreur interne est survenue côté serveur » à la place de la
+    courbe), alors que la résolution avait bel et bien abouti.
+
+    On simule la gagnante en écrivant la ligne juste avant que la perdante ne
+    commite : le service doit alors relire la valeur gagnante, sans lever."""
+    from sqlalchemy.orm import Session as SessionSQLA
+
+    from app.models import TickerResolution
+
+    monkeypatch.setattr(market_data_service.yf, "Search", lambda *a, **k: _FauxSearch("PERDANTE.PA"))
+
+    commit_original = SessionSQLA.commit
+    deja_double = {"fait": False}
+
+    def commit_avec_concurrente(self):
+        # Écrit la ligne « gagnante » depuis une session distincte, juste avant que
+        # la nôtre ne commite — exactement la fenêtre de la course réelle.
+        if not deja_double["fait"]:
+            deja_double["fait"] = True
+            autre = SessionSQLA(bind=self.get_bind())
+            autre.add(TickerResolution(identifiant="LU0000000001", ticker_resolu="GAGNANTE.PA", quote_type="ETF"))
+            commit_original(autre)
+            autre.close()
+        return commit_original(self)
+
+    monkeypatch.setattr(SessionSQLA, "commit", commit_avec_concurrente)
+
+    resolu = market_data_service.resolve_ticker(db, "LU0000000001", "FUND")
+
+    assert resolu == "GAGNANTE.PA", "la ligne écrite par la requête gagnante fait autorité"
+    lignes = db.query(TickerResolution).filter(TickerResolution.identifiant == "LU0000000001").all()
+    assert len(lignes) == 1, "une seule ligne en base, pas de doublon"
+
+
+class _FauxSearch:
+    """Double de `yf.Search` : renvoie un unique résultat exploitable."""
+
+    def __init__(self, symbol):
+        self.quotes = [{"symbol": symbol, "quoteType": "ETF"}]

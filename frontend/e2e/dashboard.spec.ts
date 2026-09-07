@@ -46,23 +46,11 @@ test.describe('Tableau de bord', () => {
     await expect(chiffre).toHaveText(montantRegex(attendu.patrimoine_net))
   })
 
-  test('affiche la répartition géographique et sectorielle du portefeuille financier', async ({ page }) => {
-    // Section "Détail" ouverte par défaut (`Disclosure`, `defaultOpen=true`) sur un
-    // contexte de navigateur fraîchement issu de `storage-state.json` — pas de clic
-    // nécessaire pour la révéler.
-    const carteGeo = cardByTitle(page, 'Répartition géographique')
-    const carteSecteur = cardByTitle(page, 'Répartition sectorielle')
-    await expect(carteGeo).toBeVisible()
-    await expect(carteSecteur).toBeVisible()
-
-    // Seed : 91% Amérique du Nord / 9% Europe (cf. seed_e2e.py, vérifié contre
-    // /api/analysis), 100% Technologies de l'information. `.first()` : le libellé
-    // apparaît à la fois dans la liste et dans la légende du graphique (recharts).
-    await expect(carteGeo.getByText('Amérique du Nord').first()).toBeVisible()
-    // Sous-chaîne plutôt que le libellé complet : les étiquettes longues de l'axe du
-    // graphique en barres (recharts) s'enroulent sur plusieurs lignes SVG (`tspan`
-    // distincts), donc "Technologies de l'information" en un seul nœud de texte ne
-    // s'y trouve pas forcément.
-    await expect(carteSecteur.getByText(/Technologies/).first()).toBeVisible()
+  // Répartitions géographique/sectorielle : elles ont quitté cet écran le
+  // 07/09/2026 (« je veux un écran d'accueil un peu plus light ») pour l'onglet
+  // Portefeuille d'`Analyse` — la couverture les y suit, cf. `analyse.spec.ts`.
+  test("renvoie vers l'écran Analyse, où le détail a été déplacé", async ({ page }) => {
+    await expect(page.getByRole('link', { name: /analyse détaillée/ })).toBeVisible()
+    await expect(cardByTitle(page, 'Répartition géographique')).toHaveCount(0)
   })
 })

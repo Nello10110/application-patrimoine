@@ -7,11 +7,11 @@ import { lazy, type ComponentType } from 'react'
 // page à la demande (au moment de la navigation) plutôt que tout d'un bloc au
 // premier chargement de l'application.
 const AidePage = lazy(() => import('../pages/AidePage'))
+const AnalysePage = lazy(() => import('../pages/AnalysePage'))
 const BudgetPage = lazy(() => import('../pages/BudgetPage'))
 const CompteDetailPage = lazy(() => import('../pages/CompteDetailPage'))
 const ComptesPage = lazy(() => import('../pages/ComptesPage'))
 const DashboardPage = lazy(() => import('../pages/DashboardPage'))
-const DividendesPage = lazy(() => import('../pages/DividendesPage'))
 const HoldingDetailPage = lazy(() => import('../pages/HoldingDetailPage'))
 const ImportPage = lazy(() => import('../pages/ImportPage'))
 const PortefeuillePage = lazy(() => import('../pages/PortefeuillePage'))
@@ -38,7 +38,7 @@ export const PAGE_COMPONENTS: Partial<Record<string, ComponentType>> = {
   '/comptes': ComptesPage,
   '/comptes/:id': CompteDetailPage,
   '/objectifs': SimulateurPage,
-  '/dividendes': DividendesPage,
+  '/analyse': AnalysePage,
   '/budget': BudgetPage,
   '/rapport': RapportPage,
   '/salaire': SalairePage,

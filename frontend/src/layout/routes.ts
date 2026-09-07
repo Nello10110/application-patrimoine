@@ -73,10 +73,14 @@ export const ROUTES: RouteMeta[] = [
   // dans la fiche détaillée d'un compte (`CompteDetailContent`/`LigneEpargne`).
   { path: '/comptes', titre: 'Comptes', navLabel: 'Comptes', icone: IconComptes, rang: 'consultation' },
   { path: '/comptes/:id', titre: 'Détail du compte' },
+  // « Analyse » remplace l'ancien écran « Dividendes » (07/09/2026) : il en garde
+  // tout le contenu dans son onglet Revenus, et reprend le repli « Détail » du
+  // tableau de bord dans son onglet Portefeuille. `/dividendes` redirige vers lui
+  // (`App.tsx`), les marque-pages survivent.
   {
-    path: '/dividendes',
-    titre: 'Dividendes',
-    navLabel: 'Dividendes',
+    path: '/analyse',
+    titre: 'Analyse',
+    navLabel: 'Analyse',
     icone: IconDividendes,
     rang: 'consultation',
     rolesAutorises: ['proprietaire', 'membre'],

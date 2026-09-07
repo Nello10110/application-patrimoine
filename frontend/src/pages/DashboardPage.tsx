@@ -1,49 +1,29 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type {
-  AnalysisResponse,
-  CoutGestionConsolide,
-  PatrimoineHistoryPoint,
-  PerformanceSummary,
-  PortfolioHistoryPoint,
-} from '../api/types'
-import AllocationChartCard from '../components/AllocationChartCard'
+import type { PatrimoineHistoryPoint, PortfolioHistoryPoint } from '../api/types'
 import Card from '../components/Card'
 import { SecondaryButton } from '../components/Controls'
-import CompositionModal from '../components/CompositionModal'
-import CoutGestionCard from '../components/CoutGestionCard'
-import Disclosure from '../components/Disclosure'
-import EtatErreur from '../components/EtatErreur'
-import { SkeletonTexte } from '../components/Skeleton'
-import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
-import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PatrimoineNetCard from '../components/PatrimoineNetCard'
-import RevenusPassifsCard from '../components/RevenusPassifsCard'
-import PerformanceCard from '../components/PerformanceCard'
 import PortfolioHistoryChart from '../components/PortfolioHistoryChart'
-import QualiteDonneesCard from '../components/QualiteDonneesCard'
-import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro } from '../utils/format'
 
+/** Écran d'accueil — délibérément court (demande directe de l'utilisateur du
+ * 07/09/2026 : « je veux un écran d'accueil un peu plus light »).
+ *
+ * Il ne répond qu'à la question qu'on se pose en ouvrant l'application : combien, et
+ * dans quel sens ça va. Le chiffre, sa variation, la courbe, les trois poches et la
+ * répartition par type — rien d'autre.
+ *
+ * Tout le reste (rentabilité, métriques avancées, répartitions géographique et
+ * sectorielle, qualité des données, exposition consolidée, coût de gestion, revenus)
+ * a rejoint l'écran `Analyse`, où il est rangé par question plutôt qu'empilé sous un
+ * repli « Détail » que personne n'ouvrait. Trois appels réseau coûteux
+ * (`/analysis`, `/performance`, `/analysis/cout-gestion`) partent avec lui : cet
+ * écran ne charge plus que les deux historiques dont dépend la courbe, et la liste
+ * des positions pour savoir si le portefeuille est vide. */
 export default function DashboardPage() {
-  const { montantsMasques, detenteurId } = usePreferencesAffichage()
-  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Rentabilité, répartition par compte et coût de gestion (backlog 2.K.5) : chacun
-  // son propre état chargement/erreur — indépendants de `analysis`/`loading`
-  // ci-dessus, un échec de l'un ne doit ni bloquer ni masquer silencieusement les
-  // deux autres.
-  const [performance, setPerformance] = useState<PerformanceSummary | null>(null)
-  const [chargementPerformance, setChargementPerformance] = useState(true)
-  const [erreurPerformance, setErreurPerformance] = useState<string | null>(null)
-
-  const [coutGestion, setCoutGestion] = useState<CoutGestionConsolide | null>(null)
-  const [chargementCoutGestion, setChargementCoutGestion] = useState(true)
-  const [erreurCoutGestion, setErreurCoutGestion] = useState<string | null>(null)
+  const { detenteurId } = usePreferencesAffichage()
 
   // Historique du portefeuille (backlog 2.K.6) : remonté ici plutôt que chargé dans
   // `PortfolioHistoryChart` lui-même — partagé avec `PatrimoineNetCard` (variation
@@ -61,31 +41,11 @@ export default function DashboardPage() {
   const [chargementPatrimoineHistorique, setChargementPatrimoineHistorique] = useState(true)
   const [erreurPatrimoineHistorique, setErreurPatrimoineHistorique] = useState<string | null>(null)
 
-  const [modal, setModal] = useState<{ type: 'geo' | 'sector'; categorie: string } | null>(null)
-
-  // Recharge l'analyse et la rentabilité — factorisé pour servir à la fois à
-  // l'effet de montage et au bouton "Actualiser".
-  function chargerPerformance() {
-    setChargementPerformance(true)
-    setErreurPerformance(null)
-    api
-      .getPerformance()
-      .then(setPerformance)
-      .catch((err) => setErreurPerformance(err.message))
-      .finally(() => setChargementPerformance(false))
-  }
-
-  // Coût de gestion consolidé (§ E.3) : même philosophie que la rentabilité
-  // ci-dessus — pas de blocage de la page si elle échoue.
-  function chargerCoutGestion() {
-    setChargementCoutGestion(true)
-    setErreurCoutGestion(null)
-    api
-      .getCoutGestionConsolide()
-      .then(setCoutGestion)
-      .catch((err) => setErreurCoutGestion(err.message))
-      .finally(() => setChargementCoutGestion(false))
-  }
+  // Portefeuille vide : la liste des positions suffit à le savoir. `/analysis`, qui
+  // portait cette information jusqu'ici, agrège en plus les compositions de fonds et
+  // les répartitions — beaucoup de travail serveur pour une question binaire, et il
+  // n'a plus de raison d'être appelé depuis cet écran.
+  const [portefeuilleVide, setPortefeuilleVide] = useState(false)
 
   function chargerHistorique() {
     setChargementHistorique(true)
@@ -107,43 +67,37 @@ export default function DashboardPage() {
       .finally(() => setChargementPatrimoineHistorique(false))
   }
 
-  function chargerDonnees() {
-    setLoading(true)
-    setError(null)
+  // Silencieux en cas d'échec : ce drapeau ne pilote qu'un encart d'invitation. Une
+  // erreur réseau ne doit pas faire apparaître « aucune position » à quelqu'un qui en
+  // a — l'absence d'encart est le repli sûr.
+  function chargerPortefeuilleVide() {
     api
-      .getAnalysis()
-      .then(setAnalysis)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-    chargerPerformance()
-    chargerCoutGestion()
+      .listHoldings()
+      .then((lignes) => setPortefeuilleVide(lignes.length === 0))
+      .catch(() => setPortefeuilleVide(false))
   }
 
-  useEffect(chargerDonnees, [])
+  function chargerDonnees() {
+    chargerHistorique()
+    chargerPatrimoineHistorique()
+    chargerPortefeuilleVide()
+  }
+
   useEffect(chargerHistorique, [])
+  useEffect(chargerPortefeuilleVide, [])
   useEffect(chargerPatrimoineHistorique, [detenteurId])
 
-  const hasNoHoldings = analysis ? analysis.risques.nombre_lignes === 0 : false
+  const chargement = chargementHistorique || chargementPatrimoineHistorique
 
-  // L'en-tête (bouton "Actualiser") reste affiché quel que soit l'état
-  // (chargement, erreur, données) : c'est la seule voie de récupération d'une page
-  // restée en erreur, faute d'un rechargement complet (F5).
   return (
     <div className="space-y-[14px]">
       <div className="flex items-center justify-end md:justify-between">
         <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Tableau de bord</h1>
-        <SecondaryButton onClick={chargerDonnees} disabled={loading} className="min-h-11 md:min-h-0">
-          {loading ? 'Actualisation...' : 'Actualiser'}
+        <SecondaryButton onClick={chargerDonnees} disabled={chargement} className="min-h-11 md:min-h-0">
+          {chargement ? 'Actualisation...' : 'Actualiser'}
         </SecondaryButton>
       </div>
 
-      {/* Hiérarchie de lecture en trois temps (backlog 2.K.6) : (1) le chiffre —
-          patrimoine net, très grand, avec sa variation ; (2) la courbe — évolution
-          sur la période, juste en dessous, jamais masquée par un échec de `analysis`
-          (limite documentée du backlog 2.K.5, corrigée ici par construction : ni la
-          carte ni la courbe ne dépendent plus de `analysis`/`loading`) ; (3) le
-          détail — répartition, qualité des données, exposition consolidée, coût de
-          gestion, sous la ligne de flottaison et repliable. */}
       <PatrimoineNetCard
         historiquePortefeuille={{ points: historique, loading: chargementHistorique }}
         historiquePatrimoine={{ points: patrimoineHistorique, loading: chargementPatrimoineHistorique }}
@@ -161,108 +115,32 @@ export default function DashboardPage() {
         }
       />
 
-      {loading && <SkeletonTexte lignes={4} />}
-      {error && <EtatErreur message={error} onReessayer={chargerDonnees} />}
-
-      {!loading && !error && analysis && (
-        <>
-          {/* Bandeaux à fond teinté : même exception que `QualiteDonneesCard` (backlog
-              2.K.1) — hors des 9 jetons sémantiques, pas de jeton de fond teinté
-              multi-nuances disponible pour ce besoin. Restent hors du détail repliable
-              ci-dessous : ce sont des appels à l'action, pas de la simple information
-              complémentaire. */}
-          {hasNoHoldings && (
-            <Card className="border-avertissement/25 bg-avertissement/10">
-              <p className="text-sm text-avertissement">
-                Aucune position dans le portefeuille. Commence par{' '}
-                <Link to="/import" className="font-medium underline">
-                  importer ton portefeuille
-                </Link>
-                .
-              </p>
-            </Card>
-          )}
-
-          <Disclosure title="Détail">
-            {chargementPerformance && <SkeletonTexte lignes={2} />}
-            {erreurPerformance && <EtatErreur message={erreurPerformance} onReessayer={chargerPerformance} />}
-            {!chargementPerformance && !erreurPerformance && performance && performance.nombre_transactions > 0 && (
-              <>
-                <PerformanceCard performance={performance} />
-                <div className="mt-4">
-                  <MetriquesAvanceesCard />
-                </div>
-              </>
-            )}
-
-            {/* Indépendant de l'historique de transactions (backlog 2.P.3) : un
-                foyer sans aucun achat boursier peut quand même avoir des loyers ou
-                une épargne à taux — jamais gardé derrière `nombre_transactions > 0`. */}
-            <div className="mt-4">
-              <RevenusPassifsCard />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatTile label="Valeur des positions" value={formatEuro(analysis.valeur_totale, 0, montantsMasques)} />
-              <StatTile
-                label="Score de diversification"
-                value={`${analysis.risques.score_diversification}/100`}
-                tone={analysis.risques.score_diversification < 50 ? 'warning' : 'good'}
-              />
-              <StatTile
-                label="Plus grosse ligne"
-                value={`${analysis.risques.top_ligne_poids}%`}
-                sub={analysis.risques.top_ligne_nom ?? undefined}
-                tone={analysis.risques.top_ligne_poids > 20 ? 'warning' : 'neutral'}
-              />
-              <StatTile
-                label="Concentration géographique"
-                value={`${analysis.risques.top_pays_poids}%`}
-                sub={analysis.risques.top_pays_nom ?? undefined}
-                tone={analysis.risques.top_pays_poids > 60 ? 'warning' : 'neutral'}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <AllocationChartCard
-                title="Répartition géographique"
-                items={analysis.geo}
-                onCategoryClick={(categorie) => setModal({ type: 'geo', categorie })}
-                footnote={
-                  <p className="mt-2 text-xs text-texte-attenue">
-                    Géographie des fonds/ETF issue de leur composition réelle (10 plus grosses lignes, extrapolées à 100% du fonds)
-                    quand Yahoo Finance la fournit, sinon estimée à partir de l'indice suivi par le fonds (voir le détail de qualité
-                    des données ci-dessous) ; secteur des fonds basé sur leur composition complète. Clique sur une barre (ou une
-                    ligne du tableau en plein écran) pour voir le détail des lignes.
-                  </p>
-                }
-              />
-              <AllocationChartCard
-                title="Répartition sectorielle"
-                items={analysis.sector}
-                onCategoryClick={(categorie) => setModal({ type: 'sector', categorie })}
-              />
-            </div>
-
-            <QualiteDonneesCard qualite={analysis.qualite_donnees} />
-
-            <ExpositionConsolideeCard />
-
-            {chargementCoutGestion && <SkeletonTexte lignes={2} />}
-            {erreurCoutGestion && <EtatErreur message={erreurCoutGestion} onReessayer={chargerCoutGestion} />}
-            {!chargementCoutGestion && !erreurCoutGestion && coutGestion && <CoutGestionCard cout={coutGestion} />}
-          </Disclosure>
-
-          {modal && (
-            <CompositionModal
-              categorie={modal.categorie}
-              sousTitre={modal.type === 'geo' ? 'Répartition géographique' : 'Répartition sectorielle'}
-              fetchComposition={(categorie) => api.getCategoryComposition(modal.type, categorie)}
-              onClose={() => setModal(null)}
-            />
-          )}
-        </>
+      {/* Encart teinté : même exception que `QualiteDonneesCard` (backlog 2.K.1) —
+          hors des 9 jetons sémantiques, pas de jeton de fond teinté multi-nuances
+          disponible pour ce besoin. C'est un appel à l'action, pas de l'information
+          complémentaire : il reste sur l'écran d'accueil quand tout le reste part. */}
+      {portefeuilleVide && (
+        <Card className="border-avertissement/25 bg-avertissement/10">
+          <p className="text-sm text-avertissement">
+            Aucune position dans le portefeuille. Commence par{' '}
+            <Link to="/import" className="font-medium underline">
+              importer ton portefeuille
+            </Link>
+            .
+          </p>
+        </Card>
       )}
+
+      {/* Le contenu déplacé doit rester trouvable depuis l'endroit d'où il vient :
+          sans ce lien, quelqu'un qui consultait la répartition sectorielle sous le
+          repli « Détail » n'aurait aucun moyen de deviner où elle est passée. */}
+      <p className="text-[13px] text-ink3">
+        Répartitions, rentabilité, qualité des données et revenus ont leur écran :{' '}
+        <Link to="/analyse" className="font-medium text-accent hover:underline">
+          voir l'analyse détaillée
+        </Link>
+        .
+      </p>
     </div>
   )
 }

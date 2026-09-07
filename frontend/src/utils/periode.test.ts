@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bornesPeriode, libellePeriodeEcoulee, type Periode, variationSurPeriode } from './periode'
+import { bornesPeriode, deltaSurPeriode, libellePeriodeEcoulee, type Periode, variationSurPeriode } from './periode'
 
 // Date de référence fixe pour des tests déterministes (2026 n'est pas bissextile).
 const MAINTENANT = new Date('2026-08-21T12:00:00Z')
@@ -70,5 +70,34 @@ describe('variationSurPeriode (backlog 2.K.6)', () => {
 
   it('renvoie null si le point de départ vaut 0 (variation indéfinie)', () => {
     expect(variationSurPeriode([{ valeur: 0 }, { valeur: 500 }])).toBeNull()
+  })
+
+  // Retour utilisateur du 07/09/2026 : « ↑ 22 008,2 % » sur la période « Tout ».
+  it("renvoie null quand le patrimoine est parti de presque rien (rapport > 10)", () => {
+    expect(variationSurPeriode([{ valeur: 1400 }, { valeur: 315000 }])).toBeNull()
+  })
+
+  it("garde le pourcentage tant que le rapport reste lisible (jusqu'à ×10)", () => {
+    expect(variationSurPeriode([{ valeur: 1000 }, { valeur: 10000 }])).toBeCloseTo(900)
+    expect(variationSurPeriode([{ valeur: 1000 }, { valeur: 10001 }])).toBeNull()
+  })
+
+  // Un patrimoine net PEUT être négatif (emprunts supérieurs aux actifs) : diviser
+  // par un nombre négatif inversait le signe et annonçait une baisse là où la
+  // situation s'était améliorée.
+  it('renvoie null quand le point de départ est négatif', () => {
+    expect(variationSurPeriode([{ valeur: -5000 }, { valeur: 1000 }])).toBeNull()
+  })
+})
+
+describe('deltaSurPeriode (correction du 07/09/2026)', () => {
+  it('donne la variation en euros, y compris là où le pourcentage est écarté', () => {
+    expect(deltaSurPeriode([{ valeur: 1400 }, { valeur: 315000 }])).toBe(313600)
+    expect(deltaSurPeriode([{ valeur: -5000 }, { valeur: 1000 }])).toBe(6000)
+  })
+
+  it('gère une baisse et renvoie null avec moins de 2 points', () => {
+    expect(deltaSurPeriode([{ valeur: 1000 }, { valeur: 900 }])).toBe(-100)
+    expect(deltaSurPeriode([{ valeur: 1000 }])).toBeNull()
   })
 })

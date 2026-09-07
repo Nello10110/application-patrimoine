@@ -51,6 +51,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import yfinance as yf
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models import (
@@ -111,6 +112,33 @@ def _resolution_encore_valide(cached: TickerResolution) -> bool:
     return age < timedelta(days=DUREE_CACHE_SUCCES_JOURS)
 
 
+def _enregistrer_resolution(
+    db: Session, identifiant: str, ticker_resolu: str | None, quote_type: str | None
+) -> str | None:
+    """Écrit la résolution en cache, en tolérant qu'une requête concurrente ait gagné
+    la course.
+
+    Deux requêtes HTTP parallèles peuvent résoudre le MÊME identifiant en même temps
+    (le tableau de bord lance plusieurs endpoints d'un coup, et chacun résout les
+    tickers dont il a besoin) : toutes deux ne trouvent rien en cache, toutes deux
+    insèrent, et la seconde viole la clé primaire. L'endpoint entier renvoyait alors
+    un 500 — constaté le 07/09/2026 sur `/api/patrimoine/historique`, avec pour seul
+    symptôme une courbe en erreur sur l'écran d'accueil — alors que le travail avait
+    justement été fait par l'autre requête.
+
+    La ligne écrite par la gagnante fait autorité : on la relit plutôt que de
+    réessayer d'écrire. Les deux résolutions portent sur le même identifiant, elles
+    ne peuvent différer que par un aléa de Yahoo, jamais par un désaccord de fond."""
+    db.add(TickerResolution(identifiant=identifiant, ticker_resolu=ticker_resolu, quote_type=quote_type))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        gagnante = db.get(TickerResolution, identifiant)
+        return gagnante.ticker_resolu if gagnante is not None else ticker_resolu
+    return ticker_resolu
+
+
 def resolve_ticker(db: Session, identifiant: str, asset_class: str | None) -> str | None:
     cached = db.get(TickerResolution, identifiant)
     if cached is not None and _resolution_encore_valide(cached):
@@ -123,9 +151,7 @@ def resolve_ticker(db: Session, identifiant: str, asset_class: str | None) -> st
 
     if identifiant in MANUAL_TICKER_OVERRIDES:
         ticker_resolu = MANUAL_TICKER_OVERRIDES[identifiant]
-        db.add(TickerResolution(identifiant=identifiant, ticker_resolu=ticker_resolu, quote_type="MANUAL"))
-        db.commit()
-        return ticker_resolu
+        return _enregistrer_resolution(db, identifiant, ticker_resolu, "MANUAL")
 
     ticker_resolu = None
     quote_type = None
@@ -142,9 +168,7 @@ def resolve_ticker(db: Session, identifiant: str, asset_class: str | None) -> st
         ticker_resolu = match.get("symbol")
         quote_type = match.get("quoteType")
 
-    db.add(TickerResolution(identifiant=identifiant, ticker_resolu=ticker_resolu, quote_type=quote_type))
-    db.commit()
-    return ticker_resolu
+    return _enregistrer_resolution(db, identifiant, ticker_resolu, quote_type)
 
 
 def fetch_holding_extra_info(ticker_resolu: str | None, asset_class: str | None) -> dict:
