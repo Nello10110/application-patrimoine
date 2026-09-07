@@ -292,7 +292,7 @@ export default function PortefeuillePage() {
       {ajoutOuvert && (
         <Modale
           onClose={() => setAjoutOuvert(false)}
-          panelClassName="w-full max-w-2xl rounded-hero border border-stroke bg-panel-hi p-6 shadow-glass-lg backdrop-blur-glass"
+          panelClassName="w-full max-w-[520px] rounded-hero border border-stroke bg-panel-hi p-6 shadow-glass-lg backdrop-blur-glass"
         >
           {({ titleId }) => (
             <>

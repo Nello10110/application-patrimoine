@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import Card from '../components/Card'
@@ -54,6 +54,74 @@ function libelleMoisAnnee(offset: number): string {
  * couvrir aussi bien « où en sera mon patrimoine réel » que « et si je plaçais
  * 10 000€ à 6% ». Tout le reste (projection, tableau de détail, FIRE) est calculé
  * côté client (`utils/interetsComposes.ts`), avec mise à jour instantanée. */
+/** Hypothèse réglée au curseur (maquette de la refonte : « les hypothèses se
+ * règlent au curseur, plus dans un formulaire de quatre champs numériques »).
+ *
+ * Le champ numérique RESTE, à côté du curseur, et c'est un écart assumé à la
+ * maquette : un curseur seul enferme dans ses bornes (ici 3 000 €/mois et 15 %/an),
+ * et quelqu'un qui verse 4 000 € n'aurait aucun moyen de le saisir. Le curseur sert
+ * à explorer — bouger la valeur et voir la projection suivre —, le champ à poser un
+ * chiffre exact. Les deux écrivent le même état.
+ *
+ * `accent-color` : la piste et la pastille prennent l'accent du thème, comme la
+ * maquette, sans avoir à redessiner le contrôle natif (qui reste accessible au
+ * clavier et annonce sa valeur de lui-même). */
+function CurseurHypothese({
+  libelle,
+  unite,
+  valeur,
+  onChange,
+  min,
+  max,
+  pas,
+  children,
+}: {
+  libelle: string
+  unite: string
+  valeur: string
+  onChange: (v: string) => void
+  min: number
+  max: number
+  pas: number
+  children?: ReactNode
+}) {
+  const nombre = Number(valeur.replace(',', '.'))
+  // Le curseur ne peut pas représenter une valeur hors bornes : il se cale sur la
+  // borne la plus proche pendant que le champ, lui, garde la valeur réelle.
+  const valeurCurseur = Number.isFinite(nombre) ? Math.min(max, Math.max(min, nombre)) : min
+
+  return (
+    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
+      <span className="flex items-baseline justify-between gap-2">
+        {libelle}
+        <span className="text-[15px] font-semibold text-ink">
+          {valeur === '' ? '—' : valeur} {unite}
+        </span>
+      </span>
+      <input
+        type="range"
+        value={valeurCurseur}
+        onChange={(e) => onChange(e.target.value)}
+        min={min}
+        max={max}
+        step={pas}
+        aria-label={`${libelle} (${unite}), curseur`}
+        className="w-full accent-accent"
+      />
+      <input
+        value={valeur}
+        onChange={(e) => onChange(e.target.value)}
+        type="number"
+        step="any"
+        min={min}
+        aria-label={`${libelle} (${unite})`}
+        className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+      />
+      {children}
+    </label>
+  )
+}
+
 export default function SimulateurPage() {
   const { montantsMasques } = usePreferencesAffichage()
   const [capital, setCapital] = useState('')
@@ -232,26 +300,24 @@ export default function SimulateurPage() {
               className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Rendement annuel moyen (%)
-            <input
-              value={taux}
-              onChange={(e) => setTaux(e.target.value)}
-              type="number"
-              step="any"
-              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Versement mensuel (€)
-            <input
-              value={versement}
-              onChange={(e) => setVersement(e.target.value)}
-              type="number"
-              step="any"
-              min={0}
-              className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
+          <CurseurHypothese
+            libelle="Rendement annuel moyen"
+            unite="%"
+            valeur={taux}
+            onChange={setTaux}
+            min={0}
+            max={15}
+            pas={0.1}
+          />
+          <CurseurHypothese
+            libelle="Versement mensuel"
+            unite="€"
+            valeur={versement}
+            onChange={setVersement}
+            min={0}
+            max={3000}
+            pas={10}
+          >
             {versementSuggere !== null && versementNum !== Math.round(versementSuggere) && (
               <button
                 type="button"
@@ -261,7 +327,7 @@ export default function SimulateurPage() {
                 Revenir au versement observé ({formatEuro(versementSuggere, 0, montantsMasques)})
               </button>
             )}
-          </label>
+          </CurseurHypothese>
         </div>
 
         <p className="mt-3 text-xs text-texte-attenue">

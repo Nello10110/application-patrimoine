@@ -17,6 +17,7 @@ import { invaliderLogos } from '../utils/logosEtablissements'
 export default function EtablissementsCard({
   etablissements: etablissementsFournis,
   onModifies,
+  sansCarte = false,
 }: {
   /** Liste fournie par l'appelant. Absente (écran Réglages), la carte la charge
    * elle-même. Fournie (assistant de bienvenue), elle évite un second
@@ -26,6 +27,11 @@ export default function EtablissementsCard({
   /** À appeler après création, renommage ou suppression, pour que l'appelant
    * rafraîchisse la liste qu'il porte. */
   onModifies?: () => void
+  /** Rendu SANS son enveloppe `Card` : l'écran Comptes l'affiche désormais dans une
+   * feuille modale qui porte déjà son propre titre et son propre panneau de verre
+   * (maquette de la refonte) — une carte dans une feuille ferait deux cadres
+   * imbriqués pour un seul contenu. */
+  sansCarte?: boolean
 } = {}) {
   const [etablissementsCharges, setEtablissements] = useState<Etablissement[]>([])
   const autonome = etablissementsFournis === undefined
@@ -106,8 +112,8 @@ export default function EtablissementsCard({
     }
   }
 
-  return (
-    <Card title="Établissements">
+  const contenu = (
+    <>
       <p className="mb-4 text-sm text-texte">
         Banques et courtiers, déclarés une fois, réutilisés pour regrouper tes comptes à l'écran{' '}
         <span className="font-medium text-texte">Comptes</span> (ex. « Caisse d'Épargne » contenant un compte courant et une
@@ -179,6 +185,11 @@ export default function EtablissementsCard({
         </div>
       </form>
       {error && <EtatErreur message={error} onReessayer={load} />}
-    </Card>
+    </>
   )
+
+  // Sans enveloppe quand l'appelant fournit déjà son cadre (feuille modale de
+  // l'écran Comptes) : une carte dans une feuille ferait deux panneaux imbriqués
+  // pour un seul contenu.
+  return sansCarte ? contenu : <Card title="Établissements">{contenu}</Card>
 }

@@ -19,6 +19,7 @@ vi.mock('../api/client', () => ({
     setHoldingValorisation: vi.fn(),
     updateHolding: vi.fn(),
     deleteHolding: vi.fn(),
+    deleteCompte: vi.fn(),
   },
 }))
 
@@ -85,10 +86,10 @@ function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
   return { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
-function renderContent(c: Compte, holdings: Holding[], onChanged = vi.fn()) {
+function renderContent(c: Compte, holdings: Holding[], onChanged = vi.fn(), onSupprime?: () => void) {
   return render(
     <MemoryRouter>
-      <CompteDetailContent compte={c} holdings={holdings} onChanged={onChanged} />
+      <CompteDetailContent compte={c} holdings={holdings} onChanged={onChanged} onSupprime={onSupprime} />
     </MemoryRouter>,
   )
 }
@@ -356,5 +357,57 @@ describe('CompteDetailContent — répartition entre détenteurs', () => {
       ]),
     )
     expect(await screen.findByText('Répartition appliquée à toutes les lignes du compte.')).toBeInTheDocument()
+  })
+})
+
+/** La suppression d'un compte a quitté la liste de l'écran Comptes pour le bas de
+ * cette fiche (recommandation explicite du paquet de design : un lien rouge à côté
+ * du solde, sur une ligne cliquable, est trop facile à toucher par erreur). */
+describe('CompteDetailContent — suppression du compte (paquet de design)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.listEtablissements).mockResolvedValue([])
+    vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+  })
+
+  it("ne s'affiche pas quand l'appelant n'a rien à refermer (page pleine page)", async () => {
+    renderContent(compte(), [])
+
+    await screen.findByText('PEA')
+    expect(screen.queryByRole('button', { name: 'Supprimer le compte' })).not.toBeInTheDocument()
+  })
+
+  it('demande une confirmation avant de supprimer, et nomme le compte dans le bouton final', async () => {
+    const onSupprime = vi.fn()
+    vi.mocked(api.deleteCompte).mockResolvedValue({ ok: true })
+    renderContent(compte({ id: 42, nom: 'PEA' }), [], vi.fn(), onSupprime)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Supprimer le compte' }))
+
+    // Rien n'est parti tant que la confirmation n'est pas validée.
+    expect(api.deleteCompte).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer « PEA »' }))
+
+    await vi.waitFor(() => expect(api.deleteCompte).toHaveBeenCalledWith(42))
+    expect(onSupprime).toHaveBeenCalled()
+  })
+
+  it('annuler la confirmation ne supprime rien', async () => {
+    renderContent(compte({ id: 42, nom: 'PEA' }), [], vi.fn(), vi.fn())
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Supprimer le compte' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+
+    expect(await screen.findByRole('button', { name: 'Supprimer le compte' })).toBeInTheDocument()
+    expect(api.deleteCompte).not.toHaveBeenCalled()
+  })
+
+  // Le point qui inquiète réellement quelqu'un devant ce bouton rouge : « est-ce que
+  // je perds mes lignes ? ». Non — elles retombent dans « Sans compte ».
+  it('annonce que les lignes rattachées ne sont pas supprimées', async () => {
+    renderContent(compte({ id: 42, nom: 'PEA' }), [holding(), holding({ id: 2, ticker: 'BBB' })], vi.fn(), vi.fn())
+
+    expect(await screen.findByText(/2 lignes de ce compte ne sont pas supprimées/)).toBeInTheDocument()
   })
 })

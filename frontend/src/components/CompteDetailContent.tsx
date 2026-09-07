@@ -168,10 +168,17 @@ export default function CompteDetailContent({
   compte,
   holdings,
   onChanged,
+  onSupprime,
 }: {
   compte: Compte
   holdings: Holding[]
   onChanged: () => void
+  /** Fourni par les appelants qui affichent la fiche dans une feuille : la
+   * suppression du compte y vit désormais (recommandation explicite du paquet de
+   * design), et l'appelant doit refermer sa feuille et recharger sa liste. Absent,
+   * la zone de suppression ne s'affiche pas — c'est le cas de la page pleine page,
+   * qui n'a rien à refermer. */
+  onSupprime?: () => void
 }) {
   const { montantsMasques } = usePreferencesAffichage()
   const solde = holdings.reduce((somme, h) => somme + (h.valeur ?? 0), 0)
@@ -242,6 +249,89 @@ export default function CompteDetailContent({
       <EmpruntsRattaches emprunts={empruntsRattaches} montantsMasques={montantsMasques} />
 
       <QuotitesCompte compteId={compte.id} nombreLignes={holdings.length} nombreEmprunts={empruntsRattaches.length} />
+
+      {onSupprime && <ZoneSuppression compte={compte} nombreLignes={holdings.length} onSupprime={onSupprime} />}
+    </div>
+  )
+}
+
+/** Suppression du compte, en bas de sa fiche (paquet de design : « la placer en bas
+ * de la feuille d'édition, avec confirmation explicite »).
+ *
+ * Elle vivait jusqu'ici en lien rouge sur la ligne de la liste, à côté du solde, sur
+ * une ligne elle-même cliquable — trop facile à toucher par erreur sur un compte à
+ * 89 000 €. Ici, il faut avoir ouvert le compte, être descendu jusqu'au bas de sa
+ * fiche, puis confirmer.
+ *
+ * La confirmation reste un bouton et non la saisie du nom : supprimer un compte NE
+ * SUPPRIME AUCUNE ligne de patrimoine — elles retombent dans « Sans compte » et
+ * restent toutes visibles. Exiger de recopier un nom pour une action réversible en
+ * deux clics dresserait un obstacle sans rapport avec le risque réel. */
+function ZoneSuppression({
+  compte,
+  nombreLignes,
+  onSupprime,
+}: {
+  compte: Compte
+  nombreLignes: number
+  onSupprime: () => void
+}) {
+  const [confirme, setConfirme] = useState(false)
+  const [enCours, setEnCours] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+
+  async function supprimer() {
+    setEnCours(true)
+    setErreur(null)
+    try {
+      await api.deleteCompte(compte.id)
+      onSupprime()
+    } catch (err) {
+      setErreur((err as Error).message)
+      setEnCours(false)
+    }
+  }
+
+  return (
+    <div className="rounded-card border border-negatif/25 p-4">
+      <p className="text-sm font-semibold text-negatif">Supprimer ce compte</p>
+      <p className="mt-1 text-xs text-texte-attenue">
+        {nombreLignes > 0
+          ? `Les ${nombreLignes} ligne${nombreLignes > 1 ? 's' : ''} de ce compte ne sont pas supprimées : elles retombent dans « Sans compte », où vous pourrez les rattacher ailleurs.`
+          : 'Ce compte est vide : sa suppression ne touche aucune ligne de patrimoine.'}
+      </p>
+      {erreur && (
+        <div className="mt-3">
+          <EtatErreur message={erreur} />
+        </div>
+      )}
+      {confirme ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={supprimer}
+            disabled={enCours}
+            className="inline-flex min-h-11 items-center rounded-control bg-negatif px-4 text-sm font-semibold text-white disabled:opacity-40 md:min-h-0 md:py-2"
+          >
+            {enCours ? 'Suppression...' : `Supprimer « ${compte.nom} »`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirme(false)}
+            className="inline-flex min-h-11 items-center text-sm text-texte-attenue hover:underline md:min-h-0"
+          >
+            Annuler
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirme(true)}
+          className="mt-3 inline-flex min-h-11 items-center rounded-control border border-negatif/40 px-3.5 text-sm font-medium text-negatif transition-colors hover:bg-negatif/10 md:min-h-0 md:py-2"
+        >
+          Supprimer le compte
+        </button>
+      )}
     </div>
   )
 }

@@ -294,3 +294,14 @@ export function IconEtablissement({ className }: IconProps) {
     </svg>
   )
 }
+
+/** Crayon d'édition (maquette de la refonte) — même gabarit que les autres icônes
+ * de ce fichier : `viewBox="0 0 20 20"`, trait de 1,7, pas de remplissage. */
+export function IconCrayon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M13.2 3.8 16.2 6.8 7.5 15.5 3.5 16.5 4.5 12.5 13.2 3.8Z" />
+      <path d="M11.8 5.2 14.8 8.2" />
+    </svg>
+  )
+}

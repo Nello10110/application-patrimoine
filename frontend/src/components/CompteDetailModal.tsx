@@ -6,7 +6,16 @@ import { IconFermer, IconLienExterne } from './icons'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
 
-export default function CompteDetailModal({ compteId, onClose }: { compteId: number; onClose: () => void }) {
+export default function CompteDetailModal({
+  compteId,
+  onClose,
+  onSupprime,
+}: {
+  compteId: number
+  onClose: () => void
+  /** Transmis à `CompteDetailContent`, qui porte la suppression en bas de fiche. */
+  onSupprime?: () => void
+}) {
   const { compte, holdings, loading, error, recharger } = useCompteDetail(compteId)
 
   return (
@@ -35,7 +44,7 @@ export default function CompteDetailModal({ compteId, onClose }: { compteId: num
 
           {loading && <SkeletonTexte lignes={4} />}
           {error && <EtatErreur message={error} onReessayer={recharger} />}
-          {compte && <CompteDetailContent compte={compte} holdings={holdings} onChanged={recharger} />}
+          {compte && <CompteDetailContent compte={compte} holdings={holdings} onChanged={recharger} onSupprime={onSupprime} />}
         </>
       )}
     </Modale>

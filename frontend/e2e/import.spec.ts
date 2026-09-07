@@ -122,14 +122,20 @@ test('Import : grand livre multi-comptes (PEA/Compte-titres/Cryptomonnaie/Obliga
 
   await page.goto('/comptes')
   const groupeAvantSuppression = cardByTitle(page, nomEtablissement)
+  // La suppression d'un compte vit au fond de sa fiche depuis le 07/09/2026
+  // (recommandation du paquet de design).
   for (const nomCompte of [noms.pea, noms.titres, noms.crypto, noms.obligations]) {
-    const ligneCompte = groupeAvantSuppression.locator('li').filter({ hasText: nomCompte })
-    await ligneCompte.getByRole('button', { name: `Supprimer le compte ${nomCompte}`, exact: true }).click()
-    await page.getByRole('dialog', { name: 'Supprimer ce compte ?' }).getByRole('button', { name: 'Supprimer' }).click()
+    await groupeAvantSuppression.getByText(nomCompte).click()
+    const fiche = page.getByRole('dialog')
+    await fiche.getByRole('button', { name: 'Supprimer le compte' }).click()
+    await fiche.getByRole('button', { name: `Supprimer « ${nomCompte} »` }).click()
     await expect(groupeAvantSuppression.getByText(nomCompte)).not.toBeVisible()
   }
 
-  const carteEtablissements = cardByTitle(page, 'Établissements')
+  // Les établissements vivent dans leur propre feuille, ouverte par le bouton de
+  // l'en-tête (maquette).
+  await page.getByRole('button', { name: 'Établissement', exact: true }).click()
+  const carteEtablissements = page.getByRole('dialog')
   const ligneEtablissement = carteEtablissements.locator('li').filter({ hasText: nomEtablissement })
   await ligneEtablissement.getByRole('button', { name: 'Supprimer' }).click()
   await expect(carteEtablissements.getByText(nomEtablissement)).not.toBeVisible()

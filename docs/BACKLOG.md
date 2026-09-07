@@ -3571,12 +3571,13 @@ l'application (une fois les lots 4-7 livrés) a fait remonter — bugs, quickwin
 
 **Ce qui reste, et pourquoi.**
 
-Trois points, et trois seulement. Aucun n'est un chantier de développement en attente de priorité :
-chacun attend une décision ou une donnée que ce document ne peut pas produire lui-même. **Z.1**, le
-dernier reste de développement, a été traité le 03/09/2026.
+Quatre points. Aucun n'est un chantier de développement en attente de priorité : chacun attend une
+décision ou une donnée que ce document ne peut pas produire lui-même. **Z.1**, le dernier reste de
+développement, a été traité le 03/09/2026.
 
 | Point | Bloqué par | Action pour débloquer |
 |---|---|---|
+| **AA.1** — les trois demandes de la maquette sur l'écran Patrimoine | Arbitrage explicite de l'utilisateur, mis de côté le 07/09/2026 (« on voit ça plus tard, on repassera dessus ») lors de la revue des écarts avec le paquet de design. Trois demandes distinctes : (a) un **jeton carré de 32 px** portant le sigle du ticker sur chaque ligne — purement visuel, sans perte ; (b) **retirer le filtre « Immobilier & Épargne »** — la maquette le supprime au motif que la puce renvoyait un tableau vide, ce qui est faux ici (l'immobilier et l'épargne SONT dans ce tableau), donc le retirer obligerait à passer par Comptes pour les isoler ; (c) **remplacer le `<table>` par la grille de lignes cliquables** de la maquette — on y perdrait le tri par colonne, l'édition en ligne et les colonnes Secteur et Pays | Reprendre le sujet écran par écran avec l'utilisateur |
 | **E.1** — élargir les formats de courtier reconnus | Aucun fichier d'export réel d'un autre courtier (Boursorama, Degiro, IBKR…) disponible pour écrire le parseur sans deviner | Fournir un export réel (anonymisé si besoin) d'un autre courtier |
 | **E.2** — explorer une agrégation bancaire gratuite | Aucune réponse écrite d'Enable Banking sur le statut réglementaire d'un usage personnel | Réponse d'Enable Banking, **avant tout code** |
 | **Q.3** — devise et internationalisation légère | Décision produit non tranchée par l'utilisateur (l'app n'a aujourd'hui qu'un seul foyer, en euros — utile seulement si un actif en devise étrangère apparaît) | Arbitrage explicite de l'utilisateur : le besoin existe-t-il réellement aujourd'hui ? |

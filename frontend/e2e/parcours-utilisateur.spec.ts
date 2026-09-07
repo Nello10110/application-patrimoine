@@ -27,9 +27,11 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
     await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
 
     const nom = `Doublon ${Date.now().toString().slice(-6)}`
-    const carte = cardByTitle(page, 'Nouveau compte')
-    // Établissement obligatoire à la création depuis le 03/09/2026 (revue de
-    // qualité) — celui déjà seedé (« Banque E2E »).
+    // Le formulaire vit dans une feuille ouverte par le bouton de l'en-tête depuis
+    // le 07/09/2026 (maquette). Établissement obligatoire à la création depuis le
+    // 03/09/2026 (revue de qualité) — celui déjà seedé (« Banque E2E »).
+    await page.getByRole('button', { name: 'Ajouter un compte' }).click()
+    const carte = page.getByRole('dialog')
     await carte.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
 
     await carte.getByPlaceholder('PEA, Livret A...').fill(nom)
@@ -40,19 +42,24 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
     // Deuxième création du même nom : avant correction, cette requête renvoyait
     // une 500 (IntegrityError SQLAlchemy non interceptée). Établissement resélectionné :
     // une création réussie réinitialise tout le formulaire, établissement inclus.
+    await page.getByRole('button', { name: 'Ajouter un compte' }).click()
     await carte.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
     await carte.getByPlaceholder('PEA, Livret A...').fill(nom)
     await carte.getByRole('button', { name: '+ Nouveau compte' }).click()
 
     await expect(page.getByText(/existe déjà/)).toBeVisible()
     // L'écran reste utilisable et le compte d'origine intact (une seule ligne).
+    await carte.getByRole('button', { name: 'Fermer' }).click()
     await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
     const lignes = groupeBanque.locator('li').filter({ hasText: nom })
     await expect(lignes).toHaveCount(1)
 
-    // Nettoyage : cette spec s'exécute sur la base partagée des autres specs.
-    await lignes.getByRole('button', { name: `Supprimer le compte ${nom}`, exact: true }).click()
-    await page.getByRole('dialog', { name: 'Supprimer ce compte ?' }).getByRole('button', { name: 'Supprimer' }).click()
+    // Nettoyage : cette spec s'exécute sur la base partagée des autres specs. La
+    // suppression vit au fond de la fiche du compte (paquet de design).
+    await groupeBanque.getByText(nom).click()
+    const fiche = page.getByRole('dialog')
+    await fiche.getByRole('button', { name: 'Supprimer le compte' }).click()
+    await fiche.getByRole('button', { name: `Supprimer « ${nom} »` }).click()
     await expect(groupeBanque.getByText(nom)).not.toBeVisible()
   })
 
@@ -61,7 +68,8 @@ test.describe('Parcours dégradés — messages d\'erreur compréhensibles', () 
     // qualité) — `EtablissementsCard` vit désormais sur l'écran Comptes.
     await page.goto('/comptes')
     await expect(page.getByRole('heading', { name: 'Comptes' })).toBeVisible()
-    const carte = cardByTitle(page, 'Établissements')
+    await page.getByRole('button', { name: 'Établissement', exact: true }).click()
+    const carte = page.getByRole('dialog')
 
     const nom = `Étab doublon ${Date.now().toString().slice(-6)}`
     await carte.getByPlaceholder("Caisse d'Épargne").fill(nom)

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Compte, CompteAvecSolde, Etablissement, Holding } from '../api/types'
@@ -133,6 +133,7 @@ describe('ComptesPage', () => {
     render(<ComptesPage />)
     await screen.findByText('Aucun compte déclaré.')
 
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un compte' }))
     fireEvent.change(screen.getByPlaceholderText('PEA, Livret A...'), { target: { value: 'Nouveau CTO' } })
     fireEvent.change(screen.getByLabelText('Établissement'), { target: { value: '7' } })
     fireEvent.click(screen.getByRole('button', { name: '+ Nouveau compte' }))
@@ -152,46 +153,16 @@ describe('ComptesPage', () => {
     expect(modale).toHaveTextContent('42')
   })
 
-  it('supprimer un compte demande confirmation avant d\'appeler deleteCompte', async () => {
-    vi.mocked(api.listComptesAvecSolde).mockResolvedValueOnce([ligne({ compte: compte({ id: 42, nom: 'PEA' }) })]).mockResolvedValue([])
-    vi.mocked(api.deleteCompte).mockResolvedValue({ ok: true })
-    render(<ComptesPage />)
-    await screen.findByText('PEA')
-
-    // Le libellé accessible NOMME le compte (audit de design du 03/09/2026) :
-    // trois boutons « Supprimer » cohabitaient sur un même écran, indiscernables
-    // pour un lecteur d'écran. Ce test le verrouille au passage.
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer le compte PEA' }))
-
-    // Rien n'est supprimé tant que la confirmation n'est pas validée.
-    const modale = await screen.findByRole('dialog')
-    expect(api.deleteCompte).not.toHaveBeenCalled()
-    // La modale rassure sur le sort des lignes rattachées (elles ne disparaissent pas).
-    expect(within(modale).getByText(/ne sont pas supprimées/)).toBeInTheDocument()
-    // Le clic sur "Supprimer" n'a jamais ouvert la modale de DÉTAIL (stopPropagation).
-    expect(screen.queryByTestId('modale-detail')).not.toBeInTheDocument()
-
-    fireEvent.click(within(modale).getByRole('button', { name: 'Supprimer' }))
-
-    await screen.findByText('Aucun compte déclaré.')
-    expect(api.deleteCompte).toHaveBeenCalledWith(42)
-  })
-
-  it('annuler la confirmation ne supprime rien', async () => {
+  // La suppression a quitté cette liste (recommandation explicite du paquet de
+  // design) : un lien rouge à côté du solde, sur une ligne elle-même cliquable, est
+  // trop facile à toucher par erreur. Elle vit au fond de la fiche du compte —
+  // couverte par `CompteDetailContent.test.tsx`. Ce test verrouille son ABSENCE ici.
+  it("n'expose plus de suppression directe sur la ligne d'un compte", async () => {
     vi.mocked(api.listComptesAvecSolde).mockResolvedValue([ligne({ compte: compte({ id: 42, nom: 'PEA' }) })])
     render(<ComptesPage />)
     await screen.findByText('PEA')
 
-    // Le libellé accessible NOMME le compte (audit de design du 03/09/2026) :
-    // trois boutons « Supprimer » cohabitaient sur un même écran, indiscernables
-    // pour un lecteur d'écran. Ce test le verrouille au passage.
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer le compte PEA' }))
-    const modale = await screen.findByRole('dialog')
-    fireEvent.click(within(modale).getByRole('button', { name: 'Annuler' }))
-
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(api.deleteCompte).not.toHaveBeenCalled()
-    expect(screen.getByText('PEA')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Supprimer/ })).not.toBeInTheDocument()
   })
 
   describe('encart Épargne (fusion du 03/09/2026)', () => {
@@ -229,6 +200,7 @@ describe('ComptesPage', () => {
       render(<ComptesPage />)
       await screen.findByText('Aucun compte déclaré.')
 
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter un compte' }))
       fireEvent.change(screen.getByPlaceholderText('PEA, Livret A...'), { target: { value: 'Livret A' } })
       fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'REGULATED_SAVINGS' } })
       fireEvent.change(screen.getByLabelText('Valeur initiale (€, optionnel)'), { target: { value: '5000' } })
@@ -258,6 +230,7 @@ describe('ComptesPage', () => {
       render(<ComptesPage />)
       await screen.findByText('Aucun compte déclaré.')
 
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter un compte' }))
       fireEvent.change(screen.getByPlaceholderText('PEA, Livret A...'), { target: { value: 'CTO' } })
       fireEvent.change(screen.getByLabelText('Établissement'), { target: { value: '7' } })
       fireEvent.click(screen.getByRole('button', { name: '+ Nouveau compte' }))

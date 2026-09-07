@@ -13,6 +13,7 @@ import {
   libelleTaux,
   valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
+import { formatEuro } from '../utils/format'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import InfoBulle from './InfoBulle'
@@ -128,14 +129,43 @@ export default function AjoutHoldingForm({
     }
   }
 
+  // Valeur d'acquisition calculée en direct (maquette de la refonte) : quantité ×
+  // prix de revient, affichée dès que les deux nombres sont valides. La virgule
+  // décimale est acceptée — un formulaire français qui refuse « 12,50 » sans le dire
+  // fait douter de la saisie, pas du séparateur.
+  const nombreSaisi = (brut: string): number | null => {
+    const valeur = Number(brut.replace(',', '.'))
+    return brut.trim() !== '' && Number.isFinite(valeur) ? valeur : null
+  }
+  const quantiteNum = nombreSaisi(form.quantite)
+  const prixNum = nombreSaisi(form.prix_revient_moyen)
+  const valeurAcquisition = quantiteNum !== null && prixNum !== null ? quantiteNum * prixNum : null
+
+  // Écart assumé à la maquette, qui exige « ticker, quantité ET prix tous trois
+  // strictement positifs » pour activer le bouton. Deux raisons de ne pas la suivre
+  // à la lettre ici :
+  //   — un bien saisi à la main (appartement, livret) se valorise par « Valeur
+  //     estimée », pas par un prix de revient ; l'exiger fermerait le formulaire à
+  //     l'usage même pour lequel ce champ existe ;
+  //   — une quantité négative reçoit aujourd'hui un message d'erreur explicite du
+  //     serveur, plus utile qu'un bouton grisé sans explication (recette du
+  //     02/09/2026, verrouillée par un test de bout en bout).
+  // La correction que la maquette visait — un clic sans effet ni retour — est bien
+  // en place : ticker et quantité restent obligatoires.
+  const saisieComplete = form.ticker.trim() !== '' && form.quantite.trim() !== ''
+
   return (
     <Card title="Ajouter une ligne manuellement">
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Ticker
+          {/* Majuscules à la SAISIE, pas seulement à l'envoi (maquette de la
+              refonte) : le champ affichait « aapl » jusqu'au dernier moment, alors
+              que la ligne créée s'appellera « AAPL ». Voir ce qu'on obtient pendant
+              qu'on tape vaut mieux qu'une normalisation invisible. */}
           <input
             value={form.ticker}
-            onChange={(e) => setForm({ ...form, ticker: e.target.value })}
+            onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
             className="w-28 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             placeholder="AAPL"
           />
@@ -301,20 +331,39 @@ export default function AjoutHoldingForm({
             />
           </label>
         )}
-        {/* Désactivé tant que les deux champs obligatoires ne sont pas remplis
-            (recette du 02/09/2026) : `handleAdd` retournait silencieusement, donc un
-            clic sur « Ajouter » avec un formulaire vide ne produisait AUCUN retour —
-            l'utilisateur ne savait pas ce qu'on attendait de lui. Le `title` dit
-            quoi remplir plutôt que de laisser deviner. */}
+        {/* Désactivé tant que la ligne ne tient pas debout (recette du 02/09/2026,
+            resserré par la maquette) : `handleAdd` retournait silencieusement, donc
+            un clic sur « Ajouter » avec un formulaire vide ne produisait AUCUN
+            retour — l'utilisateur ne savait pas ce qu'on attendait de lui. Le
+            `title` dit quoi remplir plutôt que de laisser deviner. */}
         <button
           type="submit"
-          disabled={saving || !form.ticker.trim() || !form.quantite}
-          title={!form.ticker.trim() || !form.quantite ? 'Renseignez au minimum un ticker et une quantité.' : undefined}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          disabled={saving || !saisieComplete}
+          title={
+            saisieComplete
+              ? undefined
+              : 'Renseignez au minimum un ticker et une quantité.'
+          }
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:cursor-not-allowed disabled:bg-track disabled:text-ink4"
         >
           Ajouter
         </button>
       </form>
+
+      {/* Encart de confirmation du calcul (maquette) : ce que la ligne vaudra à
+          l'achat, avant de valider. Il ne remplace aucun champ — il rend visible la
+          multiplication que l'utilisateur faisait de tête. */}
+      {valeurAcquisition !== null && (
+        <p className="mt-3 rounded-control bg-accent-soft px-3 py-2 text-[13px] text-accent">
+          {/* Jamais masqué par « masquer les montants » : c'est le produit de deux
+              nombres que l'utilisateur vient de taper, visibles juste au-dessus dans
+              leurs champs. Le masquer cacherait un calcul, pas une donnée. Et ce
+              formulaire est aussi monté par l'assistant de bienvenue, hors du
+              fournisseur de préférences d'affichage. */}
+          Valeur d'acquisition : <span className="font-semibold">{formatEuro(valeurAcquisition, 2)}</span>{' '}
+          <span className="text-accent/80">({form.quantite} × {form.prix_revient_moyen})</span>
+        </p>
+      )}
       <p className="mt-3 text-xs text-texte-attenue">
         Pour l'immobilier, une SCPI, une assurance-vie, un PER, un compte courant/d'épargne ou un véhicule : laisser
         Quantité à 1 et renseigner Valeur estimée — elle remplace le calcul prix × quantité et se met à jour à la main,

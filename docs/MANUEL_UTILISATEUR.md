@@ -190,10 +190,14 @@ titres), ou n'en contenir qu'une (ex. une assurance-vie, un bien immobilier).
   établissement rejoint le groupe « Sans établissement ». Le solde de chaque compte est affiché
   **toutes natures d'actif confondues** (financier, immobilier, assurance-vie, épargne...), avec le
   total du foyer en tête d'écran.
-- **« + Nouveau compte »** : nom et établissement (optionnel, choisi dans la liste déjà déclarée) —
-  un compte peut aussi être créé directement depuis le formulaire d'ajout d'une ligne (Portefeuille,
-  Épargne), pas seulement depuis cet écran. Les établissements eux-mêmes se déclarent depuis
-  Réglages (onglet Détenteurs, juste sous les personnes/sociétés du foyer).
+- **Deux boutons en haut à droite**, à côté du total du foyer (07/09/2026, maquette) : **« Ajouter un
+  compte »** (nom et établissement, obligatoire) et **« Établissement »** (déclarer, renommer,
+  supprimer une banque/un courtier, et gérer son logo). Les deux ouvrent une feuille ; ils occupaient
+  jusque-là deux cartes permanentes en haut d'écran, avant même la liste des comptes — or on crée un
+  compte de temps en temps et on consulte ses soldes tous les jours. Un compte peut aussi être créé
+  directement depuis le formulaire d'ajout d'une ligne (Portefeuille), pas seulement depuis cet écran.
+- **Crayon sur l'en-tête d'un établissement** : le renommer, ou changer son logo, depuis l'endroit où
+  on le voit.
 - **Cliquer sur un compte** ouvre sa fiche détaillée (fenêtre superposée, avec un lien « Ouvrir en
   pleine page ») :
   - **Nom et établissement** modifiables directement.
@@ -209,10 +213,12 @@ titres), ou n'en contenir qu'une (ex. une assurance-vie, un bien immobilier).
     faire 100 % ; valider **remplace** la répartition actuellement enregistrée de chaque ligne du
     compte, **et de chaque emprunt qui lui est rattaché** (carte ci-dessus), ce que le formulaire
     rappelle explicitement.
-- **« Supprimer »** sur un compte (ou un établissement, depuis l'écran Réglages) : ne supprime jamais
-  ce qu'il contenait — les lignes d'un compte supprimé, ou les comptes d'un établissement supprimé,
-  retombent simplement dans le groupe « Sans compte »/« Sans établissement ». Une confirmation est
-  demandée avant suppression d'un compte, et rappelle combien de lignes vont être détachées.
+- **Supprimer un compte** se fait au **bas de sa fiche** (07/09/2026) : ouvrir le compte, descendre,
+  puis confirmer. Le lien rouge qui vivait auparavant sur la ligne, à côté du solde et sur une ligne
+  elle-même cliquable, était trop facile à toucher par erreur. La suppression ne détruit jamais ce
+  que le compte contenait — les lignes retombent dans « Sans compte », et la fiche le rappelle en
+  annonçant combien seront détachées. Même chose pour un établissement supprimé : ses comptes
+  retombent dans « Sans établissement ».
 - **Deux comptes (ou deux établissements, ou deux détenteurs) ne peuvent pas porter le même nom** :
   la création est refusée avec un message explicite. Sans cela, deux entrées identiques seraient
   impossibles à distinguer dans les listes déroulantes de répartition.
@@ -352,7 +358,8 @@ Organisé en deux temps, du plus important au reste — le chiffre, puis la cour
    patrimoine quasi vide, et « ↑ 22 008 % » ne dit rien de plus que « c'était presque zéro au
    départ ». En deçà, « mon patrimoine a triplé » reste lisible, donc le pourcentage reste affiché.
 2. **La courbe** — **Évolution du portefeuille** : suit elle aussi la lentille Net/Brut/Financier, avec
-   un sélecteur de période à côté d'elle et une pilule **Mode étagé** disponible dans les trois
+   son sélecteur de période (1M / 3M / 1A / 5A / Tout) et une pilule **Mode étagé**, tous deux en haut
+   à droite du bloc, sur la même ligne que le chiffre — disponibles dans les trois
    lentilles — superpose l'« Investi » (aire claire, trait pointillé) sous le total : la tranche
    visible entre les deux courbes, ce sont les gains. En Brut/Net, la courbe porte sur le patrimoine combiné (financier +
    immobilier/épargne/emprunts) ; seul un **versement explicitement déclaré** sur un actif valorisé

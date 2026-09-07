@@ -111,10 +111,13 @@ test.describe('Comptes (backlog X.1)', () => {
     // qualité, compte/établissement obligatoires) — choisi directement dans le
     // formulaire, celui déjà seedé (« Banque E2E »), plutôt qu'un rattachement a
     // posteriori comme avant cette revue.
-    const carteNouveauCompte = cardByTitle(page, 'Nouveau compte')
-    await carteNouveauCompte.getByPlaceholder('PEA, Livret A...').fill(nomCompte)
-    await carteNouveauCompte.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
-    await carteNouveauCompte.getByRole('button', { name: '+ Nouveau compte' }).click()
+    // Depuis le 07/09/2026 (maquette), le formulaire vit dans une feuille ouverte
+    // par le bouton de l'en-tête, plus dans une carte permanente en haut d'écran.
+    await page.getByRole('button', { name: 'Ajouter un compte' }).click()
+    const feuilleCompte = page.getByRole('dialog')
+    await feuilleCompte.getByPlaceholder('PEA, Livret A...').fill(nomCompte)
+    await feuilleCompte.getByLabel('Établissement').selectOption({ label: 'Banque E2E' })
+    await feuilleCompte.getByRole('button', { name: '+ Nouveau compte' }).click()
 
     const groupeBanque = cardByTitle(page, 'Banque E2E')
     await expect(groupeBanque.getByText(nomCompte)).toBeVisible()
@@ -144,21 +147,16 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(groupeBanqueApresRechargement.getByText(nomRenomme)).toBeVisible()
 
     // Suppression : ne touche jamais l'établissement, ni les autres comptes du même
-    // groupe (PEA E2E, seedé, doit rester visible).
-    // Le bouton NOMME le compte depuis l'audit de design du 03/09/2026 — trois
-    // « Supprimer » identiques cohabitaient, indiscernables pour un lecteur d'écran.
-    // `exact: true` reste indispensable : la ligne porte elle aussi `role="button"`
-    // (cliquable pour ouvrir le détail) et son nom accessible, calculé depuis son
-    // contenu, INCLUT désormais l'`aria-label` du bouton — une recherche par
-    // sous-chaîne matcherait donc les deux.
-    const ligne = groupeBanqueApresRechargement.locator('li').filter({ hasText: nomRenomme })
-    await ligne.getByRole('button', { name: `Supprimer le compte ${nomRenomme}`, exact: true }).click()
-    // Confirmation obligatoire depuis la recette du 02/09/2026 (le bouton est sur
-    // une ligne elle-même cliquable) — la modale rappelle le sort des lignes.
-    const confirmation = page.getByRole('dialog', { name: 'Supprimer ce compte ?' })
-    await expect(confirmation).toBeVisible()
-    await confirmation.getByRole('button', { name: 'Supprimer' }).click()
+    // groupe (PEA E2E, seedé, doit rester visible). Elle vit au FOND de la fiche du
+    // compte depuis le 07/09/2026 (recommandation du paquet de design) : un lien
+    // rouge à côté du solde, sur une ligne cliquable, était trop facile à toucher
+    // par erreur.
+    await groupeBanqueApresRechargement.getByText(nomRenomme).click()
+    const fiche = page.getByRole('dialog')
+    await fiche.getByRole('button', { name: 'Supprimer le compte' }).click()
+    await fiche.getByRole('button', { name: `Supprimer « ${nomRenomme} »` }).click()
 
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(groupeBanqueApresRechargement.getByText(nomRenomme)).not.toBeVisible()
     await expect(groupeBanqueApresRechargement.getByText('PEA E2E')).toBeVisible()
   })
@@ -166,17 +164,19 @@ test.describe('Comptes (backlog X.1)', () => {
   test('créer un compte sans établissement est refusé (bouton désactivé)', async ({ page }) => {
     // Revue du 03/09/2026, demande directe de l'utilisateur : « il n'est pas
     // possible d'avoir des comptes sans établissement ».
-    const carteNouveauCompte = cardByTitle(page, 'Nouveau compte')
-    await carteNouveauCompte.getByPlaceholder('PEA, Livret A...').fill('Compte sans étab E2E')
+    await page.getByRole('button', { name: 'Ajouter un compte' }).click()
+    const feuilleCompte = page.getByRole('dialog')
+    await feuilleCompte.getByPlaceholder('PEA, Livret A...').fill('Compte sans étab E2E')
 
-    await expect(carteNouveauCompte.getByRole('button', { name: '+ Nouveau compte' })).toBeDisabled()
+    await expect(feuilleCompte.getByRole('button', { name: '+ Nouveau compte' })).toBeDisabled()
   })
 
   test('crée, renomme puis supprime un établissement (backlog X.1)', async ({ page }) => {
     // Relocalisé depuis Réglages → onglet Détenteurs le 03/09/2026 (revue de
     // qualité) : personne ne pensait chercher la gestion des établissements
     // là-bas — elle vit désormais ici, au-dessus de la création d'un compte.
-    const carteEtablissements = cardByTitle(page, 'Établissements')
+    await page.getByRole('button', { name: 'Établissement', exact: true }).click()
+    const carteEtablissements = page.getByRole('dialog')
     const nomEtablissement = `E2E Étab ${Date.now().toString().slice(-6)}`
     const nomRenomme = `${nomEtablissement} (renommé)`
 
@@ -188,7 +188,9 @@ test.describe('Comptes (backlog X.1)', () => {
     // Édition en modale depuis le 05/09/2026 (vue dédiée qui porte aussi la gestion
     // du logo) — le renommage en ligne d'avant n'existe plus.
     await ligne.getByRole('button', { name: 'Modifier' }).click()
-    const modaleEdition = page.getByRole('dialog')
+    // Deux `dialog` empilés depuis le 07/09/2026 : la feuille « Établissements » et,
+    // par-dessus, la vue d'édition. `.last()` désigne celle du dessus.
+    const modaleEdition = page.getByRole('dialog').last()
     await modaleEdition.getByLabel('Nom').fill(nomRenomme)
     await modaleEdition.getByRole('button', { name: 'Renommer' }).click()
     await modaleEdition.getByRole('button', { name: 'Fermer' }).click()
@@ -200,7 +202,8 @@ test.describe('Comptes (backlog X.1)', () => {
   })
 
   test("téléverser un logo depuis la vue d'édition l'affiche partout (refonte import, 05/09/2026)", async ({ page }) => {
-    const carteEtablissements = cardByTitle(page, 'Établissements')
+    await page.getByRole('button', { name: 'Établissement', exact: true }).click()
+    const carteEtablissements = page.getByRole('dialog')
     const nomEtablissement = `E2E Logo ${Date.now().toString().slice(-6)}`
     await carteEtablissements.getByPlaceholder("Caisse d'Épargne").fill(nomEtablissement)
     await carteEtablissements.getByRole('button', { name: 'Ajouter' }).click()
@@ -208,7 +211,9 @@ test.describe('Comptes (backlog X.1)', () => {
     await expect(ligne).toBeVisible()
 
     await ligne.getByRole('button', { name: 'Modifier' }).click()
-    const modale = page.getByRole('dialog')
+    // `.last()` : la vue d'édition s'empile sur la feuille « Établissements »
+    // (07/09/2026), et la ligne de la liste dessous porte elle aussi le logo.
+    const modale = page.getByRole('dialog').last()
     await expect(modale.getByText(/Aucun logo/)).toBeVisible()
 
     // L'image traverse réellement le serveur : elle est validée, reconvertie en PNG
@@ -227,7 +232,8 @@ test.describe('Comptes (backlog X.1)', () => {
   })
 
   test('choisir un établissement connu dans le catalogue préremplit son nom (refonte import, 05/09/2026)', async ({ page }) => {
-    const carteEtablissements = cardByTitle(page, 'Établissements')
+    await page.getByRole('button', { name: 'Établissement', exact: true }).click()
+    const carteEtablissements = page.getByRole('dialog')
 
     await carteEtablissements.getByRole('button', { name: /Fortuneo/ }).click()
     await expect(carteEtablissements.getByPlaceholder("Caisse d'Épargne")).toHaveValue('Fortuneo')
