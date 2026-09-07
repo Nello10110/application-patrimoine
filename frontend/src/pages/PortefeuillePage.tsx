@@ -315,6 +315,7 @@ export default function PortefeuillePage() {
                 </button>
               </div>
               <AjoutHoldingForm
+                sansCarte
                 onCreated={() => {
                   load()
                   setAjoutOuvert(false)

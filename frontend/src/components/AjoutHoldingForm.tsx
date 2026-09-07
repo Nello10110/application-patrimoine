@@ -58,6 +58,7 @@ export default function AjoutHoldingForm({
   comptes: comptesFournis,
   etablissements: etablissementsFournis,
   onComptesModifies,
+  sansCarte = false,
 }: {
   onCreated?: (holding: Holding) => void
   /** Liste des comptes fournie par l'appelant. Absente, le composant la charge
@@ -66,6 +67,10 @@ export default function AjoutHoldingForm({
    * `GET /comptes` pour la même page : ce formulaire et `PositionsTable` sont
    * montés côte à côte et demandaient chacun la sienne (backlog Z.1). */
   comptes?: Compte[]
+  /** Rendu SANS son enveloppe `Card` : la feuille d'ajout de l'écran Patrimoine
+   * porte déjà son titre et son panneau de verre (maquette de la refonte) — la carte
+   * y faisait un second cadre et un second titre pour le même formulaire. */
+  sansCarte?: boolean
   /** Même rôle qu'`comptes` ci-dessus, pour la liste des établissements — affichée
    * uniquement quand un nouveau compte est créé à la volée. */
   etablissements?: Etablissement[]
@@ -130,9 +135,10 @@ export default function AjoutHoldingForm({
   }
 
   // Valeur d'acquisition calculée en direct (maquette de la refonte) : quantité ×
-  // prix de revient, affichée dès que les deux nombres sont valides. La virgule
-  // décimale est acceptée — un formulaire français qui refuse « 12,50 » sans le dire
-  // fait douter de la saisie, pas du séparateur.
+  // prix de revient, affichée dès que les deux nombres sont valides. La virgule est
+  // tolérée à la lecture par prudence — les deux champs sont aujourd'hui des
+  // `input[type=number]`, où le navigateur normalise déjà le séparateur selon la
+  // locale, mais ce parsing survivrait à leur passage en champ texte.
   const nombreSaisi = (brut: string): number | null => {
     const valeur = Number(brut.replace(',', '.'))
     return brut.trim() !== '' && Number.isFinite(valeur) ? valeur : null
@@ -154,8 +160,8 @@ export default function AjoutHoldingForm({
   // en place : ticker et quantité restent obligatoires.
   const saisieComplete = form.ticker.trim() !== '' && form.quantite.trim() !== ''
 
-  return (
-    <Card title="Ajouter une ligne manuellement">
+  const contenu = (
+    <>
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
           Ticker
@@ -382,6 +388,8 @@ export default function AjoutHoldingForm({
           </p>
         )}
       {error && <EtatErreur message={error} />}
-    </Card>
+    </>
   )
+
+  return sansCarte ? contenu : <Card title="Ajouter une ligne manuellement">{contenu}</Card>
 }
