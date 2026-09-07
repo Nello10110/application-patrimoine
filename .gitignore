@@ -20,6 +20,8 @@ graphify-out/
 # chaque run, jamais versionnés.
 frontend/e2e/.e2e-data/
 frontend/test-results/
+# Captures de revue visuelle (spec Playwright temporaire) : jamais versionnées.
+frontend/captures/
 frontend/playwright-report/
 frontend/blob-report/
 
