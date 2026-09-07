@@ -92,8 +92,15 @@ function AppAuthentifiee() {
               visible sans `position: sticky`.
               `pb-24` (backlog 2.K.4, < 768 px) : marge sous le contenu pour ne jamais
               le laisser passer sous `BottomNav`, fixe en bas de l'écran sur mobile. */}
+          {/* Aucune largeur maximale ici (retour utilisateur du 07/09/2026 : « la
+              fenêtre au milieu prend tout l'espace sur les maquettes, pas sur le
+              site »). Le `max-w-6xl` qui traînait plafonnait le contenu à 1152 px et
+              le centrait : invisible sur un écran de 1440 px, mais il laissait 500 px
+              de vide à droite au-delà. La maquette, elle, donne `flex: 1` à la colonne
+              de contenu — les panneaux vont jusqu'au bord, et ce sont EUX qui se
+              donnent une largeur maximale quand leur contenu le demande (Réglages en
+              colonne de 760 px, Connexion en 400 px). */}
           <div className="min-h-0 flex-1 overflow-y-auto pb-24 md:pb-0">
-            <div className="mx-auto max-w-6xl">
             <Suspense fallback={<SkeletonTexte />}>
               <Routes>
                 {ROUTES.map((r) => {
@@ -115,7 +122,6 @@ function AppAuthentifiee() {
                 <Route path="/simulateur" element={<Navigate to="/objectifs" replace />} />
               </Routes>
             </Suspense>
-            </div>
           </div>
         </main>
 
