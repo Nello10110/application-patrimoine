@@ -92,6 +92,7 @@ export function Pill({
   ariaLabel,
   actif,
   title,
+  className = '',
 }: {
   children: ReactNode
   onClick?: () => void
@@ -103,11 +104,12 @@ export function Pill({
    * une bascule. */
   actif?: boolean
   title?: string
+  className?: string
 }) {
   // Même règle des 44 px que le contrôle segmenté (refonte, étape 5).
   const classes = `flex min-h-11 items-center gap-[7px] rounded-chip border px-3 text-[13px] transition-colors md:min-h-0 md:py-[5px] ${
     actif ? 'border-transparent bg-accent-soft text-accent' : 'border-hairline bg-chip text-ink2 hover:bg-hover'
-  }`
+  } ${className}`
   if (!onClick) {
     return (
       <span className={classes} aria-label={ariaLabel} title={title}>

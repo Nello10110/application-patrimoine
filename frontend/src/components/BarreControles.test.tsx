@@ -18,8 +18,9 @@ function detenteur(overrides: Partial<Detenteur> = {}): Detenteur {
   return { id: 1, nom: 'Alice', type: 'personne', created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00', ...overrides }
 }
 
-// `MemoryRouter` depuis la refonte (étape 3) : la barre lit la route courante pour
-// afficher la pilule de contexte, qui remplace le fil d'Ariane retiré.
+// `MemoryRouter` conservé même si la barre ne lit plus la route depuis le retrait de
+// la pilule de contexte (07/09/2026) : ses enfants restent susceptibles d'en avoir
+// besoin, et le harnais ne coûte rien.
 function renderBarre() {
   return render(
     <MemoryRouter>
@@ -102,5 +103,28 @@ describe('BarreControles — Période retirée (refonte « liquid glass », éta
 
     expect(screen.queryByText('Période')).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Personnalisée…' })).not.toBeInTheDocument()
+  })
+})
+
+describe('BarreControles — pilule de contexte retirée (07/09/2026)', () => {
+  // Retour utilisateur : « on a le nom de la page qui est rappelée, je ne vois pas
+  // l'intérêt ». L'item actif de la barre latérale et le titre de la page le disent
+  // déjà — et la barre doit tenir sur une seule ligne.
+  it("ne rappelle plus le nom de l'écran courant", () => {
+    renderBarre()
+
+    expect(screen.queryByText('Synthèse')).not.toBeInTheDocument()
+  })
+
+  // L'ask explicite : la bascule prend le gabarit de pilule du reste de la barre.
+  it('la bascule des montants est une pilule, active quand les montants sont masqués', () => {
+    renderBarre()
+    const pilule = screen.getByRole('button', { name: 'Masquer les montants' })
+
+    expect(pilule.className).toContain('rounded-chip')
+    expect(pilule.className).toContain('border')
+
+    fireEvent.click(pilule)
+    expect(screen.getByRole('button', { name: 'Afficher les montants' }).className).toContain('bg-accent-soft')
   })
 })

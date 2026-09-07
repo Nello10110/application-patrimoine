@@ -3,12 +3,10 @@ import { api } from '../api/client'
 import type { Detenteur } from '../api/types'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { Lentille } from '../contexts/preferencesAffichageContextObject'
-import { useLocation } from 'react-router-dom'
 import { GlassPanel } from './GlassPanel'
 import { Pill, SegmentedControl } from './Controls'
 import { IconEcran, IconLune, IconOeil, IconOeilBarre, IconSoleil } from './icons'
 import { useTheme, type Theme } from '../hooks/useTheme'
-import { ROUTES } from '../layout/routes'
 
 // `aide` : infobulle par option plutôt qu'une seule sur le groupe — c'est la
 // DIFFÉRENCE entre les trois qui est obscure pour un nouvel utilisateur, pas la
@@ -50,6 +48,10 @@ const OPTIONS_THEME: { valeur: Theme; libelle: React.ReactNode; aide: string }[]
  * lentille patrimoine net/brut/financier, filtre Détenteur (foyer ou une personne/
  * société précise), bascule "masquer les montants" et thème.
  *
+ * La pilule qui rappelait l'écran courant a été retirée le 07/09/2026 (« je ne vois
+ * pas l'intérêt ») : elle disait une troisième fois ce que l'item actif de la barre
+ * latérale et le titre de la page annoncent déjà.
+ *
  * La Période N'EST PLUS ici (refonte « liquid glass », étape 4) : elle vit désormais
  * à côté de la courbe qu'elle change (`PortfolioHistoryChart`), et le Rapport a ses
  * propres contrôles de période. Un sélecteur global qui pilotait certains écrans et
@@ -62,8 +64,6 @@ export default function BarreControles() {
   const { lentille, setLentille, montantsMasques, toggleMontantsMasques, detenteurId, setDetenteurId } =
     usePreferencesAffichage()
   const { theme, setTheme } = useTheme()
-  const { pathname } = useLocation()
-  const titreEcran = ROUTES.find((r) => r.path === pathname)?.titre ?? null
   const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
 
   useEffect(() => {
@@ -99,31 +99,29 @@ export default function BarreControles() {
         </>
       )}
 
-      {/* Pilule de contexte : rappelle l'écran courant, à la place du fil d'Ariane
-          retiré à cette étape. Lue depuis `ROUTES`, source unique du libellé. */}
-      {titreEcran && (
-        <span className="ml-auto shrink-0">
-          <Pill>{titreEcran}</Pill>
-        </span>
-      )}
+      {/* La pilule de contexte, qui rappelait l'écran courant, est retirée (retour
+          utilisateur du 07/09/2026 : « je ne vois pas l'intérêt »). Elle disait une
+          troisième fois ce que l'item actif de la barre latérale et le titre de la
+          page annoncent déjà — et elle occupait la place que cette barre doit garder
+          pour tenir sur une seule ligne.
 
-      <button
-        type="button"
+          La bascule des montants prend enfin le gabarit de pilule du reste de la
+          barre, au lieu d'un bouton nu sans fond ni bordure : à côté du segmenté et
+          du sélecteur, elle ne se lisait pas comme un contrôle. */}
+      <Pill
+        actif={montantsMasques}
         onClick={toggleMontantsMasques}
-        aria-pressed={montantsMasques}
+        icone={montantsMasques ? <IconOeilBarre className="h-4 w-4" /> : <IconOeil className="h-4 w-4" />}
         // Libellé visible court (« Visibles » / « Masqués ») pour tenir sur une
         // ligne, mais nom accessible complet : seul, « Visibles » ne dit pas de
         // quoi il parle à un lecteur d'écran.
-        aria-label={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants`}
+        ariaLabel={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants`}
         title={`${montantsMasques ? 'Afficher' : 'Masquer'} les montants (Ctrl/⌘ + Maj + M). ${AIDE_MONTANTS_MASQUES}`}
-        className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-2.5 text-[13px] transition-colors hover:bg-hover md:min-h-0 md:py-1.5 ${
-          titreEcran ? '' : 'ml-auto'
-        } text-ink2`}
+        className="ml-auto shrink-0"
       >
-        {montantsMasques ? <IconOeilBarre className="h-4 w-4" /> : <IconOeil className="h-4 w-4" />}
         {/* Libellés courts (README étape 3) : la barre doit tenir sur une ligne jusqu'à 1000 px. */}
         <span className="hidden sm:inline">{montantsMasques ? 'Masqués' : 'Visibles'}</span>
-      </button>
+      </Pill>
 
       {/* Thème à droite de la barre (README étape 3). Trois positions et non deux :
           l'application garde son mode « système », que la maquette ne prévoyait pas —
