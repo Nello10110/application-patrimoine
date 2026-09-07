@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { Detenteur, Holding, IndicateursSituation, ObjectifDetail, TypeObjectif } from '../api/types'
 import Card from './Card'
@@ -9,7 +9,8 @@ import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro, formatPct } from '../utils/format'
-import { COULEUR_AXE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import { ChartFrame, reperesTemporels } from './ChartFrame'
+import { POINTILLES_REPERE, STYLE_INFOBULLE, STYLE_LEGENDE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 
 const TYPES_OBJECTIF: { value: TypeObjectif; label: string }[] = [
   { value: 'personnalise', label: 'Personnalisé' },
@@ -134,16 +135,29 @@ function ObjectifCard({ objectif, onDeleted }: { objectif: ObjectifDetail; onDel
         </p>
       )}
 
-      <ResponsiveContainer width="100%" height={200} className="mt-4">
-        <LineChart data={data}>
-          <XAxis dataKey="date" tickFormatter={(v) => formatDate(v)} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-          <YAxis tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)} width={80} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+      <div className="mt-4">
+        {/* « Cible » n'avait aucun `strokeWidth` : Recharts retombait à 1 px, une
+            épaisseur qui n'appartient à aucune échelle. C'est un REPÈRE (1,5 px
+            pointillé), le réel est la série principale (2,5 px). */}
+        <ChartFrame reperes={reperesTemporels(data, 'date', formatDate)} hauteur="encart">
+        <LineChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+          <XAxis dataKey="date" hide />
+          <YAxis hide domain={['dataMin', 'dataMax']} />
           <Tooltip formatter={(v) => formatEuro(Number(v), 0, montantsMasques)} labelFormatter={(v) => formatDate(String(v))} {...STYLE_INFOBULLE} />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Line type="monotone" dataKey="Cible" stroke="var(--ink4)" strokeDasharray="4 4" dot={false} />
-          <Line type="monotone" dataKey="Réel" stroke="var(--accent)" strokeWidth={2} />
+          <Legend wrapperStyle={STYLE_LEGENDE} />
+          <Line
+            type="monotone"
+            dataKey="Cible"
+            stroke="var(--ink4)"
+            strokeWidth={TRAIT_REPERE}
+            strokeDasharray={POINTILLES_REPERE}
+            dot={false}
+            isAnimationActive={false}
+          />
+          <Line type="monotone" dataKey="Réel" stroke="var(--accent)" strokeWidth={TRAIT_PRINCIPAL} dot={false} isAnimationActive={false} />
         </LineChart>
-      </ResponsiveContainer>
+        </ChartFrame>
+      </div>
       <p className="mt-1 text-xs text-texte-attenue">
         Trajectoire réelle ancrée sur deux mesures (création, aujourd'hui) — pas un historique complet des versements.
       </p>

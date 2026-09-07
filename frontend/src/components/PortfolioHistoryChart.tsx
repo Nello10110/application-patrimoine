@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Tooltip, XAxis, YAxis } from 'recharts'
 import type { PatrimoineHistoryPoint, PortfolioHistoryPoint } from '../api/types'
 import { Pill, SegmentedControl } from './Controls'
 import EtatErreur from './EtatErreur'
@@ -8,7 +8,8 @@ import { SkeletonGraphique } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro } from '../utils/format'
 import { PERIODES_RELATIVES, bornesPeriode } from '../utils/periode'
-import { STYLE_INFOBULLE } from '../utils/chartTheme'
+import { ChartFrame, reperesTemporels } from './ChartFrame'
+import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 
 /** Contrôles de la courbe — légende du mode étagé, pilule « Mode étagé » et
  * sélecteur de période. Séparés du graphique parce que la maquette les place dans
@@ -155,17 +156,11 @@ export default function PortfolioHistoryChart({
     [filtered],
   )
 
-  // Cinq repères d'axe sous la courbe (maquette de la refonte) plutôt que les axes
-  // complets de Recharts : la courbe raconte une forme, pas des valeurs précises —
-  // celles-ci s'obtiennent à l'infobulle, au survol du point voulu.
-  const reperesAxe = useMemo(() => {
-    if (data.length === 0) return []
-    const pas = (data.length - 1) / 4
-    return Array.from({ length: 5 }, (_, i) => {
-      const point = data[Math.round(i * pas)]
-      return point ? formatDate(point.date) : ''
-    })
-  }, [data])
+  // Cinq repères d'axe sous la courbe (maquette) plutôt que les axes complets de
+  // Recharts : la courbe raconte une forme, pas des valeurs précises — celles-ci
+  // s'obtiennent à l'infobulle, au survol du point voulu. La règle vit désormais dans
+  // `reperesTemporels`, pour que les autres courbes échantillonnent pareil.
+  const reperesAxe = useMemo(() => reperesTemporels(data, 'date', formatDate), [data])
 
   return (
     <>
@@ -182,17 +177,32 @@ export default function PortfolioHistoryChart({
 
       {!loadingActif && !errorActif && data.length > 0 && (
         <>
-          {/* Langage graphique de la refonte : un trait d'accent de 2,5 px et son aire
-              dégradée, sans grille ni axes dessinés. Les axes de Recharts sont
-              conservés mais MASQUÉS (`hide`) : ils calculent toujours l'échelle, ils
-              ne l'affichent plus. */}
-          <ResponsiveContainer width="100%" height={180}>
+          {/* Langage graphique de la refonte, désormais porté par `ChartFrame` : ni
+              grille ni axe dessiné, et cinq repères de date en HTML sous le tracé.
+              Les axes de Recharts restent montés mais MASQUÉS (`hide`) — ils
+              calculent toujours l'échelle, ils ne l'affichent plus.
+
+              C'était le seul graphique de l'application à le faire correctement ; le
+              cadre est extrait ici pour que les neuf autres s'y conforment sans que
+              chacun re-décide. */}
+          <ChartFrame
+            reperes={reperesAxe}
+            hauteur="heros"
+            bas={
+              /* Mobile : la période sous la courbe, sur toute la largeur (maquette). */
+              <SegmentedControl
+                options={PERIODES_RELATIVES.map((p) => ({ valeur: p.valeur, libelle: p.label }))}
+                valeur={periode.type === 'relative' ? periode.valeur : 'TOUT'}
+                onChange={(valeur) => setPeriode({ type: 'relative', valeur })}
+                taille="sm"
+                ariaLabel="Période du graphique (mobile)"
+                className="mt-3 md:hidden"
+              />
+            }
+          >
             <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
               <defs>
-                <linearGradient id="aireHero" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.34} />
-                  <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
-                </linearGradient>
+                <DegradeAire id="aireHero" />
               </defs>
               <XAxis dataKey="date" hide />
               <YAxis hide domain={['dataMin', 'dataMax']} />
@@ -205,8 +215,9 @@ export default function PortfolioHistoryChart({
                 type="monotone"
                 dataKey="Portefeuille"
                 stroke="var(--accent)"
-                strokeWidth={2.5}
+                strokeWidth={TRAIT_PRINCIPAL}
                 fill="url(#aireHero)"
+                dot={false}
                 isAnimationActive={false}
               />
               {/* Mode étagé : l'investi par-dessus l'aire du total, depuis la même
@@ -217,31 +228,16 @@ export default function PortfolioHistoryChart({
                   type="monotone"
                   dataKey="Investi"
                   stroke="var(--s3)"
-                  strokeWidth={1.5}
-                  strokeDasharray="5 4"
+                  strokeWidth={TRAIT_REPERE}
+                  strokeDasharray={POINTILLES_REPERE}
                   fill="var(--s4)"
                   fillOpacity={0.55}
+                  dot={false}
                   isAnimationActive={false}
                 />
               )}
             </AreaChart>
-          </ResponsiveContainer>
-
-          <div className="flex justify-between pt-0.5 text-[11px] text-ink4">
-            {reperesAxe.map((libelle, i) => (
-              <span key={`${libelle}-${i}`}>{libelle}</span>
-            ))}
-          </div>
-
-          {/* Mobile : la période sous la courbe, sur toute la largeur (maquette). */}
-          <SegmentedControl
-            options={PERIODES_RELATIVES.map((p) => ({ valeur: p.valeur, libelle: p.label }))}
-            valeur={periode.type === 'relative' ? periode.valeur : 'TOUT'}
-            onChange={(valeur) => setPeriode({ type: 'relative', valeur })}
-            taille="sm"
-            ariaLabel="Période du graphique (mobile)"
-            className="mt-3 md:hidden"
-          />
+          </ChartFrame>
 
           {stackedEffectif && (
             <p className="mt-2 text-[11px] text-ink4">

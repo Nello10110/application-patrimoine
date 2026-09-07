@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { HoldingDetail } from '../api/types'
 import Card from './Card'
 import { DeltaBadge, SegmentedControl } from './Controls'
@@ -16,7 +16,14 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useImmobilierDetail } from '../hooks/useImmobilierDetail'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatEuro, formatPct, formatQuantite } from '../utils/format'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import {
+  AXE_CATEGORIES,
+  CURSEUR_BARRE,
+  EPAISSEUR_BARRE,
+  RAYON_BARRE_HORIZONTALE,
+  STYLE_INFOBULLE,
+  hauteurBarres,
+} from '../utils/chartTheme'
 
 function libelleTypeActif(typeActif: string | null): string | null {
   if (!typeActif) return null
@@ -245,31 +252,27 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
 
           {detail.composition_actions.length > 0 && (
             <Card title="Composition en actions (10 plus grosses lignes du fonds)">
-              <ResponsiveContainer width="100%" height={Math.max(220, detail.composition_actions.length * 36)}>
-                <BarChart data={detail.composition_actions} layout="vertical" margin={{ left: 24, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COULEUR_GRILLE} />
-                  <XAxis
-                    type="number"
-                    unit="%"
-                    tickFormatter={(v) => (v * 100).toFixed(0)}
-                    domain={[0, 'dataMax']}
-                    stroke={COULEUR_AXE}
-                    tick={STYLE_TICK_AXE}
-                  />
+              <ResponsiveContainer width="100%" height={hauteurBarres(detail.composition_actions.length)}>
+                <BarChart
+                  data={detail.composition_actions}
+                  layout="vertical"
+                  margin={{ left: 0, right: 8 }}
+                  barSize={EPAISSEUR_BARRE}
+                >
+                  <XAxis type="number" domain={[0, 'dataMax']} hide />
                   <YAxis
-                    type="category"
                     dataKey="symbol"
                     width={120}
                     tickFormatter={(v: string) => (v.length > 16 ? `${v.slice(0, 15)}…` : v)}
-                    tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
-                    stroke={COULEUR_AXE}
+                    {...AXE_CATEGORIES}
                   />
                   <Tooltip
                     formatter={(value) => `${(Number(value) * 100).toFixed(2)}%`}
                     labelFormatter={(_, p) => p?.[0]?.payload?.nom ?? ''}
+                    cursor={CURSEUR_BARRE}
                     {...STYLE_INFOBULLE}
                   />
-                  <Bar dataKey="poids" fill="var(--s1)" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="poids" fill="var(--s1)" radius={RAYON_BARRE_HORIZONTALE} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
 

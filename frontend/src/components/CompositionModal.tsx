@@ -1,21 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { CategoryCompositionResponse } from '../api/types'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import HoldingDetailModal from './HoldingDetailModal'
 import { IconFermer } from './icons'
+import { RepartitionEmpilee } from './ChartFrame'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
-import { SERIE, STYLE_INFOBULLE } from '../utils/chartTheme'
 
-// Une seule famille de bleus, du plus au moins important (refonte « liquid glass ») :
-// la palette arc-en-ciel d'avant faisait croire à des catégories de natures
-// différentes là où il n'y a qu'un ordre de grandeur. Au-delà de la cinquième, la
-// teinte ne distingue plus rien — c'est le libellé qui le fait.
-const COLORS = SERIE
 
 /** Détail des lignes d'une catégorie d'un camembert cliquable — réutilisé par le
  * Tableau de bord (géo/secteur du seul portefeuille financier, `sousTitre` fixe) ET
@@ -78,25 +72,19 @@ export default function CompositionModal({
                 <p className="mb-2 text-sm text-texte">
                   Valeur totale : <span className="font-medium text-texte">{formatEuro(data.valeur_totale, 2, montantsMasques)}</span>
                 </p>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
-                    <Pie
-                      data={data.lignes}
-                      dataKey="valeur"
-                      nameKey="ticker"
-                      cx="50%"
-                      cy="45%"
-                      outerRadius={70}
-                      label={(d) => `${((d.value / data.valeur_totale) * 100).toFixed(0)}%`}
-                    >
-                      {data.lignes.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => formatEuro(Number(value), 2, montantsMasques)} {...STYLE_INFOBULLE} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                  </PieChart>
-                </ResponsiveContainer>
+                {/* Barre empilée + liste plutôt qu'un camembert (passe d'uniformité) :
+                    cette modale s'ouvre depuis l'écran Analyse, au clic sur une barre
+                    de répartition — passer d'une barre à un camembert pour descendre
+                    d'un niveau de détail changeait de langage en cours de route. */}
+                <RepartitionEmpilee
+                  parts={[...data.lignes]
+                    .sort((a, b) => b.valeur - a.valeur)
+                    .map((l) => ({
+                      nom: l.nom ?? l.ticker,
+                      pourcentage: data.valeur_totale > 0 ? (l.valeur / data.valeur_totale) * 100 : 0,
+                      valeur: formatEuro(l.valeur, 2, montantsMasques),
+                    }))}
+                />
 
                 <ul className="mt-3 divide-y divide-bordure border-t border-bordure">
                   {data.lignes.map((l) => (

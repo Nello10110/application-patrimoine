@@ -28,7 +28,11 @@ test.describe('Fiche détaillée d\'une position', () => {
     await page.getByRole('button', { name: 'Ajouter une valorisation' }).click()
 
     const tableau = page.locator('table').first()
-    await expect(page.getByText(montantRegex(16000))).toBeVisible()
+    // Le montant se lit dans le TABLEAU (deux décimales). Il était cherché sans
+    // décimale, ce qui matchait en fait une graduation de l'axe des valeurs du
+    // graphique — axe retiré par la passe d'uniformité : un graphique dit une forme,
+    // la valeur exacte se lit dans le tableau ou à l'infobulle.
+    await expect(tableau.getByText(montantRegex(16000, 2))).toBeVisible()
     await expect(tableau.locator('tbody tr')).toHaveCount(valeurAvant + 1)
 
     // Nettoyage : ce point est daté d'AUJOURD'HUI À MINUIT (l'input `type="date"` ne

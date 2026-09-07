@@ -149,7 +149,7 @@ describe('ExpositionConsolideeCard', () => {
     await screen.findByText(/90% de cette valeur/)
   })
 
-  it('cliquer sur une part du camembert par classe ouvre le détail des lignes (retour utilisateur 31/08/2026)', async () => {
+  it('cliquer sur une part de la répartition par classe ouvre le détail des lignes (retour utilisateur 31/08/2026)', async () => {
     vi.mocked(api.getExpositionConsolidee).mockResolvedValue(
       donnees({ valeur_totale: 10000, repartition_classe: [{ categorie: 'Actions', valeur: 10000 }] }),
     )
@@ -164,7 +164,7 @@ describe('ExpositionConsolideeCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
 
-    await screen.findByText('AAA')
+    await screen.findAllByText('AAA')
     expect(api.getExpositionConsolideeComposition).toHaveBeenCalledWith('classe', 'Actions', false)
   })
 

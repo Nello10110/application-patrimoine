@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import Card from '../components/Card'
 import EtatErreur from '../components/EtatErreur'
@@ -7,7 +7,8 @@ import ObjectifsSuivisSection from '../components/ObjectifsSuivisSection'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import { ChartFrame } from '../components/ChartFrame'
+import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 import { dateVersISO, formatEuro } from '../utils/format'
 import { agregerParAnnee, arrondi, calculerFire, calculerTrajectoire, calculerTrajectoireMensuelle, type PointAnnuel, type PointMensuel } from '../utils/interetsComposes'
 import { SegmentedControl } from '../components/Controls'
@@ -240,7 +241,25 @@ export default function SimulateurPage() {
   const totalVerse = dernierPoint?.investi ?? 0
   const gains = arrondi(valeurFinale - totalVerse)
 
-  const data = points.map((p) => ({ annee: p.annee, Investi: p.investi, Gains: arrondi(p.valeur - p.investi) }))
+  // `Total` remplace `Gains` empilé sur `Investi` : le mode étagé de la Synthèse
+  // superpose l'investi SOUS le total depuis la même ligne de base, les gains étant
+  // la tranche visible entre les deux courbes. Même concept, même image — et
+  // `Gains` reste calculé pour l'infobulle, qui doit continuer à le nommer.
+  const data = points.map((p) => ({
+    annee: p.annee,
+    Total: p.valeur,
+    Investi: p.investi,
+    Gains: arrondi(p.valeur - p.investi),
+  }))
+
+  // Repères d'axe : des DURÉES, pas des dates — `reperesTemporels` ne s'applique pas.
+  const reperesDuree =
+    data.length === 0
+      ? []
+      : Array.from({ length: 5 }, (_, i) => {
+          const point = data[Math.round((i * (data.length - 1)) / 4)]
+          return point ? `+${point.annee} an${point.annee > 1 ? 's' : ''}` : ''
+        })
 
   const depenseCibleNum = Number(depenseCible)
   const tauxRetraitNum = Number(tauxRetrait)
@@ -395,25 +414,48 @@ export default function SimulateurPage() {
               <StatTile label="Dont intérêts gagnés" value={formatEuro(gains, 0, montantsMasques)} tone="good" />
             </div>
 
-            <ResponsiveContainer width="100%" height={280} className="mt-4">
-              <AreaChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
-                <XAxis
-                  dataKey="annee"
-                  tickFormatter={(v) => `+${v} an${v > 1 ? 's' : ''}`}
-                  tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
-                  stroke={COULEUR_AXE}
-                />
-                <YAxis tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)} width={90} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
+            <div className="mt-4">
+              {/* Investi/Gains est le MÊME concept que le mode étagé de la Synthèse :
+                  il doit avoir la même image. Le total en dégradé d'accent, l'investi
+                  en `--s3` pointillé sur une aire `--s4` à 55 % — au lieu des deux
+                  aplats pleins d'avant, qui racontaient la même chose dans une autre
+                  langue. Les repères d'axe sont des durées, pas des dates : ils sont
+                  fournis en clair plutôt que par `reperesTemporels`. */}
+              <ChartFrame reperes={reperesDuree} hauteur={280}>
+              <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                <defs>
+                  <DegradeAire id="aireSimulateur" />
+                </defs>
+                <XAxis dataKey="annee" hide />
+                <YAxis hide domain={[0, 'dataMax']} />
                 <Tooltip
                   formatter={(value) => formatEuro(Number(value), 0, montantsMasques)}
                   labelFormatter={(v) => `Dans ${v} an${Number(v) > 1 ? 's' : ''}`}
                   {...STYLE_INFOBULLE}
                 />
-                <Area type="monotone" dataKey="Investi" stackId="1" stroke="var(--s3)" fill="var(--s4)" />
-                <Area type="monotone" dataKey="Gains" stackId="1" stroke="var(--accent)" fill="var(--s2)" />
+                <Area
+                  type="monotone"
+                  dataKey="Total"
+                  stroke="var(--accent)"
+                  strokeWidth={TRAIT_PRINCIPAL}
+                  fill="url(#aireSimulateur)"
+                  dot={false}
+                  isAnimationActive={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="Investi"
+                  stroke="var(--s3)"
+                  strokeWidth={TRAIT_REPERE}
+                  strokeDasharray={POINTILLES_REPERE}
+                  fill="var(--s4)"
+                  fillOpacity={0.55}
+                  dot={false}
+                  isAnimationActive={false}
+                />
               </AreaChart>
-            </ResponsiveContainer>
+              </ChartFrame>
+            </div>
 
             <div className="mt-6 flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Détail par période</h3>

@@ -220,7 +220,9 @@ describe("RapportPage — bloc épargne (backlog § U.1)", () => {
     expect(screen.getByText('300 €')).toBeInTheDocument()
     expect(screen.getByText('200 €')).toBeInTheDocument()
     expect(screen.getByText('Répartition de l\'épargne par type')).toBeInTheDocument()
-    expect(document.querySelector('.recharts-responsive-container')).toBeInTheDocument()
+    // Barre empilée + liste en HTML depuis la passe d'uniformité : plus de
+    // camembert, donc plus de conteneur Recharts à chercher.
+    expect(screen.getByText('Assurance-vie')).toBeInTheDocument()
   })
 
   it("affiche les libellés « déclarés » plutôt qu'« estimés » quand un versement a été précisé (backlog § U.2)", async () => {

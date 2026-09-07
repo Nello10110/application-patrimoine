@@ -16,6 +16,16 @@
       }
     },
     {
+      // `chartTheme.tsx` porte le langage graphique : des constantes de forme ET un
+      // composant SVG (`DegradeAire`, qui doit être du JSX pour être posé dans un
+      // `<defs>`). Les séparer en deux fichiers éclaterait une seule décision de
+      // design sur deux endroits ; le rechargement à chaud d'un fichier de jetons
+      // n'est pas un enjeu. `ChartFrame.tsx` est dans le même cas : le cadre, les
+      // repères et la répartition empilée forment un seul motif.
+      "files": ["src/utils/chartTheme.tsx", "src/components/ChartFrame.tsx"],
+      "rules": { "react/only-export-components": "off" }
+    },
+    {
       "files": ["src/components/Skeleton.tsx"],
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },

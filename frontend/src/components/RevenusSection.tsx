@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { DividendeMois } from '../api/types'
 import Card from './Card'
@@ -9,7 +9,14 @@ import { GlassPanel } from './GlassPanel'
 import RevenusPassifsCard from './RevenusPassifsCard'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import {
+  AXE_CATEGORIES,
+  CURSEUR_BARRE,
+  EPAISSEUR_BARRE,
+  RAYON_BARRE_HORIZONTALE,
+  STYLE_INFOBULLE,
+  hauteurBarres,
+} from '../utils/chartTheme'
 import { formatDate, formatEuro } from '../utils/format'
 
 function libelleMois(mois: string): string {
@@ -84,7 +91,6 @@ export default function RevenusSection() {
 
   const total = calendrier.reduce((acc, m) => acc + m.montant_total, 0)
   const donneesGraphique = calendrier.map((m) => ({ mois: libelleMois(m.mois), montant: m.montant_total }))
-  const hauteurGraphique = Math.max(220, donneesGraphique.length * 32)
 
   return (
     <div className="space-y-[14px]">
@@ -108,13 +114,16 @@ export default function RevenusSection() {
           </GlassPanel>
 
           <Card title="Par mois">
-            <ResponsiveContainer width="100%" height={hauteurGraphique}>
-              <BarChart data={donneesGraphique} layout="vertical" margin={{ left: 24, right: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COULEUR_GRILLE} />
-                <XAxis type="number" stroke={COULEUR_AXE} tick={STYLE_TICK_AXE} tickFormatter={(v) => formatEuro(v, 0, montantsMasques)} />
-                <YAxis type="category" dataKey="mois" width={130} tick={{ fontSize: 12, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-                <Tooltip formatter={(value) => formatEuro(Number(value), 2, montantsMasques)} {...STYLE_INFOBULLE} />
-                <Bar dataKey="montant" fill="var(--s1)" radius={[0, 4, 4, 0]} />
+            <ResponsiveContainer width="100%" height={hauteurBarres(donneesGraphique.length)}>
+              <BarChart data={donneesGraphique} layout="vertical" margin={{ left: 0, right: 8 }} barSize={EPAISSEUR_BARRE}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="mois" width={130} {...AXE_CATEGORIES} />
+                <Tooltip
+                  formatter={(value) => formatEuro(Number(value), 2, montantsMasques)}
+                  cursor={CURSEUR_BARRE}
+                  {...STYLE_INFOBULLE}
+                />
+                <Bar dataKey="montant" fill="var(--s1)" radius={RAYON_BARRE_HORIZONTALE} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </Card>

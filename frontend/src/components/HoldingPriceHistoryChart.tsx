@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { HoldingPriceHistoryResponse } from '../api/types'
 import Card from './Card'
@@ -7,8 +7,9 @@ import { SkeletonGraphique } from './Skeleton'
 import EtatVide from './EtatVide'
 import EtatErreur from './EtatErreur'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
-import { formatEuro } from '../utils/format'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import { formatDate, formatEuro } from '../utils/format'
+import { ChartFrame, reperesTemporels } from './ChartFrame'
+import { STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
 
 export default function HoldingPriceHistoryChart({ ticker }: { ticker: string }) {
   const { montantsMasques } = usePreferencesAffichage()
@@ -57,21 +58,25 @@ export default function HoldingPriceHistoryChart({ ticker }: { ticker: string })
 
   return (
     <Card title="Performance historique">
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={data.points}>
-          <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
-          <XAxis dataKey="date" tick={{ fontSize: 11, ...STYLE_TICK_AXE }} minTickGap={40} stroke={COULEUR_AXE} />
-          <YAxis
-            tickFormatter={(v) => formatEuro(Number(v), 2, montantsMasques)}
-            width={80}
-            tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
-            domain={['auto', 'auto']}
-            stroke={COULEUR_AXE}
+      <ChartFrame reperes={reperesTemporels(data.points.map((p) => ({ date: p.date })), 'date', formatDate)} hauteur="panneau">
+        <LineChart data={data.points} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+          <XAxis dataKey="date" hide />
+          <YAxis hide domain={['dataMin', 'dataMax']} />
+          <Tooltip
+            formatter={(value) => formatEuro(Number(value), 2, montantsMasques)}
+            labelFormatter={(date) => formatDate(String(date))}
+            {...STYLE_INFOBULLE}
           />
-          <Tooltip formatter={(value) => formatEuro(Number(value), 2, montantsMasques)} {...STYLE_INFOBULLE} />
-          <Line type="monotone" dataKey="prix" stroke="var(--accent)" dot={false} strokeWidth={2} />
+          <Line
+            type="monotone"
+            dataKey="prix"
+            stroke="var(--accent)"
+            dot={false}
+            strokeWidth={TRAIT_PRINCIPAL}
+            isAnimationActive={false}
+          />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartFrame>
 
       <div className="mt-3 flex gap-6 border-t border-bordure pt-3 text-sm">
         <div>

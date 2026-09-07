@@ -1,8 +1,16 @@
-import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Holding } from '../api/types'
 import Card from './Card'
 import EtatVide from './EtatVide'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import {
+  AXE_CATEGORIES,
+  COULEUR_NEGATIF,
+  COULEUR_POSITIF,
+  CURSEUR_BARRE,
+  EPAISSEUR_BARRE,
+  STYLE_INFOBULLE,
+  hauteurBarres,
+} from '../utils/chartTheme'
 import { formatEuro, formatPct } from '../utils/format'
 import { calculerGainsParCompte } from '../utils/gainsParCompte'
 
@@ -37,7 +45,6 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
   }
 
   const data = lignes.map((l) => ({ nom: l.compteNom, gain: l.gain }))
-  const hauteur = Math.max(160, data.length * 40)
 
   return (
     <Card title="Plus-value par compte">
@@ -46,21 +53,24 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
         comptes qui tirent le patrimoine vers le haut ou vers le bas.
       </p>
 
-      <ResponsiveContainer width="100%" height={hauteur}>
-        <BarChart data={data} layout="vertical" margin={{ left: 24, right: 24 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COULEUR_GRILLE} />
-          <XAxis
-            type="number"
-            stroke={COULEUR_AXE}
-            tick={STYLE_TICK_AXE}
-            tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)}
+      {/* Barres de part et d'autre d'un filet central (maquette de l'écran Analyse) :
+          l'axe des valeurs disparaît, seul le zéro reste — c'est lui qui donne son
+          sens au signe. `--pos`/`--neg` directement, et non `var(--color-positif)` :
+          ce dernier est le nom généré par Tailwind pour le même jeton, et deux
+          chemins d'indirection pour une seule couleur finissent par diverger. */}
+      <ResponsiveContainer width="100%" height={hauteurBarres(data.length)}>
+        <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8 }} barSize={EPAISSEUR_BARRE}>
+          <XAxis type="number" hide />
+          <YAxis dataKey="nom" width={140} {...AXE_CATEGORIES} />
+          <ReferenceLine x={0} stroke="var(--hairline)" />
+          <Tooltip
+            formatter={(value) => formatEuro(Number(value), 0, montantsMasques)}
+            cursor={CURSEUR_BARRE}
+            {...STYLE_INFOBULLE}
           />
-          <YAxis type="category" dataKey="nom" width={140} tick={{ fontSize: 12, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-          <ReferenceLine x={0} stroke={COULEUR_AXE} />
-          <Tooltip formatter={(value) => formatEuro(Number(value), 0, montantsMasques)} {...STYLE_INFOBULLE} />
-          <Bar dataKey="gain" radius={[4, 4, 4, 4]} isAnimationActive={false}>
+          <Bar dataKey="gain" radius={[12, 12, 12, 12]} isAnimationActive={false}>
             {data.map((entree) => (
-              <Cell key={entree.nom} fill={entree.gain >= 0 ? 'var(--color-positif)' : 'var(--color-negatif)'} />
+              <Cell key={entree.nom} fill={entree.gain >= 0 ? COULEUR_POSITIF : COULEUR_NEGATIF} />
             ))}
           </Bar>
         </BarChart>

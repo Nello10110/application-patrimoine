@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { Holding, ValuationHistoryPoint } from '../api/types'
 import Card from './Card'
@@ -9,7 +9,8 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { ModeDecomposition } from '../utils/valorisationDecomposition'
 import { versementDepuisDecomposition } from '../utils/valorisationDecomposition'
 import { formatDate, formatEuro } from '../utils/format'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import { ChartFrame, reperesTemporels } from './ChartFrame'
+import { STYLE_INFOBULLE, TRAIT_PRINCIPAL } from '../utils/chartTheme'
 
 /** Historique daté des valorisations manuelles (backlog 2.M.3, généralisé en 2.S.1
  * à l'écran Épargne) — jamais écrasé, une nouvelle ligne à chaque point saisi.
@@ -116,20 +117,31 @@ export function ValorisationHistoriqueCard({
         {pointAcquisition.length > 0 && ' Le premier point (coût d\'acquisition) est ajouté au graphique, pas au tableau ci-dessous.'}
       </p>
       {historiqueGraphique.length > 1 && (
-        <ResponsiveContainer width="100%" height={180} className="mb-4">
-          <LineChart data={donneesGraphique}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
-            <XAxis dataKey="date" tickFormatter={(v) => formatDate(v)} tick={{ fontSize: 11, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-            <YAxis
-              tickFormatter={(v) => formatEuro(Number(v), 0, montantsMasques)}
-              width={80}
-              tick={{ fontSize: 11, ...STYLE_TICK_AXE }}
-              stroke={COULEUR_AXE}
-            />
-            <Tooltip formatter={(v) => formatEuro(Number(v), 2, montantsMasques)} labelFormatter={(v) => formatDate(String(v))} {...STYLE_INFOBULLE} />
-            <Line type="monotone" dataKey="Valeur" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="mb-4">
+          {/* `dot={false}` : c'était la seule courbe à points de l'application. Un
+              point posé sur chaque relevé transforme la ligne en nuage dès qu'il y a
+              une dizaine de valorisations, et le point exact s'obtient déjà à
+              l'infobulle. */}
+          <ChartFrame reperes={reperesTemporels(donneesGraphique, 'date', formatDate)} hauteur="heros">
+            <LineChart data={donneesGraphique} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+              <XAxis dataKey="date" hide />
+              <YAxis hide domain={['dataMin', 'dataMax']} />
+              <Tooltip
+                formatter={(v) => formatEuro(Number(v), 2, montantsMasques)}
+                labelFormatter={(v) => formatDate(String(v))}
+                {...STYLE_INFOBULLE}
+              />
+              <Line
+                type="monotone"
+                dataKey="Valeur"
+                stroke="var(--accent)"
+                strokeWidth={TRAIT_PRINCIPAL}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ChartFrame>
+        </div>
       )}
       <table className="w-full text-sm">
         <thead>

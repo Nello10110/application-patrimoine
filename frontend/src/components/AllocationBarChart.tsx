@@ -1,7 +1,24 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AllocationBreakdownItem } from '../api/types'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
 
+/** Barres horizontales de répartition (écran Analyse) — la forme exacte de la
+ * maquette : une grille CSS de trois colonnes, `libellé | piste | valeur`, en
+ * lignes de 40 px.
+ *
+ * Ce n'est plus du Recharts, et c'est délibéré. Deux raisons :
+ *
+ * 1. **La mise en page.** Recharts répartit ses barres sur toute la hauteur du
+ *    conteneur : deux catégories dans un panneau de 200 px donnent deux barres
+ *    séparées par 76 px de vide, là où la maquette empile des lignes de 40 px. La
+ *    hauteur d'un graphique Recharts se calcule ; celle d'une liste se déduit de son
+ *    contenu.
+ * 2. **Le piège du libellé de valeur.** Une barre en pourcentage et sa valeur, frères
+ *    dans une même ligne flex, résolvent leur pourcentage sur TOUTE la ligne : à
+ *    100 %, la barre réclame la largeur entière et « 79 728 € » se casse en
+ *    « 79 728 » puis « € ». La colonne de valeur dédiée, avec la piste en
+ *    `minmax(0,1fr)`, ferme le problème par construction.
+ *
+ * Une barre de proportion est du HTML : un graphique de 400 Ko pour des `<span>` de
+ * largeur proportionnelle est un coût sans contrepartie. */
 export default function AllocationBarChart({
   items,
   onCategoryClick,
@@ -9,28 +26,46 @@ export default function AllocationBarChart({
   items: AllocationBreakdownItem[]
   onCategoryClick?: (categorie: string) => void
 }) {
-  const data = items.map((item) => ({
-    categorie: item.categorie,
-    Réel: item.pourcentage_reel,
-  }))
-
-  const height = Math.max(220, data.length * 44)
+  // Rapportées au plus grand et non à 100 : une répartition dont la plus grosse part
+  // fait 30 % afficherait sinon cinq moignons dans un panneau vide. C'est la
+  // COMPARAISON entre les parts qui se lit ici, le total est déjà connu.
+  const maximum = Math.max(...items.map((i) => i.pourcentage_reel), 0)
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical" margin={{ left: 24, right: 24 }}>
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COULEUR_GRILLE} />
-        <XAxis type="number" unit="%" domain={[0, 'dataMax']} stroke={COULEUR_AXE} tick={STYLE_TICK_AXE} />
-        <YAxis type="category" dataKey="categorie" width={200} tick={{ fontSize: 12, ...STYLE_TICK_AXE }} stroke={COULEUR_AXE} />
-        <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} {...STYLE_INFOBULLE} />
-        <Bar
-          dataKey="Réel"
-          fill="var(--s1)"
-          radius={[0, 4, 4, 0]}
-          cursor={onCategoryClick ? 'pointer' : undefined}
-          onClick={(d) => onCategoryClick?.((d as unknown as { payload: { categorie: string } }).payload.categorie)}
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_auto] gap-x-4">
+      {items.map((item) => {
+        const contenu = (
+          <>
+            <span title={item.categorie} className="flex h-10 items-center truncate text-[13px] text-ink2">
+              {item.categorie}
+            </span>
+            <span className="flex h-10 min-w-0 items-center">
+              <span
+                className="h-6 rounded-r-[12px] bg-s1"
+                style={{ width: maximum > 0 ? `${(item.pourcentage_reel / maximum) * 100}%` : 0 }}
+              />
+            </span>
+            <span className="flex h-10 items-center whitespace-nowrap text-[13px] font-semibold text-ink">
+              {item.pourcentage_reel.toFixed(1)} %
+            </span>
+          </>
+        )
+        return onCategoryClick ? (
+          <button
+            key={item.categorie}
+            type="button"
+            onClick={() => onCategoryClick(item.categorie)}
+            title={`Voir le détail des lignes de « ${item.categorie} »`}
+            className="col-span-3 grid grid-cols-subgrid rounded-control text-left transition-colors hover:bg-hover"
+          >
+            {contenu}
+          </button>
+        ) : (
+          <div key={item.categorie} className="col-span-3 grid grid-cols-subgrid">
+            {contenu}
+          </div>
+        )
+      })}
+    </div>
   )
 }

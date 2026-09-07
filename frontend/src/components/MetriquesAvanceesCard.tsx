@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { BenchmarkOption, ComparaisonBenchmark, MetriquesAvancees } from '../api/types'
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { SkeletonTexte } from './Skeleton'
-import { formatPct } from '../utils/format'
-import { COULEUR_AXE, COULEUR_GRILLE, STYLE_INFOBULLE, STYLE_TICK_AXE } from '../utils/chartTheme'
+import { formatDate, formatPct } from '../utils/format'
+import { ChartFrame, reperesTemporels } from './ChartFrame'
+import { POINTILLES_REPERE, STYLE_INFOBULLE, STYLE_LEGENDE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 
 const COULEUR_PORTEFEUILLE = 'var(--accent)'
 // Le comparatif reste distinct de la série principale, mais dans la même famille :
@@ -74,6 +75,7 @@ export default function MetriquesAvanceesCard() {
       Portefeuille: p.portefeuille_pct,
       [comparaison.label]: p.benchmark_pct,
     })) ?? []
+  const reperesAxe = reperesTemporels(donneesGraphique, 'date', formatDate)
 
   return (
     <Card title="Métriques de performance avancées">
@@ -138,18 +140,40 @@ export default function MetriquesAvanceesCard() {
             {chargementComparaison && <SkeletonTexte lignes={3} />}
             {erreurComparaison && <EtatErreur message={erreurComparaison} onReessayer={() => chargerComparaison(benchmarkChoisi)} />}
 
+            {/* Même langage que la courbe de la Synthèse (maquette, écran Analyse) :
+                ni grille ni axe de valeurs, cinq repères de date en HTML sous le
+                tracé. L'épaisseur porte la hiérarchie — 2,5 px pour le portefeuille,
+                1,5 px en pointillés pour l'indice, qui est un repère et non une
+                seconde catégorie. La légende de Recharts reste justifiée ici (deux
+                séries nommées, dont l'une porte le nom choisi par l'utilisateur),
+                mais à 11 px comme la légende HTML du mode étagé, plus à ses 14 px
+                par défaut. */}
             {!chargementComparaison && !erreurComparaison && comparaison && (
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={donneesGraphique}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={COULEUR_GRILLE} />
-                  <XAxis dataKey="date" tick={STYLE_TICK_AXE} stroke={COULEUR_AXE} />
-                  <YAxis tick={STYLE_TICK_AXE} stroke={COULEUR_AXE} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip formatter={(value) => `${value}%`} {...STYLE_INFOBULLE} />
-                  <Legend />
-                  <Line type="monotone" dataKey="Portefeuille" stroke={COULEUR_PORTEFEUILLE} dot={false} strokeWidth={2} />
-                  <Line type="monotone" dataKey={comparaison.label} stroke={COULEUR_BENCHMARK} dot={false} strokeWidth={2} />
+              <ChartFrame reperes={reperesAxe} hauteur="panneau">
+                <LineChart data={donneesGraphique} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                  <XAxis dataKey="date" hide />
+                  <YAxis hide domain={['dataMin', 'dataMax']} />
+                  <Tooltip formatter={(value) => `${value}%`} labelFormatter={(date) => formatDate(String(date))} {...STYLE_INFOBULLE} />
+                  <Legend wrapperStyle={STYLE_LEGENDE} />
+                  <Line
+                    type="monotone"
+                    dataKey="Portefeuille"
+                    stroke={COULEUR_PORTEFEUILLE}
+                    dot={false}
+                    strokeWidth={TRAIT_PRINCIPAL}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={comparaison.label}
+                    stroke={COULEUR_BENCHMARK}
+                    dot={false}
+                    strokeWidth={TRAIT_REPERE}
+                    strokeDasharray={POINTILLES_REPERE}
+                    isAnimationActive={false}
+                  />
                 </LineChart>
-              </ResponsiveContainer>
+              </ChartFrame>
             )}
 
             {!chargementComparaison && !erreurComparaison && !comparaison && !benchmarkChoisi && (

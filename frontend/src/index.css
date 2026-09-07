@@ -102,18 +102,6 @@ summary,
   }
 }
 
-/* Filet de sécurité pour les éléments Recharts non couverts par les props passées
-   composant par composant (props `tick`/`stroke` de chaque axe, `contentStyle` de
-   l'infobulle) : la légende et les étiquettes internes des camemberts (`Pie`, prop
-   `label`) sont du texte SVG sans prop de couleur dédiée simple, stylées ici via
-   leurs classes générées par Recharts. */
-.recharts-legend-item-text {
-  color: var(--color-chart-axis) !important;
-}
-
-.recharts-pie-label-text {
-  fill: var(--color-chart-axis);
-}
 
 /* Système de design (backlog 2.K.1) : jetons sémantiques de couleur + échelle
    typographique. Même pattern d'indirection que les variables Recharts ci-dessus,
