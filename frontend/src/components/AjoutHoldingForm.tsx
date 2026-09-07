@@ -350,7 +350,7 @@ export default function AjoutHoldingForm({
               ? undefined
               : 'Renseignez au minimum un ticker et une quantité.'
           }
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:cursor-not-allowed disabled:bg-track disabled:text-ink4"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-track disabled:text-ink4"
         >
           Ajouter
         </button>

@@ -279,7 +279,7 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
       <button
         onClick={handleSubmit}
         disabled={!valide || saving}
-        className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
       >
         {saving ? 'Création...' : "Créer l'objectif"}
       </button>

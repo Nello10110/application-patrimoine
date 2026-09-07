@@ -69,7 +69,7 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
       <button
         type="submit"
         disabled={saving || !nom.trim()}
-        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
       >
         Enregistrer
       </button>
@@ -150,7 +150,7 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
           type="button"
           onClick={handleSave}
           disabled={!totalValide || saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
         >
           Enregistrer
         </button>

@@ -69,7 +69,7 @@ function ModifierLigneEpargneForm({ holding, onSaved, onCancel }: { holding: Hol
       <button
         type="submit"
         disabled={saving}
-        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
       >
         {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>
@@ -228,7 +228,7 @@ export default function LigneEpargne({ holding, onChanged, onDeleted }: { holdin
                 <button
                   onClick={handleSupprimer}
                   disabled={suppression}
-                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
                   {suppression ? 'Suppression...' : 'Supprimer'}
                 </button>

@@ -56,7 +56,7 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
           type="button"
           onClick={handleSave}
           disabled={!totalValide || saving}
-          className="rounded-control bg-accent px-3 py-1.5 text-xs font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
         >
           Enregistrer
         </button>
@@ -158,7 +158,7 @@ function LoanCardMobile({
           <button
             onClick={onSaveEdition}
             disabled={editionSaving}
-            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-white disabled:opacity-40"
           >
             Enregistrer
           </button>
@@ -262,7 +262,7 @@ function LoanCardMobile({
             <button
               onClick={onSaveRecalage}
               disabled={recalageSaving}
-              className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+              className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-white disabled:opacity-40"
             >
               Enregistrer
             </button>
@@ -695,7 +695,7 @@ export default function LoansCard({
                         <button
                           onClick={() => saveEdition(loan.id)}
                           disabled={editionSaving}
-                          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+                          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
                         >
                           Enregistrer
                         </button>
@@ -739,7 +739,7 @@ export default function LoansCard({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
         >
           Ajouter
         </button>
@@ -771,7 +771,7 @@ export default function LoansCard({
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>

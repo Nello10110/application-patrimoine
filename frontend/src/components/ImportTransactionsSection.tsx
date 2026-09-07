@@ -154,7 +154,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
           <button
             onClick={handleConfirm}
             disabled={!etablissementValide || confirming}
-            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
           >
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
           </button>

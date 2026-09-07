@@ -81,7 +81,7 @@ export default function CategoriesEtReglesSection({
               placeholder="Nouvelle catégorie"
               className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
-            <button onClick={ajouterCategorie} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface">
+            <button onClick={ajouterCategorie} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white">
               Ajouter
             </button>
           </div>
@@ -129,7 +129,7 @@ export default function CategoriesEtReglesSection({
                 </option>
               ))}
             </select>
-            <button onClick={ajouterRegle} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface">
+            <button onClick={ajouterRegle} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white">
               Ajouter la règle
             </button>
           </div>

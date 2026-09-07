@@ -253,7 +253,7 @@ function BankImportSection() {
           <button
             onClick={handleCsvConfirm}
             disabled={!csvPret || confirming}
-            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
           >
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
           </button>
@@ -535,7 +535,7 @@ export default function ImportPage() {
           <button
             onClick={handleConfirm}
             disabled={!canConfirm || confirming}
-            className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+            className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
           >
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
           </button>

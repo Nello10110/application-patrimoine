@@ -83,7 +83,7 @@ export default function PartagePublicPage() {
               <button
                 type="submit"
                 disabled={envoiEnCours || !code}
-                className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+                className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
               >
                 {envoiEnCours ? 'Vérification...' : 'Accéder'}
               </button>

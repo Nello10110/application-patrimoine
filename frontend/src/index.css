@@ -157,6 +157,16 @@ summary,
   --color-track: var(--track);
   --color-hover: var(--hover);
   --color-accent-soft: var(--accent-soft);
+  /* Matière interne (v2) : le creux d'un champ et son survol. Exposés en
+     utilitaires pour que `Field`/`Input` s'y réfèrent par leur nom plutôt que par
+     l'alias hérité `bg-surface`. */
+  --color-field: var(--field);
+  --color-field-hover: var(--field-hover);
+  --color-surface-opaque: var(--surface-opaque);
+  /* Avertissement : la palette de verre en a désormais un (v2) — ni le vert ni le
+     rouge ne pouvaient tenir ce rôle. */
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
   --color-pos: var(--pos);
   --color-pos-bg: var(--pos-bg);
   --color-neg: var(--neg);
@@ -201,46 +211,35 @@ summary,
     "Helvetica Neue", Helvetica, sans-serif;
 }
 
-/* Jetons sémantiques d'origine (backlog 2.K.1), REBRANCHÉS sur la palette de verre
-   (refonte, passe de cohérence). Les deux familles coexistent volontairement — le
-   portage écran par écran laisse environ un millier d'usages de `text-texte`,
-   `bg-surface`, `border-bordure`… encore en place, et les réécrire un à un serait
-   une semaine de diff mécanique pour le même rendu. Les faire POINTER vers les
-   jetons de verre obtient le résultat en un seul endroit : chaque écran non encore
-   repris adopte l'encre, les filets et les couleurs de la refonte, et un écran
-   repris ne change pas.
+/* Jetons sémantiques d'origine (backlog 2.K.1), REBRANCHÉS sur la palette de verre.
+   Les deux familles coexistent volontairement — le portage écran par écran laisse
+   environ 861 usages de `text-texte`, `bg-surface`, `border-bordure`… encore en
+   place, et les réécrire un à un serait une semaine de diff mécanique pour le même
+   rendu. Les faire POINTER vers les jetons de verre obtient le résultat en un seul
+   endroit.
 
-   Deux valeurs ne sont pas de simples alias :
-   - `--surface` / `--surface-elevee` restent OPAQUES. Un panneau de verre tire sa
-     matière du fond qu'il filtre ; une carte translucide posée dans une autre carte
-     translucide n'a plus rien à filtrer et devient un voile gris. Les surfaces
-     héritées prennent donc l'équivalent opaque du verre (celui-là même que
-     `tokens-glass.css` utilise déjà comme repli sans `backdrop-filter`).
-   - `--avertissement` garde sa teinte ambre : la palette de verre n'a pas de
-     couleur d'avertissement, et le vert/rouge ne peut pas la remplacer. */
+   `--surface` / `--surface-elevee` étaient restés OPAQUES, au motif qu'un panneau de
+   verre tire sa matière du fond qu'il filtre. Le raisonnement vaut pour des PANNEAUX
+   imbriqués ; il est faux pour ce que ces deux alias servent réellement — des champs
+   de saisie et des survols de ligne, que la maquette pose translucides. D'où, à
+   l'usage, des rectangles blancs opaques dans des panneaux de verre sur presque
+   chaque écran, et des survols en aplat gris là où la maquette veut un voile.
+
+   Ils pointent désormais vers les deux jetons de matière interne de la v2 :
+   `--field` (creux d'un champ : une teinte d'ENCRE très faible, qui se lit comme un
+   renfoncement — un fill plus clair disparaîtrait sur un panneau de même valeur) et
+   `--hover` (le voile à 4 % des lignes de tableau). Le cas rare où le verre est
+   vraiment impossible garde son échappatoire : `--surface-opaque`.
+
+   Un seul bloc suffit maintenant : les huit alias pointent tous vers des jetons que
+   `:root[data-theme]` redéfinit déjà, donc plus rien à redéclarer sous `.dark`. */
 :root {
-  --surface: #ffffff;
-  --surface-elevee: #f4f6fa; /* teinte de départ du dégradé `--app-bg` en clair */
+  --surface: var(--field, rgba(22, 24, 29, 0.035));
+  --surface-elevee: var(--hover, rgba(22, 24, 29, 0.04));
   --bordure: var(--hairline, rgba(22, 24, 29, 0.09));
   --texte: var(--ink, #16181d);
   --texte-attenue: var(--ink3, #6b7280);
   --positif: var(--pos, #0f7a4f);
   --negatif: var(--neg, #c0392b);
-  --avertissement: #b45309; /* amber-700 — 5,02:1 sur blanc (audit du 03/09/2026) */
-}
-
-.dark {
-  /* Repli opaque du verre sombre (`tokens-glass.css`, bloc `@supports not`) plutôt
-     que l'ancien slate-800/900 : ce bleu-gris jurait franchement contre le
-     quasi-noir de la refonte dès qu'une carte non reprise voisinait un panneau de
-     verre. Le sens d'élévation est conservé — la carte reste plus CLAIRE que la
-     page. */
-  --surface: #1e2229;
-  --surface-elevee: #12141a; /* teinte de départ du dégradé `--app-bg` en sombre */
-  --bordure: var(--hairline, rgba(255, 255, 255, 0.12));
-  --texte: var(--ink, #ffffff);
-  --texte-attenue: var(--ink3, #9aa1ad);
-  --positif: var(--pos, #4ce6a4);
-  --negatif: var(--neg, #ff8a7a);
-  --avertissement: #fbbf24; /* amber-400 */
+  --avertissement: var(--warn, #b45309);
 }

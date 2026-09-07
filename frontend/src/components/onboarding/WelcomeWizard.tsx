@@ -73,7 +73,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                 <button
                   type="button"
                   onClick={terminer}
-                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface"
+                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white"
                 >
                   Terminer
                 </button>
@@ -81,7 +81,7 @@ export default function WelcomeWizard({ onClose }: { onClose?: () => void }) {
                 <button
                   type="button"
                   onClick={() => setIndex((i) => i + 1)}
-                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface"
+                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white"
                 >
                   Suivant
                 </button>

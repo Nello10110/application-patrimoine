@@ -118,7 +118,7 @@ export default function ImmobilierParametresForm({
       <button
         onClick={onSave}
         disabled={saving}
-        className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
       >
         {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>

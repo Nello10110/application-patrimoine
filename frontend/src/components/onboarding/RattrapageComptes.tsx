@@ -197,7 +197,7 @@ export default function RattrapageComptes() {
                       type="button"
                       onClick={() => resoudre(h)}
                       disabled={savingId === h.id || !validable}
-                      className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-40"
+                      className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
                     >
                       Valider
                     </button>
@@ -212,7 +212,7 @@ export default function RattrapageComptes() {
               type="button"
               onClick={continuer}
               disabled={!toutesResolues || finishing}
-              className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+              className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
             >
               {finishing ? 'Chargement…' : 'Continuer'}
             </button>

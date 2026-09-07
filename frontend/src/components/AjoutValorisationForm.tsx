@@ -92,7 +92,7 @@ export function AjoutValorisationForm({
       <button
         type="submit"
         disabled={saving}
-        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-40"
+        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
       >
         {saving ? 'Enregistrement...' : 'Ajouter une valorisation'}
       </button>

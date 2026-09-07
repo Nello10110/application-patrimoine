@@ -313,7 +313,7 @@ function PositionCard({
           <button
             onClick={onSaveEdit}
             disabled={editSaving}
-            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-surface disabled:opacity-40"
+            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-white disabled:opacity-40"
           >
             Enregistrer
           </button>

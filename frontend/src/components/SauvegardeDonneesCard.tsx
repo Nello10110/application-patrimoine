@@ -234,7 +234,7 @@ export default function SauvegardeDonneesCard() {
                 <button
                   onClick={confirmerImport}
                   disabled={importEnCours}
-                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
                   {importEnCours ? 'Import en cours…' : 'Remplacer mes données'}
                 </button>
@@ -290,7 +290,7 @@ export default function SauvegardeDonneesCard() {
                 <button
                   onClick={confirmerEffacement}
                   disabled={wipeEnCours || confirmationSaisie !== phraseAttendue}
-                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
                   {wipeEnCours ? 'Réinitialisation en cours…' : 'Réinitialiser définitivement'}
                 </button>

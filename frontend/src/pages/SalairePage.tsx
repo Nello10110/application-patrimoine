@@ -160,7 +160,7 @@ export default function SalairePage() {
         title={`Salaires — ${annee}`}
         headerActions={
           !formulaireOuvert && (
-            <button type="button" onClick={ouvrirAjout} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface">
+            <button type="button" onClick={ouvrirAjout} className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white">
               + Ajouter un salaire
             </button>
           )
@@ -336,7 +336,7 @@ export default function SalairePage() {
                 type="button"
                 onClick={enregistrer}
                 disabled={sauvegarde}
-                className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-surface disabled:opacity-60"
+                className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
                 {sauvegarde ? 'Enregistrement…' : entreeEnEdition ? 'Enregistrer les modifications' : 'Ajouter ce salaire'}
               </button>

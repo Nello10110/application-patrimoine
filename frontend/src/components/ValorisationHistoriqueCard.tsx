@@ -187,7 +187,7 @@ export function ValorisationHistoriqueCard({
                     <button
                       onClick={() => saveEdition(p.id)}
                       disabled={editionSaving}
-                      className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-40"
+                      className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
                     >
                       Enregistrer
                     </button>
@@ -251,7 +251,7 @@ export function ValorisationHistoriqueCard({
                 <button
                   onClick={confirmerSuppression}
                   disabled={suppressionEnCours}
-                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-40"
+                  className="rounded-control bg-negatif px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
                   {suppressionEnCours ? 'Suppression...' : 'Supprimer'}
                 </button>
