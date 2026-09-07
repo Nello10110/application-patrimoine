@@ -183,7 +183,7 @@ export default function RapportPage() {
             </Card>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-3">
                 <Card title="Valeur en fin de période">
                   <p className="text-2xl font-semibold text-texte">
                     {rapport.valeur_fin_periode !== null ? formatEuro(rapport.valeur_fin_periode, 0, montantsMasques) : '—'}
@@ -199,7 +199,7 @@ export default function RapportPage() {
                   </p>
                 </Card>
                 <Card title="Dividendes perçus">
-                  <p className="text-2xl font-semibold text-positif">{formatEuro(rapport.dividendes_percus, 2, montantsMasques)}</p>
+                  <p className="text-2xl font-semibold text-ink">{formatEuro(rapport.dividendes_percus, 2, montantsMasques)}</p>
                 </Card>
               </div>
 
