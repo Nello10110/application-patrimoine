@@ -172,3 +172,90 @@ describe('Modale (LOT 6.2)', () => {
     })
   })
 })
+
+/** Deux corrections du 07/09/2026, remontées à l'usage sur mobile : la feuille
+ * « Plus » s'affichait illisible et ne se fermait ni au clic sur le fond ni au
+ * glissement. */
+describe('Modale — portail et glissement (correction du 07/09/2026)', () => {
+  it('se rend sur <body>, hors de son parent de déclaration', () => {
+    // Cause réelle du bug : `BottomNav` porte un `backdrop-filter`, ce qui en fait un
+    // BLOC CONTENANT pour ses descendants en `position: fixed`. La feuille déclarée
+    // dedans se retrouvait enfermée dans la barre de 64 px. Le portail l'en sort.
+    const { container } = render(
+      <Modale onClose={vi.fn()} variant="bottom">
+        {({ titleId }) => <h2 id={titleId}>Feuille</h2>}
+      </Modale>,
+    )
+
+    expect(container).toBeEmptyDOMElement()
+    expect(document.body).toContainElement(screen.getByRole('dialog'))
+  })
+
+  it('se ferme au glissement vers le bas quand la feuille est en haut de son contenu', () => {
+    const onClose = vi.fn()
+    render(
+      <Modale onClose={onClose} variant="bottom">
+        {({ titleId }) => <h2 id={titleId}>Feuille</h2>}
+      </Modale>,
+    )
+    const panneau = screen.getByRole('dialog')
+
+    fireEvent.touchStart(panneau, { touches: [{ clientY: 100 }] })
+    fireEvent.touchMove(panneau, { touches: [{ clientY: 200 }] })
+    fireEvent.touchEnd(panneau)
+
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('ne se ferme pas sur un frôlement (sous le seuil)', () => {
+    const onClose = vi.fn()
+    render(
+      <Modale onClose={onClose} variant="bottom">
+        {({ titleId }) => <h2 id={titleId}>Feuille</h2>}
+      </Modale>,
+    )
+    const panneau = screen.getByRole('dialog')
+
+    fireEvent.touchStart(panneau, { touches: [{ clientY: 100 }] })
+    fireEvent.touchMove(panneau, { touches: [{ clientY: 130 }] })
+    fireEvent.touchEnd(panneau)
+
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  // Une feuille dont le contenu défile doit pouvoir être parcourue vers le haut sans
+  // se refermer au premier mouvement.
+  it('ne se ferme pas si le contenu est déjà défilé', () => {
+    const onClose = vi.fn()
+    render(
+      <Modale onClose={onClose} variant="bottom">
+        {({ titleId }) => <h2 id={titleId}>Feuille</h2>}
+      </Modale>,
+    )
+    const panneau = screen.getByRole('dialog')
+    Object.defineProperty(panneau, 'scrollTop', { value: 120, configurable: true })
+
+    fireEvent.touchStart(panneau, { touches: [{ clientY: 100 }] })
+    fireEvent.touchMove(panneau, { touches: [{ clientY: 300 }] })
+    fireEvent.touchEnd(panneau)
+
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  // Le glissement est un geste tactile : sur la modale centrée, il ne doit rien faire.
+  it('ne ferme jamais une modale centrée au glissement', () => {
+    const onClose = vi.fn()
+    render(
+      <Modale onClose={onClose}>
+        {({ titleId }) => <h2 id={titleId}>Centrée</h2>}
+      </Modale>,
+    )
+    const panneau = screen.getByRole('dialog')
+
+    fireEvent.touchStart(panneau, { touches: [{ clientY: 100 }] })
+    fireEvent.touchMove(panneau, { touches: [{ clientY: 400 }] })
+    fireEvent.touchEnd(panneau)
+
+    expect(onClose).not.toHaveBeenCalled()
+  })
+})

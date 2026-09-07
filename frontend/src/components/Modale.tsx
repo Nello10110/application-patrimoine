@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 // Pile des modales actuellement ouvertes (LOT 6.2), une entrée par instance montée.
 // Portée module (pas de contexte React) car deux modales empilées (ex. `HoldingDetailModal`
@@ -7,6 +8,11 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 // respectif) : la propagation d'événement DOM ne suffit donc pas à savoir laquelle est
 // « au-dessus ». La dernière entrée de la pile est toujours la modale du dessus.
 const pileModales: symbol[] = []
+
+/** Distance de glissement au-delà de laquelle une feuille ancrée en bas se ferme.
+ * Assez pour qu'un frôlement ne la referme pas, assez peu pour que le geste soit
+ * bref. */
+const SEUIL_FERMETURE_PX = 60
 
 function estAuSommet(cle: symbol): boolean {
   return pileModales.length > 0 && pileModales[pileModales.length - 1] === cle
@@ -110,12 +116,44 @@ export default function Modale({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  // Fermeture au glissement vers le bas, pour la variante ancrée en bas (retour
+  // utilisateur du 07/09/2026 : « on peut pas le fermer en slidant vers le bas »).
+  // C'est le geste attendu d'une feuille sur mobile, au même titre qu'Échap au
+  // clavier — sans lui, la seule sortie était un bouton.
+  //
+  // Conditionné à `defilement === 0` : une feuille dont le contenu défile doit
+  // pouvoir être parcourue vers le haut sans se refermer au premier mouvement. On ne
+  // ferme donc que si le doigt part alors que la feuille est déjà en haut de son
+  // contenu.
+  const [glissement, setGlissement] = useState(0)
+  const departRef = useRef<number | null>(null)
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (variant !== 'bottom') return
+    departRef.current = (panelRef.current?.scrollTop ?? 0) === 0 ? e.touches[0].clientY : null
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (departRef.current === null) return
+    setGlissement(Math.max(0, e.touches[0].clientY - departRef.current))
+  }
+
+  function onTouchEnd() {
+    if (departRef.current !== null && glissement > SEUIL_FERMETURE_PX) onCloseRef.current()
+    departRef.current = null
+    setGlissement(0)
+  }
+
+  // Voile de la maquette : `rgba(10,11,14,0.28)` + un flou de 6 px, et non un noir
+  // à 40/60 % opaque. Un voile aussi sombre écrasait le panneau de verre posé
+  // dessus — c'est le verre qui doit filtrer la page, pas le voile qui doit
+  // l'éteindre.
   const conteneurClassName =
     variant === 'bottom'
-      ? 'fixed inset-0 z-50 flex items-end justify-center bg-black/40 dark:bg-black/60'
-      : 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 dark:bg-black/60'
+      ? 'fixed inset-0 z-50 flex items-end justify-center bg-[rgba(10,11,14,0.28)] backdrop-blur-[6px]'
+      : 'fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,11,14,0.28)] p-4 backdrop-blur-[6px]'
 
-  return (
+  return createPortal(
     // Fond cliquable pour fermer (backdrop) : mouse-only par construction, la
     // fermeture clavier passe par Échap ci-dessus — jamais dans l'ordre de
     // tabulation, un gestionnaire clavier n'aurait rien à écouter (voir les
@@ -128,10 +166,23 @@ export default function Modale({
         aria-labelledby={titleId}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={glissement > 0 ? { transform: `translateY(${glissement}px)` } : undefined}
         className={`relative max-h-[85vh] overflow-y-auto ${panelClassName}`}
       >
         {children({ titleId })}
       </div>
-    </div>
+    </div>,
+    // Portail sur `<body>`, et non rendu là où la modale est déclarée : un ancêtre
+    // portant `backdrop-filter` devient un BLOC CONTENANT pour ses descendants en
+    // `position: fixed` (règle CSS peu connue, même effet que `transform`). La
+    // feuille « Plus » est déclarée à l'intérieur de `BottomNav`, qui est justement
+    // en verre — elle se retrouvait donc enfermée dans la barre de 64 px : illisible,
+    // et sans presque aucun fond à toucher pour la refermer (retour utilisateur du
+    // 07/09/2026). Le portail met toutes les modales hors d'atteinte de ce piège,
+    // aujourd'hui et pour les prochaines.
+    document.body,
   )
 }

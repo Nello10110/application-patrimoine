@@ -96,7 +96,7 @@ export default function EnTeteMobile() {
         <Modale
           onClose={() => setReglagesOuverts(false)}
           variant="bottom"
-          panelClassName="w-full rounded-t-2xl border-t border-stroke bg-panel-hi p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-glass-lg backdrop-blur-glass"
+          panelClassName="w-full rounded-t-[20px] border-t border-stroke bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-glass-lg"
         >
           {({ titleId }) => (
             <div className="space-y-4">

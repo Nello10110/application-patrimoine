@@ -38,11 +38,13 @@ export default function MenuPlusSheet({ routesConsultationRestantes }: { routesC
         <Modale
           onClose={() => setOuvert(false)}
           variant="bottom"
-          panelClassName="w-full rounded-t-[20px] border-t border-stroke bg-panel-hi backdrop-blur-glass p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-glass-lg"
+          panelClassName="w-full rounded-t-[20px] border-t border-stroke bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-glass-lg"
         >
           {() => (
             <div className="space-y-1">
-              <div className="mx-auto mb-2 h-1 w-10 rounded-chip bg-bordure" aria-hidden="true" />
+              {/* Poignée : elle annonce que la feuille se tire vers le bas pour se
+                  fermer (cf. `Modale`, variante ancrée en bas). */}
+              <div className="mx-auto mb-2 h-1 w-10 rounded-chip bg-ink4" aria-hidden="true" />
 
               {routesConsultationRestantes.map((r) => {
                 const Icone = r.icone

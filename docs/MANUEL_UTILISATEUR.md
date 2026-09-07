@@ -371,6 +371,16 @@ Organisé en deux temps, du plus important au reste — le chiffre, puis la cour
    plate ou en escalier tant que peu de valorisations manuelles ont été saisies (immobilier, épargne)
    — elle s'affine au fil des saisies.
 
+## Sur mobile
+
+- **Barre du bas** : Synthèse, Patrimoine, Objectifs, Comptes, puis **« Plus »** — qui ouvre une
+  feuille avec les autres écrans (Analyse, Rapport, Salaire, Import, Réglages, Aide), le thème et la
+  déconnexion. La feuille se ferme de trois façons : le bouton, un appui n'importe où sur le fond, ou
+  un **glissement vers le bas**.
+- **En-tête** : le titre de l'écran, la ligne de contexte (« Foyer · vue nette ») — **touchez-la pour
+  changer de vue ou de détenteur** —, un bouton pour masquer les montants et votre avatar, qui ouvre
+  les mêmes réglages d'affichage.
+
 ## Écran Réglages
 
 ### Assistant de bienvenue
