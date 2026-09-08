@@ -6,8 +6,10 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
 import { formatDateHeure, formatEuro } from '../utils/format'
 import Card from './Card'
+import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import { Field, Input, Select } from './Field'
 import type { LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import Modale from './Modale'
@@ -36,30 +38,16 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
 
   return (
     <div className="mt-3 border-t border-bordure pt-3">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-texte-attenue">Détenteurs de cet emprunt</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">Détenteurs de cet emprunt</p>
       <div className="flex flex-wrap items-end gap-3">
         {detenteurs.map((d) => (
-          <label key={d.id} className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            {d.nom}
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step="any"
-              value={saisie[d.id] ?? ''}
-              onChange={(e) => setValeur(d.id, e.target.value)}
-              className="w-20 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
-            />
-          </label>
+          <Field key={d.id} label={d.nom} className="w-20">
+            <Input type="number" min={0} max={100} step="any" value={saisie[d.id] ?? ''} onChange={(e) => setValeur(d.id, e.target.value)} />
+          </Field>
         ))}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={!totalValide || saving}
-          className="rounded-control bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
-        >
+        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>
           Enregistrer
-        </button>
+        </PrimaryButton>
       </div>
       {!totalValide && <p className="mt-1 text-xs text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</p>}
       {enregistre && <p className="mt-1 text-xs text-positif">Répartition enregistrée.</p>}
@@ -155,16 +143,12 @@ function LoanCardMobile({
           écran sur un iPhone SE — et faisait défiler latéralement toute la zone de
           contenu (audit de design du 03/09/2026). */}
       <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            onClick={onSaveEdition}
-            disabled={editionSaving}
-            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-white disabled:opacity-40"
-          >
+          <PrimaryButton onClick={onSaveEdition} disabled={editionSaving} className="flex-1">
             Enregistrer
-          </button>
-          <button onClick={onCancelEdition} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
+          </PrimaryButton>
+          <SecondaryButton onClick={onCancelEdition} className="flex-1">
             Annuler
-          </button>
+          </SecondaryButton>
         </div>
       </div>
     )
@@ -197,27 +181,23 @@ function LoanCardMobile({
       )}
 
       {enRecalage && (
-        <label className="mt-3 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Nouveau capital restant dû
-          <input
+        <Field label="Nouveau capital restant dû" className="mt-3">
+          <Input
             value={recalageValeur}
             onChange={(e) => setRecalageValeur(e.target.value)}
             type="number"
             step="any"
             aria-label={`Recaler le capital restant dû de ${loan.libelle}`}
-            className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
           />
-        </label>
+        </Field>
       )}
 
-      <label className="mt-3 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Actif rattaché
-        <select
+      <Field label="Actif rattaché" className="mt-3">
+        <Select
           value={loan.holding_id ?? ''}
           disabled={rattachementSaving === loan.id || holdingsIndisponibles}
           title={holdingsIndisponibles ? 'Liste des actifs indisponible — rattachement momentanément non modifiable.' : undefined}
           onChange={(e) => onRattacher(e.target.value === '' ? null : Number(e.target.value))}
-          className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
         >
           {holdingsIndisponibles && loan.holding_id !== null && <option value={loan.holding_id}>Actif rattaché (liste indisponible)</option>}
           <option value="">Aucun</option>
@@ -226,19 +206,17 @@ function LoanCardMobile({
               {h.nom ?? h.ticker}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
 
-      <label className="mt-3 flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        {/* Établissement du CRÉDIT (revue du 03/09/2026) — délibérément indépendant
-            de l'actif rattaché ci-dessus : le crédit a sa banque, le bien financé
-            n'appartient à aucun établissement. */}
-        Établissement du crédit
-        <select
+      {/* Établissement du CRÉDIT (revue du 03/09/2026) — délibérément indépendant
+          de l'actif rattaché ci-dessus : le crédit a sa banque, le bien financé
+          n'appartient à aucun établissement. */}
+      <Field label="Établissement du crédit" className="mt-3">
+        <Select
           value={loan.etablissement_id ?? ''}
           disabled={etablissementSaving === loan.id}
           onChange={(e) => onRattacherEtablissement(e.target.value === '' ? null : Number(e.target.value))}
-          className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
         >
           <option value="">Aucun</option>
           {etablissements.map((et) => (
@@ -246,8 +224,8 @@ function LoanCardMobile({
               {et.nom}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
 
       {detenteursOuverts && <QuotitesEmprunt loanId={loan.id} />}
 
@@ -259,34 +237,27 @@ function LoanCardMobile({
       <div className="mt-4 flex flex-wrap gap-2">
         {enRecalage ? (
           <>
-            <button
-              onClick={onSaveRecalage}
-              disabled={recalageSaving}
-              className="min-h-11 flex-1 rounded-control bg-accent px-3 text-sm font-medium text-white disabled:opacity-40"
-            >
+            <PrimaryButton onClick={onSaveRecalage} disabled={recalageSaving} className="flex-1">
               Enregistrer
-            </button>
-            <button onClick={onCancelRecalage} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
+            </PrimaryButton>
+            <SecondaryButton onClick={onCancelRecalage} className="flex-1">
               Annuler
-            </button>
+            </SecondaryButton>
           </>
         ) : (
           <>
-            <button onClick={onStartEdition} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
+            <SecondaryButton onClick={onStartEdition} className="flex-1">
               Modifier
-            </button>
-            <button onClick={onStartRecalage} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
+            </SecondaryButton>
+            <SecondaryButton onClick={onStartRecalage} className="flex-1">
               Recaler
-            </button>
-            <button onClick={onToggleDetenteurs} className="min-h-11 flex-1 rounded-control border border-bordure px-3 text-sm font-medium text-texte">
+            </SecondaryButton>
+            <SecondaryButton onClick={onToggleDetenteurs} className="flex-1">
               {detenteursOuverts ? 'Fermer' : 'Détenteurs'}
-            </button>
-            <button
-              onClick={onRequestDelete}
-              className="min-h-11 flex-1 rounded-control border border-negatif/40 px-3 text-sm font-medium text-negatif"
-            >
+            </SecondaryButton>
+            <SecondaryButton onClick={onRequestDelete} className="flex-1 border-negatif/40 text-negatif">
               Supprimer
-            </button>
+            </SecondaryButton>
           </>
         )}
       </div>
@@ -692,19 +663,10 @@ export default function LoansCard({
                           variant="compacte"
                           libelleAriaSuffix={`de ${loan.libelle} (édition)`}
                         />
-                        <button
-                          onClick={() => saveEdition(loan.id)}
-                          disabled={editionSaving}
-                          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-                        >
+                        <PrimaryButton onClick={() => saveEdition(loan.id)} disabled={editionSaving}>
                           Enregistrer
-                        </button>
-                        <button
-                          onClick={cancelEdition}
-                          className="rounded-control border border-bordure px-4 py-2 text-sm font-medium text-texte"
-                        >
-                          Annuler
-                        </button>
+                        </PrimaryButton>
+                        <SecondaryButton onClick={cancelEdition}>Annuler</SecondaryButton>
                       </div>
                     </td>
                   </tr>
@@ -736,13 +698,9 @@ export default function LoansCard({
 
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
         <LoanFormFields form={form} onChange={setForm} variant="compacte" />
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+        <PrimaryButton type="submit" disabled={saving}>
           Ajouter
-        </button>
+        </PrimaryButton>
       </form>
       <p className="mt-3 text-xs text-texte-attenue">
         Le capital restant dû est calculé automatiquement (amortissement à taux fixe) ; « Recaler » permet de le corriger à la

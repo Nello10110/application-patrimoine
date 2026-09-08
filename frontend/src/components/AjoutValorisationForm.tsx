@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { api } from '../api/client'
 import type { Holding, ValuationHistoryPoint } from '../api/types'
 import ChampDecomposition from './ChampDecomposition'
+import { PrimaryButton } from './Controls'
+import { Field, Input } from './Field'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import type { ModeDecomposition } from '../utils/valorisationDecomposition'
 import { versementDepuisDecomposition } from '../utils/valorisationDecomposition'
@@ -56,28 +58,12 @@ export function AjoutValorisationForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Valeur (€)
-        <input
-          type="number"
-          step="any"
-          min={0}
-          required
-          value={valeur}
-          onChange={(e) => setValeur(e.target.value)}
-          className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Date
-        <input
-          type="date"
-          required
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
+      <Field label="Valeur (€)" className="w-32">
+        <Input type="number" step="any" min={0} required value={valeur} onChange={(e) => setValeur(e.target.value)} />
+      </Field>
+      <Field label="Date" className="w-40">
+        <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+      </Field>
       <ChampDecomposition
         mode={mode}
         onModeChange={setMode}
@@ -89,15 +75,11 @@ export function AjoutValorisationForm({
         libelleVersement="Dont versement (€)"
         libellePlusValue="Dont plus-value (€)"
       />
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-      >
+      <PrimaryButton type="submit" disabled={saving}>
         {saving ? 'Enregistrement...' : 'Ajouter une valorisation'}
-      </button>
+      </PrimaryButton>
       {error && <span className="text-sm text-negatif">{error}</span>}
-      <p className="w-full text-xs text-texte-attenue">
+      <p className="w-full text-xs text-ink3">
         Versement ou plus-value, au choix — l'autre se déduit automatiquement de l'évolution depuis le point précédent. Laisser
         vide si vous ne savez pas : l'écran Rapport continuera d'estimer le gain via le taux déclaré.
       </p>

@@ -6,6 +6,8 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatDate, formatEuro } from '../utils/format'
 import { AjoutValorisationForm } from './AjoutValorisationForm'
+import { PrimaryButton } from './Controls'
+import { Field, Input } from './Field'
 import Modale from './Modale'
 import { ValorisationHistoriqueCard } from './ValorisationHistoriqueCard'
 
@@ -45,34 +47,15 @@ function ModifierLigneEpargneForm({ holding, onSaved, onCancel }: { holding: Hol
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Nom du compte
-        <input
-          type="text"
-          value={nom}
-          onChange={(e) => setNom(e.target.value)}
-          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Versement mensuel (€)
-        <input
-          type="number"
-          step="any"
-          min={0}
-          value={versementMensuel}
-          onChange={(e) => setVersementMensuel(e.target.value)}
-          placeholder="optionnel"
-          className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-      >
+      <Field label="Nom du compte" className="w-48">
+        <Input type="text" value={nom} onChange={(e) => setNom(e.target.value)} />
+      </Field>
+      <Field label="Versement mensuel (€)" className="w-32">
+        <Input type="number" step="any" min={0} value={versementMensuel} onChange={(e) => setVersementMensuel(e.target.value)} placeholder="optionnel" />
+      </Field>
+      <PrimaryButton type="submit" disabled={saving}>
         {saving ? 'Enregistrement...' : 'Enregistrer'}
-      </button>
+      </PrimaryButton>
       <button type="button" onClick={onCancel} className="inline-flex min-h-11 items-center md:min-h-0 text-sm font-medium text-texte-attenue hover:text-texte">
         Annuler
       </button>

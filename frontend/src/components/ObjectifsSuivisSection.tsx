@@ -3,8 +3,10 @@ import { Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../api/client'
 import type { Detenteur, Holding, IndicateursSituation, ObjectifDetail, TypeObjectif } from '../api/types'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import { Field, Input, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -214,32 +216,27 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
   return (
     <Card title="Nouvel objectif">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Nom
-          <input value={nom} onChange={(e) => setNom(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Type
-          <select value={type} onChange={(e) => setType(e.target.value as TypeObjectif)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte">
+        <Field label="Nom">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} />
+        </Field>
+        <Field label="Type">
+          <Select value={type} onChange={(e) => setType(e.target.value as TypeObjectif)}>
             {TYPES_OBJECTIF.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Montant cible (€)
-          <input type="number" min={0} step="any" value={montantCible} onChange={(e) => setMontantCible(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Échéance
-          <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Rendement hypothèse (%, pour la contribution mensuelle)
-          <input type="number" step="any" value={rendementHypothese} onChange={(e) => setRendementHypothese(e.target.value)} className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte" />
-        </label>
+          </Select>
+        </Field>
+        <Field label="Montant cible (€)">
+          <Input type="number" min={0} step="any" value={montantCible} onChange={(e) => setMontantCible(e.target.value)} />
+        </Field>
+        <Field label="Échéance">
+          <Input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} />
+        </Field>
+        <Field label="Rendement hypothèse (%, pour la contribution mensuelle)">
+          <Input type="number" step="any" value={rendementHypothese} onChange={(e) => setRendementHypothese(e.target.value)} />
+        </Field>
       </div>
 
       {holdings.length > 0 && (
@@ -290,13 +287,9 @@ function NouvelObjectifForm({ holdings, detenteurs, onCreated }: { holdings: Hol
         </div>
       )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={!valide || saving}
-        className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-      >
+      <PrimaryButton onClick={handleSubmit} disabled={!valide || saving} className="mt-4">
         {saving ? 'Création...' : "Créer l'objectif"}
-      </button>
+      </PrimaryButton>
       {error && <p className="mt-2 text-sm text-negatif">{error}</p>}
     </Card>
   )

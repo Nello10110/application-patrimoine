@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Detenteur, LienPartage } from '../api/types'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import { Field, Input, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 
 /** Liens de partage révocables (backlog 2.Q.1) — premier point d'accès PUBLIC de
@@ -120,11 +122,11 @@ export default function PartageCard() {
                   )}
                 </div>
                 {!revoque && !expire && (
-                  <input
+                  <Input
                     readOnly
                     value={urlPublique(lien.token)}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="mt-1 w-full rounded-control border border-bordure bg-surface-elevee px-2 py-1 text-xs text-texte-attenue"
+                    className="mt-1 text-xs"
                   />
                 )}
               </li>
@@ -135,50 +137,25 @@ export default function PartageCard() {
 
       <form onSubmit={handleCreate} className="space-y-3 border-t border-bordure pt-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Nom (pour te repérer)
-            <input
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              placeholder="Pour la banque"
-              className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Détenteur (optionnel)
-            <select
-              value={detenteurId}
-              onChange={(e) => setDetenteurId(e.target.value)}
-              className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            >
+          <Field label="Nom (pour te repérer)" className="w-48">
+            <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Pour la banque" />
+          </Field>
+          <Field label="Détenteur (optionnel)" className="w-40">
+            <Select value={detenteurId} onChange={(e) => setDetenteurId(e.target.value)}>
               <option value="">Foyer entier</option>
               {detenteurs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.nom}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Durée (jours)
-            <input
-              value={dureeJours}
-              onChange={(e) => setDureeJours(Number(e.target.value))}
-              type="number"
-              min={1}
-              max={365}
-              className="w-24 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Code d'accès (optionnel)
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="min. 4 caractères"
-              className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
+            </Select>
+          </Field>
+          <Field label="Durée (jours)" className="w-24">
+            <Input value={dureeJours} onChange={(e) => setDureeJours(Number(e.target.value))} type="number" min={1} max={365} />
+          </Field>
+          <Field label="Code d'accès (optionnel)" className="w-36">
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="min. 4 caractères" />
+          </Field>
         </div>
 
         <div className="flex flex-wrap gap-4 text-sm text-texte">
@@ -208,13 +185,9 @@ export default function PartageCard() {
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+        <PrimaryButton type="submit" disabled={saving}>
           {saving ? 'Création...' : 'Créer le lien'}
-        </button>
+        </PrimaryButton>
         {erreurCreation && <p className="text-sm text-negatif">{erreurCreation}</p>}
       </form>
 
