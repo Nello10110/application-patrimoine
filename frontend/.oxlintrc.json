@@ -99,7 +99,8 @@
         "src/components/AjoutCompteForm.tsx",
         "src/components/ImportTransactionsSection.tsx",
         "src/pages/EpargnePage.tsx",
-        "src/pages/ImportPage.tsx"
+        "src/pages/ImportPage.tsx",
+        "src/components/GestionFoyerCard.tsx"
       ],
       "rules": { "jsx-a11y/label-has-associated-control": "off" }
     }

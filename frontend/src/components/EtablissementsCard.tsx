@@ -3,10 +3,12 @@ import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import Card from './Card'
 import CatalogueEtablissementPicker from './CatalogueEtablissementPicker'
+import { PrimaryButton } from './Controls'
 import EtablissementEditModal from './EtablissementEditModal'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import EtablissementLogo from './EtablissementLogo'
+import { Field, Input } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import { invaliderLogos } from '../utils/logosEtablissements'
 
@@ -163,25 +165,19 @@ export default function EtablissementsCard({
           }}
         />
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Nom
-            <input
+          <Field label="Nom" className="w-48">
+            <Input
               value={nom}
               onChange={(e) => {
                 setNom(e.target.value)
                 setNomLogoKey(null)
               }}
               placeholder="Caisse d'Épargne"
-              className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
-          </label>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-          >
+          </Field>
+          <PrimaryButton type="submit" disabled={saving}>
             Ajouter
-          </button>
+          </PrimaryButton>
         </div>
       </form>
       {error && <EtatErreur message={error} onReessayer={load} />}

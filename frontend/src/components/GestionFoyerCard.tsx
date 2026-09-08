@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Detenteur, HouseholdMember, Role } from '../api/types'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import { Field, Input, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import { formatDateHeure } from '../utils/format'
 
@@ -147,11 +149,11 @@ export default function GestionFoyerCard() {
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-texte">
                     {idUsernameEnEdition === m.id ? (
                       <form onSubmit={(e) => handleRenommer(e, m.id)} className="flex items-center gap-1.5">
-                        <input
+                        <Input
                           value={usernameEdition}
                           onChange={(e) => setUsernameEdition(e.target.value)}
                           aria-label={`Nom d'utilisateur de ${m.username} (édition)`}
-                          className="w-32 rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte"
+                          className="w-32"
                         />
                         <button
                           type="submit"
@@ -218,16 +220,16 @@ export default function GestionFoyerCard() {
                     <>
                       <label className="flex items-center gap-1.5 text-xs text-texte-attenue">
                         Rôle
-                        <select
+                        <Select
                           aria-label={`Rôle de ${m.username}`}
                           value={m.role}
                           disabled={changingRoleId === m.id}
                           onChange={(e) => handleRoleChange(m.id, e.target.value as 'membre' | 'invite')}
-                          className="rounded-control border border-bordure bg-surface px-2 py-1 text-sm text-texte disabled:opacity-40"
+                          className="w-auto"
                         >
                           <option value="membre">{ROLE_LABELS.membre}</option>
                           <option value="invite">{ROLE_LABELS.invite}</option>
-                        </select>
+                        </Select>
                       </label>
                       <button
                         onClick={() => handleDelete(m.id)}
@@ -246,42 +248,21 @@ export default function GestionFoyerCard() {
       )}
 
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Nom d'utilisateur
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Mot de passe
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
-            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Rôle
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as 'membre' | 'invite')}
-            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          >
+        <Field label="Nom d'utilisateur" className="w-36">
+          <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+        </Field>
+        <Field label="Mot de passe" className="w-36">
+          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} />
+        </Field>
+        <Field label="Rôle">
+          <Select value={role} onChange={(e) => setRole(e.target.value as 'membre' | 'invite')}>
             <option value="membre">Membre du foyer</option>
             <option value="invite">Invité</option>
-          </select>
-        </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+          </Select>
+        </Field>
+        <PrimaryButton type="submit" disabled={saving}>
           Ajouter
-        </button>
+        </PrimaryButton>
       </form>
 
       {role === 'invite' && (

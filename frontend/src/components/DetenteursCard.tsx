@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Detenteur, TypeDetenteur } from '../api/types'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import { Field, Input, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 
 /** Personnes et sociétés du foyer (backlog 2.L.1) : déclarées une fois ici,
@@ -82,33 +84,18 @@ export default function DetenteursCard() {
       )}
 
       <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Nom
-          <input
-            value={nom}
-            onChange={(e) => setNom(e.target.value)}
-            placeholder="Alice"
-            className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Type
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as TypeDetenteur)}
-            className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          >
+        <Field label="Nom" className="w-40">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Alice" />
+        </Field>
+        <Field label="Type">
+          <Select value={type} onChange={(e) => setType(e.target.value as TypeDetenteur)}>
             <option value="personne">Personne</option>
             <option value="societe">Société</option>
-          </select>
-        </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+          </Select>
+        </Field>
+        <PrimaryButton type="submit" disabled={saving}>
           Ajouter
-        </button>
+        </PrimaryButton>
       </form>
       {error && <EtatErreur message={error} onReessayer={load} />}
     </Card>

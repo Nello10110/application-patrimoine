@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
+import { Field, Input } from './Field'
 
 /** Nom du foyer (revue du 05/09/2026, gestion du foyer dans sa globalité) — réglage
  * partagé par tout le foyer (propriétaire, membres, invités voient tous le même),
@@ -39,23 +41,12 @@ export default function FoyerCard() {
         aussi de phrase de confirmation avant une remise à zéro complète des données.
       </p>
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Nom du foyer
-          <input
-            value={nom}
-            onChange={(e) => setNom(e.target.value)}
-            placeholder="Famille Dupont"
-            maxLength={60}
-            className="w-64 rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={saving || !nom.trim()}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+        <Field label="Nom du foyer" className="w-64">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Famille Dupont" maxLength={60} />
+        </Field>
+        <PrimaryButton type="submit" disabled={saving || !nom.trim()}>
           {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
+        </PrimaryButton>
       </form>
       {succes && <p className="mt-3 text-sm text-positif">{succes}</p>}
       {erreur && <EtatErreur message={erreur} />}
