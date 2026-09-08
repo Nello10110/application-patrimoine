@@ -1,5 +1,6 @@
 import type { Etablissement } from '../api/types'
 import CatalogueEtablissementPicker from './CatalogueEtablissementPicker'
+import { Input, Select } from './Field'
 
 // Sentinelle pour l'option "+ Nouvel établissement..." — même patron que
 // `NOUVEAU_COMPTE` dans `PositionsTable.tsx`/`AjoutHoldingForm.tsx`, distincte de
@@ -28,7 +29,6 @@ export default function SelecteurEtablissement({
   onLogoKeyNouveauChange,
   required = false,
   ariaLabel = 'Établissement',
-  className,
 }: {
   etablissements: Etablissement[]
   value: string
@@ -39,17 +39,10 @@ export default function SelecteurEtablissement({
   onLogoKeyNouveauChange?: (v: string | null) => void
   required?: boolean
   ariaLabel?: string
-  className?: string
 }) {
   return (
     <>
-      <select
-        value={value}
-        onChange={(e) => onValueChange(e.target.value)}
-        onClick={(e) => e.stopPropagation()}
-        aria-label={ariaLabel}
-        className={className ?? 'w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-40 sm:px-2 sm:py-1'}
-      >
+      <Select value={value} onChange={(e) => onValueChange(e.target.value)} onClick={(e) => e.stopPropagation()} aria-label={ariaLabel}>
         {!required && <option value="">— Sans établissement —</option>}
         {required && value === '' && <option value="">— Choisir —</option>}
         {etablissements.map((et) => (
@@ -58,7 +51,7 @@ export default function SelecteurEtablissement({
           </option>
         ))}
         <option value={NOUVEAU_ETABLISSEMENT}>+ Nouvel établissement...</option>
-      </select>
+      </Select>
       {value === NOUVEAU_ETABLISSEMENT && (
         <div className="mt-1 flex flex-col gap-2">
           {onLogoKeyNouveauChange && (
@@ -70,7 +63,7 @@ export default function SelecteurEtablissement({
               }}
             />
           )}
-          <input
+          <Input
             value={nomNouveau}
             onChange={(e) => {
               onNomNouveauChange(e.target.value)
@@ -79,7 +72,6 @@ export default function SelecteurEtablissement({
             onClick={(e) => e.stopPropagation()}
             aria-label={`Nom du nouvel établissement (${ariaLabel})`}
             placeholder="Boursorama, Caisse d'Épargne..."
-            className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-40 sm:px-2 sm:py-1"
           />
         </div>
       )}

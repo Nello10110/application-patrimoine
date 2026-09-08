@@ -5,7 +5,9 @@ import { useAuth } from '../../hooks/useAuth'
 import { formatEuro } from '../../utils/format'
 import { TYPES_ACTIF_SANS_ETABLISSEMENT } from '../../utils/holdingCategories'
 import Card from '../Card'
+import { PrimaryButton } from '../Controls'
 import EtatErreur from '../EtatErreur'
+import { Field, Input, Select } from '../Field'
 import { SkeletonTexte } from '../Skeleton'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from '../SelecteurEtablissement'
 
@@ -148,13 +150,11 @@ export default function RattrapageComptes() {
                         {h.ticker} · {formatEuro(h.valeur, 2, false)}
                       </p>
                     </div>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                      Compte
-                      <select
+                    <Field label="Compte" className="w-40">
+                      <Select
                         value={form.compte_id}
                         onChange={(e) => majForm(h.id, { compte_id: e.target.value })}
                         aria-label={`Compte pour ${h.ticker}`}
-                        className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       >
                         <option value="">— Choisir —</option>
                         {comptes.map((c) => (
@@ -163,22 +163,19 @@ export default function RattrapageComptes() {
                           </option>
                         ))}
                         <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
-                      </select>
-                    </label>
+                      </Select>
+                    </Field>
                     {form.compte_id === NOUVEAU_COMPTE && (
                       <>
-                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                          Nom du nouveau compte
-                          <input
+                        <Field label="Nom du nouveau compte" className="w-36">
+                          <Input
                             value={form.compte_nom}
                             onChange={(e) => majForm(h.id, { compte_nom: e.target.value })}
                             aria-label={`Nom du nouveau compte pour ${h.ticker}`}
-                            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                             placeholder="PEA, CTO..."
                           />
-                        </label>
-                        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                          Établissement
+                        </Field>
+                        <Field label="Établissement" className="w-36">
                           <SelecteurEtablissement
                             etablissements={etablissements}
                             value={form.etablissement_id}
@@ -188,19 +185,13 @@ export default function RattrapageComptes() {
                             logoKeyNouveau={form.etablissement_logo_key}
                             onLogoKeyNouveauChange={(v) => majForm(h.id, { etablissement_logo_key: v })}
                             ariaLabel={`Établissement pour ${h.ticker}`}
-                            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                           />
-                        </label>
+                        </Field>
                       </>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => resoudre(h)}
-                      disabled={savingId === h.id || !validable}
-                      className="rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-                    >
+                    <PrimaryButton onClick={() => resoudre(h)} disabled={savingId === h.id || !validable}>
                       Valider
-                    </button>
+                    </PrimaryButton>
                   </li>
                 )
               })}
@@ -208,14 +199,9 @@ export default function RattrapageComptes() {
           )}
           {error && <EtatErreur message={error} />}
           <div className="mt-4 flex justify-end border-t border-bordure pt-4">
-            <button
-              type="button"
-              onClick={continuer}
-              disabled={!toutesResolues || finishing}
-              className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            >
+            <PrimaryButton onClick={continuer} disabled={!toutesResolues || finishing}>
               {finishing ? 'Chargement…' : 'Continuer'}
-            </button>
+            </PrimaryButton>
           </div>
         </Card>
       </div>

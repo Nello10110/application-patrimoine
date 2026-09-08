@@ -7,6 +7,18 @@
   },
   "overrides": [
     {
+      // `Sheet` (`Field.tsx`) reprend le même motif que `Modale.tsx` ci-dessous : un
+      // voile cliquable pour fermer, mouse-only par construction — la fermeture
+      // clavier passe par le bouton de fermeture, toujours présent.
+      "files": ["src/components/Field.tsx"],
+      "rules": {
+        "jsx-a11y/click-events-have-key-events": "off",
+        "jsx-a11y/no-static-element-interactions": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
+        "jsx-a11y/prefer-tag-over-role": "off"
+      }
+    },
+    {
       "files": ["src/components/Modale.tsx"],
       "rules": {
         "jsx-a11y/click-events-have-key-events": "off",

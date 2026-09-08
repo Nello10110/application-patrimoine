@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 import { PrimaryButton } from '../components/Controls'
+import { Field, Input } from '../components/Field'
 import { GlassPanel } from '../components/GlassPanel'
 
 type Mode = 'connexion' | 'creation'
@@ -78,32 +79,25 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink3">
-            Nom d'utilisateur
-            <input
+          <Field label="Nom d'utilisateur">
+            <Input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              className="rounded-[12px] border border-hairline bg-chip px-3 py-2.5 text-sm font-normal normal-case text-ink"
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink3">
-            Mot de passe
-            <input
+          </Field>
+          <Field label="Mot de passe" aide={mode === 'creation' ? '8 caractères minimum' : undefined}>
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={mode === 'creation' ? 8 : undefined}
               autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
-              className="rounded-[12px] border border-hairline bg-chip px-3 py-2.5 text-sm font-normal normal-case text-ink"
             />
-            {mode === 'creation' && (
-              <span className="font-normal normal-case tracking-normal text-ink4">8 caractères minimum</span>
-            )}
-          </label>
+          </Field>
 
           {error && <p className="text-sm text-neg">{error}</p>}
 

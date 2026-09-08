@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { CleCompte, TransactionImportApercu, TransactionImportResult } from '../api/types'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import Dropzone from './Dropzone'
+import { Field, Input } from './Field'
 import { IconFlecheDroite } from './icons'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
@@ -120,8 +122,7 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
             exclu(s).
           </p>
 
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue sm:w-64">
-            Établissement *
+          <Field label="Établissement *" className="sm:max-w-[280px]">
             <SelecteurEtablissement
               etablissements={apercu.etablissements}
               value={etablissementId}
@@ -132,32 +133,28 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
               onLogoKeyNouveauChange={setEtablissementLogoKey}
               required
               ariaLabel="Établissement"
-              className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
             />
-          </label>
+          </Field>
 
           {clesPresentes.length > 0 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {clesPresentes.map((cle) => (
-                <label key={cle} className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                  {apercu.noms_par_defaut[cle]} ({apercu.comptages[cle]} ligne{(apercu.comptages[cle] ?? 0) > 1 ? 's' : ''})
-                  <input
+                <Field
+                  key={cle}
+                  label={`${apercu.noms_par_defaut[cle]} (${apercu.comptages[cle]} ligne${(apercu.comptages[cle] ?? 0) > 1 ? 's' : ''})`}
+                >
+                  <Input
                     value={nomsComptes[cle] ?? apercu.noms_par_defaut[cle]}
                     onChange={(e) => setNomsComptes({ ...nomsComptes, [cle]: e.target.value })}
-                    className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                   />
-                </label>
+                </Field>
               ))}
             </div>
           )}
 
-          <button
-            onClick={handleConfirm}
-            disabled={!etablissementValide || confirming}
-            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-          >
+          <PrimaryButton onClick={handleConfirm} disabled={!etablissementValide || confirming}>
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
-          </button>
+          </PrimaryButton>
         </div>
       )}
 

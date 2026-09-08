@@ -7,6 +7,8 @@ import CsvPreviewTable from '../components/CsvPreviewTable'
 import Dropzone from '../components/Dropzone'
 import { IconFlecheDroite } from '../components/icons'
 import ImportTransactionsSection from '../components/ImportTransactionsSection'
+import { PrimaryButton } from '../components/Controls'
+import { Field, Input, Select } from '../components/Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from '../components/SelecteurEtablissement'
 
 /** Import de mouvements bancaires (backlog 2.N.1) : OFX/QIF n'ont pas besoin de
@@ -136,45 +138,29 @@ function BankImportSection() {
           <CsvPreviewTable columns={preview.columns} rows={preview.rows} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Colonne Date *
-              <select
-                value={dateCol}
-                onChange={(e) => setDateCol(e.target.value)}
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
+            <Field label="Colonne Date *">
+              <Select value={dateCol} onChange={(e) => setDateCol(e.target.value)}>
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Colonne Libellé *
-              <select
-                value={libelleCol}
-                onChange={(e) => setLibelleCol(e.target.value)}
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
+              </Select>
+            </Field>
+            <Field label="Colonne Libellé *">
+              <Select value={libelleCol} onChange={(e) => setLibelleCol(e.target.value)}>
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Compte (optionnel, annotation libre)
-              <input
-                value={compte}
-                onChange={(e) => setCompte(e.target.value)}
-                placeholder="Compte courant"
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              />
-            </label>
+              </Select>
+            </Field>
+            <Field label="Compte (optionnel, annotation libre)">
+              <Input value={compte} onChange={(e) => setCompte(e.target.value)} placeholder="Compte courant" />
+            </Field>
           </div>
 
           <fieldset className="space-y-2">
@@ -200,63 +186,44 @@ function BankImportSection() {
           </fieldset>
 
           {modeMontant === 'signe' ? (
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue sm:w-1/2">
-              Colonne Montant *
-              <select
-                value={montantCol}
-                onChange={(e) => setMontantCol(e.target.value)}
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
+            <Field label="Colonne Montant *" className="sm:w-1/2">
+              <Select value={montantCol} onChange={(e) => setMontantCol(e.target.value)}>
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                Colonne Débit
-                <select
-                  value={debitCol}
-                  onChange={(e) => setDebitCol(e.target.value)}
-                  className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                >
+              <Field label="Colonne Débit">
+                <Select value={debitCol} onChange={(e) => setDebitCol(e.target.value)}>
                   <option value="">— Aucune —</option>
                   {preview.columns.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
                   ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                Colonne Crédit
-                <select
-                  value={creditCol}
-                  onChange={(e) => setCreditCol(e.target.value)}
-                  className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                >
+                </Select>
+              </Field>
+              <Field label="Colonne Crédit">
+                <Select value={creditCol} onChange={(e) => setCreditCol(e.target.value)}>
                   <option value="">— Aucune —</option>
                   {preview.columns.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             </div>
           )}
 
-          <button
-            onClick={handleCsvConfirm}
-            disabled={!csvPret || confirming}
-            className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-          >
+          <PrimaryButton onClick={handleCsvConfirm} disabled={!csvPret || confirming}>
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
-          </button>
+          </PrimaryButton>
         </div>
       )}
 
@@ -442,61 +409,44 @@ export default function ImportPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Colonne Ticker *
-              <select
-                value={tickerCol}
-                onChange={(e) => setTickerCol(e.target.value)}
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
+            <Field label="Colonne Ticker *">
+              <Select value={tickerCol} onChange={(e) => setTickerCol(e.target.value)}>
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
 
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Colonne Quantité *
-              <select
-                value={quantiteCol}
-                onChange={(e) => setQuantiteCol(e.target.value)}
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
+            <Field label="Colonne Quantité *">
+              <Select value={quantiteCol} onChange={(e) => setQuantiteCol(e.target.value)}>
                 <option value="">— Choisir —</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
 
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Colonne Prix de revient (optionnel)
-              <select
-                value={prixRevientCol}
-                onChange={(e) => setPrixRevientCol(e.target.value)}
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
+            <Field label="Colonne Prix de revient (optionnel)">
+              <Select value={prixRevientCol} onChange={(e) => setPrixRevientCol(e.target.value)}>
                 <option value="">— Aucune —</option>
                 {preview.columns.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
 
             {OPTIONAL_FIELDS.map((field) => (
-              <label key={field.key} className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                {field.label}
-                <select
+              <Field key={field.key} label={field.label}>
+                <Select
                   value={optionalCols[field.key] ?? ''}
                   onChange={(e) => setOptionalCols({ ...optionalCols, [field.key]: e.target.value })}
-                  className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                 >
                   <option value="">— Aucune —</option>
                   {preview.columns.map((c) => (
@@ -504,14 +454,13 @@ export default function ImportPage() {
                       {c}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             ))}
           </div>
 
           {compteMappe && (
-            <label className="mt-4 flex flex-col gap-1 text-xs font-medium text-texte-attenue sm:w-64">
-              Établissement des comptes créés *
+            <Field label="Établissement des comptes créés *" className="mt-4 sm:max-w-[280px]">
               <SelecteurEtablissement
                 etablissements={etablissements}
                 value={etablissementId}
@@ -522,9 +471,8 @@ export default function ImportPage() {
                 onLogoKeyNouveauChange={setEtablissementLogoKey}
                 required
                 ariaLabel="Établissement des comptes créés"
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
               />
-            </label>
+            </Field>
           )}
 
           <label className="mt-4 flex items-center gap-2 text-sm text-texte">
@@ -532,13 +480,9 @@ export default function ImportPage() {
             Remplacer les lignes déjà saisies ou importées manuellement (les positions issues du grand livre de transactions ne sont pas touchées)
           </label>
 
-          <button
-            onClick={handleConfirm}
-            disabled={!canConfirm || confirming}
-            className="mt-4 rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-          >
+          <PrimaryButton onClick={handleConfirm} disabled={!canConfirm || confirming} className="mt-4">
             {confirming ? 'Import en cours...' : "Confirmer l'import"}
-          </button>
+          </PrimaryButton>
         </Card>
       )}
     </div>

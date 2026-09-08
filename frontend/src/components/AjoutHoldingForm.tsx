@@ -15,6 +15,7 @@ import {
 } from '../utils/holdingCategories'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
+import { Field, Input, Select } from './Field'
 import EtatErreur from './EtatErreur'
 import InfoBulle from './InfoBulle'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
@@ -162,181 +163,159 @@ export default function AjoutHoldingForm({
 
   const contenu = (
     <>
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Ticker
-          {/* Majuscules à la SAISIE, pas seulement à l'envoi (maquette de la
-              refonte) : le champ affichait « aapl » jusqu'au dernier moment, alors
-              que la ligne créée s'appellera « AAPL ». Voir ce qu'on obtient pendant
-              qu'on tape vaut mieux qu'une normalisation invisible. */}
-          <input
-            value={form.ticker}
-            onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
-            className="w-28 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            placeholder="AAPL"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Quantité
-          <input
-            value={form.quantite}
-            onChange={(e) => setForm({ ...form, quantite: e.target.value })}
-            type="number"
-            step="any"
-            className="w-28 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          <span className="inline-flex items-center gap-1">
-            Prix de revient
-            <InfoBulle texte={TEXTE_PRIX_REVIENT} />
-          </span>
-          <input
-            value={form.prix_revient_moyen}
-            onChange={(e) => setForm({ ...form, prix_revient_moyen: e.target.value })}
-            type="number"
-            step="any"
-            className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Compte
-          <select
-            value={form.compte_id}
-            onChange={(e) => setForm({ ...form, compte_id: e.target.value })}
-            aria-label="Compte"
-            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+      <form onSubmit={handleAdd} className="flex flex-col gap-4">
+        {/* Grille à deux colonnes (maquette) : le ticker seul occupe toute la
+            largeur (`col-span-2`), le reste vient par paires. `Input`/`Select` sont
+            `w-full` — c'est le conteneur qui règle la largeur, plus le champ. */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Ticker" className="col-span-2">
+            {/* Majuscules à la SAISIE, pas seulement à l'envoi (maquette de la
+                refonte) : le champ affichait « aapl » jusqu'au dernier moment, alors
+                que la ligne créée s'appellera « AAPL ». Voir ce qu'on obtient pendant
+                qu'on tape vaut mieux qu'une normalisation invisible. */}
+            <Input
+              value={form.ticker}
+              onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
+              placeholder="AAPL"
+            />
+          </Field>
+          <Field label="Quantité">
+            <Input value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} type="number" step="any" />
+          </Field>
+          <Field
+            label={
+              <span className="inline-flex items-center gap-1">
+                Prix de revient
+                <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+              </span>
+            }
           >
-            {/* Retiré dès que le type choisi n'est pas dispensé de compte (revue du
-                03/09/2026, compte obligatoire) — cf. `TYPES_ACTIF_SANS_ETABLISSEMENT`.
-                Type non dispensé ET aucune sélection encore faite : un placeholder
-                « — Choisir — » reste indispensable, sinon le navigateur présélectionne
-                silencieusement le premier compte de la liste sans que l'état React
-                (`form.compte_id`, resté `''`) ne le reflète — bug réel constaté en
-                recette du 03/09/2026, pas qu'un souci d'affichage. */}
-            {TYPES_ACTIF_SANS_ETABLISSEMENT.has(form.type_actif) ? (
-              <option value="">— Aucun —</option>
-            ) : (
-              form.compte_id === '' && <option value="">— Choisir —</option>
-            )}
-            {comptes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nom}
-              </option>
-            ))}
-            <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
-          </select>
-        </label>
-        {form.compte_id === NOUVEAU_COMPTE && (
-          <>
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Nom du nouveau compte
-              <input
-                value={form.compte_nom}
-                onChange={(e) => setForm({ ...form, compte_nom: e.target.value })}
-                className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                placeholder="PEA, CTO..."
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Établissement
-              <SelecteurEtablissement
-                etablissements={etablissements}
-                value={form.etablissement_id}
-                nomNouveau={form.etablissement_nom}
-                onValueChange={(v) => setForm({ ...form, etablissement_id: v })}
-                onNomNouveauChange={(v) => setForm({ ...form, etablissement_nom: v })}
-                logoKeyNouveau={form.etablissement_logo_key}
-                onLogoKeyNouveauChange={(v) => setForm({ ...form, etablissement_logo_key: v })}
-                ariaLabel="Établissement du nouveau compte"
-                className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              />
-            </label>
-          </>
-        )}
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          Type d'actif
-          <select
-            value={form.type_actif}
-            onChange={(e) => setForm({ ...form, type_actif: e.target.value })}
-            className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-          >
-            {TYPE_ACTIF_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-          <span className="inline-flex items-center gap-1">
-            Valeur estimée
-            <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
-          </span>
-          <input
-            value={form.valeur_estimee}
-            onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
-            type="number"
-            step="any"
-            className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            placeholder="optionnel"
-          />
-        </label>
-        {TYPES_AVEC_TAUX.has(form.type_actif) && (
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            {libelleTaux(form.type_actif)}
-            <input
-              value={form.taux_pct}
-              onChange={(e) => setForm({ ...form, taux_pct: e.target.value })}
+            <Input
+              value={form.prix_revient_moyen}
+              onChange={(e) => setForm({ ...form, prix_revient_moyen: e.target.value })}
               type="number"
               step="any"
-              className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
             />
-          </label>
-        )}
-        {TYPES_EPARGNE.has(form.type_actif) && (
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Versement mensuel (€)
-            <input
-              value={form.versement_mensuel}
-              onChange={(e) => setForm({ ...form, versement_mensuel: e.target.value })}
-              type="number"
-              step="any"
-              min={0}
-              className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              placeholder="optionnel"
-            />
-          </label>
-        )}
-        {TYPES_PATRIMOINE.has(form.type_actif) && (
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Zone géographique
-            <select
-              value={form.zone_geo}
-              onChange={(e) => setForm({ ...form, zone_geo: e.target.value })}
-              className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+          </Field>
+          <Field label="Compte" className={form.compte_id === NOUVEAU_COMPTE ? 'col-span-2' : undefined}>
+            <Select
+              value={form.compte_id}
+              onChange={(e) => setForm({ ...form, compte_id: e.target.value })}
+              aria-label="Compte"
             >
-              <option value="">Europe (par défaut)</option>
-              {ZONES_GEO.map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone}
+              {/* Retiré dès que le type choisi n'est pas dispensé de compte (revue du
+                  03/09/2026, compte obligatoire) — cf. `TYPES_ACTIF_SANS_ETABLISSEMENT`.
+                  Type non dispensé ET aucune sélection encore faite : un placeholder
+                  « — Choisir — » reste indispensable, sinon le navigateur présélectionne
+                  silencieusement le premier compte de la liste sans que l'état React
+                  (`form.compte_id`, resté `''`) ne le reflète — bug réel constaté en
+                  recette du 03/09/2026, pas qu'un souci d'affichage. */}
+              {TYPES_ACTIF_SANS_ETABLISSEMENT.has(form.type_actif) ? (
+                <option value="">— Aucun —</option>
+              ) : (
+                form.compte_id === '' && <option value="">— Choisir —</option>
+              )}
+              {comptes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
                 </option>
               ))}
-            </select>
-          </label>
-        )}
-        {TYPES_PATRIMOINE.has(form.type_actif) && (
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Date d'acquisition
-            <input
-              value={form.date_acquisition}
-              onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
-              type="date"
-              className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+              <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
+            </Select>
+          </Field>
+          {form.compte_id === NOUVEAU_COMPTE && (
+            <>
+              <Field label="Nom du nouveau compte">
+                <Input
+                  value={form.compte_nom}
+                  onChange={(e) => setForm({ ...form, compte_nom: e.target.value })}
+                  placeholder="PEA, CTO..."
+                />
+              </Field>
+              <Field label="Établissement">
+                <SelecteurEtablissement
+                  etablissements={etablissements}
+                  value={form.etablissement_id}
+                  nomNouveau={form.etablissement_nom}
+                  onValueChange={(v) => setForm({ ...form, etablissement_id: v })}
+                  onNomNouveauChange={(v) => setForm({ ...form, etablissement_nom: v })}
+                  logoKeyNouveau={form.etablissement_logo_key}
+                  onLogoKeyNouveauChange={(v) => setForm({ ...form, etablissement_logo_key: v })}
+                  ariaLabel="Établissement du nouveau compte"
+                />
+              </Field>
+            </>
+          )}
+          <Field label="Type d'actif">
+            <Select value={form.type_actif} onChange={(e) => setForm({ ...form, type_actif: e.target.value })}>
+              {TYPE_ACTIF_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field
+            label={
+              <span className="inline-flex items-center gap-1">
+                Valeur estimée
+                <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+              </span>
+            }
+          >
+            <Input
+              value={form.valeur_estimee}
+              onChange={(e) => setForm({ ...form, valeur_estimee: e.target.value })}
+              type="number"
+              step="any"
+              placeholder="optionnel"
             />
-          </label>
-        )}
+          </Field>
+          {TYPES_AVEC_TAUX.has(form.type_actif) && (
+            <Field label={libelleTaux(form.type_actif)}>
+              <Input
+                value={form.taux_pct}
+                onChange={(e) => setForm({ ...form, taux_pct: e.target.value })}
+                type="number"
+                step="any"
+                placeholder={form.type_actif === 'VEHICLE' ? '-15' : '3'}
+              />
+            </Field>
+          )}
+          {TYPES_EPARGNE.has(form.type_actif) && (
+            <Field label="Versement mensuel (€)">
+              <Input
+                value={form.versement_mensuel}
+                onChange={(e) => setForm({ ...form, versement_mensuel: e.target.value })}
+                type="number"
+                step="any"
+                min={0}
+                placeholder="optionnel"
+              />
+            </Field>
+          )}
+          {TYPES_PATRIMOINE.has(form.type_actif) && (
+            <Field label="Zone géographique">
+              <Select value={form.zone_geo} onChange={(e) => setForm({ ...form, zone_geo: e.target.value })}>
+                <option value="">Europe (par défaut)</option>
+                {ZONES_GEO.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+          {TYPES_PATRIMOINE.has(form.type_actif) && (
+            <Field label="Date d'acquisition">
+              <Input
+                value={form.date_acquisition}
+                onChange={(e) => setForm({ ...form, date_acquisition: e.target.value })}
+                type="date"
+              />
+            </Field>
+          )}
+        </div>
         {/* Désactivé tant que la ligne ne tient pas debout (recette du 02/09/2026,
             resserré par la maquette) : `handleAdd` retournait silencieusement, donc
             un clic sur « Ajouter » avec un formulaire vide ne produisait AUCUN
@@ -350,7 +329,7 @@ export default function AjoutHoldingForm({
               ? undefined
               : 'Renseignez au minimum un ticker et une quantité.'
           }
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-track disabled:text-ink4"
+          className="self-start rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-track disabled:text-ink4"
         >
           Ajouter
         </button>

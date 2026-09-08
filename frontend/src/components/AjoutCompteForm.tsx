@@ -3,7 +3,9 @@ import { api } from '../api/client'
 import type { Etablissement } from '../api/types'
 import { TYPE_ACTIF_OPTIONS, TYPES_EPARGNE } from '../utils/holdingCategories'
 import { invaliderLogos } from '../utils/logosEtablissements'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
+import { Field, Input, Select } from './Field'
 import InfoBulle from './InfoBulle'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
@@ -98,82 +100,50 @@ export default function AjoutCompteForm({ etablissements, onCreated }: { etablis
   }
 
   return (
-    <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        <span className="inline-flex items-center gap-1">
-          Nom <InfoBulle texte={AIDE_NOM_COMPTE} />
-        </span>
-        <input
-          value={nom}
-          onChange={(e) => setNom(e.target.value)}
-          placeholder="PEA, Livret A..."
-          className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Type
-        <select
-          value={typeActif}
-          onChange={(e) => setTypeActif(e.target.value)}
-          className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
+    <form onSubmit={handleAdd} className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={<span className="inline-flex items-center gap-1">Nom <InfoBulle texte={AIDE_NOM_COMPTE} /></span>} className="col-span-2">
+          <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="PEA, Livret A..." />
+        </Field>
+        <Field label="Type" className={typeActif ? undefined : 'col-span-2'}>
+          <Select value={typeActif} onChange={(e) => setTypeActif(e.target.value)}>
+            {OPTIONS_TYPE.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {typeActif && (
+          <>
+            <Field label="Valeur initiale (€, optionnel)">
+              <Input type="number" step="any" min={0} value={valeurEstimee} onChange={(e) => setValeurEstimee(e.target.value)} />
+            </Field>
+            <Field label="Versement mensuel (€, optionnel)" className="col-span-2">
+              <Input type="number" step="any" min={0} value={versementMensuel} onChange={(e) => setVersementMensuel(e.target.value)} />
+            </Field>
+          </>
+        )}
+        <Field
+          label={<span className="inline-flex items-center gap-1">Établissement <InfoBulle texte={AIDE_ETABLISSEMENT} /></span>}
+          className="col-span-2"
         >
-          {OPTIONS_TYPE.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {typeActif && (
-        <>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Valeur initiale (€, optionnel)
-            <input
-              type="number"
-              step="any"
-              min={0}
-              value={valeurEstimee}
-              onChange={(e) => setValeurEstimee(e.target.value)}
-              className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Versement mensuel (€, optionnel)
-            <input
-              type="number"
-              step="any"
-              min={0}
-              value={versementMensuel}
-              onChange={(e) => setVersementMensuel(e.target.value)}
-              className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
-        </>
-      )}
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        <span className="inline-flex items-center gap-1">
-          Établissement <InfoBulle texte={AIDE_ETABLISSEMENT} />
-        </span>
-        <SelecteurEtablissement
-          etablissements={etablissements}
-          value={etablissementId}
-          nomNouveau={etablissementNom}
-          onValueChange={setEtablissementId}
-          onNomNouveauChange={setEtablissementNom}
-          logoKeyNouveau={etablissementLogoKey}
-          onLogoKeyNouveauChange={setEtablissementLogoKey}
-          required
-          ariaLabel="Établissement"
-          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
-      <button
-        type="submit"
-        disabled={saving || !nom.trim() || !etablissementValide}
-        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-      >
+          <SelecteurEtablissement
+            etablissements={etablissements}
+            value={etablissementId}
+            nomNouveau={etablissementNom}
+            onValueChange={setEtablissementId}
+            onNomNouveauChange={setEtablissementNom}
+            logoKeyNouveau={etablissementLogoKey}
+            onLogoKeyNouveauChange={setEtablissementLogoKey}
+            required
+            ariaLabel="Établissement"
+          />
+        </Field>
+      </div>
+      <PrimaryButton type="submit" disabled={saving || !nom.trim() || !etablissementValide} className="self-start">
         + Nouveau compte
-      </button>
+      </PrimaryButton>
       {error && <EtatErreur message={error} />}
     </form>
   )

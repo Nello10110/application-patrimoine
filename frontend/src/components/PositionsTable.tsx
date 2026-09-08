@@ -15,6 +15,7 @@ import {
 } from '../utils/holdingCategories'
 import { formatDate, formatEuro, formatQuantite } from '../utils/format'
 import InfoBulle from './InfoBulle'
+import { Field, Input, Select } from './Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
 function RendementCell({ value }: { value: number | null }) {
@@ -115,12 +116,11 @@ function CompteEditSelect({
 }) {
   return (
     <>
-      <select
+      <Select
         value={editForm.compte_id}
         onChange={(e) => setEditForm({ ...editForm, compte_id: e.target.value })}
         onClick={(e) => e.stopPropagation()}
         aria-label={ariaLabel}
-        className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
       >
         {TYPES_ACTIF_SANS_ETABLISSEMENT.has(editForm.type_actif) && <option value="">— Aucun —</option>}
         {comptes.map((c) => (
@@ -129,28 +129,29 @@ function CompteEditSelect({
           </option>
         ))}
         <option value={NOUVEAU_COMPTE}>+ Nouveau compte...</option>
-      </select>
+      </Select>
       {editForm.compte_id === NOUVEAU_COMPTE && (
         <>
-          <input
+          <Input
             value={editForm.compte_nom}
             onChange={(e) => setEditForm({ ...editForm, compte_nom: e.target.value })}
             onClick={(e) => e.stopPropagation()}
             aria-label={`Nom du nouveau compte (${ariaLabel})`}
             placeholder="PEA, CTO..."
-            className="mt-1 w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
+            className="mt-1.5"
           />
-          <SelecteurEtablissement
-            etablissements={etablissements}
-            value={editForm.etablissement_id}
-            nomNouveau={editForm.etablissement_nom}
-            onValueChange={(v) => setEditForm({ ...editForm, etablissement_id: v })}
-            onNomNouveauChange={(v) => setEditForm({ ...editForm, etablissement_nom: v })}
-            logoKeyNouveau={editForm.etablissement_logo_key}
-            onLogoKeyNouveauChange={(v) => setEditForm({ ...editForm, etablissement_logo_key: v })}
-            ariaLabel={`Établissement du nouveau compte (${ariaLabel})`}
-            className="mt-1 w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte sm:w-32 sm:px-2 sm:py-1"
-          />
+          <div className="mt-1.5">
+            <SelecteurEtablissement
+              etablissements={etablissements}
+              value={editForm.etablissement_id}
+              nomNouveau={editForm.etablissement_nom}
+              onValueChange={(v) => setEditForm({ ...editForm, etablissement_id: v })}
+              onNomNouveauChange={(v) => setEditForm({ ...editForm, etablissement_nom: v })}
+              logoKeyNouveau={editForm.etablissement_logo_key}
+              onLogoKeyNouveauChange={(v) => setEditForm({ ...editForm, etablissement_logo_key: v })}
+              ariaLabel={`Établissement du nouveau compte (${ariaLabel})`}
+            />
+          </div>
         </>
       )}
     </>
@@ -200,33 +201,32 @@ function PositionCard({
       <div className="rounded-card border border-bordure bg-surface p-4">
         <p className="mb-3 font-medium text-texte">{h.ticker}</p>
         <div className="space-y-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Quantité
-            <input
+          <Field label="Quantité">
+            <Input
               value={editForm.quantite}
               onChange={(e) => setEditForm({ ...editForm, quantite: e.target.value })}
               type="number"
               step="any"
               aria-label="Quantité (édition)"
-              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            <span className="inline-flex items-center gap-1">
-              Prix de revient
-              <InfoBulle texte={TEXTE_PRIX_REVIENT} />
-            </span>
-            <input
+          </Field>
+          <Field
+            label={
+              <span className="inline-flex items-center gap-1">
+                Prix de revient
+                <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+              </span>
+            }
+          >
+            <Input
               value={editForm.prix_revient_moyen}
               onChange={(e) => setEditForm({ ...editForm, prix_revient_moyen: e.target.value })}
               type="number"
               step="any"
               aria-label="Prix de revient (édition)"
-              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Compte
+          </Field>
+          <Field label="Compte">
             <CompteEditSelect
               comptes={comptes}
               etablissements={etablissements}
@@ -234,62 +234,58 @@ function PositionCard({
               setEditForm={setEditForm}
               ariaLabel="Compte (édition)"
             />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            Type d'actif
-            <select
+          </Field>
+          <Field label="Type d'actif">
+            <Select
               value={editForm.type_actif}
               onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
               aria-label="Type d'actif (édition)"
-              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             >
               {TYPE_ACTIF_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            <span className="inline-flex items-center gap-1">
-              Valeur estimée
-              <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
-            </span>
-            <input
+            </Select>
+          </Field>
+          <Field
+            label={
+              <span className="inline-flex items-center gap-1">
+                Valeur estimée
+                <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+              </span>
+            }
+          >
+            <Input
               value={editForm.valeur_estimee}
               onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
               type="number"
               step="any"
               aria-label="Valeur estimée (édition)"
               placeholder="optionnel"
-              className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
             />
-          </label>
+          </Field>
           {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              {libelleTaux(editForm.type_actif)}
-              <input
+            <Field label={libelleTaux(editForm.type_actif)}>
+              <Input
                 value={editForm.taux_pct}
                 onChange={(e) => setEditForm({ ...editForm, taux_pct: e.target.value })}
                 type="number"
                 step="any"
                 aria-label="Taux annuel (édition)"
                 placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
-                className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
               />
-            </label>
+            </Field>
           )}
           {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Date d'acquisition
-              <input
+            <Field label="Date d'acquisition">
+              <Input
                 value={editForm.date_acquisition}
                 onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
                 type="date"
                 aria-label="Date d'acquisition (édition)"
-                className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
               />
-            </label>
+            </Field>
           )}
         </div>
 
