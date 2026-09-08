@@ -6,7 +6,9 @@ import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { TYPES_EPARGNE } from '../utils/holdingCategories'
 import { formatEuro } from '../utils/format'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
+import { Field, Input, Select } from './Field'
 import EtatVide from './EtatVide'
 import LigneEpargne from './LigneEpargne'
 import { SkeletonTexte } from './Skeleton'
@@ -43,36 +45,22 @@ function CompteInfosForm({ compte, onSaved }: { compte: Compte; onSaved: () => v
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Nom du compte
-        <input
-          value={nom}
-          onChange={(e) => setNom(e.target.value)}
-          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-        Établissement
-        <select
-          value={etablissementId}
-          onChange={(e) => setEtablissementId(e.target.value)}
-          className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-        >
+      <Field label="Nom du compte" className="w-48">
+        <Input value={nom} onChange={(e) => setNom(e.target.value)} />
+      </Field>
+      <Field label="Établissement" className="w-48">
+        <Select value={etablissementId} onChange={(e) => setEtablissementId(e.target.value)}>
           <option value="">— Sans établissement —</option>
           {etablissements.map((et) => (
             <option key={et.id} value={et.id}>
               {et.nom}
             </option>
           ))}
-        </select>
-      </label>
-      <button
-        type="submit"
-        disabled={saving || !nom.trim()}
-        className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-      >
+        </Select>
+      </Field>
+      <PrimaryButton type="submit" disabled={saving || !nom.trim()}>
         Enregistrer
-      </button>
+      </PrimaryButton>
       {error && <span className="text-sm text-negatif">{error}</span>}
     </form>
   )
@@ -133,27 +121,13 @@ function QuotitesCompte({ compteId, nombreLignes, nombreEmprunts }: { compteId: 
       </p>
       <div className="flex flex-wrap items-end gap-3">
         {detenteurs.map((d) => (
-          <label key={d.id} className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-            {d.nom}
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step="any"
-              value={saisie[d.id] ?? ''}
-              onChange={(e) => setValeur(d.id, e.target.value)}
-              className="w-20 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-            />
-          </label>
+          <Field key={d.id} label={d.nom} className="w-20">
+            <Input type="number" min={0} max={100} step="any" value={saisie[d.id] ?? ''} onChange={(e) => setValeur(d.id, e.target.value)} />
+          </Field>
         ))}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={!totalValide || saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>
           Enregistrer
-        </button>
+        </PrimaryButton>
       </div>
       {!totalValide && <p className="mt-2 text-sm text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</p>}
       {enregistre && <p className="mt-2 text-sm text-positif">Répartition appliquée à toutes les lignes du compte.</p>}

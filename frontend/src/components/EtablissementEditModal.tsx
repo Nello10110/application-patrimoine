@@ -4,8 +4,10 @@ import type { Etablissement } from '../api/types'
 import { trouverEtablissementConnu } from '../utils/etablissementsConnus'
 import { invaliderLogos } from '../utils/logosEtablissements'
 import { formatDateHeure } from '../utils/format'
+import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtablissementLogo from './EtablissementLogo'
+import { Field, Input } from './Field'
 import Modale from './Modale'
 
 const LIBELLES_SOURCE: Record<string, string> = {
@@ -94,31 +96,21 @@ export default function EtablissementEditModal({
                 void executer('nom', () => api.updateEtablissement(courant.id, nom.trim()))
               }
             }}
-            className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4"
+            className="flex flex-wrap items-end gap-3 border-t border-hairline pt-4"
           >
-            <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-              Nom
-              <input
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                className="w-56 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={occupe || !nom.trim() || nom.trim() === courant.nom}
-              className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            >
+            <Field label="Nom" className="w-56">
+              <Input value={nom} onChange={(e) => setNom(e.target.value)} />
+            </Field>
+            <PrimaryButton type="submit" disabled={occupe || !nom.trim() || nom.trim() === courant.nom}>
               {enCours === 'nom' ? 'Enregistrement…' : 'Renommer'}
-            </button>
+            </PrimaryButton>
           </form>
 
-          <div className="mt-4 space-y-3 border-t border-bordure pt-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-texte-attenue">Logo</h3>
+          <div className="mt-4 space-y-3 border-t border-hairline pt-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink3">Logo</h3>
 
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
+              <SecondaryButton
                 onClick={() => void executer('catalogue', () => api.recupererLogoCatalogue(courant.id))}
                 disabled={occupe || !estDuCatalogue}
                 title={
@@ -126,27 +118,20 @@ export default function EtablissementEditModal({
                     ? undefined
                     : "Disponible uniquement pour un établissement choisi dans le catalogue — téléversez une image ou saisissez une adresse."
                 }
-                className="rounded-control border border-bordure px-3 py-1.5 text-sm text-texte hover:border-accent disabled:opacity-40"
               >
                 {enCours === 'catalogue' ? 'Récupération…' : 'Récupérer le logo officiel'}
-              </button>
-              <button
-                type="button"
-                onClick={() => fichierRef.current?.click()}
-                disabled={occupe}
-                className="rounded-control border border-bordure px-3 py-1.5 text-sm text-texte hover:border-accent disabled:opacity-40"
-              >
+              </SecondaryButton>
+              <SecondaryButton onClick={() => fichierRef.current?.click()} disabled={occupe}>
                 {enCours === 'fichier' ? 'Envoi…' : 'Téléverser une image'}
-              </button>
+              </SecondaryButton>
               {courant.a_un_logo && (
-                <button
-                  type="button"
+                <SecondaryButton
                   onClick={() => void executer('suppression', () => api.deleteEtablissementLogo(courant.id))}
                   disabled={occupe}
-                  className="rounded-control border border-bordure px-3 py-1.5 text-sm text-negatif hover:border-negatif disabled:opacity-40"
+                  className="text-neg hover:bg-neg-bg"
                 >
                   Retirer le logo
-                </button>
+                </SecondaryButton>
               )}
             </div>
 
@@ -171,25 +156,15 @@ export default function EtablissementEditModal({
               }}
               className="flex flex-wrap items-end gap-3"
             >
-              <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-texte-attenue">
-                Adresse d'une image (le serveur la télécharge et la met en cache)
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://exemple.fr/logo.png"
-                  className="w-full rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={occupe || !url.trim()}
-                className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-              >
+              <Field label="Adresse d'une image (le serveur la télécharge et la met en cache)" className="flex-1">
+                <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://exemple.fr/logo.png" />
+              </Field>
+              <PrimaryButton type="submit" disabled={occupe || !url.trim()}>
                 {enCours === 'url' ? 'Récupération…' : 'Utiliser cette adresse'}
-              </button>
+              </PrimaryButton>
             </form>
 
-            <p className="text-xs text-texte-attenue">
+            <p className="text-xs text-ink3">
               Toute image est reconvertie en PNG (128 px) côté serveur. Une adresse saisie est re-téléchargée
               chaque semaine par la tâche planifiée « Logos des établissements » ; une image téléversée n'est,
               elle, jamais remplacée automatiquement.
@@ -198,14 +173,8 @@ export default function EtablissementEditModal({
 
           {error && <EtatErreur message={error} />}
 
-          <div className="mt-4 flex justify-end border-t border-bordure pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-control border border-bordure px-4 py-2 text-sm font-medium text-texte"
-            >
-              Fermer
-            </button>
+          <div className="mt-4 flex justify-end border-t border-hairline pt-4">
+            <SecondaryButton onClick={onClose}>Fermer</SecondaryButton>
           </div>
         </>
       )}

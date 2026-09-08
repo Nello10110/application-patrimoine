@@ -577,15 +577,13 @@ export default function PositionsTable({
     return (
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <label className="flex flex-1 items-center gap-2 text-xs font-medium text-texte-attenue">
-            Trier par
-            <select
+          <Field label="Trier par" className="flex-1">
+            <Select
               value={tri?.cle ?? ''}
               onChange={(e) => {
                 const cle = e.target.value as CleTri
                 setTri((prev) => ({ cle, direction: prev?.cle === cle ? prev.direction : 'asc' }))
               }}
-              className="flex-1 rounded-control border border-bordure bg-surface px-2 py-2 text-sm text-texte"
             >
               <option value="" disabled>
                 Choisir...
@@ -595,8 +593,8 @@ export default function PositionsTable({
                   {col.label}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
           <button
             type="button"
             onClick={() => tri && setTri((prev) => ({ cle: prev!.cle, direction: prev!.direction === 'asc' ? 'desc' : 'asc' }))}
@@ -782,23 +780,25 @@ export default function PositionsTable({
             <tr onClick={(e) => e.stopPropagation()}>
               <td colSpan={10} className="bg-surface-elevee py-3 pr-4">
                 <div className="flex flex-wrap items-end gap-3">
-                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                    <span className="inline-flex items-center gap-1">
-                      Prix de revient
-                      <InfoBulle texte={TEXTE_PRIX_REVIENT} />
-                    </span>
-                    <input
+                  <Field
+                    label={
+                      <span className="inline-flex items-center gap-1">
+                        Prix de revient
+                        <InfoBulle texte={TEXTE_PRIX_REVIENT} />
+                      </span>
+                    }
+                    className="w-32"
+                  >
+                    <Input
                       value={editForm.prix_revient_moyen}
                       onChange={(e) => setEditForm({ ...editForm, prix_revient_moyen: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
                       type="number"
                       step="any"
                       aria-label="Prix de revient (édition)"
-                      className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                     />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                    Compte
+                  </Field>
+                  <Field label="Compte" className="w-36">
                     <CompteEditSelect
                       comptes={comptes}
                       etablissements={etablissements}
@@ -806,66 +806,63 @@ export default function PositionsTable({
                       setEditForm={setEditForm}
                       ariaLabel="Compte (édition)"
                     />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                    Type d'actif
-                    <select
+                  </Field>
+                  <Field label="Type d'actif" className="w-36">
+                    <Select
                       value={editForm.type_actif}
                       onChange={(e) => setEditForm({ ...editForm, type_actif: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
                       aria-label="Type d'actif (édition)"
-                      className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                     >
                       {TYPE_ACTIF_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                    <span className="inline-flex items-center gap-1">
-                      Valeur estimée
-                      <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
-                    </span>
-                    <input
+                    </Select>
+                  </Field>
+                  <Field
+                    label={
+                      <span className="inline-flex items-center gap-1">
+                        Valeur estimée
+                        <InfoBulle texte={TEXTE_VALEUR_ESTIMEE} />
+                      </span>
+                    }
+                    className="w-32"
+                  >
+                    <Input
                       value={editForm.valeur_estimee}
                       onChange={(e) => setEditForm({ ...editForm, valeur_estimee: e.target.value })}
                       onClick={(e) => e.stopPropagation()}
                       type="number"
                       step="any"
                       aria-label="Valeur estimée (édition)"
-                      className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       placeholder="optionnel"
                     />
-                  </label>
+                  </Field>
                   {TYPES_AVEC_TAUX.has(editForm.type_actif) && (
-                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                      {libelleTaux(editForm.type_actif)}
-                      <input
+                    <Field label={libelleTaux(editForm.type_actif)} className="w-32">
+                      <Input
                         value={editForm.taux_pct}
                         onChange={(e) => setEditForm({ ...editForm, taux_pct: e.target.value })}
                         onClick={(e) => e.stopPropagation()}
                         type="number"
                         step="any"
                         aria-label="Taux annuel (édition)"
-                        className="w-32 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                         placeholder={editForm.type_actif === 'VEHICLE' ? '-15' : '3'}
                       />
-                    </label>
+                    </Field>
                   )}
                   {TYPES_PATRIMOINE.has(editForm.type_actif) && (
-                    <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                      Date d'acquisition
-                      <input
+                    <Field label="Date d'acquisition" className="w-36">
+                      <Input
                         value={editForm.date_acquisition}
                         onChange={(e) => setEditForm({ ...editForm, date_acquisition: e.target.value })}
                         onClick={(e) => e.stopPropagation()}
                         type="date"
                         aria-label="Date d'acquisition (édition)"
-                        className="w-36 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
                       />
-                    </label>
+                    </Field>
                   )}
                 </div>
                 {TYPES_AVEC_TAUX.has(editForm.type_actif) &&

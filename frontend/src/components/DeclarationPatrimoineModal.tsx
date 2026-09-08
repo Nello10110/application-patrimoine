@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Detenteur, Holding, Loan } from '../api/types'
+import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
+import { Field, Input, Select } from './Field'
 import { IconFermer } from './icons'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
@@ -108,30 +110,19 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
           {!loading && !error && (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-3">
-                <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                  Destinataire (optionnel)
-                  <input
-                    value={destinataire}
-                    onChange={(e) => setDestinataire(e.target.value)}
-                    placeholder="Banque XYZ"
-                    className="w-48 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-xs font-medium text-texte-attenue">
-                  Détenteur (optionnel)
-                  <select
-                    value={detenteurId}
-                    onChange={(e) => setDetenteurId(e.target.value)}
-                    className="w-40 rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-                  >
+                <Field label="Destinataire (optionnel)" className="w-48">
+                  <Input value={destinataire} onChange={(e) => setDestinataire(e.target.value)} placeholder="Banque XYZ" />
+                </Field>
+                <Field label="Détenteur (optionnel)" className="w-40">
+                  <Select value={detenteurId} onChange={(e) => setDetenteurId(e.target.value)}>
                     <option value="">Foyer entier</option>
                     {detenteurs.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.nom}
                       </option>
                     ))}
-                  </select>
-                </label>
+                  </Select>
+                </Field>
               </div>
               {detenteurId && (
                 <p className="text-xs text-texte-attenue">
@@ -145,7 +136,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
               </label>
 
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-texte-attenue">Actifs à inclure</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">Actifs à inclure</p>
                 {holdings.length === 0 ? (
                   <p className="text-sm text-texte-attenue">Aucun actif dans le portefeuille.</p>
                 ) : (
@@ -163,7 +154,7 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
               </div>
 
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-texte-attenue">Emprunts à inclure</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink3">Emprunts à inclure</p>
                 {loans.length === 0 ? (
                   <p className="text-sm text-texte-attenue">Aucun emprunt enregistré.</p>
                 ) : (
@@ -182,17 +173,11 @@ export default function DeclarationPatrimoineModal({ onClose }: { onClose: () =>
 
               {erreurGeneration && <p className="text-sm text-negatif">{erreurGeneration}</p>}
 
-              <div className="flex justify-end gap-3 border-t border-bordure pt-4">
-                <button onClick={onClose} className="rounded-control border border-bordure px-4 py-2 text-sm font-medium text-texte">
-                  Annuler
-                </button>
-                <button
-                  onClick={handleGenerer}
-                  disabled={generating}
-                  className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-                >
+              <div className="flex justify-end gap-3 border-t border-hairline pt-4">
+                <SecondaryButton onClick={onClose}>Annuler</SecondaryButton>
+                <PrimaryButton onClick={handleGenerer} disabled={generating}>
                   {generating ? 'Génération...' : 'Générer le PDF'}
-                </button>
+                </PrimaryButton>
               </div>
             </div>
           )}
