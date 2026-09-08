@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Compte, HoldingDetail } from '../api/types'
 import Card from './Card'
+import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import { SkeletonTexte } from './Skeleton'
 import { useEditeurQuotites } from '../hooks/useEditeurQuotites'
@@ -116,13 +117,9 @@ export default function DetenteursSection({
       </table>
 
       <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          disabled={!totalValide || saving}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+        <PrimaryButton onClick={handleSave} disabled={!totalValide || saving}>
           Enregistrer
-        </button>
+        </PrimaryButton>
         {!totalValide && <span className="text-sm text-negatif">Total actuel : {total.toFixed(2)} % (doit faire 100 %)</span>}
         {error && <span className="text-sm text-negatif">{error}</span>}
       </div>
