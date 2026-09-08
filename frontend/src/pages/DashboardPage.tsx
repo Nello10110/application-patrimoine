@@ -122,13 +122,11 @@ export default function DashboardPage() {
         }
       />
 
-      {/* Encart teinté : même exception que `QualiteDonneesCard` (backlog 2.K.1) —
-          hors des 9 jetons sémantiques, pas de jeton de fond teinté multi-nuances
-          disponible pour ce besoin. C'est un appel à l'action, pas de l'information
-          complémentaire : il reste sur l'écran d'accueil quand tout le reste part. */}
+      {/* Encart d'appel à l'action, pas de l'information complémentaire : il reste
+          sur l'écran d'accueil quand tout le reste part. */}
       {portefeuilleVide && (
-        <Card className="border-avertissement/25 bg-avertissement/10">
-          <p className="text-sm text-avertissement">
+        <Card className="border-warn/25 bg-warn-bg">
+          <p className="text-sm text-warn">
             Aucune position dans le portefeuille. Commence par{' '}
             <Link to="/import" className="font-medium underline">
               importer ton portefeuille
