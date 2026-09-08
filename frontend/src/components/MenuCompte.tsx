@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { Label } from './Field'
 import { routesDuRang } from '../layout/routes'
 import { IconDeconnexion } from './icons'
 
@@ -68,9 +69,11 @@ export default function MenuCompte({ compact = false }: { compact?: boolean }) {
         <div
           role="menu"
           aria-label="Menu du compte"
-          className="absolute bottom-full left-0 z-10 mb-2 w-56 rounded-card border border-bordure bg-surface p-1.5 shadow-glass-lg"
+          className="absolute bottom-full left-0 z-10 mb-2 w-56 rounded-card border border-stroke bg-panel-hi p-1.5 shadow-glass-lg backdrop-blur-glass backdrop-saturate-[1.8]"
         >
-          <p className="px-2.5 py-1.5 text-xs font-medium uppercase tracking-wide text-texte-attenue">{nomAffiche}</p>
+          <p className="px-2.5 py-1.5">
+            <Label>{nomAffiche}</Label>
+          </p>
 
           {routesDuRang('administration', user.role).map((r) => {
             const Icone = r.icone

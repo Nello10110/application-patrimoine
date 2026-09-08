@@ -14,7 +14,7 @@ import { formatEuro } from '../utils/format'
 /** Exposition consolidée tous actifs (backlog 2.P.1) : une seule répartition
  * géo/classe, financier ET immobilier/épargne confondus — jamais servie ailleurs
  * dans l'application (`AnalysisResponse` reste scopé au seul portefeuille
- * financier). Affichée dans le détail repliable du Tableau de bord.
+ * financier). Affichée sur l'écran Analyse, onglet Portefeuille.
  *
  * Suit la lentille Net/Brut/Financier (backlog 2.S.2, retour utilisateur 26/08/2026) :
  * Brut affiche la valeur brute de chaque ligne, Net la nette de son emprunt rattaché
@@ -54,64 +54,61 @@ export default function ExpositionConsolideeCard() {
   const premiereZoneGeoPct = donnees ? (enNet ? donnees.premiere_zone_geo_pct_nette : donnees.premiere_zone_geo_pct) : null
   const partEstimeeManuellePct = donnees ? (enNet ? donnees.part_estimee_manuelle_pct_nette : donnees.part_estimee_manuelle_pct) : 0
 
+  if (loading) return <SkeletonGraphique hauteur={320} />
+  if (erreur) return <EtatErreur message={erreur} onReessayer={charger} />
+  if (!donnees) return null
+
+  if (valeurTotale === 0) {
+    return (
+      <Card title="Exposition consolidée — tous actifs">
+        <EtatVide titre="Aucun actif valorisé." description="Importe un historique de transactions ou renseigne un actif manuellement pour voir l'exposition consolidée." />
+      </Card>
+    )
+  }
+
   return (
-    <div>
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-texte-attenue">
-        Exposition consolidée — tous actifs
-      </h3>
-
-      {loading && <SkeletonGraphique hauteur={320} />}
-      {erreur && <EtatErreur message={erreur} onReessayer={charger} />}
-
-      {!loading && !erreur && donnees && (
-        <div className="space-y-4">
-          {valeurTotale === 0 ? (
-            <Card>
-              <EtatVide titre="Aucun actif valorisé." description="Importe un historique de transactions ou renseigne un actif manuellement pour voir l'exposition consolidée." />
-            </Card>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <StatTile
-                  label="Plus grosse ligne"
-                  value={plusGrosseLigneTicker ?? '—'}
-                  sub={plusGrosseLignePct !== null ? `${plusGrosseLignePct}% du patrimoine` : undefined}
-                />
-                <StatTile label="Top 5 lignes" value={top5LignesPct !== null ? `${top5LignesPct}%` : '—'} sub="du patrimoine total" />
-                <StatTile
-                  label="Première zone géographique"
-                  value={premiereZoneGeo ?? '—'}
-                  sub={premiereZoneGeoPct !== null ? `${premiereZoneGeoPct}% du patrimoine` : undefined}
-                />
-              </div>
-
-              {/* `repartition_geo`/`repartition_classe` (et leurs variantes `_nette`)
-                  n'incluent jamais de catégorie à valeur <= 0 (`compute_exposition_consolidee`
-                  les exclut — pas de liste ici, contrairement à `PatrimoineNetCard`, pour
-                  afficher une équité négative en repli). */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <PieChartCard
-                  title="Répartition géographique consolidée"
-                  items={repartitionGeo.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
-                  onCategoryClick={(categorie) => setModal({ dimension: 'geo', categorie })}
-                />
-                <PieChartCard
-                  title="Répartition par classe d'actif"
-                  items={repartitionClasse.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
-                  onCategoryClick={(categorie) => setModal({ dimension: 'classe', categorie })}
-                />
-              </div>
-
-              <p className="text-xs text-texte-attenue">
-                Valeur totale consolidée{enNet ? ' (nette des emprunts rattachés à chaque actif)' : ' (valeur brute)'} :{' '}
-                {formatEuro(valeurTotale, 0, montantsMasques)}.{' '}
-                {partEstimeeManuellePct > 0 &&
-                  `${partEstimeeManuellePct}% de cette valeur (immobilier/épargne saisis manuellement) a une zone géographique déclarée, pas mesurée.`}
-              </p>
-            </>
-          )}
+    <div className="space-y-[14px]">
+      {/* Chaque bloc est sa propre carte (`PieChartCard` s'enveloppe déjà lui-même,
+          comme partout ailleurs dans l'app) : les imbriquer dans une carte englobante
+          empilerait deux panneaux de verre flous l'un dans l'autre. */}
+      <Card title="Exposition consolidée — tous actifs">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatTile
+            label="Plus grosse ligne"
+            value={plusGrosseLigneTicker ?? '—'}
+            sub={plusGrosseLignePct !== null ? `${plusGrosseLignePct}% du patrimoine` : undefined}
+          />
+          <StatTile label="Top 5 lignes" value={top5LignesPct !== null ? `${top5LignesPct}%` : '—'} sub="du patrimoine total" />
+          <StatTile
+            label="Première zone géographique"
+            value={premiereZoneGeo ?? '—'}
+            sub={premiereZoneGeoPct !== null ? `${premiereZoneGeoPct}% du patrimoine` : undefined}
+          />
         </div>
-      )}
+        <p className="mt-4 text-xs text-texte-attenue">
+          Valeur totale consolidée{enNet ? ' (nette des emprunts rattachés à chaque actif)' : ' (valeur brute)'} :{' '}
+          {formatEuro(valeurTotale, 0, montantsMasques)}.{' '}
+          {partEstimeeManuellePct > 0 &&
+            `${partEstimeeManuellePct}% de cette valeur (immobilier/épargne saisis manuellement) a une zone géographique déclarée, pas mesurée.`}
+        </p>
+      </Card>
+
+      {/* `repartition_geo`/`repartition_classe` (et leurs variantes `_nette`)
+          n'incluent jamais de catégorie à valeur <= 0 (`compute_exposition_consolidee`
+          les exclut — pas de liste ici, contrairement à `PatrimoineNetCard`, pour
+          afficher une équité négative en repli). */}
+      <div className="grid grid-cols-1 gap-[14px] lg:grid-cols-2">
+        <PieChartCard
+          title="Répartition géographique consolidée"
+          items={repartitionGeo.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
+          onCategoryClick={(categorie) => setModal({ dimension: 'geo', categorie })}
+        />
+        <PieChartCard
+          title="Répartition par classe d'actif"
+          items={repartitionClasse.map((i) => ({ categorie: i.categorie, poids: i.valeur / valeurTotale }))}
+          onCategoryClick={(categorie) => setModal({ dimension: 'classe', categorie })}
+        />
+      </div>
 
       {modal && (
         <CompositionModal

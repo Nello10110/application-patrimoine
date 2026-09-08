@@ -6,7 +6,7 @@ import Card from './Card'
 import { PrimaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
-import { Field, Input, Select } from './Field'
+import { Field, Input, Label, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import StatTile from './StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
@@ -96,19 +96,19 @@ function ObjectifCard({ objectif, onDeleted }: { objectif: ObjectifDetail; onDel
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur actuelle</p>
+          <Label>Valeur actuelle</Label>
           <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(objectif.valeur_actuelle, 0, montantsMasques)}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Montant cible</p>
+          <Label>Montant cible</Label>
           <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(objectif.montant_cible, 0, montantsMasques)}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Progression</p>
+          <Label>Progression</Label>
           <p className="mt-1 text-lg font-semibold text-texte">{objectif.progression_pct !== null ? `${objectif.progression_pct}%` : '—'}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Diagnostic</p>
+          <Label>Diagnostic</Label>
           <p className={`mt-1 text-sm font-semibold ${toneClass}`}>{phraseDiagnostic(objectif)}</p>
         </div>
       </div>

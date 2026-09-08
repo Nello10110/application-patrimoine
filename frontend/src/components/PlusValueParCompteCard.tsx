@@ -78,10 +78,10 @@ export default function PlusValueParCompteCard({ holdings, montantsMasques }: { 
 
       <div className="mt-2 flex items-center gap-4 text-xs text-texte-attenue">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-positif" /> Plus-value
+          <span className="inline-block h-2 w-2 rounded-[3px] bg-pos" /> Plus-value
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-negatif" /> Moins-value
+          <span className="inline-block h-2 w-2 rounded-[3px] bg-neg" /> Moins-value
         </span>
       </div>
 

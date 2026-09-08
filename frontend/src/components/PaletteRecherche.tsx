@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Holding, Loan } from '../api/types'
 import { useAuth } from '../hooks/useAuth'
+import { Label } from './Field'
 import { routesDuRang } from '../layout/routes'
 import { IconChevron, IconRecherche } from './icons'
 import Modale from './Modale'
@@ -144,7 +145,9 @@ export default function PaletteRecherche({ compact = false }: { compact?: boolea
                     if (items.length === 0) return null
                     return (
                       <div key={type} className="px-2 py-1">
-                        <p className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-texte-attenue">{LABEL_TYPE[type]}</p>
+                        <p className="px-2 py-1">
+                          <Label>{LABEL_TYPE[type]}</Label>
+                        </p>
                         {items.map((r) => {
                           const index = resultats.indexOf(r)
                           return (

@@ -73,9 +73,13 @@ export function DataPoint({
 export function Badge({
   children,
   ton = 'neutre',
+  title,
+  className = '',
 }: {
   children: ReactNode
   ton?: 'neutre' | 'accent' | 'positif' | 'negatif' | 'avertissement'
+  title?: string
+  className?: string
 }) {
   const tons = {
     neutre: 'bg-track text-ink3',
@@ -85,7 +89,7 @@ export function Badge({
     avertissement: 'bg-warn-bg text-warn',
   } as const
   return (
-    <span className={`inline-flex items-center rounded-chip px-2.5 py-0.5 text-xs font-medium ${tons[ton]}`}>
+    <span title={title} className={`inline-flex items-center rounded-chip px-2.5 py-0.5 text-xs font-medium ${tons[ton]} ${className}`}>
       {children}
     </span>
   )

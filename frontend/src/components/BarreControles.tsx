@@ -87,7 +87,7 @@ export default function BarreControles() {
             value={detenteurId ?? ''}
             onChange={(e) => setDetenteurId(e.target.value === '' ? null : Number(e.target.value))}
             title={AIDE_DETENTEUR}
-            className="shrink-0 rounded-control border border-hairline bg-chip px-2 py-1 text-[13px] text-ink2"
+            className="shrink-0 rounded-control border border-hairline bg-chip px-2 py-[5px] text-[13px] text-ink2"
           >
             <option value="">Foyer</option>
             {detenteurs.map((d) => (

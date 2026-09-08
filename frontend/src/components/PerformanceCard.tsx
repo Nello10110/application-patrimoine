@@ -1,5 +1,6 @@
 import type { PerformanceSummary } from '../api/types'
 import Card from './Card'
+import { Label } from './Field'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro, formatPct } from '../utils/format'
 
@@ -12,11 +13,11 @@ export default function PerformanceCard({ performance }: { performance: Performa
     <Card title="Rentabilité globale">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur totale</p>
+          <Label>Valeur totale</Label>
           <p className="mt-1 text-xl font-semibold text-texte">{formatEuro(performance.valeur_totale, 0, montantsMasques)}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Coût total investi</p>
+          <Label>Coût total investi</Label>
           <p className="mt-1 text-xl font-semibold text-texte">
             {formatEuro(performance.cout_total_investi, 0, montantsMasques)}
           </p>
@@ -25,7 +26,7 @@ export default function PerformanceCard({ performance }: { performance: Performa
           )}
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Gain / Perte total</p>
+          <Label>Gain / Perte total</Label>
           <p className={`mt-1 text-xl font-semibold ${couleurGain}`}>
             {gainPositif ? '+' : ''}
             {formatEuro(performance.gain_perte_total, 0, montantsMasques)}
@@ -33,7 +34,7 @@ export default function PerformanceCard({ performance }: { performance: Performa
           <p className={`text-xs ${couleurGain}`}>{formatPct(performance.rendement_simple_pct)}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rendement annualisé</p>
+          <Label>Rendement annualisé</Label>
           <p className="mt-1 text-xl font-semibold text-texte">
             {formatPct(performance.rendement_annualise_pct)}
           </p>

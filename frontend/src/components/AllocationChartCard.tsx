@@ -76,7 +76,7 @@ export default function AllocationChartCard({
           {({ titleId }) => (
             <>
               <div className="mb-4 flex items-start justify-between gap-4">
-                <h3 id={titleId} className="text-[19px] font-semibold tracking-title text-ink">
+                <h3 id={titleId} className="text-[15px] font-semibold -tracking-[0.01em] text-ink">
                   {title}
                 </h3>
                 <button onClick={() => setPleinEcran(false)} aria-label="Fermer" className="text-ink3 hover:text-ink">

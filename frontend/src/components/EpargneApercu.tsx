@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Holding, HoldingDetail, ValuationHistoryPoint } from '../api/types'
 import { AjoutValorisationForm } from './AjoutValorisationForm'
 import Card from './Card'
+import { Label } from './Field'
 import { ValorisationHistoriqueCard } from './ValorisationHistoriqueCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatEuro } from '../utils/format'
@@ -36,12 +37,12 @@ export default function EpargneApercu({
       <Card>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur actuelle</p>
+            <Label>Valeur actuelle</Label>
             <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(valeurActuelle, 2, montantsMasques)}</p>
             {dateValeurActuelle && <p className="mt-1 text-xs text-texte-attenue">à jour au {formatDate(dateValeurActuelle)}</p>}
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Versement mensuel déclaré</p>
+            <Label>Versement mensuel déclaré</Label>
             <p className="mt-1 text-lg font-semibold text-texte">
               {detail.versement_mensuel !== null ? formatEuro(detail.versement_mensuel, 2, montantsMasques) : '—'}
             </p>

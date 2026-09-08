@@ -15,7 +15,7 @@ import {
 } from '../utils/holdingCategories'
 import { formatDate, formatEuro, formatQuantite } from '../utils/format'
 import InfoBulle from './InfoBulle'
-import { Field, Input, Select } from './Field'
+import { Badge, Field, Input, Select } from './Field'
 import SelecteurEtablissement, { NOUVEAU_ETABLISSEMENT } from './SelecteurEtablissement'
 
 function RendementCell({ value }: { value: number | null }) {
@@ -344,12 +344,9 @@ function PositionCard({
           <p className="truncate font-medium text-texte">
             {h.ticker}
             {h.origine === 'manuel' && (
-              <span
-                title="Ligne saisie manuellement : non recalculée par un import de transactions"
-                className="ml-2 rounded-chip bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
-              >
+              <Badge title="Ligne saisie manuellement : non recalculée par un import de transactions" className="ml-2">
                 saisie manuelle
-              </span>
+              </Badge>
             )}
           </p>
           <p className="truncate text-sm text-texte-attenue">{md?.nom ?? h.nom ?? '—'}</p>
@@ -709,12 +706,9 @@ export default function PositionsTable({
                     </button>
                   )}
                   {h.origine === 'manuel' && (
-                    <span
-                      title="Ligne saisie manuellement : non recalculée par un import de transactions"
-                      className="ml-2 rounded-chip bg-surface-elevee px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-texte-attenue"
-                    >
+                    <Badge title="Ligne saisie manuellement : non recalculée par un import de transactions" className="ml-2">
                       saisie manuelle
-                    </span>
+                    </Badge>
                   )}
                 </td>
                 <td className="py-2 pr-4 text-texte">

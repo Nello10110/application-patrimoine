@@ -8,6 +8,7 @@ import { GlassPanel } from './GlassPanel'
 import DetenteursSection from './DetenteursSection'
 import EpargneApercu from './EpargneApercu'
 import EtatVide from './EtatVide'
+import { Label } from './Field'
 import HoldingPriceHistoryChart from './HoldingPriceHistoryChart'
 import ImmobilierApercu from './ImmobilierApercu'
 import ImmobilierParametresForm from './ImmobilierParametresForm'
@@ -123,29 +124,29 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
           <Card>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Quantité</p>
+                <Label>Quantité</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatQuantite(detail.quantite)}</p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Prix de revient</p>
+                <Label>Prix de revient</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.prix_revient_moyen, 2, montantsMasques)}</p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Prix actuel</p>
+                <Label>Prix actuel</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.prix_actuel, 2, montantsMasques)}</p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Valeur</p>
+                <Label>Valeur</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(detail.valeur, 2, montantsMasques)}</p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Depuis achat</p>
+                <Label>Depuis achat</Label>
                 <p className={`mt-1 text-lg font-semibold ${gainPositif ? 'text-positif' : 'text-negatif'}`}>
                   {formatPct(detail.rendement_depuis_achat_pct)}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rendement annualisé</p>
+                <Label>Rendement annualisé</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(detail.rendement_annualise_pct)}</p>
                 {detail.rendement_annualise_pct === null && (
                   <p className="text-xs text-texte-attenue">
@@ -154,11 +155,11 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
                 )}
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Secteur</p>
+                <Label>Secteur</Label>
                 <p className="mt-1 text-sm text-texte">{detail.secteur ?? '—'}</p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Pays</p>
+                <Label>Pays</Label>
                 <p className="mt-1 text-sm text-texte">{detail.pays ?? '—'}</p>
               </div>
             </div>

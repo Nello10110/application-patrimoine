@@ -1,5 +1,6 @@
 import type { Holding, HoldingDetail, ValuationHistoryPoint } from '../api/types'
 import Card from './Card'
+import { Label } from './Field'
 import { ValorisationHistoriqueCard } from './ValorisationHistoriqueCard'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro, formatPct } from '../utils/format'
@@ -32,7 +33,7 @@ export default function ImmobilierApercu({
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {immobilier.cashflow_mensuel !== null && (
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Cashflow mensuel</p>
+                <Label>Cashflow mensuel</Label>
                 <p className={`mt-1 text-lg font-semibold ${immobilier.cashflow_mensuel >= 0 ? 'text-positif' : 'text-negatif'}`}>
                   {formatEuro(immobilier.cashflow_mensuel, 2, montantsMasques)}
                 </p>
@@ -41,27 +42,27 @@ export default function ImmobilierApercu({
             )}
             {immobilier.rentabilite_brute_pct !== null && (
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rentabilité brute</p>
+                <Label>Rentabilité brute</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_brute_pct)}</p>
                 <p className="mt-1 text-xs text-texte-attenue">loyer annuel / prix d'acquisition</p>
               </div>
             )}
             {immobilier.rentabilite_nette_pct !== null && (
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Rentabilité nette</p>
+                <Label>Rentabilité nette</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_nette_pct)}</p>
                 <p className="mt-1 text-xs text-texte-attenue">(loyer − charges − frais) / prix d'acquisition</p>
               </div>
             )}
             {immobilier.prix_m2 !== null && (
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Prix au m²</p>
+                <Label>Prix au m²</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.prix_m2, 2, montantsMasques)}</p>
               </div>
             )}
             {immobilier.emprunt_mensualite !== null && (
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Mensualité de l'emprunt rattaché</p>
+                <Label>Mensualité de l'emprunt rattaché</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.emprunt_mensualite, 2, montantsMasques)}</p>
               </div>
             )}

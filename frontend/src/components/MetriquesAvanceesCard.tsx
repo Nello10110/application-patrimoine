@@ -5,6 +5,7 @@ import type { BenchmarkOption, ComparaisonBenchmark, MetriquesAvancees } from '.
 import Card from './Card'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
+import { Label, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import { formatDate, formatPct } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
@@ -92,21 +93,21 @@ export default function MetriquesAvanceesCard() {
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">TWR cumulé</p>
+              <Label>TWR cumulé</Label>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(metriques.twr_cumule_pct)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">TWR annualisé</p>
+              <Label>TWR annualisé</Label>
               <p className="mt-1 text-xl font-semibold text-texte">{formatPct(metriques.twr_annualise_pct)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Volatilité annualisée</p>
+              <Label>Volatilité annualisée</Label>
               <p className="mt-1 text-xl font-semibold text-texte">
                 {metriques.volatilite_annualisee_pct !== null ? `${metriques.volatilite_annualisee_pct}%` : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-texte-attenue">Perte maximale (drawdown)</p>
+              <Label>Perte maximale (drawdown)</Label>
               <p className="mt-1 text-xl font-semibold text-negatif">
                 {metriques.max_drawdown_pct !== null ? `${metriques.max_drawdown_pct}%` : '—'}
               </p>
@@ -122,19 +123,15 @@ export default function MetriquesAvanceesCard() {
 
           <div className="mt-6 border-t border-bordure pt-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-texte-attenue">Comparaison à un indice</h3>
-              <select
-                value={benchmarkChoisi}
-                onChange={(e) => handleBenchmarkChange(e.target.value)}
-                className="rounded-control border border-bordure bg-surface px-2 py-1.5 text-sm text-texte"
-              >
+              <h3 className="text-[15px] font-semibold -tracking-[0.01em] text-ink">Comparaison à un indice</h3>
+              <Select value={benchmarkChoisi} onChange={(e) => handleBenchmarkChange(e.target.value)} className="w-auto">
                 <option value="">Choisir un indice de référence</option>
                 {benchmarks.map((b) => (
                   <option key={b.key} value={b.key}>
                     {b.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             {chargementComparaison && <SkeletonTexte lignes={3} />}
