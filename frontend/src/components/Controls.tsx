@@ -152,6 +152,7 @@ export function PrimaryButton({
   type = 'button',
   disabled = false,
   className = '',
+  title,
 }: {
   children: ReactNode
   onClick?: () => void
@@ -159,12 +160,14 @@ export function PrimaryButton({
   type?: 'button' | 'submit'
   disabled?: boolean
   className?: string
+  title?: string
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`flex min-h-11 items-center justify-center gap-1.5 rounded-control px-4 text-sm font-semibold transition-colors md:min-h-0 md:py-2 ${
         disabled
           ? 'cursor-not-allowed bg-track text-ink4'

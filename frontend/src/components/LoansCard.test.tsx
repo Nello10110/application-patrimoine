@@ -102,31 +102,21 @@ describe('LoansCard', () => {
     expect(screen.getAllByText('150 000 €').length).toBeGreaterThan(0)
   })
 
-  it("l'ajout d'un emprunt appelle createLoan puis recharge la liste", async () => {
+  // L'ajout d'un emprunt vit désormais dans `AjoutHoldingForm` (mode « Un emprunt »,
+  // 09/09/2026) — testé là-bas (`PortefeuillePage.test.tsx`). Cette carte n'a plus
+  // qu'à savoir se recharger quand `reloadToken` change, sa seule interface avec ce
+  // nouveau point d'entrée externe.
+  it('se recharge quand `reloadToken` change (nouvel emprunt créé ailleurs)', async () => {
     vi.mocked(api.listLoans).mockResolvedValueOnce([]).mockResolvedValueOnce([loan()])
-    vi.mocked(api.createLoan).mockResolvedValue(loan())
-    render(<LoansCard />)
+    const { rerender } = render(<LoansCard reloadToken={0} />)
 
     await screen.findByText('Aucun emprunt enregistré.')
+    const appelsAvant = vi.mocked(api.listLoans).mock.calls.length
 
-    fireEvent.change(screen.getByPlaceholderText('Crédit immobilier'), { target: { value: 'Crédit immobilier' } })
-    fireEvent.change(screen.getByLabelText('Capital initial'), { target: { value: '200000' } })
-    fireEvent.change(screen.getByLabelText('Taux annuel (%)'), { target: { value: '3.5' } })
-    fireEvent.change(screen.getByLabelText('Mensualité'), { target: { value: '1200' } })
-    fireEvent.change(screen.getByLabelText('Date de début'), { target: { value: '2020-01-01' } })
-    fireEvent.change(screen.getByLabelText('Durée (mois)'), { target: { value: '240' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+    rerender(<LoansCard reloadToken={1} />)
 
     await screen.findByText('Crédit immobilier')
-    expect(screen.getAllByText('150 000 €').length).toBeGreaterThan(0)
-    expect(api.createLoan).toHaveBeenCalledWith({
-      libelle: 'Crédit immobilier',
-      capital_initial: 200000,
-      taux_annuel_pct: 3.5,
-      mensualite: 1200,
-      date_debut: '2020-01-01',
-      duree_mois: 240,
-    })
+    expect(vi.mocked(api.listLoans).mock.calls.length).toBe(appelsAvant + 1)
   })
 
   it('le recalage manuel appelle updateLoan avec capital_restant_du_manuel', async () => {

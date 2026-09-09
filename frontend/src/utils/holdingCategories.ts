@@ -17,8 +17,9 @@ export const CATEGORY_TABS: { key: Categorie; label: string }[] = [
 // Immobilier/SCPI/assurance-vie/PER/autre actif/taxonomie élargie (roadmap Phase 1
 // et 2, Lot 5 § M.1 — patrimoine net) : aucune cotation automatique, valorisés via
 // `Holding.valeur_estimee`. Cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL` côté backend.
-// Exporté (backlog 2.P.1) : sert aussi à n'afficher le champ Zone géographique que
-// pour ces types dans le formulaire d'ajout manuel.
+// Sert aussi à masquer Quantité (fixée à 1, sans objet pour un bien valorisé en bloc)
+// dans le formulaire d'ajout manuel — cf. `TYPES_AVEC_ZONE_GEO` ci-dessous pour Zone
+// géographique, un sous-ensemble plus étroit.
 export const TYPES_PATRIMOINE = new Set([
   'REAL_ESTATE',
   'SCPI',
@@ -60,6 +61,15 @@ export const TYPE_ACTIF_OPTIONS: { value: string; label: string }[] = [
 // lui. Un `type_actif` non précisé (`''`) n'est PAS exempté : le sélecteur de
 // compte doit garder l'option « — Aucun — » retirée par défaut.
 export const TYPES_ACTIF_SANS_ETABLISSEMENT = new Set(['REAL_ESTATE', 'VEHICLE', 'OTHER_ASSET'])
+
+// Sous-ensemble de `TYPES_PATRIMOINE` où une localisation réelle a un sens (retour
+// utilisateur du 09/09/2026 : « la zone géographique n'a pas de sens pour une
+// voiture ») — le seul à afficher le champ Zone géographique dans le formulaire
+// d'ajout manuel. Une SCPI et un bien immobilier direct sont tous deux rattachables
+// à une zone ; un véhicule, une assurance-vie ou un compte d'épargne ne le sont pas
+// (l'assureur/la banque n'a pas de géographie propre — c'est le contenu du contrat,
+// hors du périmètre de ce champ).
+export const TYPES_AVEC_ZONE_GEO = new Set(['REAL_ESTATE', 'SCPI'])
 
 // Types pour lesquels `taux_pct` a un sens (backlog § 2.M.1) : intérêt attendu pour
 // l'épargne, décote attendue pour un véhicule — affiche le libellé et le signe

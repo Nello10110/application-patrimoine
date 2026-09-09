@@ -38,6 +38,14 @@
       "rules": { "react/only-export-components": "off" }
     },
     {
+      // `LOAN_FORM_VIDE` (09/09/2026) : un état initial d'objet, pas une primitive —
+      // `allowConstantExport` ne le reconnaît donc pas comme « constant ». Le séparer
+      // du composant qui définit son type (`LoanForm`) pour un unique objet à six clés
+      // vides serait plus de fichiers que de code.
+      "files": ["src/components/LoanFormFields.tsx"],
+      "rules": { "react/only-export-components": "off" }
+    },
+    {
       "files": ["src/components/Skeleton.tsx"],
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },

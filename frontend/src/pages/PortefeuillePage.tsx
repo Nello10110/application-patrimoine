@@ -87,6 +87,10 @@ export default function PortefeuillePage() {
   // Feuille d'ajout (refonte, étape 4) : le formulaire ne vit plus en carte
   // permanente en haut de l'écran.
   const [ajoutOuvert, setAjoutOuvert] = useState(false)
+  // Incrémenté à chaque emprunt créé via la feuille « Ajouter une ligne » (mode « Un
+  // emprunt », 09/09/2026) : `LoansCard` charge sa propre liste et n'a sinon aucun
+  // moyen de savoir qu'une nouvelle ligne vient d'apparaître.
+  const [loansReloadToken, setLoansReloadToken] = useState(0)
   const [holdings, setHoldings] = useState<Holding[]>([])
   // Catégorie et compte sont des FILTRES (ils changent ce qui est affiché), donc
   // portés par l'URL (backlog 2.K.2) plutôt qu'un état local : le retour
@@ -302,7 +306,7 @@ export default function PortefeuillePage() {
                     Ajouter une ligne
                   </h2>
                   <p className="mt-0.5 text-[13px] text-ink3">
-                    Une position boursière, ou un bien valorisé à la main (immobilier, épargne, véhicule).
+                    Une position boursière, un bien valorisé à la main (immobilier, épargne, véhicule), ou un emprunt.
                   </p>
                 </div>
                 <button
@@ -316,8 +320,13 @@ export default function PortefeuillePage() {
               </div>
               <AjoutHoldingForm
                 sansCarte
+                autoriserEmprunt
                 onCreated={() => {
                   load()
+                  setAjoutOuvert(false)
+                }}
+                onLoanCreated={() => {
+                  setLoansReloadToken((n) => n + 1)
                   setAjoutOuvert(false)
                 }}
                 comptes={comptes}
@@ -429,7 +438,7 @@ export default function PortefeuillePage() {
         )}
       </Card>
 
-      <LoansCard holdings={holdings} etablissements={etablissements} />
+      <LoansCard holdings={holdings} etablissements={etablissements} reloadToken={loansReloadToken} />
 
       {selectedTicker && <HoldingDetailModal ticker={selectedTicker} onClose={() => setSelectedTicker(null)} />}
 

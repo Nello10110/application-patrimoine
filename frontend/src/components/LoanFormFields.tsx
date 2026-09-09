@@ -9,7 +9,19 @@ export interface LoanForm {
   duree_mois: string
 }
 
-const LARGEURS: Record<'pleineLargeur' | 'compacte', Record<keyof LoanForm, string>> = {
+// Formulaire vierge — état initial de `LoansCard` (édition en ligne) et
+// d'`AjoutHoldingForm` (mode « Un emprunt », 09/09/2026), plutôt que dupliqué à
+// chaque endroit qui manipule un `LoanForm`.
+export const LOAN_FORM_VIDE: LoanForm = {
+  libelle: '',
+  capital_initial: '',
+  taux_annuel_pct: '',
+  mensualite: '',
+  date_debut: '',
+  duree_mois: '',
+}
+
+const LARGEURS: Record<'pleineLargeur' | 'compacte' | 'grille', Record<keyof LoanForm, string>> = {
   pleineLargeur: {
     libelle: 'w-full',
     capital_initial: 'w-full',
@@ -26,16 +38,27 @@ const LARGEURS: Record<'pleineLargeur' | 'compacte', Record<keyof LoanForm, stri
     date_debut: 'w-36',
     duree_mois: 'w-24',
   },
+  // Grille à deux colonnes (`AjoutHoldingForm`, mode « Un emprunt ») : le libellé
+  // occupe toute la largeur (comme le Ticker du mode « Un actif » du même
+  // formulaire), les cinq champs numériques/date s'apparient par deux.
+  grille: {
+    libelle: 'col-span-2',
+    capital_initial: '',
+    taux_annuel_pct: '',
+    mensualite: '',
+    date_debut: '',
+    duree_mois: '',
+  },
 }
 
 /** Les 6 champs d'un emprunt (libellé, capital, taux, mensualité, date de début,
- * durée), partagés entre le formulaire d'ajout, l'édition en ligne (tableau
- * desktop) et l'édition en carte (mobile) — cf. `LoansCard.tsx`, backlog audit
- * maintenabilité. `libelleAriaSuffix` (ex. « de Crédit immo (édition) »)
- * désambiguïse chaque champ pour un lecteur d'écran quand plusieurs lignes
- * portent le même libellé de champ visible ("Libellé", "Capital initial"...) —
- * omis dans le formulaire d'ajout, seule instance de ces libellés visible à la
- * fois sur l'écran. */
+ * durée), partagés entre le formulaire d'ajout (`AjoutHoldingForm`, mode « Un
+ * emprunt »), l'édition en ligne (tableau desktop de `LoansCard`) et l'édition en
+ * carte (mobile) — backlog audit maintenabilité. `libelleAriaSuffix` (ex. « de
+ * Crédit immo (édition) ») désambiguïse chaque champ pour un lecteur d'écran quand
+ * plusieurs lignes portent le même libellé de champ visible ("Libellé", "Capital
+ * initial"...) — omis dans le formulaire d'ajout, seule instance de ces libellés
+ * visible à la fois sur l'écran. */
 export default function LoanFormFields({
   form,
   onChange,
@@ -44,7 +67,7 @@ export default function LoanFormFields({
 }: {
   form: LoanForm
   onChange: (form: LoanForm) => void
-  variant: 'pleineLargeur' | 'compacte'
+  variant: 'pleineLargeur' | 'compacte' | 'grille'
   libelleAriaSuffix?: string
 }) {
   const largeurs = LARGEURS[variant]

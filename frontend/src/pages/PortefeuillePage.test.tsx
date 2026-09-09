@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Compte, Holding } from '../api/types'
+import type { Compte, Holding, Loan } from '../api/types'
 import { simulerLargeurEcran } from '../test/matchMedia'
 import PortefeuillePage from './PortefeuillePage'
 
@@ -18,6 +18,9 @@ vi.mock('../api/client', () => ({
     // de ce fichier — mise de côté (cf. le mock ci-dessous), donc jamais appelée en
     // pratique ; gardée ici uniquement pour que le typage de `api` reste cohérent.
     listLoans: vi.fn(),
+    // `createLoan`, lui, EST appelée depuis cette page (mode « Un emprunt » de la
+    // feuille « Ajouter une ligne », 09/09/2026) — `LoansCard` n'en a plus la charge.
+    createLoan: vi.fn(),
     // Comptes structurels (écran Comptes, backlog X.1) : `AjoutHoldingForm` et
     // `PositionsTable` (toutes deux embarquées telles quelles, non mockées) chargent
     // désormais la liste des comptes existants — stub neutre par défaut, les tests
@@ -80,6 +83,26 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     base.valeur = prix !== null && prix !== undefined ? prix * base.quantite : null
   }
   return base
+}
+
+function loan(overrides: Partial<Loan> = {}): Loan {
+  return {
+    id: 1,
+    libelle: 'Crédit immobilier',
+    capital_initial: 200000,
+    taux_annuel_pct: 3.5,
+    mensualite: 1200,
+    date_debut: '2020-01-01T00:00:00',
+    duree_mois: 240,
+    capital_restant_du_manuel: null,
+    derniere_maj_manuelle: null,
+    capital_restant_du: 200000,
+    holding_id: null,
+    etablissement_id: null,
+    created_at: '2020-01-01T00:00:00',
+    updated_at: '2020-01-01T00:00:00',
+    ...overrides,
+  }
 }
 
 // Comptes structurels (écran Comptes, backlog X.1) — fixtures fixes réutilisées
@@ -321,6 +344,69 @@ describe('PortefeuillePage', () => {
           expect.objectContaining({ ticker: 'AV1', type_actif: 'LIFE_INSURANCE', versement_mensuel: 200 }),
         ),
       )
+    })
+  })
+
+  describe('Ajouter une ligne manuellement — compte masqué pour les biens sans établissement (retour utilisateur, 09/09/2026)', () => {
+    it("le champ « Compte » disparaît pour un bien immobilier — ça n'a pas de sens de le rattacher à un compte", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      expect(screen.getByLabelText('Compte')).toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      expect(screen.queryByLabelText('Compte')).not.toBeInTheDocument()
+
+      // Revenir à un type financier fait réapparaître le champ.
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'STOCK' } })
+      expect(screen.getByLabelText('Compte')).toBeInTheDocument()
+    })
+  })
+
+  describe('Ajouter un emprunt depuis la même feuille (retour utilisateur, 09/09/2026)', () => {
+    it('la bascule « Un actif / Un emprunt » masque les champs d’actif et affiche les six champs d’un emprunt', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Un emprunt' }))
+
+      expect(screen.queryByLabelText("Type d'actif")).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Libellé')).toBeInTheDocument()
+      expect(screen.getByLabelText('Capital initial')).toBeInTheDocument()
+      expect(screen.getByLabelText('Taux annuel (%)')).toBeInTheDocument()
+      expect(screen.getByLabelText('Mensualité')).toBeInTheDocument()
+      expect(screen.getByLabelText('Date de début')).toBeInTheDocument()
+      expect(screen.getByLabelText('Durée (mois)')).toBeInTheDocument()
+    })
+
+    it('soumettre appelle createLoan (pas createHolding) puis ferme la feuille', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      vi.mocked(api.createLoan).mockResolvedValue(loan())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      const dialog = await ouvrirFeuilleAjout()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Un emprunt' }))
+      fireEvent.change(screen.getByLabelText('Libellé'), { target: { value: 'Crédit immobilier' } })
+      fireEvent.change(screen.getByLabelText('Capital initial'), { target: { value: '200000' } })
+      fireEvent.change(screen.getByLabelText('Taux annuel (%)'), { target: { value: '3.5' } })
+      fireEvent.change(screen.getByLabelText('Mensualité'), { target: { value: '1200' } })
+      fireEvent.change(screen.getByLabelText('Date de début'), { target: { value: '2020-01-01' } })
+      fireEvent.change(screen.getByLabelText('Durée (mois)'), { target: { value: '240' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() =>
+        expect(api.createLoan).toHaveBeenCalledWith({
+          libelle: 'Crédit immobilier',
+          capital_initial: 200000,
+          taux_annuel_pct: 3.5,
+          mensualite: 1200,
+          date_debut: '2020-01-01',
+          duree_mois: 240,
+        }),
+      )
+      expect(api.createHolding).not.toHaveBeenCalled()
+      await waitFor(() => expect(dialog).not.toBeInTheDocument())
     })
   })
 

@@ -10,7 +10,7 @@ import { PrimaryButton, SecondaryButton } from './Controls'
 import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Field, Input, Select } from './Field'
-import type { LoanForm } from './LoanFormFields'
+import { LOAN_FORM_VIDE, type LoanForm } from './LoanFormFields'
 import LoanFormFields from './LoanFormFields'
 import Modale from './Modale'
 import { SkeletonTexte } from './Skeleton'
@@ -54,15 +54,6 @@ function QuotitesEmprunt({ loanId }: { loanId: number }) {
       {error && <p className="mt-1 text-xs text-negatif">{error}</p>}
     </div>
   )
-}
-
-const LOAN_FORM_VIDE: LoanForm = {
-  libelle: '',
-  capital_initial: '',
-  taux_annuel_pct: '',
-  mensualite: '',
-  date_debut: '',
-  duree_mois: '',
 }
 
 /** Un emprunt, en carte (backlog 2.K.4, < 768 px) — remplace la ligne de tableau
@@ -274,6 +265,7 @@ function LoanCardMobile({
 export default function LoansCard({
   holdings: holdingsFournis,
   etablissements: etablissementsFournis,
+  reloadToken,
 }: {
   /** Positions fournies par la page. Absentes, la carte les charge elle-même.
    * Fournies (`PortefeuillePage`), elles évitent un second `GET /portfolio/holdings`
@@ -284,15 +276,19 @@ export default function LoansCard({
   /** Même rôle qu'`holdings` ci-dessus, pour la liste des établissements — utilisée
    * par le sélecteur « Établissement du crédit » (revue du 03/09/2026). */
   etablissements?: Etablissement[]
+  /** Change de valeur pour forcer un rechargement de la liste (09/09/2026) : la
+   * création d'un emprunt vit désormais dans la feuille « Ajouter une ligne »
+   * (`AjoutHoldingForm`, `PortefeuillePage`), hors de cette carte — cette dernière
+   * n'a donc plus aucun moyen propre de savoir qu'un emprunt vient d'apparaître.
+   * Même patron qu'une clé de remontage, sans perdre l'état d'édition/dépliage en
+   * cours au passage (`key` aurait tout réinitialisé). */
+  reloadToken?: number
 } = {}) {
   const { montantsMasques } = usePreferencesAffichage()
   const estMobile = useEstMobile()
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const [form, setForm] = useState<LoanForm>(LOAN_FORM_VIDE)
-  const [saving, setSaving] = useState(false)
 
   const [recalageId, setRecalageId] = useState<number | null>(null)
   const [recalageValeur, setRecalageValeur] = useState('')
@@ -334,7 +330,7 @@ export default function LoansCard({
       .finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(load, [reloadToken])
   useEffect(() => {
     if (holdingsFournis !== undefined) return
     // `null` ≠ `[]` : sur échec, le sélecteur « Actif rattaché » affichait « Aucun »
@@ -374,30 +370,6 @@ export default function LoansCard({
       setError((err as Error).message)
     } finally {
       setEtablissementSaving(null)
-    }
-  }
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.libelle.trim() || !form.capital_initial || !form.taux_annuel_pct || !form.mensualite || !form.date_debut || !form.duree_mois)
-      return
-    setSaving(true)
-    setError(null)
-    try {
-      await api.createLoan({
-        libelle: form.libelle.trim(),
-        capital_initial: Number(form.capital_initial),
-        taux_annuel_pct: Number(form.taux_annuel_pct),
-        mensualite: Number(form.mensualite),
-        date_debut: form.date_debut,
-        duree_mois: Number(form.duree_mois),
-      })
-      setForm(LOAN_FORM_VIDE)
-      load()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -496,7 +468,7 @@ export default function LoansCard({
       {loading ? (
         <SkeletonTexte />
       ) : loans.length === 0 ? (
-        <EtatVide titre="Aucun emprunt enregistré." description="Renseigne un crédit immobilier ou un prêt dans le formulaire ci-dessous." />
+        <EtatVide titre="Aucun emprunt enregistré." description="Renseigne un crédit immobilier ou un prêt via « Ajouter une ligne » → « Un emprunt »." />
       ) : estMobile ? (
         <div className="mb-4 space-y-3">
           {loans.map((loan) => (
@@ -696,13 +668,12 @@ export default function LoansCard({
         </div>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3 border-t border-bordure pt-4">
-        <LoanFormFields form={form} onChange={setForm} variant="compacte" />
-        <PrimaryButton type="submit" disabled={saving}>
-          Ajouter
-        </PrimaryButton>
-      </form>
-      <p className="mt-3 text-xs text-texte-attenue">
+      {/* L'ajout d'un emprunt vit désormais dans la feuille « Ajouter une ligne »
+          (`AjoutHoldingForm`, mode « Un emprunt ») — un seul point d'entrée pour
+          toute nouvelle ligne du patrimoine, actif ou passif (retour utilisateur du
+          09/09/2026). Cette carte ne garde que la consultation/édition des emprunts
+          déjà déclarés. */}
+      <p className="border-t border-bordure pt-4 text-xs text-texte-attenue">
         Le capital restant dû est calculé automatiquement (amortissement à taux fixe) ; « Recaler » permet de le corriger à la
         main d'après un relevé bancaire réel — le recalage prime alors sur le calcul théorique.
       </p>
