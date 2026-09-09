@@ -11,10 +11,18 @@ import { PERIODES_RELATIVES, bornesPeriode } from '../utils/periode'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { DegradeAire, POINTILLES_REPERE, STYLE_INFOBULLE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
 
-/** Contrôles de la courbe — légende du mode étagé, pilule « Mode étagé » et
- * sélecteur de période. Séparés du graphique parce que la maquette les place dans
- * l'EN-TÊTE du bloc héros, alignés en haut à droite du chiffre, et non au-dessus du
- * tracé : c'est la ligne où l'œil cherche « sur quelle période ce chiffre varie-t-il ».
+/** Contrôles de la courbe — pilule « Mode étagé » et sélecteur de période. Séparés
+ * du graphique parce que la maquette les place dans l'EN-TÊTE du bloc héros, alignés
+ * en haut à droite du chiffre, et non au-dessus du tracé : c'est la ligne où l'œil
+ * cherche « sur quelle période ce chiffre varie-t-il ». Leur largeur ne doit JAMAIS
+ * dépendre de `stacked` (régression signalée le 09/09/2026 : « les menus changent
+ * d'endroit » en activant le mode étagé) — ce bloc est lui-même un enfant
+ * `flex-wrap` du panneau héros (`PatrimoineNetCard`), qui bascule entre « à droite
+ * du chiffre » et « en dessous » selon la largeur disponible ; le moindre
+ * élargissement au clic suffit, à une largeur d'écran pile à la limite, à faire
+ * basculer tout le bloc d'un côté à l'autre au moment même du clic. La légende
+ * Investi/Gains vit donc à part, au-dessus du tracé (cf. `PortfolioHistoryChart`),
+ * jamais dans cette ligne.
  *
  * Sous 768 px, seule la période descend sous la courbe (à portée du pouce, cf.
  * `PortfolioHistoryChart`) ; la pilule, elle, reste ici. */
@@ -22,18 +30,6 @@ export function ControlesCourbe({ stacked, onStackedChange }: { stacked: boolean
   const { periode, setPeriode } = usePreferencesAffichage()
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {stacked && (
-        <div className="flex gap-3 text-[11px] text-ink3">
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />
-            Investi
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />
-            Gains
-          </span>
-        </div>
-      )}
       <Pill
         actif={stacked}
         onClick={() => onStackedChange(!stacked)}
@@ -177,6 +173,23 @@ export default function PortfolioHistoryChart({
 
       {!loadingActif && !errorActif && data.length > 0 && (
         <>
+          {/* Légende du mode étagé — délibérément SÉPARÉE de `ControlesCourbe`
+              (régression du 09/09/2026, cf. sa docstring) : sur sa propre ligne, au-
+              dessus du tracé qu'elle explique, jamais dans la ligne d'en-tête dont la
+              largeur décide si les contrôles restent à côté du chiffre héros ou
+              passent en dessous. */}
+          {stackedEffectif && (
+            <div className="mb-2 flex justify-end gap-3 text-[11px] text-ink3">
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-s4" />
+                Investi
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2 w-2 rounded-[3px] bg-accent" />
+                Gains
+              </span>
+            </div>
+          )}
           {/* Langage graphique de la refonte, désormais porté par `ChartFrame` : ni
               grille ni axe dessiné, et cinq repères de date en HTML sous le tracé.
               Les axes de Recharts restent montés mais MASQUÉS (`hide`) — ils
