@@ -21,6 +21,21 @@
    qui ignore justement ce choix. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* `color-scheme` (régression signalée le 09/09/2026 : « le menu déroulant du
+   détenteur reste blanc peu importe le thème ») — les CONTRÔLES NATIFS du
+   navigateur (liste déroulante d'un `<select>`, ascenseur, curseur d'un champ
+   date/nombre…) ne suivent PAS `.dark` : ils suivent uniquement cette propriété,
+   sans quoi ils gardent le rendu clair du système d'exploitation même quand toute
+   l'application est passée en sombre. Posé sur `<html>` pour couvrir aussi le
+   popup de la liste déroulante, rendu par le navigateur hors de portée du CSS de
+   la page. */
+:root {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+
 /* Relié aux jetons sémantiques (backlog 2.K.1, bloc @theme plus bas) plutôt qu'à
    des hex codés en dur : `var()` se réévalue seule au changement de `.dark`, un
    seul bloc `.dark` n'est donc plus nécessaire ici. Ce fond n'est en pratique
