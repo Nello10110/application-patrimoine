@@ -18,7 +18,14 @@ import yfinance as yf
 from sqlalchemy.orm import Session
 
 from ..models import Holding, Transaction
-from . import analysis_service, historique_cache, market_data_service, performance_service, portfolio_reconstruction
+from . import (
+    analysis_service,
+    historique_cache,
+    market_data_service,
+    metriques_performance_service,
+    performance_service,
+    portfolio_reconstruction,
+)
 from .portfolio_reconstruction import PositionState
 
 EPSILON = portfolio_reconstruction.EPSILON
@@ -294,6 +301,18 @@ def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict
     valeur au premier point commun, pour rester comparables quelle que soit l'échelle
     (un portefeuille de quelques milliers d'euros contre un indice coté en points).
 
+    Côté portefeuille, `portefeuille_pct` est un TWR cumulé point à point
+    (`metriques_performance_service.serie_twr_cumulee_pct`), PAS un simple ratio de
+    valeur brute (`valeur_portefeuille[i] / valeur_portefeuille[0]`, comportement
+    d'origine corrigé le 09/09/2026 — retour utilisateur : « le portefeuille à 17
+    190 % » face à un indice à 43 %). Un ratio brut se laisse fausser par tout apport
+    versé depuis le premier point suivi : un portefeuille ayant reçu, disons, 100 fois
+    sa valeur de départ en versements affiche alors une « performance » à quatre
+    chiffres qui ne mesure en réalité que l'épargne accumulée, pas un rendement — donc
+    rien de comparable à la performance PURE d'un indice. Le TWR neutralise cet effet
+    exactement comme pour la carte Métriques avancées (`twr_cumule_pct`), la référence
+    déjà correcte juste à côté sur cet écran.
+
     `None` si `benchmark_key` est inconnu, si moins de 2 points sont fournis, ou si
     aucune donnée `yfinance` n'est disponible pour cet indice sur la période — jamais
     une exception propagée jusqu'au routeur."""
@@ -316,13 +335,12 @@ def compute_benchmark_history(db: Session, benchmark_key: str, points: list[dict
     if prix_base is None or prix_base == 0:
         return None
 
-    valeur_base = points[0]["valeur_portefeuille"]
+    portefeuille_pcts = metriques_performance_service.serie_twr_cumulee_pct(points)
     comparaison = []
-    for date, point in zip(dates, points, strict=True):
+    for date, point, portefeuille_pct in zip(dates, points, portefeuille_pcts, strict=True):
         prix_at = _value_at(serie, date)
         benchmark_pct = round((prix_at / prix_base - 1) * 100, 2) if prix_at is not None else None
-        portefeuille_pct = round((point["valeur_portefeuille"] / valeur_base - 1) * 100, 2) if valeur_base > 0 else None
-        comparaison.append({"date": point["date"], "portefeuille_pct": portefeuille_pct, "benchmark_pct": benchmark_pct})
+        comparaison.append({"date": point["date"], "portefeuille_pct": round(portefeuille_pct, 2), "benchmark_pct": benchmark_pct})
 
     return {"benchmark_key": benchmark_key, "label": benchmark["label"], "points": comparaison}
 

@@ -522,6 +522,32 @@ def test_benchmark_calcule_le_rendement_relatif_au_premier_point(db, monkeypatch
     assert resultat["points"][2]["benchmark_pct"] == 10.0
 
 
+def test_benchmark_neutralise_leffet_dun_gros_versement_intermediaire(db, monkeypatch):
+    """Retour utilisateur du 09/09/2026 : un gros versement entre deux points faisait
+    exploser `portefeuille_pct` (« 17 190 % » face à un indice à 43 % ») — un simple
+    ratio de valeur brute confond performance et argent déposé. `portefeuille_pct`
+    doit rester un TWR raisonnable, pas une explosion à quatre chiffres."""
+    monkeypatch.setattr(yf, "Ticker", _FauxTickerAvecHistorique)  # indice : 100.0 / 105.0 / 110.0
+
+    points = [
+        {"date": "2024-01-01", "valeur_portefeuille": 100.0, "valeur_investie": 100.0, "valeur_realisee_cumulee": 0.0},
+        # +9900€ versés cette semaine-là, en plus d'un gain de marché de 5 %.
+        {"date": "2024-01-08", "valeur_portefeuille": 10005.0, "valeur_investie": 10000.0, "valeur_realisee_cumulee": 0.0},
+        # Semaine suivante, aucun nouveau versement, +2 % de marché.
+        {"date": "2024-01-15", "valeur_portefeuille": 10205.1, "valeur_investie": 10000.0, "valeur_realisee_cumulee": 0.0},
+    ]
+
+    resultat = historical_performance_service.compute_benchmark_history(db, "MSCI_WORLD", points)
+
+    assert resultat is not None
+    # Un ratio brut aurait donné (10205.1/100 - 1) * 100 = 10 105.1 % — c'est
+    # exactement le bug corrigé : le TWR isole la vraie performance (5 % puis 2 %).
+    assert resultat["points"][1]["portefeuille_pct"] == 5.0
+    assert resultat["points"][2]["portefeuille_pct"] == pytest.approx(7.1, abs=0.01)  # 1.05 * 1.02 - 1
+    # L'indice, lui, reste inchangé par ce versement — comportement déjà correct.
+    assert resultat["points"][2]["benchmark_pct"] == 10.0
+
+
 def test_benchmark_sans_donnee_yfinance_renvoie_none(db, monkeypatch):
     class _FauxTickerVide:
         def __init__(self, *a, **k):

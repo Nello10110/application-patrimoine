@@ -40,6 +40,40 @@ def _rendements_hebdomadaires_twr(points: list[dict]) -> list[float]:
     return rendements
 
 
+def serie_twr_cumulee_pct(points: list[dict]) -> list[float]:
+    """Rendement pondéré par le temps (TWR) CUMULÉ à CHAQUE point de `points`, sous
+    forme de série alignée point à point (le premier point vaut toujours 0.0) —
+    contrairement à `twr_cumule_pct` de `compute_metriques_avancees` ci-dessous, qui
+    ne renvoie que le chiffre final. Utilisée par
+    `historical_performance_service.compute_benchmark_history` pour comparer le
+    portefeuille à un indice de référence semaine par semaine : un simple ratio
+    `valeur_portefeuille[i] / valeur_portefeuille[0]` se laisse fausser par tout apport
+    versé entre-temps (un portefeuille qui a reçu 100x sa valeur de départ en
+    versements affiche alors une « performance » de +10 000 % qui n'a rien à voir
+    avec un rendement) — le TWR neutralise cet effet exactement comme pour
+    `twr_cumule_pct`, cf. docstring de module.
+
+    Contrairement à `_rendements_hebdomadaires_twr` ci-dessus, une semaine dégénérée
+    (`valeur_portefeuille` nulle en début de semaine) compte ici pour un rendement de
+    0 % plutôt que d'être omise : cette série doit rester de la MÊME longueur que
+    `points`, point par point, pour s'aligner avec la série de l'indice de référence —
+    l'omettre décalerait tous les points suivants les uns par rapport aux autres.
+    Mathématiquement équivalent sur le cumul final (multiplier par `1 + 0` ne change
+    rien au produit), seule la position dans la série diffère."""
+    if not points:
+        return []
+    resultat = [0.0]
+    cumule = 1.0
+    for i in range(1, len(points)):
+        v_debut = points[i - 1]["valeur_portefeuille"]
+        v_fin = points[i]["valeur_portefeuille"]
+        flux_semaine = points[i]["valeur_investie"] - points[i - 1]["valeur_investie"]
+        r = (v_fin - flux_semaine) / v_debut - 1 if v_debut > 0 else 0.0
+        cumule *= 1 + r
+        resultat.append((cumule - 1) * 100)
+    return resultat
+
+
 def _max_drawdown_et_recuperation(valeurs: list[float]) -> tuple[float, bool, int | None]:
     """`max_drawdown` en fraction négative (0.0 si jamais de baisse), `recupere`
     (la valeur est-elle revenue au niveau du pic d'avant-drawdown, à date
