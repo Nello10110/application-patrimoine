@@ -97,6 +97,13 @@
       "rules": { "jsx-a11y/no-autofocus": "off" }
     },
     {
+      // Pop-up « nouvelle personne du foyer » (écran Salaire, 09/09/2026) : une seule
+      // action possible à l'ouverture (saisir le nom) — même raison que
+      // `PaletteRecherche.tsx` ci-dessus.
+      "files": ["src/components/AjoutDetenteurModale.tsx"],
+      "rules": { "jsx-a11y/no-autofocus": "off" }
+    },
+    {
       // Zone de dépôt de fichier (refonte import, 05/09/2026) : `role="button"` sur
       // le conteneur qui enveloppe un `<input type="file">` réel — un vrai
       // `<button>` ne peut pas contenir d'élément interactif imbriqué (spec HTML),

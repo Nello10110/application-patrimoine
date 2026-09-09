@@ -519,8 +519,17 @@ class Salaire(Base):
     # `Preferences.taux_imposition_pct`, réservée à la déclaration de patrimoine, § 2.Q.2) :
     # `None` tant qu'il n'est pas renseigné pour cette entrée précise.
     taux_imposition_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Personne du foyer à qui ce revenu appartient (retour utilisateur du 09/09/2026) —
+    # purement déclaratif, `None` par défaut (aucune association déduite). Contrairement à
+    # `QuotiteHolding`/`QuotiteLoan`, une seule personne au plus par entrée, jamais une
+    # répartition en % : un salaire est le revenu d'UNE personne, pas un actif partagé.
+    detenteur_id: Mapped[int | None] = mapped_column(ForeignKey("detenteurs.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    # `lazy="selectin"` : même raison que `Holding.compte` — évite le N+1 quand
+    # `salaire_service.resume_depuis_ligne` lit `ligne.detenteur.nom` pour chaque entrée
+    # listée (`GET /api/salaire/`).
+    detenteur: Mapped["Detenteur | None"] = relationship("Detenteur", lazy="selectin")
 
 
 class Transaction(Base):

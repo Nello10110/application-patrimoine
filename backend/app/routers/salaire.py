@@ -32,37 +32,45 @@ def get_synthese_annee(annee: int, db: Session = Depends(get_db), current_user: 
 @router.post("/", response_model=SalaireResume)
 def create_salaire(payload: SalaireIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user_id = auth_service.id_foyer(current_user)
-    ligne = salaire_service.create_salaire(
-        db,
-        user_id,
-        annee=payload.annee,
-        nom=payload.nom,
-        montant=payload.montant,
-        type_montant=payload.type_montant,
-        periodicite=payload.periodicite,
-        statut=payload.statut,
-        nombre_mois=payload.nombre_mois,
-        taux_imposition_pct=payload.taux_imposition_pct,
-    )
+    try:
+        ligne = salaire_service.create_salaire(
+            db,
+            user_id,
+            annee=payload.annee,
+            nom=payload.nom,
+            montant=payload.montant,
+            type_montant=payload.type_montant,
+            periodicite=payload.periodicite,
+            statut=payload.statut,
+            nombre_mois=payload.nombre_mois,
+            taux_imposition_pct=payload.taux_imposition_pct,
+            detenteur_id=payload.detenteur_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return salaire_service.resume_depuis_ligne(ligne)
 
 
 @router.put("/{salaire_id}", response_model=SalaireResume)
 def update_salaire(salaire_id: int, payload: SalaireIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user_id = auth_service.id_foyer(current_user)
-    ligne = salaire_service.update_salaire(
-        db,
-        user_id,
-        salaire_id,
-        annee=payload.annee,
-        nom=payload.nom,
-        montant=payload.montant,
-        type_montant=payload.type_montant,
-        periodicite=payload.periodicite,
-        statut=payload.statut,
-        nombre_mois=payload.nombre_mois,
-        taux_imposition_pct=payload.taux_imposition_pct,
-    )
+    try:
+        ligne = salaire_service.update_salaire(
+            db,
+            user_id,
+            salaire_id,
+            annee=payload.annee,
+            nom=payload.nom,
+            montant=payload.montant,
+            type_montant=payload.type_montant,
+            periodicite=payload.periodicite,
+            statut=payload.statut,
+            nombre_mois=payload.nombre_mois,
+            taux_imposition_pct=payload.taux_imposition_pct,
+            detenteur_id=payload.detenteur_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if ligne is None:
         raise HTTPException(status_code=404, detail="Salaire introuvable")
     return salaire_service.resume_depuis_ligne(ligne)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { SalaireDonnees, SalaireIn, SalaireResume } from '../api/types'
+import type { Detenteur, SalaireDonnees, SalaireIn, SalaireResume } from '../api/types'
+import AjoutDetenteurModale from '../components/AjoutDetenteurModale'
 import Card from '../components/Card'
 import { SegmentedControl } from '../components/Controls'
 import EtatErreur from '../components/EtatErreur'
@@ -26,10 +27,21 @@ type Formulaire = {
   statut: 'cadre' | 'non_cadre'
   nombreMois: number
   tauxImposition: string
+  detenteurId: number | null
 }
 
 function formulaireVierge(annee: number): Formulaire {
-  return { annee, nom: '', montant: '', typeMontant: 'brut', periodicite: 'mensuel', statut: 'cadre', nombreMois: 12, tauxImposition: '' }
+  return {
+    annee,
+    nom: '',
+    montant: '',
+    typeMontant: 'brut',
+    periodicite: 'mensuel',
+    statut: 'cadre',
+    nombreMois: 12,
+    tauxImposition: '',
+    detenteurId: null,
+  }
 }
 
 function formulaireDepuisEntree(entree: SalaireResume): Formulaire {
@@ -42,6 +54,7 @@ function formulaireDepuisEntree(entree: SalaireResume): Formulaire {
     statut: entree.statut,
     nombreMois: entree.nombre_mois,
     tauxImposition: entree.taux_imposition_pct === null ? '' : String(entree.taux_imposition_pct),
+    detenteurId: entree.detenteur_id,
   }
 }
 
@@ -57,12 +70,26 @@ export default function SalairePage() {
   const [sauvegarde, setSauvegarde] = useState(false)
   const [erreurSauvegarde, setErreurSauvegarde] = useState<string | null>(null)
 
+  // Personnes du foyer, pour associer une entrée de salaire à l'une d'elles (retour
+  // utilisateur du 09/09/2026) — chargées une fois, indépendamment des salaires.
+  const [detenteurs, setDetenteurs] = useState<Detenteur[]>([])
+  const [popupNouveauDetenteurOuverte, setPopupNouveauDetenteurOuverte] = useState(false)
+
   function charger() {
     setError(null)
     api.getSalaires().then(setDonnees).catch((err) => setError(err.message))
   }
 
   useEffect(charger, [])
+  useEffect(() => {
+    api.listDetenteurs().then(setDetenteurs).catch(() => setDetenteurs([]))
+  }, [])
+
+  function detenteurCree(detenteur: Detenteur) {
+    setDetenteurs((liste) => [...liste, detenteur].sort((a, b) => a.nom.localeCompare(b.nom)))
+    setFormulaire((f) => ({ ...f, detenteurId: detenteur.id }))
+    setPopupNouveauDetenteurOuverte(false)
+  }
 
   if (error) return <EtatErreur message={error} onReessayer={charger} />
   if (!donnees) return <SkeletonTexte />
@@ -120,6 +147,7 @@ export default function SalairePage() {
       statut: formulaire.statut,
       nombre_mois: formulaire.nombreMois,
       taux_imposition_pct: taux,
+      detenteur_id: formulaire.detenteurId,
     }
 
     setSauvegarde(true)
@@ -179,7 +207,10 @@ export default function SalairePage() {
               <div key={entree.id} className="rounded-card border border-bordure p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-texte">{entree.nom}</p>
+                    <p className="text-sm font-medium text-texte">
+                      {entree.nom}
+                      {entree.detenteur_nom && <span className="ml-2 text-xs font-normal text-texte-attenue">({entree.detenteur_nom})</span>}
+                    </p>
                     <p className="text-xs text-texte-attenue">
                       {entree.statut === 'cadre' ? 'Cadre' : 'Non-cadre'} · {entree.nombre_mois} versements/an ·{' '}
                       {entree.taux_imposition_pct === null ? "taux d'imposition non renseigné" : `taux d'imposition ${entree.taux_imposition_pct} %`}
@@ -234,6 +265,34 @@ export default function SalairePage() {
                   className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
                 />
               </label>
+
+              <div className="block">
+                <label htmlFor="salaire-detenteur" className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">
+                  Personne du foyer (optionnel)
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    id="salaire-detenteur"
+                    value={formulaire.detenteurId ?? ''}
+                    onChange={(e) => setFormulaire({ ...formulaire, detenteurId: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full rounded-control border border-bordure bg-surface px-3 py-2 text-sm text-texte"
+                  >
+                    <option value="">— Non associé —</option>
+                    {detenteurs.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.nom}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setPopupNouveauDetenteurOuverte(true)}
+                    className="shrink-0 rounded-control border border-bordure px-3 py-2 text-sm text-texte-attenue hover:text-texte"
+                  >
+                    + Nouvelle personne
+                  </button>
+                </div>
+              </div>
 
               <label className="block">
                 <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-texte-attenue">Année</span>
@@ -402,6 +461,10 @@ export default function SalairePage() {
           </div>
         )}
       </Card>
+
+      {popupNouveauDetenteurOuverte && (
+        <AjoutDetenteurModale onClose={() => setPopupNouveauDetenteurOuverte(false)} onCree={detenteurCree} />
+      )}
     </div>
   )
 }

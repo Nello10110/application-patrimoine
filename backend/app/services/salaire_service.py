@@ -22,7 +22,7 @@ prise isolément.
 
 from sqlalchemy.orm import Session
 
-from ..models import Salaire
+from ..models import Detenteur, Salaire
 from . import performance_service
 
 EPSILON = 1e-6
@@ -103,8 +103,20 @@ def resume_depuis_ligne(ligne: Salaire) -> dict:
         "statut": ligne.statut,
         "nombre_mois": ligne.nombre_mois,
         "taux_imposition_pct": ligne.taux_imposition_pct,
+        "detenteur_id": ligne.detenteur_id,
+        "detenteur_nom": ligne.detenteur.nom if ligne.detenteur is not None else None,
         **resume,
     }
+
+
+def _valider_detenteur(db: Session, user_id: int, detenteur_id: int | None) -> None:
+    """Lève `ValueError` si `detenteur_id` est renseigné mais n'appartient pas au foyer
+    (IDOR) — `None` est toujours valide (entrée non associée), même contrat que
+    `detenteurs_service._valider_quotites`."""
+    if detenteur_id is None:
+        return
+    if db.query(Detenteur).filter(Detenteur.user_id == user_id, Detenteur.id == detenteur_id).first() is None:
+        raise ValueError("Détenteur introuvable")
 
 
 def compute_synthese_annee(db: Session, user_id: int, annee: int) -> dict:
@@ -174,7 +186,9 @@ def create_salaire(
     statut: str,
     nombre_mois: int,
     taux_imposition_pct: float | None,
+    detenteur_id: int | None = None,
 ) -> Salaire:
+    _valider_detenteur(db, user_id, detenteur_id)
     ligne = Salaire(
         user_id=user_id,
         annee=annee,
@@ -185,6 +199,7 @@ def create_salaire(
         statut=statut,
         nombre_mois=nombre_mois,
         taux_imposition_pct=taux_imposition_pct,
+        detenteur_id=detenteur_id,
     )
     db.add(ligne)
     db.commit()
@@ -205,10 +220,12 @@ def update_salaire(
     statut: str,
     nombre_mois: int,
     taux_imposition_pct: float | None,
+    detenteur_id: int | None = None,
 ) -> Salaire | None:
     ligne = get_salaire(db, user_id, salaire_id)
     if ligne is None:
         return None
+    _valider_detenteur(db, user_id, detenteur_id)
     ligne.annee = annee
     ligne.nom = nom or NOM_PAR_DEFAUT
     ligne.montant = montant
@@ -217,6 +234,7 @@ def update_salaire(
     ligne.statut = statut
     ligne.nombre_mois = nombre_mois
     ligne.taux_imposition_pct = taux_imposition_pct
+    ligne.detenteur_id = detenteur_id
     db.commit()
     db.refresh(ligne)
     return ligne

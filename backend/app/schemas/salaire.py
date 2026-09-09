@@ -20,6 +20,9 @@ class SalaireIn(BaseModel):
     statut: str  # "cadre" | "non_cadre"
     nombre_mois: int = 12
     taux_imposition_pct: float | None = None
+    # Personne du foyer à qui ce revenu appartient (retour utilisateur du 09/09/2026) —
+    # `None` : non associé, comportement inchangé pour les entrées déjà saisies.
+    detenteur_id: int | None = None
 
     @field_validator("annee")
     @classmethod
@@ -91,6 +94,10 @@ class SalaireResume(BaseModel):
     statut: str
     nombre_mois: int
     taux_imposition_pct: float | None
+    detenteur_id: int | None
+    # Résolu côté serveur (`salaire_service.resume_depuis_ligne`), jamais recalculé côté
+    # frontend — même discipline que `QuotiteDetenteurItem.detenteur_nom`.
+    detenteur_nom: str | None
     brut_annuel: float
     brut_mensuel_moyen: float
     brut_par_versement: float

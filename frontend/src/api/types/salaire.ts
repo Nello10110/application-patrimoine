@@ -9,11 +9,16 @@ export interface SalaireIn {
   statut: 'cadre' | 'non_cadre'
   nombre_mois: number
   taux_imposition_pct: number | null
+  // Personne du foyer à qui ce revenu appartient (optionnel) — `null` : non associé.
+  detenteur_id: number | null
 }
 
 export interface SalaireResume extends SalaireIn {
   id: number
   nom: string
+  // Résolu côté serveur, jamais recalculé côté frontend — même discipline que
+  // `QuotiteDetenteurItem.detenteur_nom`.
+  detenteur_nom: string | null
   brut_annuel: number
   brut_mensuel_moyen: number
   brut_par_versement: number

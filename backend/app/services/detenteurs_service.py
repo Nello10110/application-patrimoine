@@ -7,7 +7,7 @@ explicitement saisie — cf. `compute_parts`."""
 
 from sqlalchemy.orm import Session
 
-from ..models import Detenteur, Holding, Loan, PerimetreInvite, QuotiteHolding, QuotiteLoan
+from ..models import Detenteur, Holding, Loan, PerimetreInvite, QuotiteHolding, QuotiteLoan, Salaire
 from . import loan_service
 
 TOLERANCE_SOMME_PCT = 0.01
@@ -62,9 +62,12 @@ def update_detenteur(db: Session, detenteur: Detenteur, **champs: str) -> Detent
 def delete_detenteur(db: Session, detenteur: Detenteur) -> None:
     """Supprime le détenteur et ses quotités (actif + emprunt) — les lignes du
     patrimoine elles-mêmes ne sont jamais touchées, leur répartition retombe
-    implicitement à 100 % foyer."""
+    implicitement à 100 % foyer. Les entrées de salaire associées (`Salaire.detenteur_id`)
+    sont désassociées plutôt que laissées pointer vers un détenteur disparu — un simple
+    « non associé », jamais une entrée supprimée."""
     db.query(QuotiteHolding).filter(QuotiteHolding.detenteur_id == detenteur.id).delete()
     db.query(QuotiteLoan).filter(QuotiteLoan.detenteur_id == detenteur.id).delete()
+    db.query(Salaire).filter(Salaire.detenteur_id == detenteur.id).update({"detenteur_id": None})
     db.delete(detenteur)
     db.commit()
 

@@ -102,6 +102,46 @@ def test_supprimer_une_entree(client):
     assert client.delete(f"/api/salaire/{id_salaire}").status_code == 404
 
 
+def test_associer_un_salaire_a_un_detenteur_du_foyer(client, db):
+    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+
+    reponse = client.post("/api/salaire", json={**PAYLOAD_VALIDE, "detenteur_id": alice["id"]})
+
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert corps["detenteur_id"] == alice["id"]
+    assert corps["detenteur_nom"] == "Alice"
+
+
+def test_associer_un_salaire_a_un_detenteur_dun_autre_foyer_est_refuse(client, db):
+    basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)
+    detenteur_b = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    basculer_utilisateur(db, ID_UTILISATEUR_TEST, "test")
+
+    reponse = client.post("/api/salaire", json={**PAYLOAD_VALIDE, "detenteur_id": detenteur_b["id"]})
+
+    assert reponse.status_code == 400
+
+
+def test_associer_un_salaire_a_un_detenteur_introuvable_est_refuse(client):
+    reponse = client.post("/api/salaire", json={**PAYLOAD_VALIDE, "detenteur_id": 9999})
+
+    assert reponse.status_code == 400
+
+
+def test_modifier_le_detenteur_associe_dune_entree(client):
+    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    bob = client.post("/api/detenteurs", json={"nom": "Bob", "type": "personne"}).json()
+    id_salaire = client.post("/api/salaire", json={**PAYLOAD_VALIDE, "detenteur_id": alice["id"]}).json()["id"]
+
+    reponse = client.put(f"/api/salaire/{id_salaire}", json={**PAYLOAD_VALIDE, "detenteur_id": bob["id"]})
+    assert reponse.json()["detenteur_id"] == bob["id"]
+
+    # Désassociation explicite (retour à `None`).
+    reponse_retrait = client.put(f"/api/salaire/{id_salaire}", json={**PAYLOAD_VALIDE, "detenteur_id": None})
+    assert reponse_retrait.json()["detenteur_id"] is None
+
+
 def test_salaire_dun_autre_utilisateur_est_inaccessible(client, db):
     id_salaire = client.post("/api/salaire", json=PAYLOAD_VALIDE).json()["id"]
     basculer_utilisateur(db, ID_UTILISATEUR_B, NOM_UTILISATEUR_B)

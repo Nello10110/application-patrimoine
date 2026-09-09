@@ -82,6 +82,35 @@ def test_supprimer_un_detenteur_qui_porte_des_quotites_demprunt_ne_laisse_pas_do
     _verifier_ecrans_agreges_repondent(client)
 
 
+def test_supprimer_un_detenteur_associe_a_un_salaire_desassocie_lentree_sans_la_supprimer(client, db):
+    """Contrairement aux quotités, une entrée de salaire n'est jamais supprimée avec le
+    détenteur — seule l'association disparaît (`detenteur_id` repasse à `None`)."""
+    alice = client.post("/api/detenteurs", json={"nom": "Alice", "type": "personne"}).json()
+    salaire = client.post(
+        "/api/salaire",
+        json={
+            "annee": 2026,
+            "nom": "Salaire Alice",
+            "montant": 3000.0,
+            "type_montant": "brut",
+            "periodicite": "mensuel",
+            "statut": "cadre",
+            "nombre_mois": 12,
+            "taux_imposition_pct": None,
+            "detenteur_id": alice["id"],
+        },
+    ).json()
+
+    assert client.delete(f"/api/detenteurs/{alice['id']}").status_code == 200
+
+    entrees = client.get("/api/salaire/").json()["entrees"]
+    assert len(entrees) == 1, "L'entrée de salaire a disparu alors qu'elle doit survivre"
+    assert entrees[0]["id"] == salaire["id"]
+    assert entrees[0]["detenteur_id"] is None
+    assert entrees[0]["detenteur_nom"] is None
+    _verifier_ecrans_agreges_repondent(client)
+
+
 # ---------------------------------------------------------------------------
 # Actif supprimé alors qu'il est référencé
 # ---------------------------------------------------------------------------
