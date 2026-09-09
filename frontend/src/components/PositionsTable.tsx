@@ -81,6 +81,10 @@ function comparerValeurs(a: string | number | null, b: string | number | null, d
 const NOUVEAU_COMPTE = '__nouveau__'
 
 interface EditForm {
+  // Nom d'affichage d'un bien patrimonial (retour utilisateur du 09/09/2026) —
+  // sans objet pour un actif coté (son nom vient de la donnée de marché, jamais de
+  // ce champ, cf. la priorité `md?.nom ?? h.nom` partout où une ligne s'affiche).
+  nom: string
   quantite: string
   prix_revient_moyen: string
   // Un id de compte existant (chaîne numérique), NOUVEAU_COMPTE, ou '' (aucun).
@@ -201,6 +205,16 @@ function PositionCard({
       <div className="rounded-card border border-bordure bg-surface p-4">
         <p className="mb-3 font-medium text-texte">{h.ticker}</p>
         <div className="space-y-3">
+          {TYPES_PATRIMOINE.has(editForm.type_actif) && (
+            <Field label="Nom">
+              <Input
+                value={editForm.nom}
+                onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
+                aria-label="Nom (édition)"
+                placeholder="Appartement Lyon, Peugeot 208..."
+              />
+            </Field>
+          )}
           <Field label="Quantité">
             <Input
               value={editForm.quantite}
@@ -465,6 +479,7 @@ export default function PositionsTable({
   // `Number('')` (= 0) n'écrase la saisie en cours.
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<EditForm>({
+    nom: '',
     quantite: '',
     prix_revient_moyen: '',
     compte_id: '',
@@ -495,6 +510,7 @@ export default function PositionsTable({
     e.stopPropagation()
     setEditingId(h.id)
     setEditForm({
+      nom: h.nom ?? '',
       quantite: String(h.quantite),
       prix_revient_moyen: h.prix_revient_moyen !== null && h.prix_revient_moyen !== undefined ? String(h.prix_revient_moyen) : '',
       compte_id: h.compte ? String(h.compte.id) : '',
@@ -525,6 +541,7 @@ export default function PositionsTable({
       const nouveauCompte = editForm.compte_id === NOUVEAU_COMPTE
       const nouvelEtablissement = editForm.etablissement_id === NOUVEAU_ETABLISSEMENT
       await api.updateHolding(id, {
+        nom: editForm.nom.trim() || null,
         quantite: Number(editForm.quantite),
         prix_revient_moyen: editForm.prix_revient_moyen ? Number(editForm.prix_revient_moyen) : null,
         compte_id: !nouveauCompte && editForm.compte_id ? Number(editForm.compte_id) : null,
@@ -774,6 +791,17 @@ export default function PositionsTable({
             <tr onClick={(e) => e.stopPropagation()}>
               <td colSpan={10} className="bg-surface-elevee py-3 pr-4">
                 <div className="flex flex-wrap items-end gap-3">
+                  {TYPES_PATRIMOINE.has(editForm.type_actif) && (
+                    <Field label="Nom" className="w-48">
+                      <Input
+                        value={editForm.nom}
+                        onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label="Nom (édition)"
+                        placeholder="Appartement Lyon, Peugeot 208..."
+                      />
+                    </Field>
+                  )}
                   <Field
                     label={
                       <span className="inline-flex items-center gap-1">

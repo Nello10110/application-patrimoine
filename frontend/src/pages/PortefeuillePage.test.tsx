@@ -363,6 +363,62 @@ describe('PortefeuillePage', () => {
     })
   })
 
+  describe('Ajouter une ligne manuellement — Nom plutôt que Ticker pour un bien patrimonial (retour utilisateur, 09/09/2026)', () => {
+    it('« Ticker » reste affiché pour un type financier (par défaut)', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      expect(screen.getByLabelText('Ticker')).toBeInTheDocument()
+      expect(screen.queryByLabelText('Nom')).not.toBeInTheDocument()
+    })
+
+    it('sélectionner « Immobilier » remplace Ticker par Nom, sans champ Identifiant tant que rien n’a échoué', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+
+      expect(screen.queryByLabelText('Ticker')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Nom')).toBeInTheDocument()
+      expect(screen.queryByLabelText('Identifiant')).not.toBeInTheDocument()
+    })
+
+    it("soumettre avec seulement un Nom calcule l'identifiant automatiquement (majuscules, sans accent)", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValueOnce([]).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockResolvedValue(
+        holding({ id: 9, ticker: 'APPARTEMENT-LYON', nom: 'Appartement Lyon', quantite: 1, type_actif: 'REAL_ESTATE' }),
+      )
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Appartement Lyon' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await waitFor(() =>
+        expect(api.createHolding).toHaveBeenCalledWith(
+          expect.objectContaining({ ticker: 'APPARTEMENT-LYON', nom: 'Appartement Lyon', quantite: 1 }),
+        ),
+      )
+    })
+
+    it("un refus serveur (doublon) révèle le champ Identifiant, pré-rempli avec la valeur essayée", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([])
+      vi.mocked(api.createHolding).mockRejectedValueOnce(new Error('Une ligne « MAISON » existe déjà.'))
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await ouvrirFeuilleAjout()
+
+      fireEvent.change(screen.getByLabelText("Type d'actif"), { target: { value: 'REAL_ESTATE' } })
+      fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Maison' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+
+      await screen.findByText('Une ligne « MAISON » existe déjà.')
+      expect(screen.getByLabelText('Identifiant')).toHaveValue('MAISON')
+    })
+  })
+
   describe('Ajouter un emprunt depuis la même feuille (retour utilisateur, 09/09/2026)', () => {
     it('la bascule « Un actif / Un emprunt » masque les champs d’actif et affiche les six champs d’un emprunt', async () => {
       vi.mocked(api.listHoldings).mockResolvedValue([])
@@ -792,6 +848,7 @@ describe('PortefeuillePage', () => {
 
       await waitFor(() =>
         expect(api.updateHolding).toHaveBeenCalledWith(42, {
+          nom: 'Titre A',
           quantite: 15,
           prix_revient_moyen: 100,
           compte_id: COMPTE_PEA.id,
@@ -828,6 +885,32 @@ describe('PortefeuillePage', () => {
       await waitFor(() =>
         expect(api.updateHolding).toHaveBeenCalledWith(7, expect.objectContaining({ date_acquisition: '2020-07-10' })),
       )
+    })
+
+    it("le champ « Nom (édition) » n'apparaît que pour un actif du patrimoine manuel, et sa modification appelle updateHolding (retour utilisateur, 09/09/2026)", async () => {
+      const ligneImmobiliere = [holding({ id: 7, ticker: 'MAISON', nom: 'Ancien nom', type_actif: 'REAL_ESTATE', valeur_estimee: 300000 })]
+      vi.mocked(api.listHoldings).mockResolvedValueOnce(ligneImmobiliere)
+      vi.mocked(api.updateHolding).mockResolvedValue(holding({ id: 7, ticker: 'MAISON', nom: 'Appartement Lyon', type_actif: 'REAL_ESTATE' }))
+      vi.mocked(api.listHoldings).mockResolvedValueOnce(ligneImmobiliere)
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+      await screen.findByText('MAISON')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+      const champNom = screen.getByLabelText('Nom (édition)')
+      expect(champNom).toHaveValue('Ancien nom')
+
+      fireEvent.change(champNom, { target: { value: 'Appartement Lyon' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+      await waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith(7, expect.objectContaining({ nom: 'Appartement Lyon' })))
+    })
+
+    it("le champ « Nom (édition) » n'apparaît pas pour un actif financier", async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue(positionUnique())
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }))
+      expect(screen.queryByLabelText('Nom (édition)')).not.toBeInTheDocument()
     })
 
     it('une erreur 400 reste affichée sans quitter le mode édition', async () => {

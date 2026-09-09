@@ -11,6 +11,7 @@ import {
   TYPES_EPARGNE,
   TYPES_PATRIMOINE,
   ZONES_GEO,
+  identifiantDepuisNom,
   libelleTaux,
   valeurProjeteeUnAn,
 } from '../utils/holdingCategories'
@@ -30,6 +31,11 @@ const NOUVEAU_COMPTE = '__nouveau__'
 
 const FORM_VIDE = {
   ticker: '',
+  // Nom d'affichage (retour utilisateur du 09/09/2026) — sans objet pour un actif
+  // coté (le nom vient de la donnée de marché, cf. `PositionsTable`), seul champ
+  // d'identité qu'un type patrimonial montre : `ticker` reste envoyé (obligatoire
+  // et unique côté serveur) mais dérivé de `nom` en arrière-plan, cf. `handleAdd`.
+  nom: '',
   quantite: '',
   prix_revient_moyen: '',
   // Un id de compte existant (chaîne numérique), NOUVEAU_COMPTE, ou '' (aucun).
@@ -115,6 +121,10 @@ export default function AjoutHoldingForm({
   const [form, setForm] = useState(FORM_VIDE)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Champ Identifiant révélé (09/09/2026) : masqué tant que l'identifiant calculé
+  // depuis le Nom n'a pas été refusé par le serveur — cf. `handleAdd`. Une fois
+  // révélé, il reste modifiable à la main pour la suite de cette session d'ajout.
+  const [identifiantVisible, setIdentifiantVisible] = useState(false)
   const [comptesCharges, setComptesCharges] = useState<Compte[]>([])
   const [etablissementsCharges, setEtablissementsCharges] = useState<Etablissement[]>([])
   const autonome = comptesFournis === undefined
@@ -149,18 +159,36 @@ export default function AjoutHoldingForm({
       compte_nom: sansEtablissement ? '' : f.compte_nom,
       zone_geo: TYPES_AVEC_ZONE_GEO.has(type) ? f.zone_geo : '',
     }))
+    // Un identifiant révélé par un refus serveur ne veut plus rien dire pour un
+    // type différent (l'identifiant calculé changerait de toute façon avec lui) —
+    // repart masqué, recalculé au prochain essai.
+    setIdentifiantVisible(false)
   }
+
+  // Un type patrimonial identifie sa ligne par le Nom, jamais par un vrai ticker —
+  // `identifiant` reste ce qu'`api.createHolding` reçoit (obligatoire, unique côté
+  // serveur), mais calculé depuis le Nom tant que l'utilisateur n'a pas dû le
+  // corriger à la main (`identifiantVisible`, cf. `handleAdd`). `identifiant`
+  // lui-même ne dit jamais « rien n'est saisi » : `identifiantDepuisNom('')`
+  // renvoie quand même `BIEN` par défaut (cf. `holdingCategories.ts`) — c'est
+  // `identifiantPresent`, sur le Nom brut, qui porte cette question.
+  const estPatrimoine = TYPES_PATRIMOINE.has(form.type_actif)
+  const identifiant = estPatrimoine
+    ? form.ticker.trim() || identifiantDepuisNom(form.nom)
+    : form.ticker.trim()
+  const identifiantPresent = estPatrimoine ? form.nom.trim() !== '' || form.ticker.trim() !== '' : form.ticker.trim() !== ''
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.ticker.trim() || !form.quantite) return
+    if (!identifiantPresent || !form.quantite) return
     setSaving(true)
     setError(null)
     try {
       const nouveauCompte = form.compte_id === NOUVEAU_COMPTE
       const nouvelEtablissement = form.etablissement_id === NOUVEAU_ETABLISSEMENT
       const holding = await api.createHolding({
-        ticker: form.ticker.trim().toUpperCase(),
+        ticker: identifiant.toUpperCase(),
+        nom: estPatrimoine ? form.nom.trim() || null : null,
         quantite: Number(form.quantite),
         prix_revient_moyen: form.prix_revient_moyen ? Number(form.prix_revient_moyen) : null,
         compte_id: !nouveauCompte && form.compte_id ? Number(form.compte_id) : null,
@@ -176,6 +204,7 @@ export default function AjoutHoldingForm({
         date_acquisition: form.date_acquisition || null,
       })
       setForm(FORM_VIDE)
+      setIdentifiantVisible(false)
       // Un compte (et son établissement) a pu être créé à la volée : recharge les
       // listes pour qu'ils apparaissent dans les sélecteurs dès le prochain ajout.
       if (nouveauCompte) {
@@ -187,6 +216,14 @@ export default function AjoutHoldingForm({
       onCreated?.(holding)
     } catch (err) {
       setError((err as Error).message)
+      // L'identifiant calculé automatiquement a été refusé (doublon, ou toute autre
+      // raison) — le révéler, pré-rempli avec la valeur essayée, pour que
+      // l'utilisateur corrige exactement ce que le message d'erreur ci-dessous
+      // explique, sans avoir à deviner un identifiant qu'il n'a jamais vu.
+      if (estPatrimoine) {
+        setIdentifiantVisible(true)
+        setForm((f) => ({ ...f, ticker: identifiant }))
+      }
     } finally {
       setSaving(false)
     }
@@ -223,7 +260,6 @@ export default function AjoutHoldingForm({
     }
   }
 
-  const estPatrimoine = TYPES_PATRIMOINE.has(form.type_actif)
   const sansEtablissement = TYPES_ACTIF_SANS_ETABLISSEMENT.has(form.type_actif)
   const avecZoneGeo = TYPES_AVEC_ZONE_GEO.has(form.type_actif)
 
@@ -253,9 +289,11 @@ export default function AjoutHoldingForm({
   //     serveur, plus utile qu'un bouton grisé sans explication (recette du
   //     02/09/2026, verrouillée par un test de bout en bout).
   // La correction que la maquette visait — un clic sans effet ni retour — est bien
-  // en place : ticker et quantité restent obligatoires (quantité posée par
-  // `handleTypeChange` pour un type patrimonial, jamais laissée vide).
-  const saisieComplete = form.ticker.trim() !== '' && form.quantite.trim() !== ''
+  // en place : un identifiant (Nom pour un type patrimonial, Ticker sinon) et une
+  // quantité restent obligatoires (quantité posée par `handleTypeChange` pour un
+  // type patrimonial, jamais laissée vide). `identifiantPresent` calculé plus haut,
+  // réutilisé ici comme dans le garde-fou de `handleAdd`.
+  const saisieComplete = identifiantPresent && form.quantite.trim() !== ''
   const loanSaisieComplete =
     loanForm.libelle.trim() !== '' &&
     loanForm.capital_initial.trim() !== '' &&
@@ -311,17 +349,47 @@ export default function AjoutHoldingForm({
                 ))}
               </Select>
             </Field>
-            <Field label="Ticker" className="col-span-2">
-              {/* Majuscules à la SAISIE, pas seulement à l'envoi (maquette de la
-                  refonte) : le champ affichait « aapl » jusqu'au dernier moment, alors
-                  que la ligne créée s'appellera « AAPL ». Voir ce qu'on obtient pendant
-                  qu'on tape vaut mieux qu'une normalisation invisible. */}
-              <Input
-                value={form.ticker}
-                onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
-                placeholder="AAPL"
-              />
-            </Field>
+            {estPatrimoine ? (
+              <>
+                {/* Un bien valorisé à la main n'a pas de « ticker » — son identité,
+                    c'est son Nom, pas un symbole boursier inventé pour l'occasion
+                    (retour utilisateur du 09/09/2026). L'identifiant technique que le
+                    serveur exige quand même (obligatoire, unique) reste calculé à
+                    partir de ce Nom, cf. `identifiant`/`identifiantDepuisNom` — sans
+                    champ dédié tant qu'il n'a pas été refusé. */}
+                <Field label="Nom" className="col-span-2">
+                  <Input
+                    value={form.nom}
+                    onChange={(e) => setForm({ ...form, nom: e.target.value })}
+                    placeholder="Appartement Lyon, Peugeot 208..."
+                  />
+                </Field>
+                {identifiantVisible && (
+                  <div className="col-span-2">
+                    {/* Le texte d'aide reste HORS du `<label>` (pas la prop `aide` de
+                        `Field`) : `<label>` texte inclus dans le nom accessible du
+                        champ, `getByLabelText('Identifiant')` cesserait de matcher
+                        exactement une fois ce texte concaténé au libellé. */}
+                    <Field label="Identifiant">
+                      <Input value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })} />
+                    </Field>
+                    <p className="mt-1 text-xs text-ink3">Calculé depuis le Nom, en majuscules — corrigez-le si besoin.</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Field label="Ticker" className="col-span-2">
+                {/* Majuscules à la SAISIE, pas seulement à l'envoi (maquette de la
+                    refonte) : le champ affichait « aapl » jusqu'au dernier moment, alors
+                    que la ligne créée s'appellera « AAPL ». Voir ce qu'on obtient pendant
+                    qu'on tape vaut mieux qu'une normalisation invisible. */}
+                <Input
+                  value={form.ticker}
+                  onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
+                  placeholder="AAPL"
+                />
+              </Field>
+            )}
             {!estPatrimoine && (
               <Field label="Quantité">
                 <Input value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} type="number" step="any" />

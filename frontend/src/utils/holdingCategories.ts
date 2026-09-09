@@ -107,6 +107,27 @@ export function libelleTaux(typeActif: string): string {
   return typeActif === 'VEHICLE' ? 'Décote annuelle (%)' : "Taux d'intérêt annuel (%)"
 }
 
+// Identifiant technique dérivé du Nom pour une ligne patrimoniale (retour
+// utilisateur du 09/09/2026 : « Ticker n'a pas de sens pour l'immobilier ») —
+// `Holding.ticker` reste obligatoire et unique côté serveur (`create_holding`
+// refuse un doublon), mais personne ne devrait avoir à inventer un faux symbole
+// boursier pour une maison. Calculé en arrière-plan à partir du Nom (jamais
+// montré tant que la création réussit) ; l'appelant ne révèle le champ que si le
+// serveur refuse la valeur calculée (collision, ou autre), pour laisser corriger
+// à la main sans deviner. Toujours non vide : `TICKER_PAR_DEFAUT` couvre le cas
+// limite d'un nom qui ne contient aucun caractère alphanumérique (ex. "!!!").
+const TICKER_PAR_DEFAUT = 'BIEN'
+export function identifiantDepuisNom(nom: string): string {
+  const brut = nom
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24)
+  return brut || TICKER_PAR_DEFAUT
+}
+
 /** Valeur projetée dans 1 an à partir de `valeur_estimee` et `taux_pct` — purement
  * indicatif côté client, jamais appliqué automatiquement à `valeur_estimee` (cf.
  * `models.Holding.taux_pct`, backend). `null` si l'un des deux n'est pas renseigné. */
