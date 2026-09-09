@@ -7,6 +7,7 @@ import EtatErreur from './EtatErreur'
 import EtatVide from './EtatVide'
 import { Label, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
+import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatDate, formatPct } from '../utils/format'
 import { ChartFrame, reperesTemporels } from './ChartFrame'
 import { POINTILLES_REPERE, STYLE_INFOBULLE, STYLE_LEGENDE, TRAIT_PRINCIPAL, TRAIT_REPERE } from '../utils/chartTheme'
@@ -23,6 +24,14 @@ const COULEUR_BENCHMARK = 'var(--s4)'
  * la même série que le graphique d'évolution du tableau de bord — aucun nouveau
  * calcul de fond, seulement une mise en forme différente. */
 export default function MetriquesAvanceesCard() {
+  // Lentille transverse Net/Brut/Financier (retour utilisateur du 09/09/2026 :
+  // « la vue Financier ne change pas ce graphique ») — en "financier", ces
+  // métriques et la comparaison à un indice restent purement financières
+  // (comportement historique) ; en "brut"/"net", elles portent sur le patrimoine
+  // combiné (immobilier/épargne compris, − emprunts en "net"), cf.
+  // `api.getMetriquesAvancees`/`api.getComparaisonBenchmark`.
+  const { lentille } = usePreferencesAffichage()
+
   const [metriques, setMetriques] = useState<MetriquesAvancees | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +45,7 @@ export default function MetriquesAvanceesCard() {
   function charger() {
     setLoading(true)
     setError(null)
-    Promise.all([api.getMetriquesAvancees(), api.listBenchmarks()])
+    Promise.all([api.getMetriquesAvancees(lentille), api.listBenchmarks()])
       .then(([m, b]) => {
         setMetriques(m)
         setBenchmarks(b)
@@ -45,7 +54,7 @@ export default function MetriquesAvanceesCard() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(charger, [])
+  useEffect(charger, [lentille])
 
   function chargerComparaison(benchmark: string) {
     if (!benchmark) {
@@ -55,7 +64,7 @@ export default function MetriquesAvanceesCard() {
     setChargementComparaison(true)
     setErreurComparaison(null)
     api
-      .getComparaisonBenchmark(benchmark)
+      .getComparaisonBenchmark(benchmark, lentille)
       .then(setComparaison)
       .catch((err) => setErreurComparaison((err as Error).message))
       .finally(() => setChargementComparaison(false))
@@ -65,6 +74,14 @@ export default function MetriquesAvanceesCard() {
     setBenchmarkChoisi(benchmark)
     chargerComparaison(benchmark)
   }
+
+  // Un indice déjà choisi doit être recalculé pour la nouvelle lentille — sans
+  // repasser par `handleBenchmarkChange` (qui redéclencherait aussi sur chaque
+  // frappe/sélection d'indice, déjà géré ci-dessus).
+  useEffect(() => {
+    if (benchmarkChoisi) chargerComparaison(benchmarkChoisi)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ne doit réagir qu'au changement de lentille ; `benchmarkChoisi` est lu à l'exécution, pas une dépendance de déclenchement.
+  }, [lentille])
 
   if (loading) return <SkeletonTexte lignes={3} />
   if (error) return <EtatErreur message={error} onReessayer={charger} />

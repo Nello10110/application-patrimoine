@@ -289,11 +289,19 @@ export const api = {
     request<TransactionImportResult>('/transactions/import', { method: 'POST', body: JSON.stringify(payload) }),
   getPerformance: () => request<PerformanceSummary>('/performance'),
   getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
-  // Métriques de performance de niveau professionnel (backlog 2.P.2).
-  getMetriquesAvancees: () => request<MetriquesAvancees>('/performance/metriques-avancees'),
+  // Métriques de performance de niveau professionnel (backlog 2.P.2). `lentille`
+  // (retour utilisateur du 09/09/2026) : "financier" par défaut (comportement
+  // historique, positions du grand livre seules) — "brut"/"net" compare le
+  // patrimoine combiné (financier + immobilier/épargne, − emprunts en "net"),
+  // même distinction que la lentille transverse Net/Brut/Financier ailleurs sur
+  // l'écran.
+  getMetriquesAvancees: (lentille: 'net' | 'brut' | 'financier' = 'financier') =>
+    request<MetriquesAvancees>(`/performance/metriques-avancees?lentille=${lentille}`),
   listBenchmarks: () => request<BenchmarkOption[]>('/performance/benchmarks'),
-  getComparaisonBenchmark: (benchmark: string) =>
-    request<ComparaisonBenchmark>(`/performance/comparaison-benchmark?benchmark=${encodeURIComponent(benchmark)}`),
+  getComparaisonBenchmark: (benchmark: string, lentille: 'net' | 'brut' | 'financier' = 'financier') =>
+    request<ComparaisonBenchmark>(
+      `/performance/comparaison-benchmark?benchmark=${encodeURIComponent(benchmark)}&lentille=${lentille}`,
+    ),
   // Revenus passifs projetés (backlog 2.P.3, absorbe C.2).
   getRevenusPassifs: () => request<RevenusPassifsProjetes>('/performance/revenus-passifs'),
   getDividendCalendar: () => request<DividendeMois[]>('/performance/dividendes'),

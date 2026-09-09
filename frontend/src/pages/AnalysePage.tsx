@@ -151,11 +151,16 @@ export default function AnalysePage() {
           {chargementPerformance && <SkeletonTexte lignes={2} />}
           {erreurPerformance && <EtatErreur message={erreurPerformance} onReessayer={chargerPerformance} />}
           {!chargementPerformance && !erreurPerformance && performance && performance.nombre_transactions > 0 && (
-            <>
-              <PerformanceCard performance={performance} />
-              <MetriquesAvanceesCard />
-            </>
+            <PerformanceCard performance={performance} />
           )}
+          {/* Indépendante de `PerformanceCard` ci-dessus (retour utilisateur du
+              09/09/2026) : en lentille "brut"/"net", cette carte peut avoir quelque
+              chose à montrer (immobilier/épargne) même sans aucune transaction
+              financière — la gate sur `nombre_transactions`, pertinente pour
+              `PerformanceCard` (XIRR financier), masquerait alors à tort la seule
+              carte capable de comparer le patrimoine combiné à un indice. La carte
+              gère déjà elle-même l'historique insuffisant (`EtatVide`). */}
+          {!chargementPerformance && !erreurPerformance && <MetriquesAvanceesCard />}
 
           {!loading && !error && analysis && (
             <>

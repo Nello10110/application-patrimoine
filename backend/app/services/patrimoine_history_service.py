@@ -336,3 +336,35 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
         )
 
     return points
+
+
+LENTILLES_VALIDES = ("financier", "brut", "net")
+
+
+def points_pour_lentille(db: Session, user_id: int, lentille: str) -> list[dict]:
+    """`points` au format attendu par `metriques_performance_service`/
+    `historical_performance_service.compute_benchmark_history` (`valeur_portefeuille`/
+    `valeur_investie`/`valeur_realisee_cumulee`), selon la lentille Net/Brut/Financier
+    choisie par l'utilisateur — retour utilisateur du 09/09/2026 : la carte Métriques
+    de performance avancées (TWR, comparaison à un indice...) restait toujours
+    financière, quelle que soit la lentille affichée partout ailleurs sur l'écran
+    (« la vue Financier ne change pas ce graphique »).
+
+    En lentille "brut"/"net", reprend EXACTEMENT la même distinction de champs que
+    `PortfolioHistoryChart` côté frontend (mode étagé Net/Brut de la Synthèse) :
+    `actifs_totaux`/`valeur_investie` en Brut, `patrimoine_net`/`valeur_investie_nette`
+    en Net — jamais `valeur_investie` brute face à un `patrimoine_net` déjà netté de
+    l'emprunt, qui sous-compterait massivement les gains d'un bien financé à crédit."""
+    if lentille == "financier":
+        return historical_performance_service.compute_portfolio_history(db, user_id)
+
+    points = compute_patrimoine_history(db, user_id)
+    return [
+        {
+            "date": p["date"],
+            "valeur_portefeuille": p["actifs_totaux"] if lentille == "brut" else p["patrimoine_net"],
+            "valeur_investie": p["valeur_investie"] if lentille == "brut" else p["valeur_investie_nette"],
+            "valeur_realisee_cumulee": p["valeur_realisee_cumulee"],
+        }
+        for p in points
+    ]

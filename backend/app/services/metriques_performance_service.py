@@ -29,11 +29,28 @@ par semaine."""
 NOMBRE_SEMAINES_PAR_AN = 52
 
 
+def _valeur_totale(point: dict) -> float:
+    """`valeur_portefeuille` seule EXCLUT toute position entièrement vendue (elle
+    sort de la valorisation dès que la quantité détenue tombe à zéro, cf.
+    `historical_performance_service._compute_portfolio_history`), alors que
+    `valeur_investie` (le coût d'acquisition) n'est, elle, jamais décrémentée à la
+    vente. Une vente fait donc chuter `valeur_portefeuille` d'un coup sans qu'aucun
+    versement/retrait ne l'explique — un rendement hebdomadaire TWR calculé sur la
+    seule `valeur_portefeuille` prend alors cette chute pour une perte de marché
+    (bug constaté le 09/09/2026 : -100 % après la vente d'une grosse position).
+    `valeur_realisee_cumulee` (produit net cumulé des ventes + revenus perçus, cf.
+    `historical_performance_service._serie_cumulee_ventes_et_revenus`) comble
+    exactement cet écart : l'ajouter reconstitue la valeur totale du portefeuille,
+    positions ouvertes ET produit des ventes passées confondus — une vente déplace
+    alors de la valeur d'une colonne à l'autre sans jamais en faire disparaître."""
+    return point["valeur_portefeuille"] + point["valeur_realisee_cumulee"]
+
+
 def _rendements_hebdomadaires_twr(points: list[dict]) -> list[float]:
     rendements = []
     for i in range(1, len(points)):
-        v_debut = points[i - 1]["valeur_portefeuille"]
-        v_fin = points[i]["valeur_portefeuille"]
+        v_debut = _valeur_totale(points[i - 1])
+        v_fin = _valeur_totale(points[i])
         flux_semaine = points[i]["valeur_investie"] - points[i - 1]["valeur_investie"]
         if v_debut > 0:
             rendements.append((v_fin - flux_semaine) / v_debut - 1)
@@ -65,8 +82,8 @@ def serie_twr_cumulee_pct(points: list[dict]) -> list[float]:
     resultat = [0.0]
     cumule = 1.0
     for i in range(1, len(points)):
-        v_debut = points[i - 1]["valeur_portefeuille"]
-        v_fin = points[i]["valeur_portefeuille"]
+        v_debut = _valeur_totale(points[i - 1])
+        v_fin = _valeur_totale(points[i])
         flux_semaine = points[i]["valeur_investie"] - points[i - 1]["valeur_investie"]
         r = (v_fin - flux_semaine) / v_debut - 1 if v_debut > 0 else 0.0
         cumule *= 1 + r
@@ -146,7 +163,7 @@ def compute_metriques_avancees(points: list[dict]) -> dict:
         variance = sum((r - moyenne) ** 2 for r in rendements) / (len(rendements) - 1)
         volatilite_annualisee = (variance**0.5) * (NOMBRE_SEMAINES_PAR_AN**0.5)
 
-    valeurs = [p["valeur_portefeuille"] for p in points]
+    valeurs = [_valeur_totale(p) for p in points]
     max_dd, recupere, semaines_recuperation = _max_drawdown_et_recuperation(valeurs)
 
     return {

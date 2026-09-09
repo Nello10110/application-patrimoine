@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { ComparaisonBenchmark, MetriquesAvancees } from '../api/types'
+import { PreferencesAffichageContext, type Lentille } from '../contexts/preferencesAffichageContextObject'
 import MetriquesAvanceesCard from './MetriquesAvanceesCard'
 
 vi.mock('../api/client', () => ({
@@ -11,6 +12,32 @@ vi.mock('../api/client', () => ({
     getComparaisonBenchmark: vi.fn(),
   },
 }))
+
+// Même patron que `PortfolioHistoryChart.test.tsx` (feature Net/Brut/Financier) :
+// un vrai `Provider`, pour que les tests de changement de lentille puissent
+// `rerender` avec une valeur différente plutôt que de mocker le hook.
+function providerJsx(lentille: Lentille) {
+  return (
+    <PreferencesAffichageContext.Provider
+      value={{
+        lentille,
+        setLentille: vi.fn(),
+        montantsMasques: false,
+        toggleMontantsMasques: vi.fn(),
+        detenteurId: null,
+        setDetenteurId: vi.fn(),
+        periode: { type: 'relative', valeur: 'TOUT' },
+        setPeriode: vi.fn(),
+      }}
+    >
+      <MetriquesAvanceesCard />
+    </PreferencesAffichageContext.Provider>
+  )
+}
+
+function renderCard(lentille: Lentille = 'financier') {
+  return render(providerJsx(lentille))
+}
 
 function metriques(overrides: Partial<MetriquesAvancees> = {}): MetriquesAvancees {
   return {
@@ -31,7 +58,7 @@ describe('MetriquesAvanceesCard', () => {
     )
     vi.mocked(api.listBenchmarks).mockResolvedValue([])
 
-    render(<MetriquesAvanceesCard />)
+    renderCard()
 
     await screen.findByText('Historique insuffisant pour calculer ces métriques.')
   })
@@ -40,7 +67,7 @@ describe('MetriquesAvanceesCard', () => {
     vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques())
     vi.mocked(api.listBenchmarks).mockResolvedValue([])
 
-    render(<MetriquesAvanceesCard />)
+    renderCard()
 
     await screen.findByText('+12.5%')
     expect(screen.getByText('+8.2%')).toBeInTheDocument()
@@ -53,7 +80,7 @@ describe('MetriquesAvanceesCard', () => {
     vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques({ max_drawdown_pct: 0, drawdown_recupere: true, semaines_recuperation: null }))
     vi.mocked(api.listBenchmarks).mockResolvedValue([])
 
-    render(<MetriquesAvanceesCard />)
+    renderCard()
 
     await screen.findByText('+12.5%')
     expect(screen.queryByText(/récupéré/)).not.toBeInTheDocument()
@@ -63,7 +90,7 @@ describe('MetriquesAvanceesCard', () => {
     vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques({ drawdown_recupere: false, semaines_recuperation: null }))
     vi.mocked(api.listBenchmarks).mockResolvedValue([])
 
-    render(<MetriquesAvanceesCard />)
+    renderCard()
 
     await screen.findByText('non récupéré à ce jour')
   })
@@ -81,17 +108,17 @@ describe('MetriquesAvanceesCard', () => {
     }
     vi.mocked(api.getComparaisonBenchmark).mockResolvedValue(comparaison)
 
-    render(<MetriquesAvanceesCard />)
+    renderCard()
     await screen.findByText('+12.5%')
 
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MSCI_WORLD' } })
 
-    await vi.waitFor(() => expect(api.getComparaisonBenchmark).toHaveBeenCalledWith('MSCI_WORLD'))
+    await vi.waitFor(() => expect(api.getComparaisonBenchmark).toHaveBeenCalledWith('MSCI_WORLD', 'financier'))
   })
 
   it('affiche une erreur avec bouton Réessayer si le chargement échoue', async () => {
     vi.mocked(api.getMetriquesAvancees).mockRejectedValueOnce(new Error('panne simulée'))
-    render(<MetriquesAvanceesCard />)
+    renderCard()
 
     await screen.findByText('panne simulée')
 
@@ -100,5 +127,68 @@ describe('MetriquesAvanceesCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
     await screen.findByText('+12.5%')
+  })
+})
+
+// Retour utilisateur du 09/09/2026 : « la vue Financier ne change pas ce graphique,
+// ça devrait pour comparer réellement le portefeuille financier » — la carte doit
+// respecter la lentille Net/Brut/Financier transverse, pas rester figée sur
+// "financier".
+describe('MetriquesAvanceesCard — lentille Net/Brut/Financier', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('charge les métriques pour la lentille courante', async () => {
+    vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques())
+    vi.mocked(api.listBenchmarks).mockResolvedValue([])
+
+    renderCard('brut')
+
+    await screen.findByText('+12.5%')
+    expect(api.getMetriquesAvancees).toHaveBeenCalledWith('brut')
+  })
+
+  it('un changement de lentille recharge les métriques avec la nouvelle lentille', async () => {
+    vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques())
+    vi.mocked(api.listBenchmarks).mockResolvedValue([])
+
+    const { rerender } = renderCard('financier')
+    await screen.findByText('+12.5%')
+    expect(api.getMetriquesAvancees).toHaveBeenCalledWith('financier')
+
+    rerender(providerJsx('net'))
+
+    await vi.waitFor(() => expect(api.getMetriquesAvancees).toHaveBeenCalledWith('net'))
+  })
+
+  it('un changement de lentille recharge aussi la comparaison à un indice déjà choisi', async () => {
+    vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques())
+    vi.mocked(api.listBenchmarks).mockResolvedValue([{ key: 'MSCI_WORLD', label: 'MSCI World' }])
+    vi.mocked(api.getComparaisonBenchmark).mockResolvedValue({
+      benchmark_key: 'MSCI_WORLD',
+      label: 'MSCI World',
+      points: [{ date: '2024-01-01', portefeuille_pct: 0, benchmark_pct: 0 }],
+    })
+
+    const { rerender } = renderCard('financier')
+    await screen.findByText('+12.5%')
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MSCI_WORLD' } })
+    await vi.waitFor(() => expect(api.getComparaisonBenchmark).toHaveBeenCalledWith('MSCI_WORLD', 'financier'))
+
+    rerender(providerJsx('brut'))
+
+    await vi.waitFor(() => expect(api.getComparaisonBenchmark).toHaveBeenCalledWith('MSCI_WORLD', 'brut'))
+  })
+
+  it("un changement de lentille sans indice choisi ne recharge pas de comparaison", async () => {
+    vi.mocked(api.getMetriquesAvancees).mockResolvedValue(metriques())
+    vi.mocked(api.listBenchmarks).mockResolvedValue([{ key: 'MSCI_WORLD', label: 'MSCI World' }])
+
+    const { rerender } = renderCard('financier')
+    await screen.findByText('+12.5%')
+
+    rerender(providerJsx('brut'))
+    await vi.waitFor(() => expect(api.getMetriquesAvancees).toHaveBeenCalledWith('brut'))
+
+    expect(api.getComparaisonBenchmark).not.toHaveBeenCalled()
   })
 })

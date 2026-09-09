@@ -3,6 +3,8 @@
 séries `points` construites à la main (même forme que
 `historical_performance_service.compute_portfolio_history`), sans dépendance réseau."""
 
+import pytest
+
 from app.services import metriques_performance_service as mps
 
 
@@ -142,3 +144,42 @@ def test_aucun_drawdown_si_la_valeur_ne_baisse_jamais():
     assert resultat["max_drawdown_pct"] == 0.0
     assert resultat["drawdown_recupere"] is True
     assert resultat["semaines_recuperation"] is None
+
+
+# ---------------------------------------------------------------------------
+# Bug réel du 09/09/2026 : vendre une position faisait chuter `valeur_portefeuille`
+# d'un coup (la position sort de la valorisation dès que la quantité tombe à zéro),
+# sans qu'aucun retrait ne l'explique dans `valeur_investie` (jamais décrémentée à
+# la vente) — un TWR/drawdown calculé sur la seule `valeur_portefeuille` prenait
+# cette vente pour un krach de -100 %. `valeur_realisee_cumulee` (produit net cumulé
+# des ventes) doit compenser exactement la disparition.
+# ---------------------------------------------------------------------------
+
+
+def test_vendre_toute_une_position_ne_cree_pas_de_faux_krach_dans_le_twr():
+    points = [
+        {"date": "2024-01-01", "valeur_portefeuille": 1000.0, "valeur_investie": 1000.0, "valeur_realisee_cumulee": 0.0},
+        # Vente de la totalité de la position pour 1050€ (+5 %) : plus aucune
+        # position ouverte (`valeur_portefeuille` retombe à 0), mais le produit de
+        # la vente est désormais "réalisé".
+        {"date": "2024-01-08", "valeur_portefeuille": 0.0, "valeur_investie": 1000.0, "valeur_realisee_cumulee": 1050.0},
+    ]
+
+    resultat = mps.compute_metriques_avancees(points)
+
+    assert resultat["twr_cumule_pct"] == 5.0
+    assert resultat["max_drawdown_pct"] == 0.0  # aucune perte réelle, seulement un changement de forme
+
+
+def test_serie_twr_cumulee_pct_neutralise_aussi_la_vente_dune_position():
+    """Même bug, pour la série point par point utilisée par la comparaison à un
+    indice (`historical_performance_service.compute_benchmark_history`)."""
+    points = [
+        {"date": "2024-01-01", "valeur_portefeuille": 1000.0, "valeur_investie": 1000.0, "valeur_realisee_cumulee": 0.0},
+        {"date": "2024-01-08", "valeur_portefeuille": 0.0, "valeur_investie": 1000.0, "valeur_realisee_cumulee": 1050.0},
+    ]
+
+    resultat = mps.serie_twr_cumulee_pct(points)
+
+    assert resultat[0] == 0.0
+    assert resultat[1] == pytest.approx(5.0)

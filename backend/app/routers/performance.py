@@ -22,6 +22,7 @@ from ..services import (
     auth_service,
     historical_performance_service,
     metriques_performance_service,
+    patrimoine_history_service,
     performance_service,
     rapport_service,
     revenus_passifs_service,
@@ -44,10 +45,16 @@ def get_portfolio_history(db: Session = Depends(get_db), current_user: User = De
 
 
 @router.get("/metriques-avancees", response_model=MetriquesAvancees)
-def get_metriques_avancees(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_metriques_avancees(
+    lentille: str = "financier", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     """TWR, volatilité annualisée, max drawdown et récupération (backlog 2.P.2) —
-    calculées sur la même série que `/history`, jamais un second calcul de fond."""
-    points = historical_performance_service.compute_portfolio_history(db, auth_service.id_foyer(current_user))
+    calculées sur la même série que `/history` en lentille "financier" (comportement
+    historique, par défaut), ou sur l'historique combiné du patrimoine en lentille
+    "brut"/"net" (retour utilisateur du 09/09/2026), jamais un second calcul de fond."""
+    if lentille not in patrimoine_history_service.LENTILLES_VALIDES:
+        raise HTTPException(status_code=400, detail="Lentille invalide")
+    points = patrimoine_history_service.points_pour_lentille(db, auth_service.id_foyer(current_user), lentille)
     return metriques_performance_service.compute_metriques_avancees(points)
 
 
@@ -62,9 +69,11 @@ def list_benchmarks():
 
 @router.get("/comparaison-benchmark", response_model=ComparaisonBenchmark)
 def get_comparaison_benchmark(
-    benchmark: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    benchmark: str, lentille: str = "financier", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    points = historical_performance_service.compute_portfolio_history(db, auth_service.id_foyer(current_user))
+    if lentille not in patrimoine_history_service.LENTILLES_VALIDES:
+        raise HTTPException(status_code=400, detail="Lentille invalide")
+    points = patrimoine_history_service.points_pour_lentille(db, auth_service.id_foyer(current_user), lentille)
     resultat = historical_performance_service.compute_benchmark_history(db, benchmark, points)
     if resultat is None:
         raise HTTPException(status_code=404, detail="Indice de référence inconnu, ou aucune donnée disponible pour cette période.")
