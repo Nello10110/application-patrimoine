@@ -28,7 +28,7 @@ export default function ImmobilierApercu({
 
   return (
     <>
-      {immobilier && (immobilier.cashflow_mensuel !== null || immobilier.prix_m2 !== null) && (
+      {immobilier && (immobilier.cashflow_mensuel !== null || immobilier.prix_m2 !== null || immobilier.prix_acquisition_total !== null) && (
         <Card title="Cashflow et rentabilité">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {immobilier.cashflow_mensuel !== null && (
@@ -44,14 +44,14 @@ export default function ImmobilierApercu({
               <div>
                 <Label>Rentabilité brute</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_brute_pct)}</p>
-                <p className="mt-1 text-xs text-texte-attenue">loyer annuel / prix d'acquisition</p>
+                <p className="mt-1 text-xs text-texte-attenue">loyer annuel / prix d'acquisition total</p>
               </div>
             )}
             {immobilier.rentabilite_nette_pct !== null && (
               <div>
                 <Label>Rentabilité nette</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatPct(immobilier.rentabilite_nette_pct)}</p>
-                <p className="mt-1 text-xs text-texte-attenue">(loyer − charges − frais) / prix d'acquisition</p>
+                <p className="mt-1 text-xs text-texte-attenue">(loyer − charges − frais) / prix d'acquisition total</p>
               </div>
             )}
             {immobilier.prix_m2 !== null && (
@@ -64,6 +64,13 @@ export default function ImmobilierApercu({
               <div>
                 <Label>Mensualité de l'emprunt rattaché</Label>
                 <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.emprunt_mensualite, 2, montantsMasques)}</p>
+              </div>
+            )}
+            {immobilier.prix_acquisition_total !== null && (
+              <div>
+                <Label>Prix d'acquisition total</Label>
+                <p className="mt-1 text-lg font-semibold text-texte">{formatEuro(immobilier.prix_acquisition_total, 2, montantsMasques)}</p>
+                <p className="mt-1 text-xs text-texte-attenue">prix d'achat + frais (notaire, travaux...)</p>
               </div>
             )}
           </div>

@@ -7,10 +7,12 @@ export interface FormImmobilier {
   loyer_mensuel: string
   charges_mensuelles: string
   frais_annuels: string
+  frais_acquisition: string
   surface_m2: string
   nb_pieces: string
   annee_construction: string
   dpe: string
+  residence_principale: boolean
 }
 
 function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
@@ -20,11 +22,14 @@ function formulaireDepuis(immo: HoldingDetail['immobilier']): FormImmobilier {
     charges_mensuelles:
       immo?.charges_mensuelles !== null && immo?.charges_mensuelles !== undefined ? String(immo.charges_mensuelles) : '',
     frais_annuels: immo?.frais_annuels !== null && immo?.frais_annuels !== undefined ? String(immo.frais_annuels) : '',
+    frais_acquisition:
+      immo?.frais_acquisition !== null && immo?.frais_acquisition !== undefined ? String(immo.frais_acquisition) : '',
     surface_m2: immo?.surface_m2 !== null && immo?.surface_m2 !== undefined ? String(immo.surface_m2) : '',
     nb_pieces: immo?.nb_pieces !== null && immo?.nb_pieces !== undefined ? String(immo.nb_pieces) : '',
     annee_construction:
       immo?.annee_construction !== null && immo?.annee_construction !== undefined ? String(immo.annee_construction) : '',
     dpe: immo?.dpe ?? '',
+    residence_principale: immo?.residence_principale ?? false,
   }
 }
 
@@ -64,10 +69,12 @@ export function useImmobilierDetail(ticker: string, chargerHistorique: boolean, 
         loyer_mensuel: form.loyer_mensuel ? Number(form.loyer_mensuel) : null,
         charges_mensuelles: form.charges_mensuelles ? Number(form.charges_mensuelles) : null,
         frais_annuels: form.frais_annuels ? Number(form.frais_annuels) : null,
+        frais_acquisition: form.frais_acquisition ? Number(form.frais_acquisition) : null,
         surface_m2: form.surface_m2 ? Number(form.surface_m2) : null,
         nb_pieces: form.nb_pieces ? Number(form.nb_pieces) : null,
         annee_construction: form.annee_construction ? Number(form.annee_construction) : null,
         dpe: form.dpe || null,
+        residence_principale: form.residence_principale,
       })
       // Cashflow/rentabilité/prix au m² sont calculés côté serveur (jamais recalculés
       // ici) : on relit la fiche complète pour les obtenir à jour, même pattern que

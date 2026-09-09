@@ -399,23 +399,28 @@ class HoldingImmobilierOut(BaseModel):
     loyer_mensuel: float | None = None
     charges_mensuelles: float | None = None
     frais_annuels: float | None = None
+    frais_acquisition: float | None = None
     surface_m2: float | None = None
     nb_pieces: int | None = None
     annee_construction: int | None = None
     dpe: str | None = None
+    residence_principale: bool = False
     # Calculés côté serveur (`holding_detail_service`), jamais recalculés côté
     # frontend — même discipline que `HoldingOut.valeur` (LOT 6.7). `None` tant que
-    # `loyer_mensuel` n'est pas renseigné (rien à projeter).
+    # `loyer_mensuel` n'est pas renseigné (rien à projeter) — sauf `prix_m2` et
+    # `prix_acquisition_total`, qui n'en dépendent pas.
     cashflow_mensuel: float | None = None
     rentabilite_brute_pct: float | None = None
     rentabilite_nette_pct: float | None = None
     prix_m2: float | None = None
     emprunt_mensualite: float | None = None
+    prix_acquisition_total: float | None = None
 
 
 MESSAGE_LOYER_NON_NEGATIF = "Le loyer mensuel ne peut pas être négatif"
 MESSAGE_CHARGES_NON_NEGATIVES = "Les charges mensuelles ne peuvent pas être négatives"
 MESSAGE_FRAIS_NON_NEGATIFS = "Les frais annuels ne peuvent pas être négatifs"
+MESSAGE_FRAIS_ACQUISITION_NON_NEGATIFS = "Les frais d'acquisition ne peuvent pas être négatifs"
 MESSAGE_SURFACE_POSITIVE = "La surface doit être strictement positive"
 MESSAGE_PIECES_POSITIVES = "Le nombre de pièces doit être strictement positif"
 
@@ -425,10 +430,12 @@ class HoldingImmobilierUpdate(BaseModel):
     loyer_mensuel: float | None = None
     charges_mensuelles: float | None = None
     frais_annuels: float | None = None
+    frais_acquisition: float | None = None
     surface_m2: float | None = None
     nb_pieces: int | None = None
     annee_construction: int | None = None
     dpe: str | None = None
+    residence_principale: bool = False
 
     @field_validator("loyer_mensuel")
     @classmethod
@@ -449,6 +456,13 @@ class HoldingImmobilierUpdate(BaseModel):
     def _valider_frais(cls, v: float | None) -> float | None:
         if v is not None and v < 0:
             raise ValueError(MESSAGE_FRAIS_NON_NEGATIFS)
+        return v
+
+    @field_validator("frais_acquisition")
+    @classmethod
+    def _valider_frais_acquisition(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_FRAIS_ACQUISITION_NON_NEGATIFS)
         return v
 
     @field_validator("surface_m2")

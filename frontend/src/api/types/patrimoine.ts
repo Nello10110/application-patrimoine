@@ -181,15 +181,18 @@ export interface HoldingImmobilier {
   loyer_mensuel: number | null
   charges_mensuelles: number | null
   frais_annuels: number | null
+  frais_acquisition: number | null
   surface_m2: number | null
   nb_pieces: number | null
   annee_construction: number | null
   dpe: string | null
+  residence_principale: boolean
   cashflow_mensuel: number | null
   rentabilite_brute_pct: number | null
   rentabilite_nette_pct: number | null
   prix_m2: number | null
   emprunt_mensualite: number | null
+  prix_acquisition_total: number | null
 }
 
 export interface HoldingImmobilierInput {
@@ -197,8 +200,10 @@ export interface HoldingImmobilierInput {
   loyer_mensuel?: number | null
   charges_mensuelles?: number | null
   frais_annuels?: number | null
+  frais_acquisition?: number | null
   surface_m2?: number | null
   nb_pieces?: number | null
   annee_construction?: number | null
   dpe?: string | null
+  residence_principale?: boolean
 }

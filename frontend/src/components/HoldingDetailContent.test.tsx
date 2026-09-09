@@ -185,15 +185,18 @@ function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobili
     loyer_mensuel: 1000,
     charges_mensuelles: 100,
     frais_annuels: 2400,
+    frais_acquisition: null,
     surface_m2: 50,
     nb_pieces: 3,
     annee_construction: 1995,
     dpe: 'D',
+    residence_principale: false,
     cashflow_mensuel: 700,
     rentabilite_brute_pct: 6,
     rentabilite_nette_pct: 4.2,
     prix_m2: 5000,
     emprunt_mensualite: null,
+    prix_acquisition_total: 200000,
     ...overrides,
   }
 }
@@ -258,6 +261,27 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
     expect(screen.getByText('5 000,00 €')).toBeInTheDocument()
   })
 
+  it("affiche le prix d'acquisition total et le badge « Résidence principale » quand renseignés", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(
+      <HoldingDetailContent
+        detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ residence_principale: true, prix_acquisition_total: 215000 }) })}
+      />,
+    )
+
+    await screen.findByText('Cashflow et rentabilité')
+    expect(screen.getByText("Résidence principale")).toBeInTheDocument()
+    expect(screen.getByText('215 000,00 €')).toBeInTheDocument()
+  })
+
+  it("n'affiche pas le badge « Résidence principale » quand la fiche ne l'indique pas", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    render(<HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier({ residence_principale: false }) })} />)
+
+    await screen.findByText('Cashflow et rentabilité')
+    expect(screen.queryByText('Résidence principale')).not.toBeInTheDocument()
+  })
+
   it('enregistrer les caractéristiques appelle updateHoldingImmobilier puis recharge la fiche', async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([])
     vi.mocked(api.updateHoldingImmobilier).mockResolvedValue(immobilier())
@@ -268,12 +292,14 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
     fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '1000' } })
     fireEvent.change(screen.getByLabelText('Surface (m²)'), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText("Frais d'acquisition (notaire, travaux, agence — total)"), { target: { value: '15000' } })
+    fireEvent.click(screen.getByLabelText('Résidence principale'))
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await vi.waitFor(() =>
       expect(api.updateHoldingImmobilier).toHaveBeenCalledWith(
         'AAPL',
-        expect.objectContaining({ loyer_mensuel: 1000, surface_m2: 50 }),
+        expect.objectContaining({ loyer_mensuel: 1000, surface_m2: 50, frais_acquisition: 15000, residence_principale: true }),
       ),
     )
     // Le résultat (cashflow/rentabilités calculés côté serveur) vit dans l'onglet

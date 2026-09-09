@@ -269,10 +269,23 @@ class HoldingImmobilierDetail(Base):
     # que quatre colonnes séparées : le backlog ne demande qu'un total pour le calcul
     # de rentabilité, pas un suivi ligne à ligne de chaque poste.
     frais_annuels: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Coût ponctuel d'ACQUISITION (notaire, travaux, agence — total), distinct de
+    # `frais_annuels` ci-dessus qui est récurrent (retour utilisateur du 09/09/2026).
+    # Même doctrine d'agrégat volontaire que `frais_annuels` : un seul total, pas un
+    # poste par ligne. S'additionne à `Holding.prix_revient_moyen` pour former le
+    # "prix d'acquisition total" utilisé au dénominateur des rentabilités
+    # (`immobilier_service.calculer_cashflow_et_rentabilite`) — jusqu'ici l'utilisateur
+    # devait plier ces frais dans `prix_revient_moyen` lui-même pour qu'ils comptent.
+    frais_acquisition: Mapped[float | None] = mapped_column(Float, nullable=True)
     surface_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
     nb_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
     annee_construction: Mapped[int | None] = mapped_column(Integer, nullable=True)
     dpe: Mapped[str | None] = mapped_column(String, nullable=True)  # A à G, texte libre (pas d'enum : tolère "NC" etc.)
+    # Résidence principale déclarée (retour utilisateur du 09/09/2026) — purement
+    # informatif, aucune contrainte d'unicité imposée (un foyer avec plusieurs
+    # détenteurs pourrait légitimement avoir plusieurs résidences principales selon
+    # la période ; l'application ne tranche pas ce genre de cas fiscal/patrimonial).
+    residence_principale: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

@@ -5,9 +5,12 @@ valorisations manuelles (`HoldingValuationHistory`) — jamais écrasé, contrai
 
 Cashflow mensuel = loyer − charges − frais/12 − mensualité de l'emprunt rattaché
 (`Loan.holding_id`, backlog § 2.M.2). Rentabilité brute = loyer annuel / prix
-d'acquisition ; nette = (loyer annuel − charges annuelles − frais annuels) / prix
-d'acquisition. `prix d'acquisition` = `Holding.prix_revient_moyen` (montant investi à
-l'origine, déjà ce sens ailleurs dans l'application — cf. `models.Holding`)."""
+d'acquisition total ; nette = (loyer annuel − charges annuelles − frais annuels) /
+prix d'acquisition total. `prix d'acquisition total` = `Holding.prix_revient_moyen`
+(montant investi à l'origine, déjà ce sens ailleurs dans l'application — cf.
+`models.Holding`) + `HoldingImmobilierDetail.frais_acquisition` (notaire, travaux,
+agence — retour utilisateur du 09/09/2026 : jusqu'ici l'utilisateur devait plier ces
+frais dans `prix_revient_moyen` lui-même pour qu'ils comptent dans la rentabilité)."""
 
 from datetime import datetime
 
@@ -108,12 +111,18 @@ def calculer_cashflow_et_rentabilite(
         "rentabilite_nette_pct": None,
         "prix_m2": None,
         "emprunt_mensualite": None,
+        "prix_acquisition_total": None,
     }
     if detail is None:
         return vide
 
     prix_m2 = valeur / detail.surface_m2 if detail.surface_m2 else None
     vide["prix_m2"] = _arrondi(prix_m2)
+
+    # Indépendant du loyer (contrairement au cashflow/rentabilités ci-dessous) :
+    # informatif dès que `prix_revient_moyen` est connu, même sans location.
+    prix_acquisition_total = holding.prix_revient_moyen + (detail.frais_acquisition or 0.0) if holding.prix_revient_moyen else None
+    vide["prix_acquisition_total"] = _arrondi(prix_acquisition_total)
 
     if detail.loyer_mensuel is None:
         return vide
@@ -126,11 +135,11 @@ def calculer_cashflow_et_rentabilite(
 
     rentabilite_brute_pct = None
     rentabilite_nette_pct = None
-    if holding.prix_revient_moyen:
+    if prix_acquisition_total:
         loyer_annuel = detail.loyer_mensuel * 12
-        rentabilite_brute_pct = loyer_annuel / holding.prix_revient_moyen * 100
+        rentabilite_brute_pct = loyer_annuel / prix_acquisition_total * 100
         charges_annuelles = charges * 12 + (detail.frais_annuels or 0.0)
-        rentabilite_nette_pct = (loyer_annuel - charges_annuelles) / holding.prix_revient_moyen * 100
+        rentabilite_nette_pct = (loyer_annuel - charges_annuelles) / prix_acquisition_total * 100
 
     return {
         "cashflow_mensuel": _arrondi(cashflow_mensuel),
@@ -138,4 +147,5 @@ def calculer_cashflow_et_rentabilite(
         "rentabilite_nette_pct": _arrondi(rentabilite_nette_pct),
         "prix_m2": vide["prix_m2"],
         "emprunt_mensualite": _arrondi(mensualite) if emprunt is not None else None,
+        "prix_acquisition_total": vide["prix_acquisition_total"],
     }

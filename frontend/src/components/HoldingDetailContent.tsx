@@ -79,6 +79,9 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
               {libelleTypeActif(detail.type_actif)}
             </span>
           )}
+          {estImmobilier && immo.immobilier?.residence_principale && (
+            <span className="rounded-chip bg-track px-2 py-0.5 text-xs font-medium text-ink2">Résidence principale</span>
+          )}
           {detail.compte && (
             <Link
               to={`/comptes/${detail.compte.id}`}

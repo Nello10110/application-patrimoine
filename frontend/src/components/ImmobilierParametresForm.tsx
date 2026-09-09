@@ -30,6 +30,14 @@ export default function ImmobilierParametresForm({
 }) {
   return (
     <Card title="Immobilier — caractéristiques et location">
+      <label className="mb-4 flex items-center gap-1.5 text-sm text-texte">
+        <input
+          type="checkbox"
+          checked={form.residence_principale}
+          onChange={(e) => setForm({ ...form, residence_principale: e.target.checked })}
+        />
+        Résidence principale
+      </label>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Type de location">
           <Select value={form.type_location} onChange={(e) => setForm({ ...form, type_location: e.target.value })}>
@@ -53,6 +61,14 @@ export default function ImmobilierParametresForm({
         </Field>
         <Field label="Frais annuels (taxe foncière, copropriété, assurance, gestion — total)">
           <Input type="number" step="any" value={form.frais_annuels} onChange={(e) => setForm({ ...form, frais_annuels: e.target.value })} />
+        </Field>
+        <Field label="Frais d'acquisition (notaire, travaux, agence — total)">
+          <Input
+            type="number"
+            step="any"
+            value={form.frais_acquisition}
+            onChange={(e) => setForm({ ...form, frais_acquisition: e.target.value })}
+          />
         </Field>
         <Field label="Surface (m²)">
           <Input type="number" step="any" value={form.surface_m2} onChange={(e) => setForm({ ...form, surface_m2: e.target.value })} />

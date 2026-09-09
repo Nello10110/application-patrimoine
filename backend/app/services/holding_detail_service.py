@@ -111,10 +111,12 @@ def build_holding_detail(db: Session, ticker: str, user_id: int) -> dict | None:
             "loyer_mensuel": immo.loyer_mensuel,
             "charges_mensuelles": immo.charges_mensuelles,
             "frais_annuels": immo.frais_annuels,
+            "frais_acquisition": immo.frais_acquisition,
             "surface_m2": immo.surface_m2,
             "nb_pieces": immo.nb_pieces,
             "annee_construction": immo.annee_construction,
             "dpe": immo.dpe,
+            "residence_principale": immo.residence_principale,
             **calcul,
         }
 

@@ -109,6 +109,53 @@ def test_cashflow_et_rentabilite_sans_emprunt(client, db):
     # Prix/m2 = valeur (valeur_estimee prioritaire) / surface = 250000/50 = 5000
     assert immo["prix_m2"] == 5000.0
     assert immo["emprunt_mensualite"] is None
+    # Sans frais d'acquisition renseignés : prix d'acquisition total = prix_revient_moyen seul.
+    assert immo["prix_acquisition_total"] == 200000.0
+
+
+def test_frais_acquisition_augmente_le_prix_dacquisition_total_et_baisse_la_rentabilite(client, db):
+    # Prix d'acquisition 200 000€ + 15 000€ de frais (notaire, travaux) = 215 000€ total.
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0, valeur_estimee=250000.0)
+
+    reponse = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_acquisition=15000.0))
+    assert reponse.json()["frais_acquisition"] == 15000.0
+
+    detail = client.get("/api/portfolio/holdings/MAISON/detail").json()["immobilier"]
+    assert detail["prix_acquisition_total"] == 215000.0
+    # Brute = 12000 / 215000 * 100 ≈ 5.58 (vs 6.0 sans les frais)
+    assert detail["rentabilite_brute_pct"] == round(12000 / 215000 * 100, 2)
+
+
+def test_prix_acquisition_total_calcule_meme_sans_loyer(client, db):
+    """`prix_acquisition_total` ne dépend pas du loyer, contrairement au cashflow —
+    un utilisateur peut vouloir suivre le coût réel d'un bien avant toute location."""
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0)
+    client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(loyer_mensuel=None, frais_acquisition=10000.0))
+
+    detail = client.get("/api/portfolio/holdings/MAISON/detail").json()["immobilier"]
+    assert detail["prix_acquisition_total"] == 210000.0
+    assert detail["cashflow_mensuel"] is None
+
+
+def test_frais_acquisition_negatif_est_rejete(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    reponse = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_acquisition=-500.0))
+
+    assert reponse.status_code == 400
+
+
+def test_residence_principale_par_defaut_a_false_et_peut_etre_activee(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    corps_par_defaut = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier()).json()
+    assert corps_par_defaut["residence_principale"] is False
+
+    corps_active = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(residence_principale=True)).json()
+    assert corps_active["residence_principale"] is True
+
+    detail = client.get("/api/portfolio/holdings/MAISON/detail").json()["immobilier"]
+    assert detail["residence_principale"] is True
 
 
 def test_cashflow_retranche_la_mensualite_de_lemprunt_rattache(client, db):
