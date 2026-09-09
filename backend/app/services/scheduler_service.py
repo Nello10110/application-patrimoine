@@ -137,10 +137,16 @@ def _run_logos_refresh() -> None:
     « ça mettrait une fois par semaine à jour la banque d'image »). Hebdomadaire par
     défaut, comme justETF : un logo de banque ne bouge quasiment jamais, et
     `logo_service.rafraichir_logos` ne réécrit rien quand l'image téléchargée est
-    identique. Même structure défensive que les jobs ci-dessus."""
+    identique. Même structure défensive que les jobs ci-dessus.
+
+    Rafraîchit AUSSI le cache partagé du catalogue (retour utilisateur du
+    09/09/2026, `rafraichir_logos_catalogue(..., forcer=True)`) — même job, même
+    cadence : ce sont les mêmes ~12 sites, pas de raison de les démarcher deux fois
+    par semaine à des horaires différents."""
     db = SessionLocal()
     try:
         resume = logo_service.rafraichir_logos(db)
+        logo_service.rafraichir_logos_catalogue(db, forcer=True)
         _record_result(
             db,
             LOGOS_REFRESH,

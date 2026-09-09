@@ -201,6 +201,75 @@ def test_solde_par_compte_avec_perimetre_invite_omet_les_comptes_sans_ligne_visi
     assert noms == {"Visible"}
 
 
+def test_solde_par_compte_repartition_jamais_commencee_nest_pas_incomplete(db):
+    """Aucune ligne `QuotiteHolding` : état valide et délibéré (implicitement 100 %
+    foyer, cf. `models.QuotiteHolding`) — ne doit JAMAIS déclencher l'alerte."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["repartition_incomplete"] is False
+
+
+def test_solde_par_compte_repartition_complete_a_100_nest_pas_incomplete(db):
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+    alice_id = _creer_detenteur(db, "Alice")
+    detenteurs_service.set_quotites_holding(db, ID_UTILISATEUR_TEST, holding, [(alice_id, 100.0)])
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["repartition_incomplete"] is False
+
+
+def test_solde_par_compte_repartition_rompue_est_incomplete(db):
+    """Cas réel visé par cette alerte (retour utilisateur du 09/09/2026) : une
+    répartition VALIDE à sa création (somme à 100 %) qui ne l'est plus après coup —
+    ici simulée en insérant directement la ligne restante à 60 %, exactement ce que
+    laisse `delete_detenteur` en supprimant celle d'un second détenteur qui portait
+    les 40 % manquants (`set_quotites_holding` seul ne peut jamais produire cet état,
+    `_valider_quotites` le refuserait à l'écriture)."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "PEA", None)
+    holding = make_holding(db, ticker="AAA", quantite=1, prix_revient_moyen=100.0, compte_id=compte.id)
+    alice_id = _creer_detenteur(db, "Alice")
+    db.add(QuotiteHolding(holding_id=holding.id, detenteur_id=alice_id, quotite_pct=60.0))
+    db.commit()
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["repartition_incomplete"] is True
+
+
+def test_solde_par_compte_repartition_rompue_sur_un_emprunt_rattache_est_incomplete(db):
+    """Même règle, côté emprunt (`QuotiteLoan`) — reportée sur le HOLDING auquel il
+    est rattaché : cette vue affiche des lignes de portefeuille, jamais un emprunt
+    isolément."""
+    compte = comptes_service.create_compte(db, ID_UTILISATEUR_TEST, "Résidence", None)
+    holding = make_holding(
+        db, ticker="MAISON", type_actif="REAL_ESTATE", quantite=1, valeur_estimee=250000.0, compte_id=compte.id
+    )
+    pret = Loan(
+        user_id=ID_UTILISATEUR_TEST,
+        libelle="Crédit immobilier",
+        capital_initial=200000.0,
+        taux_annuel_pct=3.0,
+        mensualite=1000.0,
+        date_debut=datetime(2020, 1, 1),
+        duree_mois=240,
+        holding_id=holding.id,
+    )
+    db.add(pret)
+    db.commit()
+    alice_id = _creer_detenteur(db, "Alice")
+    db.add(QuotiteLoan(loan_id=pret.id, detenteur_id=alice_id, quotite_pct=60.0))
+    db.commit()
+
+    resultats = comptes_service.solde_par_compte(db, ID_UTILISATEUR_TEST)
+
+    assert resultats[0]["repartition_incomplete"] is True
+
+
 def _creer_detenteur(db, nom: str) -> int:
     from app.models import Detenteur
 

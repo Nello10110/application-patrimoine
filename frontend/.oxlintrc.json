@@ -50,6 +50,15 @@
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
     {
+      // Triangle d'avertissement sur la vue des comptes (09/09/2026) : les icônes de
+      // `icons.tsx` sont toutes `aria-hidden` par construction (décoratives partout
+      // ailleurs) — un vrai `<img>` n'a pas de sens pour une icône SVG tracée
+      // inline, `role="img"` sur le conteneur reste le seul moyen de lui donner un
+      // nom accessible sans dupliquer le composant pour ce seul appelant.
+      "files": ["src/pages/ComptesPage.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    },
+    {
       // Rejeu de l'assistant de bienvenue (`WelcomeWizard.tsx`) en surcouche plein
       // écran — même raison que `Modale.tsx` ci-dessus : un `<dialog>` natif ne
       // convient pas à une mise en page plein cadre pilotée en Flexbox.

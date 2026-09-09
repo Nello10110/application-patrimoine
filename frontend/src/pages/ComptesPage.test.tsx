@@ -55,7 +55,7 @@ function compte(overrides: Partial<Compte> = {}): Compte {
 }
 
 function ligne(overrides: Partial<CompteAvecSolde> = {}): CompteAvecSolde {
-  return { compte: compte(), solde: 1000, nombre_lignes: 2, ...overrides }
+  return { compte: compte(), solde: 1000, nombre_lignes: 2, repartition_incomplete: false, ...overrides }
 }
 
 function holding(overrides: Partial<Holding> = {}): Holding {
@@ -113,6 +113,20 @@ describe('ComptesPage', () => {
     expect(screen.getByText('Livret A')).toBeInTheDocument()
     // Total du foyer (1000 + 500), affiché en tête d'écran.
     expect(screen.getByText('1 500 €')).toBeInTheDocument()
+  })
+
+  // Retour utilisateur du 09/09/2026 : signaler une répartition entre détenteurs
+  // non complétée (commencée puis rompue, le plus souvent par la suppression d'un
+  // détenteur) directement sur la vue des comptes.
+  it('affiche un triangle d\'avertissement sur un compte dont la répartition est incomplète', async () => {
+    vi.mocked(api.listComptesAvecSolde).mockResolvedValue([
+      ligne({ compte: compte({ id: 1, nom: 'PEA' }), repartition_incomplete: true }),
+      ligne({ compte: compte({ id: 2, nom: 'Livret A' }), repartition_incomplete: false }),
+    ])
+    render(<ComptesPage />)
+
+    await screen.findByText('PEA')
+    expect(screen.getByRole('img', { name: /répartition.*incomplète/i })).toBeInTheDocument()
   })
 
   it('le bucket "Sans compte" (compte === null) est affiché mais non cliquable', async () => {

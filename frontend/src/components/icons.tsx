@@ -305,3 +305,18 @@ export function IconCrayon({ className = 'h-4 w-4' }: { className?: string }) {
     </svg>
   )
 }
+
+/** Triangle d'avertissement (retour utilisateur du 09/09/2026 : répartition entre
+ * détenteurs non complétée sur la vue des comptes) — même gabarit que les autres
+ * icônes de ce fichier. Le point de l'exclamation est un petit disque plein
+ * (`fill="currentColor"`), comme le point de `IconComptes` : un trait à
+ * `strokeLinecap="round"` donnerait un point ovale, pas rond. */
+export function IconAvertissement({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M10 3.2 L17.5 16.2 H2.5 Z" strokeLinejoin="round" />
+      <path d="M10 8 V11.5" />
+      <circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}

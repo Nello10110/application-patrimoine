@@ -51,6 +51,12 @@ export interface CompteAvecSolde {
   compte: Compte | null
   solde: number
   nombre_lignes: number
+  // Retour utilisateur du 09/09/2026 : au moins une ligne (ou un emprunt qui lui
+  // est rattaché) a une répartition entre détenteurs COMMENCÉE mais qui ne somme
+  // plus à 100 % — le plus souvent parce qu'un détenteur qui y avait une part a
+  // été supprimé depuis. `false` pour une répartition jamais commencée : c'est un
+  // état valide (implicitement 100 % foyer), pas une alerte.
+  repartition_incomplete: boolean
 }
 
 export interface Holding {

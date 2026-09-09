@@ -7,7 +7,7 @@ import CompteDetailModal from '../components/CompteDetailModal'
 import { PrimaryButton, SecondaryButton } from '../components/Controls'
 import EtablissementEditModal from '../components/EtablissementEditModal'
 import EtablissementLogo from '../components/EtablissementLogo'
-import { IconChevron, IconCrayon } from '../components/icons'
+import { IconAvertissement, IconChevron, IconCrayon } from '../components/icons'
 import EtablissementsCard from '../components/EtablissementsCard'
 import EtatErreur from '../components/EtatErreur'
 import EtatVide from '../components/EtatVide'
@@ -202,6 +202,22 @@ export default function ComptesPage() {
                         <span className="ml-2 text-xs text-texte-attenue">
                           {ligne.nombre_lignes} ligne{ligne.nombre_lignes > 1 ? 's' : ''}
                         </span>
+                        {/* Retour utilisateur du 09/09/2026 : une répartition entre
+                            détenteurs commencée puis rompue (le plus souvent la
+                            suppression d'un détenteur qui y avait une part) laissait
+                            un compte à moitié réparti sans le moindre indice —
+                            jamais pour une répartition simplement jamais commencée,
+                            un état valide (cf. `repartition_incomplete` côté API). */}
+                        {ligne.repartition_incomplete && (
+                          <span
+                            className="ml-1.5 inline-flex shrink-0"
+                            role="img"
+                            aria-label="Répartition entre détenteurs incomplète sur au moins une ligne de ce compte"
+                            title="Répartition entre détenteurs incomplète sur au moins une ligne de ce compte"
+                          >
+                            <IconAvertissement className="h-4 w-4 text-warn" />
+                          </span>
+                        )}
                       </span>
                       {/* Plus de « Supprimer » sur la ligne (recommandation
                           explicite du paquet de design) : un lien rouge à côté du

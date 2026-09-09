@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Compte, Etablissement, Holding, QuotiteHolding, User
+from ..models import ROLE_INVITE, ROLE_MEMBRE, ROLE_PROPRIETAIRE, Compte, Etablissement, Holding, LogoCatalogue, QuotiteHolding, User
 from ..schemas import (
     CompteAvecSoldeOut,
     CompteCreate,
@@ -119,6 +119,20 @@ def _etablissement_du_foyer(db: Session, etablissement_id: int, current_user: Us
 def get_logos_etablissements(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict[str, str]:
     etablissements = comptes_service.list_etablissements(db, auth_service.id_foyer(current_user))
     return {str(e.id): uri for e in etablissements if (uri := logo_service.data_uri(e)) is not None}
+
+
+@router.get("/etablissements/catalogue/logos")
+def get_logos_catalogue(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict[str, str]:
+    """Logos réels des ~12 établissements CONNUS DU CATALOGUE (retour utilisateur du
+    09/09/2026), affichés dans `CatalogueEtablissementPicker` avant même la création
+    d'un `Etablissement` — cache PARTAGÉ entre tous les foyers (cf.
+    `models.LogoCatalogue`), jamais de fetch en direct ici : cette route ne fait que
+    LIRE le cache, alimenté en tâche de fond au démarrage puis par le job
+    hebdomadaire (`services/scheduler_service.py`). Une clé absente n'a simplement
+    pas encore été récupérée (ou son site la refuse) — le frontend retombe alors sur
+    le badge généré, comme pour un `Etablissement` sans logo."""
+    caches = db.query(LogoCatalogue).all()
+    return {c.logo_key: uri for c in caches if (uri := logo_service.data_uri_catalogue(c)) is not None}
 
 
 @router.post("/etablissements/{etablissement_id}/logo/catalogue", response_model=EtablissementOut)
@@ -242,6 +256,7 @@ def get_soldes(db: Session = Depends(get_db), current_user: User = Depends(get_c
             compte=CompteOut.model_validate(r["compte"]) if r["compte"] is not None else None,
             solde=round(r["solde"], 2),
             nombre_lignes=r["nombre_lignes"],
+            repartition_incomplete=r["repartition_incomplete"],
         )
         for r in resultats
     ]

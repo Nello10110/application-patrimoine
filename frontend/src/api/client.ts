@@ -245,6 +245,11 @@ export const api = {
   // l'authentification passe par un en-tête `Authorization` qu'une balise
   // `<img src="/api/...">` ne peut pas porter. Cf. `utils/logosEtablissements.ts`.
   getLogosEtablissements: () => request<Record<string, string>>('/comptes/etablissements/logos'),
+  // Logos réels du CATALOGUE (retour utilisateur du 09/09/2026), affichés dans
+  // `CatalogueEtablissementPicker` avant même la création d'un établissement — cache
+  // partagé entre tous les foyers, jamais recalculé à la demande (cf.
+  // `logo_service.rafraichir_logos_catalogue` côté serveur). Cf. `utils/logosCatalogue.ts`.
+  getLogosCatalogue: () => request<Record<string, string>>('/comptes/etablissements/catalogue/logos'),
   recupererLogoCatalogue: (id: number) =>
     request<Etablissement>(`/comptes/etablissements/${id}/logo/catalogue`, { method: 'POST' }),
   setEtablissementLogoUrl: (id: number, url: string) =>

@@ -4,7 +4,9 @@ toutes les routes hormis `/api/auth/{register,login}` et `/api/health` exigent d
 connecté — CORS restreint à une liste d'origines explicite (dev local par défaut,
 `PATRIMOINE_CORS_ORIGINS` pour un déploiement Docker, cf. `compose-exemple.yaml`)."""
 
+import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
@@ -39,7 +41,7 @@ from .routers import (
     settings,
     transactions,
 )
-from .services import scheduler_service, startup_maintenance
+from .services import logo_service, scheduler_service, startup_maintenance
 
 configure_logging()
 
@@ -47,8 +49,6 @@ configure_logging()
 # valeurs. Sans cette trace, un exploitant dont la clé n'est pas prise en compte n'a
 # aucun moyen de distinguer « fichier non lu » de « variable mal nommée ».
 if ENV_CHARGE:
-    import logging
-
     logging.getLogger("patrimoine.config").info(
         "%s chargé — variables en place : %s",
         CHEMIN_ENV,
@@ -70,9 +70,34 @@ finally:
     _db_demarrage.close()
 
 
+def _rechauffer_logos_catalogue() -> None:
+    """Remplit le cache partagé des logos du catalogue (retour utilisateur du
+    09/09/2026) en tâche de fond, HORS de la boucle de démarrage — une session de
+    quelques secondes à un peu moins d'une minute (une douzaine de sites, en
+    parallèle) ne doit jamais retarder l'ouverture du port d'écoute. Ne touche que
+    les clés jamais tentées ou dont la dernière tentative dépasse le délai de
+    nouvelle tentative (cf. `logo_service.DELAI_NOUVELLE_TENTATIVE_CATALOGUE`) : un
+    redémarrage rapproché ne redémarche pas les sites qui viennent de répondre —
+    ou de refuser."""
+    db = SessionLocal()
+    try:
+        logo_service.rafraichir_logos_catalogue(db)
+    except Exception:
+        logging.getLogger("patrimoine.logos").exception("échauffement du cache de logos du catalogue en échec")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler_service.init_scheduler()
+    # `PATRIMOINE_TESTING` (posée par `conftest.py`, même garde que
+    # `market_data_service`) : un test construit un `TestClient(app)` par cas, donc
+    # `lifespan` tourne à CHAQUE test — sans cette garde, chacun démarcherait les 12
+    # domaines du catalogue en tâche de fond, polluant les mocks réseau des tests
+    # qui, eux, comptent les appels sortants (cf. `test_logo_catalogue_recupere_le_site_officiel`).
+    if not os.environ.get("PATRIMOINE_TESTING"):
+        threading.Thread(target=_rechauffer_logos_catalogue, daemon=True, name="rechauffement-logos-catalogue").start()
     yield
     scheduler_service.shutdown_scheduler()
 

@@ -131,3 +131,9 @@ class CompteAvecSoldeOut(BaseModel):
     compte: CompteOut | None
     solde: float
     nombre_lignes: int
+    # Retour utilisateur du 09/09/2026 : au moins une ligne (ou un emprunt qui lui
+    # est rattaché) a une répartition entre détenteurs COMMENCÉE mais qui ne somme
+    # plus à 100 % — le plus souvent parce qu'un détenteur qui y avait une part a
+    # été supprimé depuis. `False` pour une répartition jamais commencée : c'est un
+    # état valide, cf. `services/comptes_service._holdings_repartition_incomplete`.
+    repartition_incomplete: bool

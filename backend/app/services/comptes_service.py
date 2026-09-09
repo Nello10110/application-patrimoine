@@ -7,10 +7,10 @@ rattaché (via `Loan.holding_id`), décision délibérée pour ne jamais toucher
 mécanisme de calcul existant (`compute_parts`, `patrimoine_service`...), déjà
 entremêlé dans plusieurs services financiers testés."""
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from ..models import TYPES_ACTIF_SANS_ETABLISSEMENT, Compte, Etablissement, Holding, Loan
+from ..models import TYPES_ACTIF_SANS_ETABLISSEMENT, Compte, Etablissement, Holding, Loan, QuotiteHolding, QuotiteLoan
 from . import analysis_service, detenteurs_service
 
 
@@ -216,6 +216,50 @@ def set_quotites_compte(db: Session, user_id: int, compte: Compte, quotites: lis
         raise
 
 
+def _holdings_repartition_incomplete(db: Session, holding_ids: list[int]) -> set[int]:
+    """Holdings (parmi `holding_ids`) dont les quotités — sur l'actif OU sur un
+    emprunt qui lui est rattaché — sont COMMENCÉES mais ne somment pas à 100 % (retour
+    utilisateur du 09/09/2026 : signaler une répartition non complétée dans la vue
+    des comptes). Une répartition jamais commencée (aucune ligne `QuotiteHolding`)
+    n'est PAS incomplète — c'est un état valide et délibéré, cf. la docstring de
+    `models.QuotiteHolding` (« implicitement 100 % foyer ») : le cas réel à
+    signaler est celui d'une répartition ROMPUE après coup, le plus souvent par la
+    suppression d'un détenteur qui y avait une part (`delete_detenteur` ne touche
+    jamais aux lignes restantes)."""
+    if not holding_ids:
+        return set()
+
+    sommes_holding = dict(
+        db.query(QuotiteHolding.holding_id, func.sum(QuotiteHolding.quotite_pct))
+        .filter(QuotiteHolding.holding_id.in_(holding_ids))
+        .group_by(QuotiteHolding.holding_id)
+        .all()
+    )
+    incomplets = {
+        holding_id
+        for holding_id, total in sommes_holding.items()
+        if abs(total - 100.0) > detenteurs_service.TOLERANCE_SOMME_PCT
+    }
+
+    # Emprunts rattachés : même règle, mais reportée sur LE HOLDING qui les porte —
+    # cette vue affiche des lignes de portefeuille/comptes, jamais des emprunts
+    # isolément, un emprunt à la répartition rompue doit donc alerter sur la ligne
+    # (et le compte) auquel il est rattaché.
+    prets_par_holding = dict(db.query(Loan.id, Loan.holding_id).filter(Loan.holding_id.in_(holding_ids)).all())
+    if prets_par_holding:
+        sommes_loan = dict(
+            db.query(QuotiteLoan.loan_id, func.sum(QuotiteLoan.quotite_pct))
+            .filter(QuotiteLoan.loan_id.in_(prets_par_holding.keys()))
+            .group_by(QuotiteLoan.loan_id)
+            .all()
+        )
+        for loan_id, total in sommes_loan.items():
+            if abs(total - 100.0) > detenteurs_service.TOLERANCE_SOMME_PCT:
+                incomplets.add(prets_par_holding[loan_id])
+
+    return incomplets
+
+
 def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] | None = None) -> list[dict]:
     """Solde de chaque compte du foyer, TOUS types d'actifs confondus (contrairement
     à `analysis_service.repartition_par_compte`, restreinte au portefeuille
@@ -233,17 +277,21 @@ def solde_par_compte(db: Session, user_id: int, holdings_visibles_ids: set[int] 
     if holdings_visibles_ids is not None:
         holdings = [h for h in holdings if h.id in holdings_visibles_ids]
     valued = analysis_service.value_holdings(holdings)
+    holdings_incomplets = _holdings_repartition_incomplete(db, [h.id for h in holdings])
 
     comptes = list_comptes(db, user_id)
     par_compte_id: dict[int | None, dict] = {
-        compte.id: {"compte": compte, "solde": 0.0, "nombre_lignes": 0} for compte in comptes
+        compte.id: {"compte": compte, "solde": 0.0, "nombre_lignes": 0, "repartition_incomplete": False}
+        for compte in comptes
     }
-    sans_compte = {"compte": None, "solde": 0.0, "nombre_lignes": 0}
+    sans_compte = {"compte": None, "solde": 0.0, "nombre_lignes": 0, "repartition_incomplete": False}
 
     for v in valued:
         cible = par_compte_id.get(v.holding.compte_id, sans_compte) if v.holding.compte_id is not None else sans_compte
         cible["solde"] += v.valeur
         cible["nombre_lignes"] += 1
+        if v.holding.id in holdings_incomplets:
+            cible["repartition_incomplete"] = True
 
     resultats = list(par_compte_id.values())
     if holdings_visibles_ids is not None:

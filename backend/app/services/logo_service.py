@@ -30,8 +30,9 @@ import hashlib
 import ipaddress
 import logging
 import socket
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from urllib.parse import urljoin, urlparse
 
@@ -40,7 +41,7 @@ from bs4 import BeautifulSoup
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
-from ..models import Etablissement
+from ..models import Etablissement, LogoCatalogue
 from . import etablissements_connus
 
 logger = logging.getLogger("patrimoine.logos")
@@ -337,3 +338,74 @@ def rafraichir_logos(db: Session) -> ResumeRafraichissement:
             logger.exception("échec inattendu du rafraîchissement du logo de « %s »", etablissement.nom)
             resume.echecs += 1
     return resume
+
+
+# Cache PARTAGÉ du catalogue (retour utilisateur du 09/09/2026, cf. `models.LogoCatalogue`) :
+# les logos affichés dans le SÉLECTEUR, avant même la création d'un `Etablissement`.
+
+# Une clé en échec (BNP Paribas, 403 systématique — cf. `etablissements_connus.py`)
+# n'est retentée qu'après ce délai : sans lui, un site qui refuse toute récupération
+# serait redémarché à chaque redémarrage du process, indéfiniment.
+DELAI_NOUVELLE_TENTATIVE_CATALOGUE = timedelta(hours=24)
+
+
+def _recuperer_png_catalogue(cle: str) -> bytes | None:
+    """RÉSEAU SEUL, aucun accès DB — pensé pour tourner dans un thread parmi
+    d'autres (cf. `rafraichir_logos_catalogue` ci-dessous, qui paralléllise les ~12
+    domaines plutôt que de les essayer un par un : en série, la première ouverture
+    du sélecteur après un redémarrage attendrait la somme de tous les délais
+    d'expiration au lieu du plus lent d'entre eux)."""
+    domaine = etablissements_connus.domaine_pour(cle)
+    if not domaine:
+        return None
+    try:
+        return recuperer_pour_domaine(domaine)
+    except LogoError as exc:
+        logger.info("logo de catalogue non récupérable pour « %s » : %s", cle, exc)
+        return None
+
+
+def rafraichir_logos_catalogue(db: Session, forcer: bool = False) -> None:
+    """Complète/rafraîchit le cache partagé — clés jamais tentées, ou dont la
+    dernière tentative dépasse `DELAI_NOUVELLE_TENTATIVE_CATALOGUE` (`forcer=True`,
+    job hebdomadaire : ignore ce délai, retente tout le catalogue). N'écrit qu'APRÈS
+    que tous les téléchargements (parallèles) sont revenus — jamais d'accès DB
+    pendant qu'un thread de fetch tourne encore, une `Session` SQLAlchemy n'étant
+    pas conçue pour être partagée entre threads."""
+    maintenant = datetime.now(UTC).replace(tzinfo=None)
+    existants = {c.logo_key: c for c in db.query(LogoCatalogue).all()}
+    a_tenter = [
+        cle
+        for cle in etablissements_connus.DOMAINES
+        if forcer
+        or (cache := existants.get(cle)) is None
+        or cache.derniere_tentative_le is None
+        or maintenant - cache.derniere_tentative_le > DELAI_NOUVELLE_TENTATIVE_CATALOGUE
+    ]
+    if not a_tenter:
+        return
+
+    with ThreadPoolExecutor(max_workers=min(8, len(a_tenter))) as executeur:
+        resultats = dict(zip(a_tenter, executeur.map(_recuperer_png_catalogue, a_tenter), strict=True))
+
+    for cle, png in resultats.items():
+        cache = existants.get(cle)
+        if cache is None:
+            cache = LogoCatalogue(logo_key=cle)
+            db.add(cache)
+            existants[cle] = cache
+        cache.derniere_tentative_le = maintenant
+        if png is not None:
+            cache.logo_png = base64.b64encode(png).decode("ascii")
+    db.commit()
+    logger.info(
+        "cache de logos du catalogue : %d clé(s) tentée(s), %d réussie(s)",
+        len(a_tenter),
+        sum(1 for png in resultats.values() if png is not None),
+    )
+
+
+def data_uri_catalogue(cache: LogoCatalogue) -> str | None:
+    if not cache.logo_png:
+        return None
+    return f"data:image/png;base64,{cache.logo_png}"

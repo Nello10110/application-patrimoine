@@ -353,6 +353,29 @@ class Etablissement(Base):
         return self.logo_png is not None
 
 
+class LogoCatalogue(Base):
+    """Cache PARTAGÉ (pas par foyer) des logos réels des ~12 établissements du
+    catalogue (retour utilisateur du 09/09/2026 : « avoir déjà les images des
+    établissements affichées » dans le sélecteur, avant même la création d'un
+    `Etablissement`). Une seule ligne par clé de catalogue, alimentée par
+    `services/logo_service.py` en tâche de fond au démarrage puis rafraîchie par le
+    même job hebdomadaire que les logos posés sur un `Etablissement` — jamais de
+    fetch en direct dans une requête utilisateur (même philosophie que
+    `Etablissement.logo_png`, cf. sa docstring).
+
+    `derniere_tentative_le` est posée MÊME EN CAS D'ÉCHEC (contrairement à
+    `logo_maj_le` sur `Etablissement`, qui ne bouge qu'en cas de succès) : sans
+    cette trace, un établissement dont le site refuse toute récupération (BNP
+    Paribas, 403 systématique — cf. `etablissements_connus.py`) serait retenté à
+    chaque redémarrage, indéfiniment."""
+
+    __tablename__ = "logos_catalogue"
+
+    logo_key: Mapped[str] = mapped_column(String, primary_key=True)
+    logo_png: Mapped[str | None] = mapped_column(Text, nullable=True)
+    derniere_tentative_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class Compte(Base):
     """Compte structurel (compte courant, PEA, compte-titres, assurance-vie...) —
     écran Comptes (backlog X.1), remplace l'ancienne annotation texte libre
