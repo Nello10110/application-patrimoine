@@ -388,6 +388,70 @@ class TransactionImportConfirm(BaseModel):
         return self
 
 
+class LedgerDeviseApercu(BaseModel):
+    """Une devise détectée dans l'export Ledger, avec de quoi décider si elle vaut la
+    peine d'être importée — un wallet matériel accumule souvent des jetons spam/
+    poussière reçus sans action de l'utilisateur, `montant_total_eur` quasi nul en
+    est le signal le plus lisible à l'écran d'aperçu."""
+
+    ticker: str
+    nb_operations: int
+    montant_total_eur: float
+
+
+class LedgerImportApercu(BaseModel):
+    """Réponse de `POST /api/transactions/import-ledger/apercu` — même esprit que
+    `TransactionImportApercu` (aperçu avant confirmation), adapté au format Ledger :
+    pas de bucket de compte (toujours crypto, un seul wallet par import), mais une
+    devise à choisir d'importer ou non plutôt qu'un nom de compte par bucket."""
+
+    file_token: str
+    lignes_lues: int
+    lignes_ignorees_statut: int
+    lignes_ignorees_type_operation: dict[str, int]
+    devises: list[LedgerDeviseApercu]
+    etablissements: list[EtablissementOut]
+
+
+class LedgerImportConfirm(BaseModel):
+    file_token: str
+    etablissement_id: int | None = None
+    etablissement_nom: str | None = None
+    etablissement_logo_key: str | None = None
+    nom_compte: str = "Ledger"
+    devises_selectionnees: list[str] = []
+
+    @field_validator("etablissement_nom")
+    @classmethod
+    def _valider_etablissement_nom(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
+
+    @model_validator(mode="after")
+    def _valider_etablissement_requis(self) -> LedgerImportConfirm:
+        if not self.etablissement_id and not self.etablissement_nom:
+            raise ValueError("Un établissement est obligatoire pour importer un wallet Ledger.")
+        return self
+
+
+class LedgerImportResult(BaseModel):
+    """Distinct de `TransactionImportResult` : `mouvements_hors_bourse_exclus` y
+    porte un sens spécifiquement Trade Republic (cartes/virements bancaires) qui ne
+    correspond à rien ici — `lignes_ignorees` (statut non confirmé + type d'opération
+    non reconnu, ex. staking) est l'intitulé adapté au format Ledger."""
+
+    lignes_lues: int
+    importees: int
+    mises_a_jour: int = 0
+    doublons_ignores: int
+    lignes_ignorees: int
+    positions_recalculees: int
+    anomalies_detectees: int = 0
+    comptes_crees: int = 0
+
+
 class HoldingPricePoint(BaseModel):
     date: str
     prix: float

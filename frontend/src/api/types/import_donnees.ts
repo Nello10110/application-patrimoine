@@ -90,3 +90,46 @@ export interface TransactionImportConfirmInput {
   // défaut (`TransactionImportApercu.noms_par_defaut`).
   noms_comptes?: Partial<Record<CleCompte, string>>
 }
+
+// Import d'un export de wallet matériel Ledger (retour utilisateur du 11/09/2026) —
+// carte séparée de l'import Trade Republic ci-dessus (format totalement différent),
+// même patron en deux temps (aperçu puis confirmation).
+export interface LedgerDeviseApercu {
+  ticker: string
+  nb_operations: number
+  montant_total_eur: number
+}
+
+export interface LedgerImportApercu {
+  file_token: string
+  lignes_lues: number
+  lignes_ignorees_statut: number
+  lignes_ignorees_type_operation: Record<string, number>
+  // Triées par montant total décroissant côté serveur — un jeton spam/poussière
+  // (montant quasi nul) finit naturellement en bas de la liste à décocher.
+  devises: LedgerDeviseApercu[]
+  etablissements: Etablissement[]
+}
+
+export interface LedgerImportConfirmInput {
+  file_token: string
+  etablissement_id?: number | null
+  etablissement_nom?: string | null
+  etablissement_logo_key?: string | null
+  nom_compte?: string
+  devises_selectionnees: string[]
+}
+
+export interface LedgerImportResult {
+  lignes_lues: number
+  importees: number
+  mises_a_jour: number
+  doublons_ignores: number
+  // Statut non confirmé + type d'opération non pris en charge (staking...) —
+  // distinct de `TransactionImportResult.mouvements_hors_bourse_exclus`, propre au
+  // format Ledger.
+  lignes_ignorees: number
+  positions_recalculees: number
+  anomalies_detectees: number
+  comptes_crees: number
+}

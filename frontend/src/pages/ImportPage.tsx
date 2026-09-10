@@ -6,6 +6,7 @@ import Card from '../components/Card'
 import CsvPreviewTable from '../components/CsvPreviewTable'
 import Dropzone from '../components/Dropzone'
 import { IconFlecheDroite } from '../components/icons'
+import ImportLedgerSection from '../components/ImportLedgerSection'
 import ImportTransactionsSection from '../components/ImportTransactionsSection'
 import { PrimaryButton } from '../components/Controls'
 import { Field, Input, Select } from '../components/Field'
@@ -343,6 +344,14 @@ export default function ImportPage() {
       <h1 className="hidden text-[28px] font-semibold tracking-title text-ink md:block">Importer le portefeuille</h1>
 
       <ImportTransactionsSection />
+
+      <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
+        <div className="h-px flex-1 bg-bordure" />
+        ou wallet crypto (Ledger)
+        <div className="h-px flex-1 bg-bordure" />
+      </div>
+
+      <ImportLedgerSection />
 
       <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-texte-attenue">
         <div className="h-px flex-1 bg-bordure" />

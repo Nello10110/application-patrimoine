@@ -17,8 +17,15 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Compte, Etablissement, Transaction, User
-from ..schemas import TransactionImportApercu, TransactionImportConfirm, TransactionImportResult
-from ..services import auth_service, comptes_service, portfolio_reconstruction, transaction_import, upload_limits
+from ..schemas import (
+    LedgerImportApercu,
+    LedgerImportConfirm,
+    LedgerImportResult,
+    TransactionImportApercu,
+    TransactionImportConfirm,
+    TransactionImportResult,
+)
+from ..services import auth_service, comptes_service, ledger_import, portfolio_reconstruction, transaction_import, upload_limits
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -55,6 +62,41 @@ def _normalise_pour_comparaison(valeur):
     if isinstance(valeur, datetime) and valeur.tzinfo is not None:
         return valeur.astimezone(UTC).replace(tzinfo=None)
     return valeur
+
+
+def _upsert_transactions(db: Session, user_id: int, rows: list[dict]) -> tuple[int, int, int]:
+    """Ré-synchronisation par `transaction_id` — factorisé pour l'import Trade
+    Republic ET l'import Ledger (retour utilisateur du 10/09/2026 : « que ça ne
+    s'additionne pas mais mette à jour », généralisable aux deux formats plutôt que
+    dupliqué). Renvoie `(importees, mises_a_jour, doublons_ignores)`. Scopé à
+    `user_id` : un `transaction_id` n'est garanti unique que par utilisateur
+    (`UniqueConstraint`), jamais globalement."""
+    existantes_par_id = {t.transaction_id: t for t in db.query(Transaction).filter(Transaction.user_id == user_id).all()}
+
+    doublons = 0
+    importees = 0
+    mises_a_jour = 0
+    for row in rows:
+        existante = existantes_par_id.get(row["transaction_id"])
+        if existante is None:
+            nouvelle = Transaction(**row, user_id=user_id)
+            db.add(nouvelle)
+            existantes_par_id[row["transaction_id"]] = nouvelle
+            importees += 1
+            continue
+
+        champs_modifies = [
+            champ for champ in _CHAMPS_TRANSACTION
+            if _normalise_pour_comparaison(getattr(existante, champ)) != _normalise_pour_comparaison(row[champ])
+        ]
+        if not champs_modifies:
+            doublons += 1
+            continue
+        for champ in champs_modifies:
+            setattr(existante, champ, row[champ])
+        mises_a_jour += 1
+
+    return importees, mises_a_jour, doublons
 
 
 @router.post("/import/apercu", response_model=TransactionImportApercu)
@@ -131,30 +173,7 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     # ligne déjà connue si le courtier en a corrigé un champ dans l'intervalle
     # (montant, frais...), pas seulement la retrouver pour l'ignorer (retour
     # utilisateur du 10/09/2026 : « que ça ne s'additionne pas mais mette à jour »).
-    existantes_par_id = {t.transaction_id: t for t in db.query(Transaction).filter(Transaction.user_id == user_id).all()}
-
-    doublons = 0
-    importees = 0
-    mises_a_jour = 0
-    for row in parsed.rows:
-        existante = existantes_par_id.get(row["transaction_id"])
-        if existante is None:
-            nouvelle = Transaction(**row, user_id=user_id)
-            db.add(nouvelle)
-            existantes_par_id[row["transaction_id"]] = nouvelle
-            importees += 1
-            continue
-
-        champs_modifies = [
-            champ for champ in _CHAMPS_TRANSACTION
-            if _normalise_pour_comparaison(getattr(existante, champ)) != _normalise_pour_comparaison(row[champ])
-        ]
-        if not champs_modifies:
-            doublons += 1
-            continue
-        for champ in champs_modifies:
-            setattr(existante, champ, row[champ])
-        mises_a_jour += 1
+    importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, parsed.rows)
 
     db.commit()
     transaction_import.clear_pending_transactions(payload.file_token)
@@ -170,6 +189,88 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
         positions_recalculees=resultat_reconstruction.positions_recalculees,
         anomalies_detectees=resultat_reconstruction.anomalies_detectees,
         lignes_manuelles_remplacees=resultat_reconstruction.lignes_manuelles_remplacees,
+        comptes_crees=comptes_crees,
+    )
+
+
+@router.post("/import-ledger/apercu", response_model=LedgerImportApercu)
+async def import_ledger_apercu(file: UploadFile, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Retour utilisateur du 11/09/2026 : import d'un export de wallet matériel
+    Ledger (crypto), format distinct de Trade Republic — même patron en deux temps
+    (aperçu puis confirmation) que `import_apercu` ci-dessus, mais un décompte par
+    devise plutôt que par bucket de compte : un wallet accumule souvent des jetons
+    spam/poussière que l'utilisateur choisit de ne pas importer à l'étape suivante."""
+    content = await file.read()
+    try:
+        upload_limits.verifier_taille_fichier(content)
+    except upload_limits.FichierTropVolumineuxError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    try:
+        parsed = ledger_import.parse_ledger_file(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    token = ledger_import.stage_parsed_ledger(parsed)
+    etablissements = comptes_service.list_etablissements(db, auth_service.id_foyer(current_user))
+
+    return LedgerImportApercu(
+        file_token=token,
+        lignes_lues=parsed.lignes_lues,
+        lignes_ignorees_statut=parsed.lignes_ignorees_statut,
+        lignes_ignorees_type_operation=parsed.lignes_ignorees_type_operation,
+        devises=[
+            {"ticker": d.ticker, "nb_operations": d.nb_operations, "montant_total_eur": d.montant_total_eur}
+            for d in sorted(parsed.devises.values(), key=lambda d: d.montant_total_eur, reverse=True)
+        ],
+        etablissements=etablissements,
+    )
+
+
+@router.post("/import-ledger", response_model=LedgerImportResult)
+def import_ledger(payload: LedgerImportConfirm, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_id = auth_service.id_foyer(current_user)
+    try:
+        parsed = ledger_import.get_pending_ledger(payload.file_token)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not payload.devises_selectionnees:
+        raise HTTPException(status_code=400, detail="Choisissez au moins une devise à importer")
+
+    if payload.etablissement_id is not None:
+        etablissement = db.get(Etablissement, payload.etablissement_id)
+        if etablissement is None or etablissement.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Établissement introuvable")
+        etablissement_id = payload.etablissement_id
+    else:
+        etablissement_id = comptes_service.get_or_create_etablissement(
+            db, user_id, payload.etablissement_nom, payload.etablissement_logo_key
+        ).id
+
+    devises_choisies = set(payload.devises_selectionnees)
+    existait_deja = db.query(Compte).filter(Compte.user_id == user_id, Compte.nom == payload.nom_compte).first() is not None
+    compte = comptes_service.get_or_create_compte_sans_commit(db, user_id, payload.nom_compte, etablissement_id)
+    comptes_crees = 0 if existait_deja else 1
+    comptes_a_assigner = dict.fromkeys(devises_choisies, compte.id)
+
+    rows_filtrees = [row for row in parsed.rows if row["symbol"] in devises_choisies]
+    importees, mises_a_jour, doublons = _upsert_transactions(db, user_id, rows_filtrees)
+
+    db.commit()
+    ledger_import.clear_pending_ledger(payload.file_token)
+
+    resultat_reconstruction = portfolio_reconstruction.rebuild_holdings(db, user_id, comptes_a_assigner=comptes_a_assigner)
+
+    lignes_ignorees = parsed.lignes_ignorees_statut + sum(parsed.lignes_ignorees_type_operation.values())
+
+    return LedgerImportResult(
+        lignes_lues=parsed.lignes_lues,
+        importees=importees,
+        mises_a_jour=mises_a_jour,
+        doublons_ignores=doublons,
+        lignes_ignorees=lignes_ignorees,
+        positions_recalculees=resultat_reconstruction.positions_recalculees,
+        anomalies_detectees=resultat_reconstruction.anomalies_detectees,
         comptes_crees=comptes_crees,
     )
 

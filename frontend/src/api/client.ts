@@ -66,6 +66,9 @@ import type {
   SyntheseAnnee,
   ScheduledJob,
   Session,
+  LedgerImportApercu,
+  LedgerImportConfirmInput,
+  LedgerImportResult,
   TransactionImportApercu,
   TransactionImportConfirmInput,
   TransactionImportResult,
@@ -287,6 +290,15 @@ export const api = {
   },
   importTransactionsConfirm: (payload: TransactionImportConfirmInput) =>
     request<TransactionImportResult>('/transactions/import', { method: 'POST', body: JSON.stringify(payload) }),
+  // Import d'un export de wallet matériel Ledger (retour utilisateur du
+  // 11/09/2026) — même gabarit que ci-dessus, carte séparée sur l'écran Import.
+  importLedgerApercu: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<LedgerImportApercu>('/transactions/import-ledger/apercu', { method: 'POST', body: form })
+  },
+  importLedgerConfirm: (payload: LedgerImportConfirmInput) =>
+    request<LedgerImportResult>('/transactions/import-ledger', { method: 'POST', body: JSON.stringify(payload) }),
   getPerformance: () => request<PerformanceSummary>('/performance'),
   getPortfolioHistory: () => request<PortfolioHistoryResponse>('/performance/history'),
   // Métriques de performance de niveau professionnel (backlog 2.P.2). `lentille`

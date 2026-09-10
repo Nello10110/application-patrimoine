@@ -24,6 +24,11 @@ vi.mock('../api/client', () => ({
     // section budget ci-dessous.
     listEtablissements: vi.fn().mockResolvedValue([]),
     getLogosEtablissements: vi.fn().mockResolvedValue({}),
+    // `ImportLedgerSection` (retour utilisateur du 11/09/2026), rendue pour de
+    // vrai sur cette page comme `ImportTransactionsSection` — présentes pour le
+    // typage de `api`, aucun test ci-dessous n'interagit avec l'upload.
+    importLedgerApercu: vi.fn(),
+    importLedgerConfirm: vi.fn(),
   },
 }))
 
@@ -66,6 +71,16 @@ function renderImportPage() {
     </MemoryRouter>,
   )
 }
+
+describe("ImportPage — carte d'import Ledger séparée de Trade Republic (retour utilisateur du 11/09/2026)", () => {
+  it('affiche la carte Ledger, distincte de celle de Trade Republic', () => {
+    renderImportPage()
+
+    expect(screen.getByText('Wallet crypto (export Ledger)')).toBeInTheDocument()
+    expect(screen.getByTestId('dropzone-input-Wallet crypto Ledger')).toBeInTheDocument()
+    expect(screen.getByText('Historique de transactions (format détecté automatiquement)')).toBeInTheDocument()
+  })
+})
 
 describe('ImportPage — mouvements bancaires (backlog 2.N.1)', () => {
   it('un fichier .ofx appelle importBudgetOfx (pas importBudgetQif)', async () => {

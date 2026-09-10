@@ -29,6 +29,8 @@ export const CATALOGUE_ETABLISSEMENTS: EtablissementConnu[] = [
   { cle: 'societe_generale', nom: 'Société Générale', couleur: '#e30613', initiales: 'SG' },
   { cle: 'bnp_paribas', nom: 'BNP Paribas', couleur: '#00915a', initiales: 'BN' },
   { cle: 'caisse_epargne', nom: "Caisse d'Épargne", couleur: '#e2001a', initiales: 'CE' },
+  // Wallet matériel crypto (retour utilisateur du 11/09/2026, import Ledger).
+  { cle: 'ledger', nom: 'Ledger', couleur: '#1d1d1b', initiales: 'LG' },
 ]
 
 export function trouverEtablissementConnu(cle: string | null | undefined): EtablissementConnu | undefined {
