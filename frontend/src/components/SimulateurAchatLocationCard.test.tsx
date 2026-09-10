@@ -1,8 +1,17 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Holding, HoldingDetail, HoldingImmobilier, Loan } from '../api/types'
 import SimulateurAchatLocationCard from './SimulateurAchatLocationCard'
+
+function renderCard() {
+  return render(
+    <MemoryRouter>
+      <SimulateurAchatLocationCard />
+    </MemoryRouter>,
+  )
+}
 
 vi.mock('../api/client', () => ({
   api: {
@@ -130,25 +139,52 @@ beforeEach(() => {
 })
 
 describe('SimulateurAchatLocationCard', () => {
-  it('affiche un état vide quand aucune résidence principale n’est configurée', async () => {
+  it("affiche un état vide avec un bouton d'ajout quand aucun bien immobilier n'existe (retour utilisateur du 10/09/2026)", async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holding({ ticker: 'AAPL', type_actif: 'STOCK' })])
     vi.mocked(api.listLoans).mockResolvedValue([])
 
-    render(<SimulateurAchatLocationCard />)
+    renderCard()
 
-    expect(await screen.findByText('Aucune résidence principale configurée')).toBeInTheDocument()
+    expect(await screen.findByText('Aucun bien immobilier enregistré')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ajouter un bien immobilier' })).toHaveAttribute('href', '/patrimoine')
     expect(api.getHoldingDetail).not.toHaveBeenCalled()
   })
 
-  it('affiche un état vide invitant à configurer le loyer estimé quand la fiche est incomplète', async () => {
+  it("affiche un lien pour configurer le bien quand il existe mais n'est pas marqué résidence principale (retour utilisateur du 10/09/2026)", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holding()])
+    vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.getHoldingDetail).mockResolvedValue(detail('MAISON', 'Maison principale', immobilier({ residence_principale: false })))
+
+    renderCard()
+
+    expect(await screen.findByText('Aucune résidence principale configurée')).toBeInTheDocument()
+    const lien = screen.getByRole('link', { name: 'Configurer « Maison principale »' })
+    expect(lien).toHaveAttribute('href', '/patrimoine/MAISON?onglet=parametres')
+  })
+
+  it("liste un lien par bien quand plusieurs biens existent sans résidence principale marquée", async () => {
+    vi.mocked(api.listHoldings).mockResolvedValue([holding({ id: 1, ticker: 'MAISON1' }), holding({ id: 2, ticker: 'MAISON2' })])
+    vi.mocked(api.listLoans).mockResolvedValue([])
+    vi.mocked(api.getHoldingDetail).mockImplementation((ticker: string) =>
+      Promise.resolve(detail(ticker, ticker === 'MAISON1' ? 'Bien A' : 'Bien B', immobilier({ residence_principale: false }))),
+    )
+
+    renderCard()
+
+    expect(await screen.findByRole('link', { name: 'Configurer « Bien A »' })).toHaveAttribute('href', '/patrimoine/MAISON1?onglet=parametres')
+    expect(screen.getByRole('link', { name: 'Configurer « Bien B »' })).toHaveAttribute('href', '/patrimoine/MAISON2?onglet=parametres')
+  })
+
+  it('affiche un lien pour configurer le simulateur quand la fiche est incomplète', async () => {
     vi.mocked(api.listHoldings).mockResolvedValue([holding()])
     vi.mocked(api.listLoans).mockResolvedValue([])
     vi.mocked(api.getHoldingDetail).mockResolvedValue(detail('MAISON', 'Maison principale', immobilier({ simulation_loyer_estime: null })))
 
-    render(<SimulateurAchatLocationCard />)
+    renderCard()
 
     expect(await screen.findByText('Simulateur non configuré')).toBeInTheDocument()
     expect(screen.getByText(/Maison principale/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Configurer le simulateur' })).toHaveAttribute('href', '/patrimoine/MAISON?onglet=parametres')
   })
 
   it('calcule l’écart avec un emprunt rattaché : seule la part d’intérêts compte', async () => {
@@ -168,7 +204,7 @@ describe('SimulateurAchatLocationCard', () => {
       ),
     )
 
-    render(<SimulateurAchatLocationCard />)
+    renderCard()
 
     // Intérêts = 100 000 × (3.6 % / 12) = 300 €/mois ; coût = 300 + 150 + 100 = 550 €/mois
     await screen.findByText(/550/)
@@ -190,7 +226,7 @@ describe('SimulateurAchatLocationCard', () => {
       ),
     )
 
-    render(<SimulateurAchatLocationCard />)
+    renderCard()
 
     // Coût = 0 (pas d'intérêt) + 150 + 100 = 250 €/mois.
     expect(await screen.findByText(/250/)).toBeInTheDocument()
@@ -206,7 +242,7 @@ describe('SimulateurAchatLocationCard', () => {
       ),
     )
 
-    render(<SimulateurAchatLocationCard />)
+    renderCard()
 
     const select = await screen.findByLabelText('Bien')
     expect(select).toBeInTheDocument()

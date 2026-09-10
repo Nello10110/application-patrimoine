@@ -1,9 +1,20 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { fireEvent, render as rtlRender, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import type { Compte, Detenteur, Holding, HoldingDetail, HoldingImmobilier } from '../api/types'
 import HoldingDetailContent from './HoldingDetailContent'
+
+// `HoldingDetailContent` lit `useSearchParams()` au montage (retour utilisateur du
+// 10/09/2026, lien direct vers l'onglet Paramètres depuis le simulateur
+// achat/location) — un contexte `<Router>` est désormais requis pour TOUT rendu de
+// ce composant, pas seulement les quelques tests qui exercaient déjà `<Link>`
+// (compte rattaché). Remplace `render` importé plutôt que de toucher chacun des
+// nombreux appels existants.
+function render(ui: ReactElement) {
+  return rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
+}
 
 // Ce fichier verrouille la section "Détenteurs" (backlog 2.L.1), la fiche immobilier
 // (backlog 2.M.3) et la structure à trois onglets (backlog 2.M.4) — le reste du
@@ -153,22 +164,14 @@ describe('HoldingDetailContent — Compte rattaché (écran Comptes, backlog X.1
   })
 
   it('affiche le nom du compte rattaché, en lien vers sa fiche', () => {
-    render(
-      <MemoryRouter>
-        <HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />
-      </MemoryRouter>,
-    )
+    render(<HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />)
 
     expect(screen.getByRole('link', { name: 'PEA' })).toHaveAttribute('href', '/comptes/42')
   })
 
   it("la section Détenteurs (onglet Analyse) renvoie aussi vers la fiche du compte, si la ligne en a un", async () => {
     vi.mocked(api.listDetenteurs).mockResolvedValue([detenteur({ nom: 'Alice' })])
-    render(
-      <MemoryRouter>
-        <HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />
-      </MemoryRouter>,
-    )
+    render(<HoldingDetailContent detail={detail({ compte: compte({ id: 42, nom: 'PEA' }) })} />)
     ouvrirOnglet('Analyse')
     await screen.findByText('Détenteurs')
 
@@ -647,6 +650,29 @@ describe('HoldingDetailContent — fiche à onglets (backlog 2.M.4)', () => {
     ouvrirOnglet('Paramètres')
 
     expect(await screen.findByText('Aucun paramètre modifiable pour cette ligne pour l\'instant.')).toBeInTheDocument()
+  })
+
+  it("ouvre directement l'onglet Paramètres quand l'URL le demande (lien depuis le simulateur achat/location, retour utilisateur du 10/09/2026)", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    rtlRender(
+      <MemoryRouter initialEntries={['/patrimoine/MAISON?onglet=parametres']}>
+        <HoldingDetailContent detail={detail({ type_actif: 'REAL_ESTATE', immobilier: immobilier() })} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Paramètres' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText('Immobilier — caractéristiques et location')).toBeInTheDocument()
+  })
+
+  it("ignore un onglet inconnu dans l'URL et retombe sur Aperçu", async () => {
+    vi.mocked(api.listDetenteurs).mockResolvedValue([])
+    rtlRender(
+      <MemoryRouter initialEntries={['/patrimoine/AAPL?onglet=inconnu']}>
+        <HoldingDetailContent detail={detail()} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Aperçu' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('affiche le libellé complet de la taxonomie élargie (backlog 2.M.1) dans le badge de catégorie', async () => {

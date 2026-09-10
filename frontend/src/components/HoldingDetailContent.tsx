@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { HoldingDetail } from '../api/types'
 import Card from './Card'
@@ -56,7 +56,18 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
   const estImmobilier = detail.type_actif === 'REAL_ESTATE'
   const estEpargne = detail.type_actif !== null && TYPES_EPARGNE.has(detail.type_actif)
   const immo = useImmobilierDetail(detail.ticker, estImmobilier || estEpargne, detail.immobilier)
-  const [onglet, setOnglet] = useState<Onglet>('apercu')
+  // Onglet initial lu depuis l'URL (`?onglet=parametres`, retour utilisateur du
+  // 10/09/2026) — pour que le simulateur achat/location de la page Analyse
+  // (`SimulateurAchatLocationCard`) puisse lier directement vers la fiche d'un bien
+  // à compléter, sans repasser par un clic supplémentaire sur cet onglet. Lecture
+  // seule au montage (pas de `setSearchParams` au changement d'onglet ensuite) :
+  // cette fiche s'ouvre aussi bien en modale (URL de la liste, ex. `/patrimoine`)
+  // qu'en pleine page (`/patrimoine/{ticker}`) — y écrire en retour polluerait
+  // l'URL de la liste sans bénéfice, contrairement à `AnalysePage`/`ReglagesPage`
+  // où l'onglet EST l'écran entier.
+  const [searchParams] = useSearchParams()
+  const ongletInitial = ONGLETS.some((o) => o.key === searchParams.get('onglet')) ? (searchParams.get('onglet') as Onglet) : 'apercu'
+  const [onglet, setOnglet] = useState<Onglet>(ongletInitial)
   const plusValueLatente =
     detail.cout_acquisition_total !== null && detail.cout_acquisition_total !== undefined
       ? detail.valeur - detail.cout_acquisition_total * detail.quantite

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { HoldingImmobilier, Loan } from '../api/types'
 import Card from './Card'
@@ -8,6 +9,21 @@ import { DataPoint, Field, Select } from './Field'
 import { SkeletonTexte } from './Skeleton'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
+
+// Lien vers l'onglet Paramètres de la fiche du bien (`HoldingDetailContent` lit
+// `?onglet=` au montage, retour utilisateur du 10/09/2026) — évite un clic
+// supplémentaire une fois la fiche ouverte, pour les deux CTA ci-dessous
+// (résidence principale non définie / simulateur incomplet).
+function urlParametresBien(ticker: string): string {
+  return `/patrimoine/${encodeURIComponent(ticker)}?onglet=parametres`
+}
+
+interface BienImmobilier {
+  id: number
+  ticker: string
+  nom: string | null
+  immobilier: HoldingImmobilier | null
+}
 
 interface BienResidencePrincipale {
   id: number
@@ -30,7 +46,7 @@ interface BienResidencePrincipale {
  * serveur, pas une nouvelle logique d'amortissement). */
 export default function SimulateurAchatLocationCard() {
   const { montantsMasques } = usePreferencesAffichage()
-  const [biens, setBiens] = useState<BienResidencePrincipale[] | null>(null)
+  const [biensImmobiliers, setBiensImmobiliers] = useState<BienImmobilier[] | null>(null)
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,11 +63,15 @@ export default function SimulateurAchatLocationCard() {
 
         const immobiliers = holdings.filter((h) => h.type_actif === 'REAL_ESTATE')
         const details = await Promise.all(immobiliers.map((h) => api.getHoldingDetail(h.ticker)))
-        const residencesPrincipales: BienResidencePrincipale[] = immobiliers
-          .map((h, i) => ({ id: h.id, ticker: h.ticker, nom: details[i].nom, immobilier: details[i].immobilier }))
-          .filter((b): b is BienResidencePrincipale => b.immobilier !== null && b.immobilier.residence_principale)
+        const biens: BienImmobilier[] = immobiliers.map((h, i) => ({
+          id: h.id,
+          ticker: h.ticker,
+          nom: details[i].nom,
+          immobilier: details[i].immobilier,
+        }))
+        const residencesPrincipales = biens.filter((b): b is BienResidencePrincipale => b.immobilier?.residence_principale === true)
 
-        setBiens(residencesPrincipales)
+        setBiensImmobiliers(biens)
         setTicker((precedent) => (residencesPrincipales.some((b) => b.ticker === precedent) ? precedent : (residencesPrincipales[0]?.ticker ?? '')))
       })
       .catch((err) => setError((err as Error).message))
@@ -63,29 +83,73 @@ export default function SimulateurAchatLocationCard() {
   if (loading) return <SkeletonTexte lignes={3} />
   if (error) return <EtatErreur message={error} onReessayer={charger} />
 
-  if (!biens || biens.length === 0) {
+  if (!biensImmobiliers || biensImmobiliers.length === 0) {
     return (
       <Card title="Achat vs location">
         <EtatVide
-          titre="Aucune résidence principale configurée"
-          description="Cochez « Résidence principale » sur la fiche d'un bien immobilier (écran Comptes) pour activer ce simulateur."
+          titre="Aucun bien immobilier enregistré"
+          description={
+            <Link to="/patrimoine" className="font-medium text-accent hover:underline">
+              Ajouter un bien immobilier
+            </Link>
+          }
         />
       </Card>
     )
   }
 
-  const bien = biens.find((b) => b.ticker === ticker) ?? biens[0]
+  const residencesPrincipales = biensImmobiliers.filter((b): b is BienResidencePrincipale => b.immobilier?.residence_principale === true)
+
+  if (residencesPrincipales.length === 0) {
+    return (
+      <Card title="Achat vs location">
+        <EtatVide
+          titre="Aucune résidence principale configurée"
+          description={
+            <span className="flex flex-col items-center gap-1">
+              {biensImmobiliers.length === 1 ? (
+                <>
+                  Cochez « Résidence principale » sur la fiche du bien pour activer ce simulateur.
+                  <Link to={urlParametresBien(biensImmobiliers[0].ticker)} className="font-medium text-accent hover:underline">
+                    Configurer « {biensImmobiliers[0].nom ?? biensImmobiliers[0].ticker} »
+                  </Link>
+                </>
+              ) : (
+                <>
+                  Cochez « Résidence principale » sur la fiche d'un de vos biens pour activer ce simulateur.
+                  {biensImmobiliers.map((b) => (
+                    <Link key={b.ticker} to={urlParametresBien(b.ticker)} className="font-medium text-accent hover:underline">
+                      Configurer « {b.nom ?? b.ticker} »
+                    </Link>
+                  ))}
+                </>
+              )}
+            </span>
+          }
+        />
+      </Card>
+    )
+  }
+
+  const bien = residencesPrincipales.find((b) => b.ticker === ticker) ?? residencesPrincipales[0]
   const { immobilier } = bien
 
   if (immobilier.simulation_loyer_estime === null) {
     return (
       <Card title="Achat vs location">
-        {biens.length > 1 && (
-          <SelecteurBien biens={biens} ticker={bien.ticker} onChange={setTicker} className="mb-4" />
+        {residencesPrincipales.length > 1 && (
+          <SelecteurBien biens={residencesPrincipales} ticker={bien.ticker} onChange={setTicker} className="mb-4" />
         )}
         <EtatVide
           titre="Simulateur non configuré"
-          description={`Renseignez le loyer mensuel estimé sur la fiche « ${bien.nom ?? bien.ticker} » pour activer la comparaison.`}
+          description={
+            <span className="flex flex-col items-center gap-1">
+              {`Renseignez le loyer mensuel estimé sur la fiche « ${bien.nom ?? bien.ticker} » pour activer la comparaison.`}
+              <Link to={urlParametresBien(bien.ticker)} className="font-medium text-accent hover:underline">
+                Configurer le simulateur
+              </Link>
+            </span>
+          }
         />
       </Card>
     )
@@ -105,7 +169,9 @@ export default function SimulateurAchatLocationCard() {
 
   return (
     <Card title="Achat vs location">
-      {biens.length > 1 && <SelecteurBien biens={biens} ticker={bien.ticker} onChange={setTicker} className="mb-4" />}
+      {residencesPrincipales.length > 1 && (
+        <SelecteurBien biens={residencesPrincipales} ticker={bien.ticker} onChange={setTicker} className="mb-4" />
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <DataPoint label="Loyer estimé (bien équivalent)" valeur={formatEuro(loyerEstime, 0, montantsMasques) + ' / mois'} />
