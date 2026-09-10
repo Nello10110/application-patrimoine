@@ -148,6 +148,8 @@ export interface HoldingDetail {
   pays: string | null
   rendement_depuis_achat_pct: number | null
   rendement_annualise_pct: number | null
+  // Cf. `Holding.cout_acquisition_total` (noyau.ts) — même champ, même source.
+  cout_acquisition_total: number | null
   emetteur: string | null
   resume: string | null
   frais_gestion_pct: number | null
@@ -181,12 +183,21 @@ export interface HoldingImmobilier {
   loyer_mensuel: number | null
   charges_mensuelles: number | null
   frais_annuels: number | null
-  frais_acquisition: number | null
+  frais_notaire: number | null
+  frais_travaux: number | null
+  frais_acquisition_autres: number | null
   surface_m2: number | null
   nb_pieces: number | null
   annee_construction: number | null
   dpe: string | null
   residence_principale: boolean
+  // Simulateur achat vs location (retour utilisateur du 10/09/2026, page Analyse) —
+  // jamais lus par le calcul de cashflow/rentabilité ci-dessous, ni par la
+  // plus-value globale du portefeuille : uniquement consommés par
+  // `SimulateurAchatLocationCard`.
+  simulation_loyer_estime: number | null
+  simulation_taxe_habitation_annuelle: number | null
+  simulation_charges_mensuelles: number | null
   cashflow_mensuel: number | null
   rentabilite_brute_pct: number | null
   rentabilite_nette_pct: number | null
@@ -200,10 +211,15 @@ export interface HoldingImmobilierInput {
   loyer_mensuel?: number | null
   charges_mensuelles?: number | null
   frais_annuels?: number | null
-  frais_acquisition?: number | null
+  frais_notaire?: number | null
+  frais_travaux?: number | null
+  frais_acquisition_autres?: number | null
   surface_m2?: number | null
   nb_pieces?: number | null
   annee_construction?: number | null
   dpe?: string | null
   residence_principale?: boolean
+  simulation_loyer_estime?: number | null
+  simulation_taxe_habitation_annuelle?: number | null
+  simulation_charges_mensuelles?: number | null
 }

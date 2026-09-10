@@ -269,14 +269,27 @@ class HoldingImmobilierDetail(Base):
     # que quatre colonnes séparées : le backlog ne demande qu'un total pour le calcul
     # de rentabilité, pas un suivi ligne à ligne de chaque poste.
     frais_annuels: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # Coût ponctuel d'ACQUISITION (notaire, travaux, agence — total), distinct de
-    # `frais_annuels` ci-dessus qui est récurrent (retour utilisateur du 09/09/2026).
-    # Même doctrine d'agrégat volontaire que `frais_annuels` : un seul total, pas un
-    # poste par ligne. S'additionne à `Holding.prix_revient_moyen` pour former le
-    # "prix d'acquisition total" utilisé au dénominateur des rentabilités
-    # (`immobilier_service.calculer_cashflow_et_rentabilite`) — jusqu'ici l'utilisateur
-    # devait plier ces frais dans `prix_revient_moyen` lui-même pour qu'ils comptent.
-    frais_acquisition: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Coût ponctuel d'ACQUISITION, distinct de `frais_annuels` ci-dessus qui est
+    # récurrent (retour utilisateur du 09/09/2026, détaillé en 3 postes le
+    # 10/09/2026 — remplace l'ancien champ unique `frais_acquisition`). S'additionne
+    # à `Holding.prix_revient_moyen` (via `immobilier_service.frais_acquisition_total`)
+    # pour former le "prix d'acquisition total" utilisé au dénominateur des
+    # rentabilités (`calculer_cashflow_et_rentabilite`) ET, depuis le 10/09/2026,
+    # dans le coût de revient utilisé par la plus-value globale du portefeuille
+    # (`patrimoine_history_service._serie_investie_manuel`,
+    # `performance_service._rendement_pour_ligne`) — jusqu'ici ces frais ne comptaient
+    # que dans la rentabilité locative de la fiche, pas dans le P&L global.
+    frais_notaire: Mapped[float | None] = mapped_column(Float, nullable=True)
+    frais_travaux: Mapped[float | None] = mapped_column(Float, nullable=True)
+    frais_acquisition_autres: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Simulateur achat vs location (retour utilisateur du 10/09/2026, page Analyse) :
+    # loyer d'un bien équivalent, taxe d'habitation et charges de comparaison —
+    # UNIQUEMENT lus par le simulateur (frontend, `SimulateurAchatLocationCard`),
+    # jamais par `calculer_cashflow_et_rentabilite` ni par la plus-value globale
+    # ci-dessus (demande explicite : ne doivent pas peser sur la rentabilité réelle).
+    simulation_loyer_estime: Mapped[float | None] = mapped_column(Float, nullable=True)
+    simulation_taxe_habitation_annuelle: Mapped[float | None] = mapped_column(Float, nullable=True)
+    simulation_charges_mensuelles: Mapped[float | None] = mapped_column(Float, nullable=True)
     surface_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
     nb_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
     annee_construction: Mapped[int | None] = mapped_column(Integer, nullable=True)

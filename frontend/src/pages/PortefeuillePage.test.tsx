@@ -60,6 +60,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     nom: 'Titre A',
     quantite: 10,
     prix_revient_moyen: 100,
+    cout_acquisition_total: 100,
     compte: null,
     devise: 'EUR',
     type_actif: 'STOCK',
@@ -542,6 +543,27 @@ describe('PortefeuillePage', () => {
 
       await screen.findByText('1 position')
       expect(within(ligneTotal()).getByText('1 000,00 €')).toBeInTheDocument()
+    })
+  })
+
+  describe("performance globale des lignes affichées — frais d'acquisition immobiliers (retour utilisateur du 10/09/2026)", () => {
+    it('utilise cout_acquisition_total (frais compris) plutôt que le seul prix de revient', async () => {
+      vi.mocked(api.listHoldings).mockResolvedValue([
+        holding({
+          id: 1,
+          ticker: 'MAISON',
+          type_actif: 'REAL_ESTATE',
+          quantite: 1,
+          prix_revient_moyen: 200000,
+          cout_acquisition_total: 215000, // 200 000 + 15 000 de frais (notaire, travaux)
+          valeur: 250000,
+        }),
+      ])
+      render(<MemoryRouter><PortefeuillePage /></MemoryRouter>)
+
+      // (250 000 - 215 000) / 215 000 × 100 ≈ +16.3 %, pas +25 % (qu'on obtiendrait
+      // en ignorant les frais d'acquisition, cf. `cout_acquisition_total`).
+      expect(await screen.findByText('+16.3 %')).toBeInTheDocument()
     })
   })
 

@@ -32,6 +32,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     compte: null,
     quantite: 10,
     prix_revient_moyen: 100,
+    cout_acquisition_total: 100,
     prix_actuel: 150,
     valeur: 1500,
     devise: 'USD',

@@ -256,6 +256,12 @@ class HoldingOut(HoldingBase):
     # `datetime | None` pour la réponse — même différence input/output que
     # `ValorisationInput.date` (str) vs les dates renvoyées ailleurs dans l'API.
     date_acquisition: datetime | None = None
+    # Coût de revient PAR UNITÉ incluant les frais d'acquisition immobiliers (retour
+    # utilisateur du 10/09/2026) — même grandeur que `prix_revient_moyen`, à
+    # multiplier par `quantite` pour un total ; source unique des agrégats de gain
+    # calculés côté frontend (`PortefeuillePage.tsx`, `gainsParCompte.ts`), qui ne
+    # doivent plus recalculer un coût à partir de `prix_revient_moyen` seul.
+    cout_acquisition_total: float | None = None
 
     @field_validator("date_acquisition")
     @classmethod
@@ -406,12 +412,20 @@ class HoldingImmobilierOut(BaseModel):
     loyer_mensuel: float | None = None
     charges_mensuelles: float | None = None
     frais_annuels: float | None = None
-    frais_acquisition: float | None = None
+    frais_notaire: float | None = None
+    frais_travaux: float | None = None
+    frais_acquisition_autres: float | None = None
     surface_m2: float | None = None
     nb_pieces: int | None = None
     annee_construction: int | None = None
     dpe: str | None = None
     residence_principale: bool = False
+    # Simulateur achat vs location (retour utilisateur du 10/09/2026) — jamais lus
+    # par `calculer_cashflow_et_rentabilite` ni par la plus-value globale, cf.
+    # `models.HoldingImmobilierDetail`.
+    simulation_loyer_estime: float | None = None
+    simulation_taxe_habitation_annuelle: float | None = None
+    simulation_charges_mensuelles: float | None = None
     # Calculés côté serveur (`holding_detail_service`), jamais recalculés côté
     # frontend — même discipline que `HoldingOut.valeur` (LOT 6.7). `None` tant que
     # `loyer_mensuel` n'est pas renseigné (rien à projeter) — sauf `prix_m2` et
@@ -427,7 +441,12 @@ class HoldingImmobilierOut(BaseModel):
 MESSAGE_LOYER_NON_NEGATIF = "Le loyer mensuel ne peut pas être négatif"
 MESSAGE_CHARGES_NON_NEGATIVES = "Les charges mensuelles ne peuvent pas être négatives"
 MESSAGE_FRAIS_NON_NEGATIFS = "Les frais annuels ne peuvent pas être négatifs"
-MESSAGE_FRAIS_ACQUISITION_NON_NEGATIFS = "Les frais d'acquisition ne peuvent pas être négatifs"
+MESSAGE_FRAIS_NOTAIRE_NON_NEGATIFS = "Les frais de notaire ne peuvent pas être négatifs"
+MESSAGE_FRAIS_TRAVAUX_NON_NEGATIFS = "Les frais de travaux ne peuvent pas être négatifs"
+MESSAGE_FRAIS_ACQUISITION_AUTRES_NON_NEGATIFS = "Les autres frais d'acquisition ne peuvent pas être négatifs"
+MESSAGE_LOYER_SIMULATION_NON_NEGATIF = "Le loyer estimé ne peut pas être négatif"
+MESSAGE_TAXE_HABITATION_NON_NEGATIVE = "La taxe d'habitation ne peut pas être négative"
+MESSAGE_CHARGES_SIMULATION_NON_NEGATIVES = "Les charges de comparaison ne peuvent pas être négatives"
 MESSAGE_SURFACE_POSITIVE = "La surface doit être strictement positive"
 MESSAGE_PIECES_POSITIVES = "Le nombre de pièces doit être strictement positif"
 
@@ -437,12 +456,20 @@ class HoldingImmobilierUpdate(BaseModel):
     loyer_mensuel: float | None = None
     charges_mensuelles: float | None = None
     frais_annuels: float | None = None
-    frais_acquisition: float | None = None
+    frais_notaire: float | None = None
+    frais_travaux: float | None = None
+    frais_acquisition_autres: float | None = None
     surface_m2: float | None = None
     nb_pieces: int | None = None
     annee_construction: int | None = None
     dpe: str | None = None
     residence_principale: bool = False
+    # Simulateur achat vs location (retour utilisateur du 10/09/2026) — cf.
+    # `models.HoldingImmobilierDetail` pour la portée exacte (comparaison
+    # uniquement, jamais la rentabilité).
+    simulation_loyer_estime: float | None = None
+    simulation_taxe_habitation_annuelle: float | None = None
+    simulation_charges_mensuelles: float | None = None
 
     @field_validator("loyer_mensuel")
     @classmethod
@@ -465,11 +492,46 @@ class HoldingImmobilierUpdate(BaseModel):
             raise ValueError(MESSAGE_FRAIS_NON_NEGATIFS)
         return v
 
-    @field_validator("frais_acquisition")
+    @field_validator("frais_notaire")
     @classmethod
-    def _valider_frais_acquisition(cls, v: float | None) -> float | None:
+    def _valider_frais_notaire(cls, v: float | None) -> float | None:
         if v is not None and v < 0:
-            raise ValueError(MESSAGE_FRAIS_ACQUISITION_NON_NEGATIFS)
+            raise ValueError(MESSAGE_FRAIS_NOTAIRE_NON_NEGATIFS)
+        return v
+
+    @field_validator("frais_travaux")
+    @classmethod
+    def _valider_frais_travaux(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_FRAIS_TRAVAUX_NON_NEGATIFS)
+        return v
+
+    @field_validator("frais_acquisition_autres")
+    @classmethod
+    def _valider_frais_acquisition_autres(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_FRAIS_ACQUISITION_AUTRES_NON_NEGATIFS)
+        return v
+
+    @field_validator("simulation_loyer_estime")
+    @classmethod
+    def _valider_simulation_loyer_estime(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_LOYER_SIMULATION_NON_NEGATIF)
+        return v
+
+    @field_validator("simulation_taxe_habitation_annuelle")
+    @classmethod
+    def _valider_simulation_taxe_habitation(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_TAXE_HABITATION_NON_NEGATIVE)
+        return v
+
+    @field_validator("simulation_charges_mensuelles")
+    @classmethod
+    def _valider_simulation_charges(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError(MESSAGE_CHARGES_SIMULATION_NON_NEGATIVES)
         return v
 
     @field_validator("surface_m2")
@@ -509,6 +571,8 @@ class HoldingDetail(BaseModel):
     pays: str | None = None
     rendement_depuis_achat_pct: float | None = None
     rendement_annualise_pct: float | None = None
+    # Cf. `HoldingOut.cout_acquisition_total` — même champ, même source.
+    cout_acquisition_total: float | None = None
     emetteur: str | None = None
     resume: str | None = None
     frais_gestion_pct: float | None = None

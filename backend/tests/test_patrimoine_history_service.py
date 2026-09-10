@@ -96,6 +96,22 @@ def test_valeur_investie_ne_bouge_quaux_points_ou_un_versement_est_declare(db):
     assert point_final["valeur_manuelle"] == 1500.0  # la valeur brute, elle, suit bien le dernier point connu
 
 
+def test_valeur_investie_dun_bien_immobilier_inclut_les_frais_dacquisition(db):
+    """Retour utilisateur du 10/09/2026 : notaire/travaux/autres comptent désormais
+    dans la plus-value globale du portefeuille, pas seulement dans la rentabilité
+    locative de la fiche (`immobilier_service.calculer_cashflow_et_rentabilite`).
+    `valeur_manuelle` (la valeur, pas l'investi), elle, n'en tient jamais compte —
+    les frais augmentent le coût, jamais la valeur du bien."""
+    bien = make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0, date_acquisition=datetime(2024, 1, 1))
+    immobilier_service.upsert_detail_immobilier(db, bien.id, frais_notaire=10000.0, frais_travaux=5000.0)
+
+    points = patrimoine_history_service.compute_patrimoine_history(db, ID_UTILISATEUR_TEST)
+
+    point_ancrage = points[0]
+    assert point_ancrage["valeur_investie"] == 215000.0  # 200000 + 10000 + 5000
+    assert point_ancrage["valeur_manuelle"] == 200000.0
+
+
 def test_valeur_investie_reste_en_escalier_meme_pour_une_ligne_epargne_interpolee(db):
     """Contrairement à la valeur brute (interpolée pour `TYPES_EPARGNE`, § U.2),
     l'investi reste TOUJOURS en escalier : un versement est un événement ponctuel,

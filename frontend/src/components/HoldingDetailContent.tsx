@@ -58,8 +58,8 @@ export default function HoldingDetailContent({ detail, titleId }: { detail: Hold
   const immo = useImmobilierDetail(detail.ticker, estImmobilier || estEpargne, detail.immobilier)
   const [onglet, setOnglet] = useState<Onglet>('apercu')
   const plusValueLatente =
-    detail.prix_revient_moyen !== null && detail.prix_revient_moyen !== undefined
-      ? detail.valeur - detail.prix_revient_moyen * detail.quantite
+    detail.cout_acquisition_total !== null && detail.cout_acquisition_total !== undefined
+      ? detail.valeur - detail.cout_acquisition_total * detail.quantite
       : null
 
   return (

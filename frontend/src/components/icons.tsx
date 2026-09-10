@@ -320,3 +320,17 @@ export function IconAvertissement({ className }: IconProps) {
     </svg>
   )
 }
+
+/** Onglet « Achat vs location » du simulateur résidence principale (page Analyse,
+ * retour utilisateur du 10/09/2026) — même gabarit que les autres icônes de ce
+ * fichier, distincte de `IconSynthese` (toit + façade + porte) qui désigne déjà la
+ * page d'accueil dans la navigation : ici, un pignon simple, sans porte ni
+ * fondation, pour ne pas se confondre visuellement au même endroit d'écran. */
+export function IconMaison({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 10.5 L10 4.5 L16 10.5" />
+      <path d="M6 9 V16 H14 V9" />
+    </svg>
+  )
+}

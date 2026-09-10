@@ -24,6 +24,7 @@ vi.mock('../components/MetriquesAvanceesCard', () => ({ default: () => <div /> }
 vi.mock('../components/RevenusPassifsCard', () => ({ default: () => <div /> }))
 vi.mock('../components/QualiteDonneesCard', () => ({ default: () => <div /> }))
 vi.mock('../components/CoutGestionCard', () => ({ default: () => <div /> }))
+vi.mock('../components/SimulateurAchatLocationCard', () => ({ default: () => <div>SIMULATEUR_MOCK</div> }))
 
 vi.mock('../hooks/usePreferencesAffichage', () => ({
   usePreferencesAffichage: () => ({ lentille: 'net', setLentille: vi.fn(), montantsMasques: false, toggleMontantsMasques: vi.fn(), detenteurId: null, setDetenteurId: vi.fn() }),
@@ -167,6 +168,25 @@ describe('AnalysePage — erreurs indépendantes de performance/coût de gestion
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
 
     await waitFor(() => expect(api.getCoutGestionConsolide).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('AnalysePage — onglet Achat vs location (simulateur résidence principale, 10/09/2026)', () => {
+  it('bascule vers Achat vs location', async () => {
+    renderPage()
+    await screen.findByText('Score de diversification')
+
+    fireEvent.click(screen.getByRole('tab', { name: /Achat vs location/ }))
+
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
+    expect(await screen.findByText('SIMULATEUR_MOCK')).toBeInTheDocument()
+  })
+
+  it("ouvre directement Achat vs location quand l'URL le demande", async () => {
+    renderPage('/analyse?onglet=simulateur')
+
+    expect(await screen.findByText('SIMULATEUR_MOCK')).toBeInTheDocument()
+    expect(screen.queryByText('Score de diversification')).not.toBeInTheDocument()
   })
 })
 

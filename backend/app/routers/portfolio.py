@@ -292,6 +292,7 @@ def list_holdings(db: Session = Depends(get_db), current_user: User = Depends(ge
         r = rendements.get(h.ticker, {})
         out.rendement_depuis_achat_pct = r.get("rendement_depuis_achat_pct")
         out.rendement_annualise_pct = r.get("rendement_annualise_pct")
+        out.cout_acquisition_total = r.get("cout_acquisition_total")
         # Bug corrigé en marge de 2.M.1 : une ligne valorisée manuellement
         # (`valeur_estimee`, cf. `models.TYPES_ACTIF_PATRIMOINE_MANUEL`) sans
         # `prix_revient_moyen` renseigné (cas normal d'un compte courant ou d'une

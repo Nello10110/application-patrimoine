@@ -21,9 +21,9 @@ export function calculerGainsParCompte(holdings: Holding[]): LigneGainCompte[] {
     { nom: string; valeur: number; cout: number; sommeValeurPonderee: number; sommeValeurAvecRendement: number }
   >()
   for (const h of holdings) {
-    if (!h.compte || h.prix_revient_moyen === null) continue
+    if (!h.compte || h.cout_acquisition_total === null) continue
     const valeur = h.valeur ?? 0
-    const cout = h.prix_revient_moyen * h.quantite
+    const cout = h.cout_acquisition_total * h.quantite
     const entree = parCompte.get(h.compte.id) ?? {
       nom: h.compte.nom,
       valeur: 0,

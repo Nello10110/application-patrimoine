@@ -65,6 +65,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     nom: 'Assurance-vie Boursorama',
     quantite: 1,
     prix_revient_moyen: null,
+    cout_acquisition_total: null,
     compte: null,
     devise: null,
     type_actif: 'LIFE_INSURANCE',

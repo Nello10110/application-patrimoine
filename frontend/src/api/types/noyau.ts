@@ -65,6 +65,12 @@ export interface Holding {
   nom: string | null
   quantite: number
   prix_revient_moyen: number | null
+  // Coût de revient PAR UNITÉ incluant les frais d'acquisition immobiliers (retour
+  // utilisateur du 10/09/2026) — même grandeur que `prix_revient_moyen` (à
+  // multiplier par `quantite` pour un total), calculé côté serveur
+  // (`performance_service._rendement_pour_ligne`). Tout agrégat de gain doit passer
+  // par ce champ plutôt que par `prix_revient_moyen` seul, qui ignore ces frais.
+  cout_acquisition_total: number | null
   // Compte structurel résolu (écran Comptes) — objet complet, jamais recalculé côté
   // client. `null` : ligne non rattachée à un compte.
   compte: Compte | null

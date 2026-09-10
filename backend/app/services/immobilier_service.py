@@ -8,9 +8,14 @@ Cashflow mensuel = loyer − charges − frais/12 − mensualité de l'emprunt r
 d'acquisition total ; nette = (loyer annuel − charges annuelles − frais annuels) /
 prix d'acquisition total. `prix d'acquisition total` = `Holding.prix_revient_moyen`
 (montant investi à l'origine, déjà ce sens ailleurs dans l'application — cf.
-`models.Holding`) + `HoldingImmobilierDetail.frais_acquisition` (notaire, travaux,
-agence — retour utilisateur du 09/09/2026 : jusqu'ici l'utilisateur devait plier ces
-frais dans `prix_revient_moyen` lui-même pour qu'ils comptent dans la rentabilité)."""
+`models.Holding`) + `frais_acquisition_total()` (notaire + travaux + autres,
+retour utilisateur du 09/09/2026, détaillé en 3 postes le 10/09/2026 : jusqu'ici
+l'utilisateur devait plier ces frais dans `prix_revient_moyen` lui-même pour
+qu'ils comptent dans la rentabilité). Depuis le 10/09/2026, ce même total est
+aussi injecté dans le coût de revient utilisé par la plus-value globale du
+portefeuille (`patrimoine_history_service`, `performance_service`) — d'où le
+helper partagé `frais_acquisition_total` plutôt qu'un calcul dupliqué à chaque
+appelant."""
 
 from datetime import datetime
 
@@ -21,6 +26,29 @@ from ..models import Holding, HoldingImmobilierDetail, HoldingValuationHistory, 
 
 def detail_immobilier(db: Session, holding_id: int) -> HoldingImmobilierDetail | None:
     return db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id == holding_id).first()
+
+
+def details_immobiliers_par_holding(db: Session, holding_ids: list[int]) -> dict[int, HoldingImmobilierDetail]:
+    """Chargement groupé (une requête `IN (...)`), même patron que
+    `revenus_passifs_service.py` — à utiliser par tout appelant qui boucle sur
+    plusieurs holdings pour éviter un N+1 (`detail_immobilier` ci-dessus reste
+    la variante mono-holding, utilisée là où une seule fiche est concernée)."""
+    if not holding_ids:
+        return {}
+    return {
+        d.holding_id: d
+        for d in db.query(HoldingImmobilierDetail).filter(HoldingImmobilierDetail.holding_id.in_(holding_ids)).all()
+    }
+
+
+def frais_acquisition_total(detail: HoldingImmobilierDetail | None) -> float:
+    """Somme des 3 postes ponctuels d'acquisition (notaire, travaux, autres) —
+    `0.0` si `detail` est `None` (pas de fiche immobilier saisie), jamais `None`
+    lui-même : les appelants l'additionnent directement à `prix_revient_moyen`
+    sans garde supplémentaire."""
+    if detail is None:
+        return 0.0
+    return (detail.frais_notaire or 0.0) + (detail.frais_travaux or 0.0) + (detail.frais_acquisition_autres or 0.0)
 
 
 def upsert_detail_immobilier(db: Session, holding_id: int, **champs) -> HoldingImmobilierDetail:
@@ -121,7 +149,7 @@ def calculer_cashflow_et_rentabilite(
 
     # Indépendant du loyer (contrairement au cashflow/rentabilités ci-dessous) :
     # informatif dès que `prix_revient_moyen` est connu, même sans location.
-    prix_acquisition_total = holding.prix_revient_moyen + (detail.frais_acquisition or 0.0) if holding.prix_revient_moyen else None
+    prix_acquisition_total = holding.prix_revient_moyen + frais_acquisition_total(detail) if holding.prix_revient_moyen else None
     vide["prix_acquisition_total"] = _arrondi(prix_acquisition_total)
 
     if detail.loyer_mensuel is None:

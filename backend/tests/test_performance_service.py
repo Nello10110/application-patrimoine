@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.models import Holding, MarketDataCache
-from app.services import performance_service, portfolio_reconstruction
+from app.services import immobilier_service, performance_service, portfolio_reconstruction
 from app.services.performance_service import (
     compute_dividend_calendar,
     compute_holding_return,
@@ -85,6 +85,35 @@ def test_rendement_depuis_achat_via_valeur_estimee_phase1(db):
     # Pas d'historique de transactions pour cette ligne, ni de date d'acquisition
     # renseignée : pas de flux connu, pas de XIRR possible.
     assert resultats["MAISON"]["rendement_annualise_pct"] is None
+
+
+def test_rendement_depuis_achat_dun_bien_immobilier_inclut_les_frais_dacquisition(db):
+    """Retour utilisateur du 10/09/2026 : notaire/travaux/autres comptent désormais
+    dans le rendement affiché sur la fiche ET dans l'export CSV
+    (`compute_holding_returns`/`compute_holding_return`, cf. `_rendement_pour_ligne`),
+    pas seulement dans la rentabilité locative de la fiche immobilier."""
+    holding = Holding(
+        user_id=ID_UTILISATEUR_TEST,
+        ticker="MAISON_FRAIS",
+        nom="Résidence",
+        quantite=1.0,
+        prix_revient_moyen=200000.0,
+        type_actif="REAL_ESTATE",
+        valeur_estimee=230000.0,
+    )
+    db.add(holding)
+    db.commit()
+    db.refresh(holding)
+    immobilier_service.upsert_detail_immobilier(db, holding.id, frais_notaire=10000.0, frais_travaux=5000.0)
+
+    # coût total = 200000 + 15000 = 215000 ; rendement = 230000/215000 - 1 ≈ 6.98 %.
+    resultats = compute_holding_returns(db, ID_UTILISATEUR_TEST)
+    assert resultats["MAISON_FRAIS"]["rendement_depuis_achat_pct"] == pytest.approx((230000 / 215000 - 1) * 100, abs=0.01)
+
+    # `compute_holding_return` (variante mono-ticker, utilisée par la fiche) doit
+    # renvoyer exactement le même résultat.
+    resultat_seul = compute_holding_return(db, "MAISON_FRAIS", ID_UTILISATEUR_TEST)
+    assert resultat_seul["rendement_depuis_achat_pct"] == resultats["MAISON_FRAIS"]["rendement_depuis_achat_pct"]
 
 
 def test_rendement_annualise_via_date_acquisition_pour_actif_manuel(db):

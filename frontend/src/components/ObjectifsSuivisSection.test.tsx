@@ -56,6 +56,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     nom: 'Livret X',
     quantite: 1,
     prix_revient_moyen: 10000,
+    cout_acquisition_total: 10000,
     compte: null,
     devise: null,
     type_actif: 'REGULATED_SAVINGS',

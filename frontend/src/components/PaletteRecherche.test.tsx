@@ -51,6 +51,7 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     nom: 'Apple',
     quantite: 1,
     prix_revient_moyen: 100,
+    cout_acquisition_total: 100,
     compte: null,
     devise: 'EUR',
     type_actif: 'STOCK',

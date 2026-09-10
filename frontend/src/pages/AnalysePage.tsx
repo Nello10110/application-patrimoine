@@ -8,21 +8,23 @@ import { SecondaryButton, SegmentedControl } from '../components/Controls'
 import CoutGestionCard from '../components/CoutGestionCard'
 import EtatErreur from '../components/EtatErreur'
 import ExpositionConsolideeCard from '../components/ExpositionConsolideeCard'
-import { IconDividendes, IconPatrimoine } from '../components/icons'
+import { IconDividendes, IconMaison, IconPatrimoine } from '../components/icons'
 import MetriquesAvanceesCard from '../components/MetriquesAvanceesCard'
 import PerformanceCard from '../components/PerformanceCard'
 import QualiteDonneesCard from '../components/QualiteDonneesCard'
 import RevenusSection from '../components/RevenusSection'
+import SimulateurAchatLocationCard from '../components/SimulateurAchatLocationCard'
 import { SkeletonTexte } from '../components/Skeleton'
 import StatTile from '../components/StatTile'
 import { usePreferencesAffichage } from '../hooks/usePreferencesAffichage'
 import { formatEuro } from '../utils/format'
 
-type OngletKey = 'portefeuille' | 'revenus'
+type OngletKey = 'portefeuille' | 'revenus' | 'simulateur'
 
 const ONGLETS: { key: OngletKey; label: string; Icone: typeof IconPatrimoine }[] = [
   { key: 'portefeuille', label: 'Portefeuille', Icone: IconPatrimoine },
   { key: 'revenus', label: 'Revenus', Icone: IconDividendes },
+  { key: 'simulateur', label: 'Achat vs location', Icone: IconMaison },
 ]
 
 const ONGLET_PAR_DEFAUT: OngletKey = 'portefeuille'
@@ -140,6 +142,12 @@ export default function AnalysePage() {
       {onglet === 'revenus' && (
         <div id="panneau-revenus" role="tabpanel" aria-labelledby="onglet-revenus">
           <RevenusSection />
+        </div>
+      )}
+
+      {onglet === 'simulateur' && (
+        <div id="panneau-simulateur" role="tabpanel" aria-labelledby="onglet-simulateur">
+          <SimulateurAchatLocationCard />
         </div>
       )}
 

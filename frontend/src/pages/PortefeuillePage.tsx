@@ -236,9 +236,9 @@ export default function PortefeuillePage() {
   // Performance globale des lignes RÉELLEMENT AFFICHÉES.
   const totaux = lignesFiltrees.reduce(
     (acc, h) => {
-      if (h.prix_revient_moyen !== null && h.prix_revient_moyen !== undefined) {
+      if (h.cout_acquisition_total !== null && h.cout_acquisition_total !== undefined) {
         acc.valeurAvecCout += h.valeur ?? 0
-        acc.cout += h.prix_revient_moyen * h.quantite
+        acc.cout += h.cout_acquisition_total * h.quantite
       }
       return acc
     },

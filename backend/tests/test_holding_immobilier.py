@@ -114,11 +114,15 @@ def test_cashflow_et_rentabilite_sans_emprunt(client, db):
 
 
 def test_frais_acquisition_augmente_le_prix_dacquisition_total_et_baisse_la_rentabilite(client, db):
-    # Prix d'acquisition 200 000€ + 15 000€ de frais (notaire, travaux) = 215 000€ total.
+    # Prix d'acquisition 200 000€ + 10 000€ notaire + 5 000€ travaux = 215 000€ total.
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0, valeur_estimee=250000.0)
 
-    reponse = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_acquisition=15000.0))
-    assert reponse.json()["frais_acquisition"] == 15000.0
+    reponse = client.put(
+        "/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_notaire=10000.0, frais_travaux=5000.0)
+    )
+    corps = reponse.json()
+    assert corps["frais_notaire"] == 10000.0
+    assert corps["frais_travaux"] == 5000.0
 
     detail = client.get("/api/portfolio/holdings/MAISON/detail").json()["immobilier"]
     assert detail["prix_acquisition_total"] == 215000.0
@@ -130,19 +134,121 @@ def test_prix_acquisition_total_calcule_meme_sans_loyer(client, db):
     """`prix_acquisition_total` ne dépend pas du loyer, contrairement au cashflow —
     un utilisateur peut vouloir suivre le coût réel d'un bien avant toute location."""
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0)
-    client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(loyer_mensuel=None, frais_acquisition=10000.0))
+    client.put(
+        "/api/portfolio/holdings/MAISON/immobilier",
+        json=_payload_immobilier(loyer_mensuel=None, frais_acquisition_autres=10000.0),
+    )
 
     detail = client.get("/api/portfolio/holdings/MAISON/detail").json()["immobilier"]
     assert detail["prix_acquisition_total"] == 210000.0
     assert detail["cashflow_mensuel"] is None
 
 
-def test_frais_acquisition_negatif_est_rejete(client, db):
+def test_frais_notaire_negatif_est_rejete(client, db):
     make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
 
-    reponse = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_acquisition=-500.0))
+    reponse = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_notaire=-500.0))
 
     assert reponse.status_code == 400
+
+
+def test_frais_travaux_negatif_est_rejete(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    reponse = client.put("/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_travaux=-500.0))
+
+    assert reponse.status_code == 400
+
+
+def test_frais_acquisition_autres_negatif_est_rejete(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    reponse = client.put(
+        "/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(frais_acquisition_autres=-500.0)
+    )
+
+    assert reponse.status_code == 400
+
+
+def test_simulation_loyer_estime_negatif_est_rejete(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    reponse = client.put(
+        "/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(simulation_loyer_estime=-100.0)
+    )
+
+    assert reponse.status_code == 400
+
+
+def test_simulation_taxe_habitation_negative_est_rejetee(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    reponse = client.put(
+        "/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(simulation_taxe_habitation_annuelle=-100.0)
+    )
+
+    assert reponse.status_code == 400
+
+
+def test_simulation_charges_negatives_sont_rejetees(client, db):
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE")
+
+    reponse = client.put(
+        "/api/portfolio/holdings/MAISON/immobilier", json=_payload_immobilier(simulation_charges_mensuelles=-100.0)
+    )
+
+    assert reponse.status_code == 400
+
+
+def test_champs_simulation_sont_enregistres_et_restitues(client, db):
+    """Loyer estimé/taxe d'habitation/charges de comparaison : persistés comme le
+    reste de la fiche, jamais lus par le calcul de cashflow/rentabilité ci-dessus."""
+    make_holding(db, ticker="MAISON", type_actif="REAL_ESTATE", prix_revient_moyen=200000.0)
+    client.put(
+        "/api/portfolio/holdings/MAISON/immobilier",
+        json=_payload_immobilier(
+            simulation_loyer_estime=1200.0, simulation_taxe_habitation_annuelle=900.0, simulation_charges_mensuelles=150.0
+        ),
+    )
+
+    detail = client.get("/api/portfolio/holdings/MAISON/detail").json()["immobilier"]
+    assert detail["simulation_loyer_estime"] == 1200.0
+    assert detail["simulation_taxe_habitation_annuelle"] == 900.0
+    assert detail["simulation_charges_mensuelles"] == 150.0
+    # N'influence pas le cashflow ni la rentabilité, calculés uniquement à partir du
+    # loyer/charges/frais réels de `_payload_immobilier()` — même résultat que
+    # `test_cashflow_et_rentabilite_sans_emprunt`, les champs de simulation n'y
+    # changent rien.
+    assert detail["cashflow_mensuel"] == 700.0
+    assert detail["rentabilite_brute_pct"] == 6.0
+
+
+def test_frais_acquisition_total_somme_les_trois_postes():
+    from app.models import HoldingImmobilierDetail
+
+    detail = HoldingImmobilierDetail(holding_id=1, frais_notaire=10000.0, frais_travaux=5000.0, frais_acquisition_autres=None)
+    assert immobilier_service.frais_acquisition_total(detail) == 15000.0
+
+
+def test_frais_acquisition_total_sans_detail_est_nul():
+    assert immobilier_service.frais_acquisition_total(None) == 0.0
+
+
+def test_details_immobiliers_par_holding_charge_en_groupe(db):
+    h1 = make_holding(db, ticker="MAISON1", type_actif="REAL_ESTATE")
+    h2 = make_holding(db, ticker="MAISON2", type_actif="REAL_ESTATE")
+    immobilier_service.upsert_detail_immobilier(db, h1.id, frais_notaire=1000.0)
+    immobilier_service.upsert_detail_immobilier(db, h2.id, frais_notaire=2000.0)
+
+    details = immobilier_service.details_immobiliers_par_holding(db, [h1.id, h2.id])
+
+    assert set(details.keys()) == {h1.id, h2.id}
+    assert details[h1.id].frais_notaire == 1000.0
+    assert details[h2.id].frais_notaire == 2000.0
+
+
+def test_details_immobiliers_par_holding_liste_vide():
+    assert immobilier_service.details_immobiliers_par_holding(None, []) == {}
 
 
 def test_residence_principale_par_defaut_a_false_et_peut_etre_activee(client, db):

@@ -59,7 +59,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from ..models import TYPES_ACTIF_PATRIMOINE_MANUEL, TYPES_EPARGNE, Holding, Loan
+from ..models import TYPE_ACTIF_REAL_ESTATE, TYPES_ACTIF_PATRIMOINE_MANUEL, TYPES_EPARGNE, Holding, Loan
 from . import detenteurs_service, historical_performance_service, historique_cache, immobilier_service, loan_service, patrimoine_service
 from .historical_performance_service import TimeSeries
 
@@ -131,7 +131,7 @@ def _serie_holding_manuel(holding: Holding, points_historique: list) -> TimeSeri
     return serie
 
 
-def _serie_investie_manuel(holding: Holding, points_historique: list) -> TimeSeries:
+def _serie_investie_manuel(holding: Holding, points_historique: list, frais_acquisition: float = 0.0) -> TimeSeries:
     """Série de la part INVESTIE (cumulée) d'une ligne manuelle — pour le mode étagé
     Investi/Gains hors lentille Financier (backlog § U.4). Même ancrage que
     `_serie_holding_manuel` ci-dessus (coût d'acquisition à `prix_revient_moyen` si
@@ -140,17 +140,25 @@ def _serie_investie_manuel(holding: Holding, points_historique: list) -> TimeSer
     l'investi est supposé égal à la valeur affichée à ce moment-là — faute de mieux,
     c'est la meilleure hypothèse possible sur ce qui a été mis dedans jusque-là — SAUF
     quand un ancrage sur le coût d'acquisition s'applique (même condition que
-    `_serie_holding_manuel`) : c'est alors `prix_revient_moyen` qui sert de base, pas
-    la valeur du premier point réel (qui peut déjà inclure une performance depuis
-    l'achat — sans quoi cette performance serait comptée à tort dans l'investi plutôt
-    que dans le gain). Ensuite, l'investi cumulé ne bouge QU'aux points où
+    `_serie_holding_manuel`) : c'est alors `prix_revient_moyen` (+ `frais_acquisition`
+    pour un bien immobilier, retour utilisateur du 10/09/2026 — cf.
+    `immobilier_service.frais_acquisition_total`) qui sert de base, pas la valeur du
+    premier point réel (qui peut déjà inclure une performance depuis l'achat — sans
+    quoi cette performance serait comptée à tort dans l'investi plutôt que dans le
+    gain). Ensuite, l'investi cumulé ne bouge QU'aux points où
     `HoldingValuationHistory.versement` est explicitement déclaré (§ U.2) — tout écart
     non déclaré entre deux points reste un gain, jamais un ajout d'investi (même
     convention que le résidu du Rapport). L'ancrage synthétique lui-même (pas une
     ligne de la table, jamais de `versement`) ne peut jamais faire varier ce cumul,
     par construction — mais SI l'ancrage s'applique, même le PREMIER point réel est
     alors évalué pour un versement déclaré (l'argent injecté entre l'achat et cette
-    première estimation a pu être précisé)."""
+    première estimation a pu être précisé).
+
+    `frais_acquisition` : notaire/travaux/autres pour un bien immobilier (`0.0` par
+    défaut, donc aucun effet pour les 8 autres types manuels) — appliqué UNIQUEMENT
+    à l'ancrage ci-dessous, jamais à la branche "premier point réel" plus bas (qui
+    part déjà d'une valeur de marché observée, y ajouter les frais compterait en
+    double)."""
     if points_historique:
         premiere_date, premiere_valeur = points_historique[0].date_valeur, points_historique[0].valeur
     elif holding.valeur_estimee is not None:
@@ -165,7 +173,7 @@ def _serie_investie_manuel(holding: Holding, points_historique: list) -> TimeSer
     )
 
     if ancrage:
-        cumul = holding.prix_revient_moyen
+        cumul = holding.prix_revient_moyen + frais_acquisition
         serie: TimeSeries = [(holding.date_acquisition, cumul)]
         points_a_evaluer = points_historique
     elif premiere_date is not None:
@@ -226,13 +234,20 @@ def _compute_patrimoine_history(db: Session, user_id: int, detenteur_id: int | N
 
     holdings_manuels = db.query(Holding).filter(Holding.user_id == user_id, Holding.type_actif.in_(TYPES_ACTIF_PATRIMOINE_MANUEL)).all()
     holdings_manuels_par_id = {h.id: h for h in holdings_manuels}
+    # Frais d'acquisition immobiliers (retour utilisateur du 10/09/2026) : chargés en
+    # une requête groupée plutôt qu'un `detail_immobilier` par holding dans la boucle
+    # ci-dessous (`details_immobiliers_par_holding`, même patron que
+    # `revenus_passifs_service.py` — évite le N+1).
+    ids_immobiliers = [h.id for h in holdings_manuels if h.type_actif == TYPE_ACTIF_REAL_ESTATE]
+    details_immobiliers = immobilier_service.details_immobiliers_par_holding(db, ids_immobiliers)
     series_manuelles: dict[int, TimeSeries] = {}
     series_investies_manuelles: dict[int, TimeSeries] = {}
     pourcentages_manuels: dict[int, dict[int, float]] = {}
     for holding in holdings_manuels:
         historique = immobilier_service.historique_valorisation(db, holding.id)
         series_manuelles[holding.id] = _serie_holding_manuel(holding, historique)
-        series_investies_manuelles[holding.id] = _serie_investie_manuel(holding, historique)
+        frais_acquisition = immobilier_service.frais_acquisition_total(details_immobiliers.get(holding.id))
+        series_investies_manuelles[holding.id] = _serie_investie_manuel(holding, historique, frais_acquisition)
         if detenteur_id is not None:
             pourcentages_manuels[holding.id] = detenteurs_service.compute_pourcentages(db, holding)
 

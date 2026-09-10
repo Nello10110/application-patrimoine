@@ -62,12 +62,18 @@ export default function ImmobilierParametresForm({
         <Field label="Frais annuels (taxe foncière, copropriété, assurance, gestion — total)">
           <Input type="number" step="any" value={form.frais_annuels} onChange={(e) => setForm({ ...form, frais_annuels: e.target.value })} />
         </Field>
-        <Field label="Frais d'acquisition (notaire, travaux, agence — total)">
+        <Field label="Frais de notaire (€)">
+          <Input type="number" step="any" value={form.frais_notaire} onChange={(e) => setForm({ ...form, frais_notaire: e.target.value })} />
+        </Field>
+        <Field label="Travaux (€)">
+          <Input type="number" step="any" value={form.frais_travaux} onChange={(e) => setForm({ ...form, frais_travaux: e.target.value })} />
+        </Field>
+        <Field label="Autres frais d'acquisition (agence, garantie... — €)">
           <Input
             type="number"
             step="any"
-            value={form.frais_acquisition}
-            onChange={(e) => setForm({ ...form, frais_acquisition: e.target.value })}
+            value={form.frais_acquisition_autres}
+            onChange={(e) => setForm({ ...form, frais_acquisition_autres: e.target.value })}
           />
         </Field>
         <Field label="Surface (m²)">
@@ -81,6 +87,39 @@ export default function ImmobilierParametresForm({
         </Field>
         <Field label="DPE" className="w-20">
           <Input value={form.dpe} onChange={(e) => setForm({ ...form, dpe: e.target.value })} placeholder="A à G" maxLength={2} />
+        </Field>
+      </div>
+
+      <hr className="my-4 border-stroke" />
+      <h3 className="mb-1 text-sm font-semibold text-ink">Simulateur achat vs location</h3>
+      <p className="mb-3 text-xs text-texte-attenue">
+        Ces valeurs alimentent uniquement la comparaison avec la location (onglet « Achat vs location » de la page
+        Analyse) — elles ne comptent jamais dans le calcul de rentabilité ci-dessus.
+      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Loyer mensuel estimé pour un bien équivalent (€)">
+          <Input
+            type="number"
+            step="any"
+            value={form.simulation_loyer_estime}
+            onChange={(e) => setForm({ ...form, simulation_loyer_estime: e.target.value })}
+          />
+        </Field>
+        <Field label="Taxe d'habitation annuelle (€)">
+          <Input
+            type="number"
+            step="any"
+            value={form.simulation_taxe_habitation_annuelle}
+            onChange={(e) => setForm({ ...form, simulation_taxe_habitation_annuelle: e.target.value })}
+          />
+        </Field>
+        <Field label="Charges mensuelles de comparaison (copropriété, assurance, entretien — €)">
+          <Input
+            type="number"
+            step="any"
+            value={form.simulation_charges_mensuelles}
+            onChange={(e) => setForm({ ...form, simulation_charges_mensuelles: e.target.value })}
+          />
         </Field>
       </div>
 

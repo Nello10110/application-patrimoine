@@ -18,6 +18,9 @@ function holding(overrides: Partial<Holding> = {}): Holding {
     nom: null,
     quantite: 1,
     prix_revient_moyen: null,
+    // En l'absence de frais d'acquisition (hors sujet de ce fichier), même valeur
+    // que `prix_revient_moyen` par défaut — sauf si le test le précise explicitement.
+    cout_acquisition_total: overrides.prix_revient_moyen ?? null,
     compte: null,
     devise: null,
     type_actif: 'STOCK',

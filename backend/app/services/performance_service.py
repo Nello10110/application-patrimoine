@@ -28,8 +28,8 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from ..models import Holding, Transaction
-from . import analysis_service, portfolio_reconstruction
+from ..models import TYPE_ACTIF_REAL_ESTATE, Holding, Transaction
+from . import analysis_service, immobilier_service, portfolio_reconstruction
 from .portfolio_reconstruction import PositionState
 
 EPSILON = 1e-6
@@ -267,11 +267,20 @@ def compute_dividend_calendar(db: Session, user_id: int) -> list[dict]:
     return resultat
 
 
-def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionState | None, now: datetime) -> dict:
+def _rendement_pour_ligne(
+    v: analysis_service.ValuedHolding, state: PositionState | None, now: datetime, frais_acquisition: float = 0.0
+) -> dict:
     """Calcul commun à `compute_holding_returns` (toutes les lignes) et
     `compute_holding_return` (une seule, cf. LOT 4.2) — factorisé pour que les deux
     renvoient garantiment le même résultat pour un même ticker, par construction plutôt
-    que par duplication de la formule à deux endroits."""
+    que par duplication de la formule à deux endroits.
+
+    `frais_acquisition` : notaire/travaux/autres d'un bien immobilier (`0.0` par
+    défaut pour toute autre ligne, retour utilisateur du 10/09/2026 — cf.
+    `immobilier_service.frais_acquisition_total`), ajouté au coût de revient utilisé
+    ci-dessous plutôt qu'à `h.prix_revient_moyen` directement : la précondition
+    "un prix de revient est connu" reste inchangée si `prix_revient_moyen` est
+    `None`, seul le montant change quand il est renseigné."""
     h = v.holding
     # `valeur_estimee` (Phase 1 de `docs/ROADMAP.md`, immobilier/SCPI/assurance-vie/PER)
     # joue le rôle du prix actuel pour ces lignes : c'est un montant absolu, mais
@@ -279,9 +288,10 @@ def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionStat
     # donc la comparer directement à `prix_revient_moyen` (le montant investi à
     # l'origine) reste correcte.
     prix_actuel_effectif = h.valeur_estimee if h.valeur_estimee is not None else (h.market_data.prix_actuel if h.market_data else None)
+    cout_total = h.prix_revient_moyen + frais_acquisition if h.prix_revient_moyen else None
     depuis_achat = None
-    if h.prix_revient_moyen and h.prix_revient_moyen > EPSILON and prix_actuel_effectif is not None:
-        depuis_achat = (prix_actuel_effectif / h.prix_revient_moyen - 1) * 100
+    if cout_total and cout_total > EPSILON and prix_actuel_effectif is not None:
+        depuis_achat = (prix_actuel_effectif / cout_total - 1) * 100
 
     annualise = None
     if state and state.cash_flows and v.a_des_donnees:
@@ -290,18 +300,25 @@ def _rendement_pour_ligne(v: analysis_service.ValuedHolding, state: PositionStat
         # vraie mesure de performance. On préfère ne rien afficher dans ce cas.
         flows = list(state.cash_flows) + [(now, v.valeur)]
         annualise = xirr(flows)
-    elif h.date_acquisition is not None and h.prix_revient_moyen and h.prix_revient_moyen > EPSILON and v.a_des_donnees:
+    elif h.date_acquisition is not None and cout_total and cout_total > EPSILON and v.a_des_donnees:
         # Ligne valorisée manuellement (immobilier/épargne... — retour utilisateur,
         # 26/08/2026) : aucun grand livre de transactions, mais un seul flux connu
         # (l'achat, à `date_acquisition`) suffit à `xirr()` — avec un seul flux
         # entrant et un seul sortant, la formule money-weighted se réduit
         # exactement à un CAGR classique. Mêmes garde-fous que le portefeuille
         # financier (durée minimale 90 jours, plafond 1000 %, cf. `xirr`).
-        annualise = xirr([(h.date_acquisition, -h.prix_revient_moyen), (now, prix_actuel_effectif)])
+        annualise = xirr([(h.date_acquisition, -cout_total), (now, prix_actuel_effectif)])
 
     return {
         "rendement_depuis_achat_pct": round(depuis_achat, 2) if depuis_achat is not None else None,
         "rendement_annualise_pct": round(annualise, 2) if annualise is not None else None,
+        # Coût de revient PAR UNITÉ, frais d'acquisition immobiliers compris (retour
+        # utilisateur du 10/09/2026) — même grandeur que `Holding.prix_revient_moyen`
+        # (donc à multiplier par `quantite` côté appelant pour un total), exposé pour
+        # que les agrégats calculés côté frontend (`PortefeuillePage.tsx`,
+        # `gainsParCompte.ts`) n'aient pas à redupliquer cette formule à partir du
+        # `prix_revient_moyen` brut, qui ne suffit plus depuis ce correctif.
+        "cout_acquisition_total": cout_total,
     }
 
 
@@ -325,7 +342,18 @@ def compute_holding_returns(db: Session, user_id: int, positions: dict[str, Posi
         positions = portfolio_reconstruction.compute_positions(db, user_id)
     now = datetime.now(UTC).replace(tzinfo=None)
 
-    return {v.holding.ticker: _rendement_pour_ligne(v, positions.get(v.holding.ticker), now) for v in valued}
+    # Frais d'acquisition immobiliers (retour utilisateur du 10/09/2026) : chargés en
+    # une requête groupée, même patron que `patrimoine_history_service` — évite un
+    # `detail_immobilier` par ligne dans la compréhension ci-dessous.
+    ids_immobiliers = [h.id for h in holdings if h.type_actif == TYPE_ACTIF_REAL_ESTATE]
+    details_immobiliers = immobilier_service.details_immobiliers_par_holding(db, ids_immobiliers)
+
+    return {
+        v.holding.ticker: _rendement_pour_ligne(
+            v, positions.get(v.holding.ticker), now, immobilier_service.frais_acquisition_total(details_immobiliers.get(v.holding.id))
+        )
+        for v in valued
+    }
 
 
 def compute_holding_return(db: Session, ticker: str, user_id: int, position: PositionState | None = None) -> dict:
@@ -353,4 +381,5 @@ def compute_holding_return(db: Session, ticker: str, user_id: int, position: Pos
         position = portfolio_reconstruction.compute_position(db, ticker, user_id)
     now = datetime.now(UTC).replace(tzinfo=None)
 
-    return _rendement_pour_ligne(v, position, now)
+    frais_acquisition = immobilier_service.frais_acquisition_total(immobilier_service.detail_immobilier(db, holding.id))
+    return _rendement_pour_ligne(v, position, now, frais_acquisition)

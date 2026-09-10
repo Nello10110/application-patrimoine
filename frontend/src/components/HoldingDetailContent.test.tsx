@@ -34,6 +34,7 @@ function detail(overrides: Partial<HoldingDetail> = {}): HoldingDetail {
     compte: null,
     quantite: 10,
     prix_revient_moyen: 100,
+    cout_acquisition_total: 100,
     prix_actuel: 150,
     valeur: 1500,
     devise: 'USD',
@@ -185,12 +186,17 @@ function immobilier(overrides: Partial<HoldingImmobilier> = {}): HoldingImmobili
     loyer_mensuel: 1000,
     charges_mensuelles: 100,
     frais_annuels: 2400,
-    frais_acquisition: null,
+    frais_notaire: null,
+    frais_travaux: null,
+    frais_acquisition_autres: null,
     surface_m2: 50,
     nb_pieces: 3,
     annee_construction: 1995,
     dpe: 'D',
     residence_principale: false,
+    simulation_loyer_estime: null,
+    simulation_taxe_habitation_annuelle: null,
+    simulation_charges_mensuelles: null,
     cashflow_mensuel: 700,
     rentabilite_brute_pct: 6,
     rentabilite_nette_pct: 4.2,
@@ -212,6 +218,7 @@ function holdingApresAction(): Holding {
     nom: null,
     quantite: 1,
     prix_revient_moyen: null,
+    cout_acquisition_total: null,
     compte: null,
     devise: null,
     type_actif: 'REAL_ESTATE',
@@ -292,14 +299,23 @@ describe('HoldingDetailContent — Fiche immobilier (backlog 2.M.3)', () => {
 
     fireEvent.change(screen.getByLabelText('Loyer mensuel (€)'), { target: { value: '1000' } })
     fireEvent.change(screen.getByLabelText('Surface (m²)'), { target: { value: '50' } })
-    fireEvent.change(screen.getByLabelText("Frais d'acquisition (notaire, travaux, agence — total)"), { target: { value: '15000' } })
+    fireEvent.change(screen.getByLabelText('Frais de notaire (€)'), { target: { value: '10000' } })
+    fireEvent.change(screen.getByLabelText('Travaux (€)'), { target: { value: '5000' } })
+    fireEvent.change(screen.getByLabelText('Loyer mensuel estimé pour un bien équivalent (€)'), { target: { value: '1200' } })
     fireEvent.click(screen.getByLabelText('Résidence principale'))
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
     await vi.waitFor(() =>
       expect(api.updateHoldingImmobilier).toHaveBeenCalledWith(
         'AAPL',
-        expect.objectContaining({ loyer_mensuel: 1000, surface_m2: 50, frais_acquisition: 15000, residence_principale: true }),
+        expect.objectContaining({
+          loyer_mensuel: 1000,
+          surface_m2: 50,
+          frais_notaire: 10000,
+          frais_travaux: 5000,
+          simulation_loyer_estime: 1200,
+          residence_principale: true,
+        }),
       ),
     )
     // Le résultat (cashflow/rentabilités calculés côté serveur) vit dans l'onglet
@@ -472,6 +488,7 @@ describe('HoldingDetailContent — Écran Épargne, fiche détaillée (backlog 2
       nom: 'Assurance-vie',
       quantite: 1,
       prix_revient_moyen: null,
+      cout_acquisition_total: null,
       compte: null,
       devise: null,
       type_actif: 'LIFE_INSURANCE',
