@@ -50,6 +50,15 @@
       "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
     },
     {
+      // Bannière « nouvelle version disponible » (retour utilisateur du 10/09/2026) :
+      // `role="status"` annonce l'apparition de la bannière aux lecteurs d'écran sans
+      // voler le focus — `<output>`, l'équivalent natif suggéré par la règle, porte un
+      // sens sémantique différent (résultat d'un calcul déclenché par l'utilisateur),
+      // pas adapté à un message d'état poussé par l'application elle-même.
+      "files": ["src/components/MiseAJourDisponible.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    },
+    {
       // Triangle d'avertissement sur la vue des comptes (09/09/2026) : les icônes de
       // `icons.tsx` sont toutes `aria-hidden` par construction (décoratives partout
       // ailleurs) — un vrai `<img>` n'a pas de sens pour une icône SVG tracée

@@ -20,7 +20,20 @@ export default defineConfig({
     // service worker maison est un piège classique (versions périmées servies
     // indéfiniment) que Workbox gère correctement de série.
     VitePWA({
-      registerType: 'autoUpdate',
+      // "prompt" plutôt que "autoUpdate" (retour utilisateur du 10/09/2026, « à
+      // chaque mise à jour de l'application [...] une pop-up invitant l'utilisateur
+      // à appuyer sur un bouton pour rafraîchir ») : "autoUpdate" activait déjà la
+      // nouvelle version en tâche de fond, SILENCIEUSEMENT — l'onglet ouvert restait
+      // sur l'ancien code en mémoire jusqu'à la PROCHAINE navigation complète, sans
+      // que rien ne le signale. "prompt" laisse `MiseAJourDisponible.tsx` (monté
+      // dans `App.tsx`, hook `useRegisterSW` de `virtual:pwa-register/react`)
+      // décider explicitement QUAND `updateServiceWorker()` s'exécute — au clic sur
+      // le bouton, jamais tout seul.
+      registerType: 'prompt',
+      // Enregistrement du service worker délégué à `useRegisterSW` (composant
+      // React ci-dessus) plutôt qu'au script auto-injecté par défaut : c'est ce
+      // script-là qui bloquait toute possibilité d'écouter `onNeedRefresh`.
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Application Patrimoine',

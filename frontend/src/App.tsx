@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, matchPath, useLocation, useParams } from 'reac
 import BarreControles from './components/BarreControles'
 import BottomNav from './components/BottomNav'
 import EnTeteMobile from './components/EnTeteMobile'
+import MiseAJourDisponible from './components/MiseAJourDisponible'
 import { SkeletonTexte } from './components/Skeleton'
 import { useAppliquerTheme } from './hooks/useTheme'
 import Sidebar from './components/Sidebar'
@@ -144,19 +145,25 @@ function App() {
   useAppliquerTheme()
 
   return (
-    <Suspense fallback={<div className="p-6"><SkeletonTexte /></div>}>
-      <Routes>
-        <Route path="/partage/:token" element={<PartagePublicPage />} />
-        <Route
-          path="/*"
-          element={
-            <AuthProvider>
-              <AppAuthentifiee />
-            </AuthProvider>
-          }
-        />
-      </Routes>
-    </Suspense>
+    <>
+      {/* Montée une seule fois, hors des routes : un déploiement peut survenir
+          pendant que l'utilisateur est sur l'écran de connexion aussi bien que
+          dans l'application authentifiée. */}
+      <MiseAJourDisponible />
+      <Suspense fallback={<div className="p-6"><SkeletonTexte /></div>}>
+        <Routes>
+          <Route path="/partage/:token" element={<PartagePublicPage />} />
+          <Route
+            path="/*"
+            element={
+              <AuthProvider>
+                <AppAuthentifiee />
+              </AuthProvider>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </>
   )
 }
 

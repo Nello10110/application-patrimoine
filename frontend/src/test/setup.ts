@@ -3,8 +3,22 @@
  * démonte les composants rendus après chaque test (pas de globals Vitest activés,
  * donc pas de nettoyage automatique implicite par @testing-library/react). */
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
+
+// Module virtuel résolu par `vite-plugin-pwa` au build/dev, inconnu de Vitest (qui
+// ne passe jamais par Vite pour ça) — sans ce mock, tout test qui rend `<App />`
+// (ou transitivement `MiseAJourDisponible.tsx`, monté dedans) plante à l'import
+// avec une erreur de résolution de module. Un test qui veut vérifier le
+// comportement réel du composant (`MiseAJourDisponible.test.tsx`) redéclare son
+// propre `vi.mock` localement, qui prime sur celui-ci pour ce fichier-là.
+vi.mock('virtual:pwa-register/react', () => ({
+  useRegisterSW: () => ({
+    needRefresh: [false, () => {}],
+    offlineReady: [false, () => {}],
+    updateServiceWorker: async () => {},
+  }),
+}))
 
 // Polyfill minimal de `window.matchMedia`, absent de jsdom (backlog 2.K.4,
 // `useEstMobile`) : sans lui, tout composant qui l'appelle lève une `TypeError` au

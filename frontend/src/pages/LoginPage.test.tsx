@@ -85,6 +85,46 @@ describe('LoginPage — connexion SSO (backlog SSO)', () => {
     expect(lien).toHaveAttribute('href', '/api/auth/oidc/login')
   })
 
+  it('après un échec réseau ponctuel, retente une fois et affiche le bouton si le second essai réussit (retour utilisateur du 10/09/2026)', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(api.getOidcStatus)
+        .mockRejectedValueOnce(new Error('Panne réseau'))
+        .mockResolvedValueOnce({ enabled: true, display_name: 'Authentik' })
+
+      render(<LoginPage />)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(2000)
+      await vi.advanceTimersByTimeAsync(0) // laisse la réponse du second essai résoudre et re-rendre
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(2)
+      expect(screen.getByRole('link', { name: /Se connecter avec Authentik/ })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("après deux échecs réseau consécutifs, le bouton reste caché sans boucler indéfiniment", async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(api.getOidcStatus).mockRejectedValue(new Error('Panne réseau'))
+
+      render(<LoginPage />)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(2)
+
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(api.getOidcStatus).toHaveBeenCalledTimes(2) // jamais de troisième tentative
+      expect(screen.queryByRole('link', { name: /SSO|Authentik/ })).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("affiche le message d'erreur porté par ?oidc_error= puis nettoie l'URL", async () => {
     vi.mocked(api.getOidcStatus).mockResolvedValue({ enabled: false, display_name: 'SSO' })
     window.history.replaceState(null, '', '/login?oidc_error=Connexion%20SSO%20refus%C3%A9e')

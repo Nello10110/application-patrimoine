@@ -34,14 +34,32 @@ export default function LoginPage() {
     // Échec silencieux volontaire (backlog 2.K.5) : ce n'est pas une carte de
     // données qui disparaît, juste une fonctionnalité optionnelle absente sur les
     // déploiements où le SSO n'est pas configuré (ou désactivé) — le bouton reste
-    // alors caché.
-    api
-      .getOidcStatus()
-      .then((s) => {
-        setOidcEnabled(s.enabled)
-        setOidcDisplayName(s.display_name)
-      })
-      .catch(() => {})
+    // alors caché, sans bandeau d'erreur.
+    //
+    // Une seule replanification (retour utilisateur du 10/09/2026 : le bouton SSO
+    // manquait après une longue inactivité, jusqu'à un Ctrl+F5) : un raté purement
+    // réseau (l'onglet vient de se réveiller, la connexion n'est pas encore stable)
+    // ne doit pas condamner le bouton pour tout le reste de la session au premier
+    // essai — l'échec reste silencieux, seule une tentative UNIQUE est rejouée,
+    // jamais une boucle qui martèlerait le serveur si le SSO est authentiquement
+    // absent.
+    let annule = false
+    function chargerStatutOidc(dernierEssai: boolean) {
+      api
+        .getOidcStatus()
+        .then((s) => {
+          if (annule) return
+          setOidcEnabled(s.enabled)
+          setOidcDisplayName(s.display_name)
+        })
+        .catch(() => {
+          if (!annule && !dernierEssai) setTimeout(() => chargerStatutOidc(true), 2000)
+        })
+    }
+    chargerStatutOidc(false)
+    return () => {
+      annule = true
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
