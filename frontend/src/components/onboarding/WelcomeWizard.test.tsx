@@ -234,6 +234,7 @@ describe('WelcomeWizard', () => {
     vi.mocked(api.importTransactionsConfirm).mockResolvedValue({
       lignes_lues: 10,
       importees: 8,
+      mises_a_jour: 0,
       doublons_ignores: 0,
       mouvements_hors_bourse_exclus: 2,
       positions_recalculees: 2,

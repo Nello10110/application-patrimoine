@@ -48,6 +48,10 @@ export interface ImportResult {
 export interface TransactionImportResult {
   lignes_lues: number
   importees: number
+  // Ligne déjà connue (même transaction_id) dont un champ a changé depuis le
+  // dernier import — mise à jour plutôt que dupliquée (retour utilisateur du
+  // 10/09/2026 : l'export Trade Republic est toujours l'historique complet).
+  mises_a_jour: number
   doublons_ignores: number
   mouvements_hors_bourse_exclus: number
   positions_recalculees: number

@@ -163,7 +163,9 @@ export default function ImportTransactionsSection({ onImported }: { onImported?:
       {result && (
         <div className="mt-3 rounded-control border border-transparent bg-pos-bg p-3 text-sm text-pos">
           <p>
-            {result.importees} transaction(s) importée(s){result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présente(s)`}
+            {result.importees} transaction(s) importée(s)
+            {result.mises_a_jour > 0 && `, ${result.mises_a_jour} mise(s) à jour`}
+            {result.doublons_ignores > 0 && `, ${result.doublons_ignores} déjà présente(s) et inchangée(s)`}
             , {result.mouvements_hors_bourse_exclus} mouvement(s) hors suivi boursier exclu(s).
           </p>
           <p className="mt-1">

@@ -9,6 +9,8 @@ parse le fichier et compte les lignes par bucket de compte suggéré
 (`transaction_import.cle_compte`), `/import` crée les comptes nécessaires sous
 l'établissement choisi puis importe."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,40 @@ from ..schemas import TransactionImportApercu, TransactionImportConfirm, Transac
 from ..services import auth_service, comptes_service, portfolio_reconstruction, transaction_import, upload_limits
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+
+# Tous les champs mutables de `Transaction` (hors `id`/`user_id`/`transaction_id`/
+# `created_at`) — comparés lors d'un ré-import pour décider si une ligne déjà connue
+# doit être RE-SYNCHRONISÉE (retour utilisateur du 10/09/2026 : « ça ne s'additionne
+# pas mais ça met à jour les données ») plutôt qu'ignorée en silence comme avant.
+# Même liste de clés que `transaction_import.parse_transactions_file` produit par ligne.
+_CHAMPS_TRANSACTION = (
+    "datetime_utc",
+    "date",
+    "category",
+    "type",
+    "asset_class",
+    "symbol",
+    "name",
+    "shares",
+    "price",
+    "amount",
+    "fee",
+    "tax",
+    "description",
+)
+
+
+def _normalise_pour_comparaison(valeur):
+    """Neutralise l'écart de fuseau entre `datetime_utc` fraîchement analysé
+    (conscient du fuseau, `datetime.fromisoformat` avec un offset explicite) et sa
+    valeur relue depuis la base (naïve — SQLite ne conserve pas l'information de
+    fuseau) : sans cette normalisation, ce champ semblerait TOUJOURS différent d'un
+    ré-import à l'autre, même strictement identique, et chaque ré-import
+    signalerait à tort une mise à jour au lieu d'un doublon ignoré. Sans effet sur
+    les autres champs, déjà de simples types directement comparables."""
+    if isinstance(valeur, datetime) and valeur.tzinfo is not None:
+        return valeur.astimezone(UTC).replace(tzinfo=None)
+    return valeur
 
 
 @router.post("/import/apercu", response_model=TransactionImportApercu)
@@ -86,21 +122,39 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
         symbol: comptes_par_cle[cle] for symbol, cle in parsed.cle_compte_par_ticker.items() if cle in comptes_par_cle
     }
 
-    # Dédoublonnage scopé à l'utilisateur (Milestone 2a) : le transaction_id est émis
-    # par le courtier, pas garanti unique entre deux comptes courtier différents —
-    # sans ce filtre, l'import de l'un pourrait ignorer à tort une transaction parce
-    # qu'un AUTRE utilisateur a, par coïncidence, le même identifiant.
-    existing_ids = {row[0] for row in db.query(Transaction.transaction_id).filter(Transaction.user_id == user_id).all()}
+    # Re-synchronisation scopée à l'utilisateur (Milestone 2a) : le transaction_id
+    # est émis par le courtier, pas garanti unique entre deux comptes courtier
+    # différents — sans ce filtre, l'import de l'un pourrait toucher à tort une
+    # transaction parce qu'un AUTRE utilisateur a, par coïncidence, le même
+    # identifiant. Lignes complètes (pas seulement l'id) : l'export Trade Republic
+    # est TOUJOURS l'historique complet, un ré-import doit donc RE-SYNCHRONISER une
+    # ligne déjà connue si le courtier en a corrigé un champ dans l'intervalle
+    # (montant, frais...), pas seulement la retrouver pour l'ignorer (retour
+    # utilisateur du 10/09/2026 : « que ça ne s'additionne pas mais mette à jour »).
+    existantes_par_id = {t.transaction_id: t for t in db.query(Transaction).filter(Transaction.user_id == user_id).all()}
 
     doublons = 0
     importees = 0
+    mises_a_jour = 0
     for row in parsed.rows:
-        if row["transaction_id"] in existing_ids:
+        existante = existantes_par_id.get(row["transaction_id"])
+        if existante is None:
+            nouvelle = Transaction(**row, user_id=user_id)
+            db.add(nouvelle)
+            existantes_par_id[row["transaction_id"]] = nouvelle
+            importees += 1
+            continue
+
+        champs_modifies = [
+            champ for champ in _CHAMPS_TRANSACTION
+            if _normalise_pour_comparaison(getattr(existante, champ)) != _normalise_pour_comparaison(row[champ])
+        ]
+        if not champs_modifies:
             doublons += 1
             continue
-        db.add(Transaction(**row, user_id=user_id))
-        existing_ids.add(row["transaction_id"])
-        importees += 1
+        for champ in champs_modifies:
+            setattr(existante, champ, row[champ])
+        mises_a_jour += 1
 
     db.commit()
     transaction_import.clear_pending_transactions(payload.file_token)
@@ -110,6 +164,7 @@ def import_transactions(payload: TransactionImportConfirm, db: Session = Depends
     return TransactionImportResult(
         lignes_lues=parsed.lignes_lues,
         importees=importees,
+        mises_a_jour=mises_a_jour,
         doublons_ignores=doublons,
         mouvements_hors_bourse_exclus=parsed.mouvements_hors_bourse_exclus,
         positions_recalculees=resultat_reconstruction.positions_recalculees,

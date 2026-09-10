@@ -307,6 +307,13 @@ class ImportResult(BaseModel):
 class TransactionImportResult(BaseModel):
     lignes_lues: int
     importees: int
+    # Ligne déjà connue (même `transaction_id`) dont au moins un champ a changé par
+    # rapport à ce qui était en base — retour utilisateur du 10/09/2026 : l'export
+    # Trade Republic est TOUJOURS l'historique complet, un ré-import doit donc
+    # RE-SYNCHRONISER les lignes déjà connues (le courtier peut corriger un montant,
+    # des frais... dans un export ultérieur), pas seulement les ignorer comme avant
+    # (cf. `doublons_ignores` ci-dessous, réservé au cas réellement identique).
+    mises_a_jour: int = 0
     doublons_ignores: int
     mouvements_hors_bourse_exclus: int
     positions_recalculees: int
